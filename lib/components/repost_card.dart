@@ -4,6 +4,8 @@ import 'package:comment_tree/widgets/tree_theme_data.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:inzone/all_chats_screen.dart';
+import 'package:inzone/chat_screen.dart';
 import 'package:inzone/components/avatar_card.dart';
 import 'package:inzone/config/custom_icons.dart';
 import 'package:inzone/data/comment_class.dart';
@@ -17,8 +19,9 @@ class RepostCard extends StatefulWidget {
   InZonePost post;
   InZoneAvatar repost;
   final Function(String)? onTap;
+  final String aiChat;
 
-  RepostCard({super.key, required this.post, this.onTap, required this.repost});
+  RepostCard({super.key, required this.post, this.onTap, required this.repost, required this.aiChat});
 
   @override
   State<RepostCard> createState() => _RepostCardState();
@@ -106,13 +109,7 @@ class _RepostCardState extends State<RepostCard> {
                     },
                     itemBuilder: (BuildContext bc) {
                       return [
-                        menuOption(
-                            CustomIcons.save,
-                            "Start a chat",
-                            "chat",
-                            context,
-                            widget.post.userName,
-                            widget.post.userReference),
+
                         menuOption(
                             CustomIcons.notInterested,
                             "Flag this post",
@@ -187,7 +184,7 @@ Divider(
                   ),
                 ),
               ),
-              messageCard("Register today for a Winter Session course and earn up to four credits in just three weeks.to register.", false),
+              messageCard(widget.aiChat, false),
 
               const SizedBox(
                 height: 10,
@@ -230,7 +227,17 @@ Divider(
                   //     child: SvgPicture.asset(CustomIcons.send)),
                   const Spacer(),
                   ElevatedButton(
-                    onPressed: () {},
+                    onPressed: () {
+                      // TODO Check this
+                      Navigator.push(context,
+                          MaterialPageRoute(builder: (context) {
+                            return ChatScreen(userData: ChatUser(
+                                name: widget.repost.username,
+                                email: widget.repost.id,
+                                chatId: null
+                            ));
+                          }));
+                    },
                     style: ElevatedButton.styleFrom(
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(16), // Adjust the value to make it less round

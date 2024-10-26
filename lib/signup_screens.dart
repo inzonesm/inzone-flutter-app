@@ -93,6 +93,7 @@ By using the Licensed Application, you agree to abide by these terms and conditi
               email: email!,
               password: password!,
             );
+            FirebaseAuth.instance.currentUser!.updateDisplayName(username!) ;
             print("Creating credential");
             // Call the create user API after successful Firebase authentication
             print("Creating profile");

@@ -47,6 +47,46 @@ class InZoneDatabase {
     }
   }
 
+  static Future<Map<String, dynamic>?> getHumanFeed() async {
+    String url =
+        'https://us-central1-inzonebackend.cloudfunctions.net/api/feed/getHumanPosts';
+
+    try {
+      // Make the POST request
+      final response = await http.post(
+        Uri.parse(url),
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+      );
+print(response.body);
+      // Check if the response status code is 200 (OK)
+      if (response.statusCode == 200) {
+        // Decode the response body
+        final Map<String, dynamic> jsonMap = jsonDecode(response.body);
+
+        // Ensure the expected data structure is valid
+        if (jsonMap != null && jsonMap is Map<String, dynamic>) {
+          // Return the decoded JSON map
+          return jsonMap;
+        } else {
+          // Return null if the response body is not a valid JSON map
+          return null;
+        }
+      } else {
+        // Log if status code is not 200 (OK)
+        print('Failed to load posts. Status code: ${response.statusCode}');
+        return null;
+      }
+    } catch (e) {
+      // Handle any other exceptions
+      print('Error occurred: $e');
+      return null;
+    }
+  }
+
+
   static Future<String?> getCurrentUserUid() async {
     User? user = FirebaseAuth.instance.currentUser;
 
@@ -342,13 +382,19 @@ class InZoneDatabase {
     required String postMessage,
     required List<String> imageRef,
     required List<String> videoRef,
+    String? aiName,
+    String? aiProfileImageURL,
+    String? aiChatContent,
+    String? avatarID
+
   }) async {
     String category = "Unknown"; // Default category
     int sentiment = -10;
 
     try {
       var value = await InZoneDatabase.sendSentimentRequest(postMessage);
-      if (value != null && value["sentiment"] != -1) {
+      print(value);
+      if (value != null && int.parse(value["sentiment"]) != -1) {
         sentiment = int.parse(value["sentiment"]);
         try {
           category = value["category"];
@@ -362,23 +408,71 @@ class InZoneDatabase {
           if (category.length < 1) {
             category = "Entertainment";
           }
-          // await FirebaseFirestore.instance
-          //     .collection(CollectionNames.postsCollection)
-          //     .add({
-          //   "category": category,
-          //   "comments": [],
-          //   "date_posted": DateTime.now(),
-          //   "likes": 0,
-          //   "main_category": mainCategory,
-          //   "post": {
-          //     "image_content": imageRef,
-          //     "video_content": videoRef,
-          //     "textContent": postMessage
-          //   },
-          //   "sub_category": category,
-          //   "user_name": FirebaseAuth.instance.currentUser!.displayName,
-          //   "user_references": FirebaseAuth.instance.currentUser!.email,
-          // });
+          String url =
+              'https://us-central1-inzonebackend.cloudfunctions.net/api/feed/create-post';
+           Map<String, dynamic> postData = {};
+          // Construct the post data
+          if (aiName != null){
+            postData = {
+              "post" : {
+                "category": category,
+                "sub_category": category,
+                "user_name": FirebaseAuth.instance.currentUser!.displayName,
+                "likes": 0,
+                "post": {"textContent": postMessage, "image_content": imageRef, "video_content" : videoRef},
+                "user_references": FirebaseAuth.instance.currentUser!.email,
+                "comments": [],
+                "uid": FirebaseAuth.instance.currentUser!.uid,
+                "aiName": aiName,
+                "aiProfileImageURL" : aiProfileImageURL!,
+                "aiChatContent" : aiChatContent!,
+                "avatarID" : avatarID!
+              },
+            };
+          } else {
+            postData = {
+              "post": {
+                "category": category,
+                "sub_category": category,
+                "user_name": FirebaseAuth.instance.currentUser!.displayName,
+                "likes": 0,
+                "post": {"textContent": postMessage, "image_content": imageRef, "video_content" : videoRef},
+                "user_references": FirebaseAuth.instance.currentUser!.email,
+                "comments": [],
+                "uid": FirebaseAuth.instance.currentUser!.uid
+              },
+            };
+          }
+
+
+          try {
+            // Make the POST request
+            final response = await http.post(
+              Uri.parse(url),
+              headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+              },
+              body:
+                  jsonEncode(postData), // Encode the postData as a JSON string
+            );
+
+            // Check if the response status code is 200 (OK) or success code like 201 (Created)
+            if (response.statusCode == 200 || response.statusCode == 201) {
+              print("Post successful");
+              // // If the post was created successfully, return true
+              // return true;
+            } else {
+              // Log the failure with the status code
+              print(
+                  'Failed to create post. Status code: ${response.statusCode}');
+              // return false;
+            }
+          } catch (e) {
+            // Handle any other exceptions
+            print('Error occurred: $e');
+            // return false;
+          }
         } catch (e) {
           category = "Entertainment"; // Default to entertainment on error
         }
@@ -426,13 +520,11 @@ class InZoneDatabase {
         "https://us-central1-inzonebackend.cloudfunctions.net/api/user/create-profile";
     // Construct the JSON body
     final Map<String, dynamic> requestBody = {
-
-        "username": name,
-        "email": email,
-        "age": age,
-        "gender": gender,
-        "user_interests": userInterests,
-
+      "username": name,
+      "email": email,
+      "age": age,
+      "gender": gender,
+      "user_interests": userInterests,
       "userUid": userUid,
     };
 
@@ -462,8 +554,10 @@ class InZoneDatabase {
     }
   }
 
-  static Future<void> createCharacter(String name, String bio, String profilePictureUrl) async {
-    const String url = 'https://us-central1-inzonebackend.cloudfunctions.net/api/ai/create-character';
+  static Future<void> createCharacter(
+      String name, String bio, String profilePictureUrl) async {
+    const String url =
+        'https://us-central1-inzonebackend.cloudfunctions.net/api/ai/create-character';
 
     Map<String, String> headers = {"Content-Type": "application/json"};
     Map<String, dynamic> body = {
@@ -489,13 +583,13 @@ class InZoneDatabase {
       print("Error occurred: $e");
     }
   }
+
   static Future<String?> generateImage(String imagePrompt) async {
-    const String url = 'https://us-central1-inzonebackend.cloudfunctions.net/api/ai/generate-image';
+    const String url =
+        'https://us-central1-inzonebackend.cloudfunctions.net/api/ai/generate-image';
 
     Map<String, String> headers = {"Content-Type": "application/json"};
-    Map<String, dynamic> body = {
-      "imagePrompt": imagePrompt
-    };
+    Map<String, dynamic> body = {"imagePrompt": imagePrompt};
 
     try {
       final response = await http.post(
@@ -518,6 +612,7 @@ class InZoneDatabase {
       return null; // Handle error by returning null or an appropriate error message
     }
   }
+
   static Future<bool?> logEvent(String eventName, Map? eventValues) async {
     bool? result;
     try {

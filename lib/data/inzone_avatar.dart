@@ -35,6 +35,20 @@ class InZoneAvatar {
       age: json['character']['age'] ?? 0,
     );
   }
+  factory InZoneAvatar.fromRepostJson(Map<String, dynamic> json) {
+    return InZoneAvatar(
+      id: json['avatarID'] ?? '',
+      name: json['aiName'] ?? '',
+      bio: "bio",
+      username: json['aiName'] ?? '',
+      profilePicture: json['aiProfileImageURL'] ?? '',
+      personality: "personality",
+      gender: "male",
+      subCategory: "category",
+      age: 0,
+    );
+  }
+
 
   // Method to parse a list of InZoneAvatar objects from JSON
   static List<InZoneAvatar> fromJsonList(List<dynamic> jsonList) {

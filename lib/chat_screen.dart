@@ -146,7 +146,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
   Widget chatInput() {
     return Padding(
-      padding: const EdgeInsets.only(left: 5.0, right: 8, bottom: 20, top: 2),
+      padding: const EdgeInsets.only(left: 5.0, right: 8, bottom: 30, top: 2),
       child: Row(
         children: [
           Expanded(

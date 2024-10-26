@@ -30,6 +30,8 @@ class _AllChatsScreenState extends State<AllChatsScreen> {
   @override
   void initState() {
     super.initState();
+    _isLoading = true;
+
     _fetchConversations();
     setID();
     _startTime = DateTime.now();
@@ -38,19 +40,37 @@ class _AllChatsScreenState extends State<AllChatsScreen> {
 
 
   Future<void> _fetchConversations() async {
+    _chatUsers.clear();
     List<dynamic>? data  = await InZoneDatabase.getConversations();
 
     if (data!= null) {
+      // Create a Set to store unique conversation IDs
+      Set<dynamic> uniqueConversationIds = {};
+      List<dynamic> uniqueConversations = [];
+
+      for (var conversation in data) {
+        // Check if conversationId is not in the Set
+        if (uniqueConversationIds.add(conversation['aiProfile']['username'])) {
+          // Add conversation to unique list if the ID is new
+          uniqueConversations.add(conversation);
+        }
+      }
+      print(data.length);
       if (data.length == 0){
         _chatUsers = [];
         return;
       }
       List<ChatUser?> users =
-          data.map((json) => ChatUser.fromJson(json)).toList();
+      uniqueConversations.map((json) => ChatUser.fromJson(json)).toList();
+      print(users.length);
       List<ChatUser> nonNullUsers = users.where((user) => user != null).cast<ChatUser>().toList();
+      print(nonNullUsers.length);
       users.clear();
+      _chatUsers.clear();
+
       setState(() {
         _chatUsers = nonNullUsers;
+        print(_chatUsers.length);
         _isLoading = false;
       });
     } else {
@@ -154,7 +174,7 @@ class ChatUser {
       // Check if 'aiProfile' and 'conversationId' exist in the map
       if (map.containsKey('aiProfile') && map['aiProfile'] != null && map.containsKey('conversationId')) {
         return ChatUser(
-          email: map['aiProfile']['id'] ?? '',
+          email: map['aiProfile']['username'] ?? '',
           name: map['aiProfile']["name"] ?? '',
           chatId: map['conversationId'] ?? '',
         );

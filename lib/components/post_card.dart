@@ -28,24 +28,33 @@ class PostCard extends StatefulWidget {
 class _PostCardState extends State<PostCard> {
   bool imageSuccess = false;
 
-  bool isLiked = false;
-  bool isUnLike = false;
 
   String username = '';
   CommentClass? comment;
 
+  bool isLiked = false;
 
   @override
   void initState() {
     super.initState();
-    _checkIfLiked();  // Check if the current post is liked when the widget is initialized
+    _loadLikedState(); // Load the liked state when the widget is initialized
   }
 
-// Function to check if the current post is liked
-  Future<void> _checkIfLiked() async {
-    bool liked = await LikedPostsPreferences.isPostLiked(widget.post.id);  // Check if postId is in SharedPreferences
+  Future<void> _loadLikedState() async {
+    bool liked = await LikedPostsPreferences.isPostLiked(widget.post.id);
     setState(() {
       isLiked = liked;
+    });
+  }
+
+  Future<void> handleLike() async {
+    if (isLiked) {
+      await LikedPostsPreferences.removeLikedPost(widget.post.id);
+    } else {
+      await LikedPostsPreferences.addLikedPost(widget.post);
+    }
+    setState(() {
+      isLiked = !isLiked; // Toggle the like state
     });
   }
 
@@ -53,6 +62,8 @@ class _PostCardState extends State<PostCard> {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
+      onDoubleTap: handleLike, // Handle like on double tap
+
       onTap: (){
         if (widget.post.userReference.contains('aiUser')) {
           Navigator.push(context, MaterialPageRoute(builder: (context)=>ProfileScreen(uid: widget.post.userName)));
@@ -112,8 +123,9 @@ class _PostCardState extends State<PostCard> {
                       // your logic
                     },
                     itemBuilder: (BuildContext bc) {
-                      return [
-                        menuOption(
+                      return   widget.post.userReference.contains("aiUser") ? [
+
+                       menuOption(
                             CustomIcons.save,
                             "Start a chat",
                             "chat",
@@ -141,7 +153,31 @@ class _PostCardState extends State<PostCard> {
                         //     context,
                         //     widget.post.userName,
                         //     widget.post.userReference)
-                      ];
+                      ] : [
+
+
+                        menuOption(
+                            CustomIcons.notInterested,
+                            "Flag this post",
+                            "not_interested",
+                            context,
+                            widget.post.userName,
+                            widget.post.userReference),
+                        menuOption(
+                            CustomIcons.dontShow,
+                            "Block ${widget.post.userName}",
+                            "dont_show",
+                            context,
+                            widget.post.userName,
+                            widget.post.userReference),
+                        // menuOption(
+                        //     CustomIcons.manage,
+                        //     "Report this post",
+                        //     "manage",
+                        //     context,
+                        //     widget.post.userName,
+                        //     widget.post.userReference)
+                      ];;
                     },
                   ),
                 ],
@@ -221,15 +257,22 @@ class _PostCardState extends State<PostCard> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
-LikeButtonWidget(post: widget.post, liked: isLiked),
+                GestureDetector(
+                onTap: handleLike, // Toggle like/unlike when tapped
+                child: SizedBox(
+                  height: 30,
+                  width: 30,
+                  child: SvgPicture.asset(
+                    isLiked ? CustomIcons.like : CustomIcons.notlike, // Show correct icon based on state
+                  ),
+                ),
+              ),
                   const SizedBox(
                     width: 10,
                   ),
                   InkWell(
                       onTap: () {
-
                         filterSheetModel();
-
                       },
                       child: SizedBox(height: 35, width: 35, child: SvgPicture.asset(CustomIcons.comment))),
                   const SizedBox(
@@ -321,7 +364,7 @@ LikeButtonWidget(post: widget.post, liked: isLiked),
 
   Widget chatInput(String? commentId, String? name) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 15.0, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 15.0, vertical: 30),
       child: Row(
         children: [
           Expanded(
@@ -838,59 +881,4 @@ LikeButtonWidget(post: widget.post, liked: isLiked),
 
 
 
-}
-
-
-class LikeButtonWidget extends StatefulWidget {
-final InZonePost post;// Unique ID for the post
-bool liked;
-  LikeButtonWidget({super.key, required this.post, required this.liked});
-
-  @override
-  _LikeButtonWidgetState createState() => _LikeButtonWidgetState();
-}
-
-class _LikeButtonWidgetState extends State<LikeButtonWidget> {
-  bool isLiked = false;
-
-  @override
-  void initState() {
-    super.initState();
-    isLiked = widget.liked;
-    _loadLikedState(); // Load the liked state when the widget is initialized
-  }
-
-  // Load the liked state from SharedPreferences
-  Future<void> _loadLikedState() async {
-    bool liked = await LikedPostsPreferences.isPostLiked(widget.post.id);
-    setState(() {
-      isLiked = liked;
-    });
-  }
-
-  // Handle like and unlike actions
-  Future<void> _handleLike() async {
-    if (isLiked) {
-      await LikedPostsPreferences.removeLikedPost(widget.post.id);
-    } else {
-      await LikedPostsPreferences.addLikedPost(widget.post);
-    }
-    setState(() {
-      isLiked = !isLiked; // Toggle the like state
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: _handleLike, // Toggle like/unlike when tapped
-      child: SizedBox(
-        height: 30,
-        width: 30,
-        child: SvgPicture.asset(
-          isLiked ? CustomIcons.like : CustomIcons.notlike, // Show correct icon based on state
-        ),
-      ),
-    );
-  }
 }

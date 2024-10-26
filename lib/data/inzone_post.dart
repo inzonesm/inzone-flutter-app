@@ -77,6 +77,7 @@ class InZonePost
 
     // Initialize imageList
     List<String> imageList = [];
+    List<String> videoList = [];
 
     // Handle image content safely
     if (data['post'] != null && data['post']['image_content'] != null) {
@@ -87,6 +88,111 @@ class InZonePost
         }
       } else if (data['post']['image_content'] is String) {
         imageList.add(data['post']['image_content']);
+      }
+    }
+    if (data['post'] != null && data['post']['video_content'] != null) {
+      if (data['post']['video_content'] is List) {
+        List<dynamic> videoContentList = List.from(data['post']['video_content']);
+        for (var element in videoContentList) {
+          videoList.add(element.toString());
+        }
+      } else if (data['post']['video_content'] is String) {
+        videoList.add(data['post']['video_content']);
+      }
+    }
+
+    // Safely handle comments
+    List<dynamic> commentsList = [];
+    if (data['comments'] is Map && (data['comments'] as Map).isEmpty) {
+      commentsList = [];
+    } else if (data['comments'] is List) {
+      commentsList = data['comments'] as List<dynamic>;
+    } else if (data['comments'] != null) {
+      commentsList = [data['comments']];
+    }
+
+    // Prepare final comments list
+    List<CommentClass> finalCommentsList = commentsList.map((elem) {
+      List<ReplyClass> repliesList = [];
+
+      if (elem['replies'] != null) {
+        List<dynamic> replies = elem['replies'] as List<dynamic>;
+        replies.forEach((reply) {
+          repliesList.add(ReplyClass(
+            name: reply['name'] ?? 'Unknown',
+            text: reply['text'] ?? '',
+            uid: reply['uid'] ?? '',
+          ));
+        });
+      }
+
+      return CommentClass(
+        author: elem['name'] ?? 'Unknown',
+        text: elem['text'] ?? '',
+        timestamp: DateTime.now().toString(), // Placeholder, replace with actual timestamp
+        id: elem['uid'] ?? '',
+        postId: json['id'] ?? 'Error', // Fallback to 'Error' if postId is missing
+        userId: data['user_name'] ?? 'Unknown',
+        replies: repliesList,
+        likedBy: elem['likedBy'] != null ? List<String>.from(elem['likedBy']) : [],
+        dislikedBy: elem['dislikedBy'] != null ? List<String>.from(elem['dislikedBy']) : [],
+      );
+    }).toList();
+
+    // Safely return the constructed InZonePost object
+    return InZonePost(
+      category: category,
+      userName: userName,
+      comments: finalCommentsList,
+      datePosted: datePosted,
+      likes: likes,
+      id: id,
+      imageContent: imageList,
+      videoContent: [], // Add logic if needed for videoContent
+      textContent: textContent,
+      userReference: userReference,
+      mainCategory: mainCategory,
+    );
+  }
+  static InZonePost fromJsonForHumans(Map<String, dynamic> json) {
+    // Extract the 'data' field from the JSON or assign an empty map if it's missing
+    Map<String, dynamic> data = json;
+
+    // Safely initialize variables with default values
+    String category = data['category'] ?? 'animals';
+    String userName = data['user_name'] ?? 'Unknown';
+    int likes = data['likes'] ?? 0;
+    String id = json['id'] ?? 'unknown';
+    String textContent = (data['post'] != null && data['post']['textContent'] != null)
+        ? data['post']['textContent']
+        : '';
+    String userReference = data['user_references'] ?? 'unknown';
+    String mainCategory = data['sub_category'] ?? '';
+    DateTime datePosted = DateTime.now(); // Assuming current time if not provided
+
+    // Initialize imageList
+    List<String> imageList = [];
+    List<String> videoList = [];
+
+    // Handle image content safely
+    if (data['post'] != null && data['post']['image_content'] != null) {
+      if (data['post']['image_content'] is List) {
+        List<dynamic> imageContentList = List.from(data['post']['image_content']);
+        for (var element in imageContentList) {
+          imageList.add(element.toString());
+        }
+      } else if (data['post']['image_content'] is String) {
+        imageList.add(data['post']['image_content']);
+      }
+    }
+    if (data['post'] != null && data['post']['video_content'] != null) {
+      if (data['post']['video_content'] is List) {
+        List<dynamic> videoContentList = List.from(data['post']['video_content']);
+        for (var element in videoContentList) {
+          videoList.add(element.toString());
+        }
+      } else if (data['post']['video_content'] is String) {
+        videoList.add(data['post']['video_content']);
       }
     }
 

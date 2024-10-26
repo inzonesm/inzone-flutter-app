@@ -5,6 +5,7 @@ import 'package:comment_tree/widgets/tree_theme_data.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:http/http.dart';
 import 'package:inzone/components/avatar_card.dart';
 import 'package:inzone/config/custom_icons.dart';
 import 'package:inzone/data/comment_class.dart';
@@ -33,7 +34,18 @@ class _PostChatScreenState extends State<PostChatScreen> {
 
   late DateTime _startTime; // To store the start time
   int pageOpened = 0;
+  String? postContent;
+  double moveValue = 0.928;
+  double high = 0.928;
+  double medium = 0.8;
+  double low = 0.4;
+  double maxWidth = 0.0;
+  double maxMovable = 0.928;
+  bool doesNotWork = false;
 
+  void setPostContent(String postContentF){
+  postContent = postContentF;
+}
   @override
   void initState() {
     // TODO: implement initState
@@ -61,8 +73,45 @@ class _PostChatScreenState extends State<PostChatScreen> {
           title: const  Text("Share this chat"),
           actions: [
             TextButton(
-              onPressed: () {
-                // Action for Post button
+              onPressed: () async {
+                if(postContent!=null){
+                  if (postContent!.isNotEmpty){
+                    await InZoneDatabase.postContent(postMessage: postContent!, imageRef: [], videoRef: [], aiName: widget.name, aiChatContent: widget.chat, aiProfileImageURL: widget.profileImageURL, avatarID: widget.avatarID).then((value) {
+                      setState(() {
+
+                        if (value == -1){
+                          moveValue = low;
+                          doesNotWork = true;
+                        } else if (value == 0){
+                          moveValue = medium;
+                          doesNotWork = false;
+                        } else if (value == 1){
+                          moveValue = high;
+                          doesNotWork = false;
+
+                        } else {
+                          moveValue = low;
+                          doesNotWork = true;
+                        }
+                      });
+                    });
+
+                    if (doesNotWork == false){
+  ;
+                      Navigator.pop(context);
+
+  final snackBar = const SnackBar(
+    content: Text("Post Successful"),
+    backgroundColor: Colors.blue,
+  );
+  ScaffoldMessenger.of(context).showSnackBar(snackBar);
+
+                      //starts success animation
+                    }
+                  }
+                }
+
+
               },
               child: Text(
                 'Post',
@@ -75,13 +124,78 @@ class _PostChatScreenState extends State<PostChatScreen> {
           ],
         ),
         body: Center(
-            child: RepostPostCard(
-              name: widget.name,
-              profileImageURL: widget.profileImageURL,
-              chat: widget.chat,
-              avatarID: widget.avatarID,
+            child: Column(
 
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(left: 6.0, right: 6.0, top: 6.0,),
+                  child: Center(
+                    child: Text(
 
+                      doesNotWork ? "Please rephrase. Your message violates our guideline.":"Your post works well with InZone guidelines",
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                          color: doesNotWork ? Colors.red : Colors.blue,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500),
+                    ),
+                  ),
+                ),
+
+                SizedBox(
+                  width: MediaQuery.of(context).size.width - 50,
+                  height: 30,
+                  child: Stack(
+                    alignment: AlignmentDirectional.centerStart,
+                    children: [
+                      LayoutBuilder(builder:
+                          (BuildContext context,
+                          BoxConstraints constraints) {
+                        maxWidth = constraints.maxWidth;
+                        return Container(
+                          height: 14,
+                          width: double.infinity,
+                          margin: const EdgeInsets.all(8.0),
+                          decoration: BoxDecoration(
+                            borderRadius:
+                            BorderRadius.circular(30),
+                            gradient: const LinearGradient(
+                              colors: [
+                                Color(0xffff8d6c),
+                                Color(0xffe064f7),
+                                Color(0xff00b2e7)
+                              ],
+                            ),
+                          ),
+                          // transform:  (Matrix4.identity() + Matrix4.rotationZ(math.pi / 4))
+                        );
+                      }),
+                      AnimatedContainer(
+                        height: 14,
+                        width: 16,
+                        margin: EdgeInsets.only(
+                            left: maxWidth * maxMovable * moveValue),
+                        decoration: BoxDecoration(
+                            border: Border.all(
+                                color:  Theme.of(context).canvasColor),
+                            borderRadius:
+                            BorderRadius.circular(30),
+                            color: Colors.white),
+                        duration: const Duration(seconds: 1),
+                        // transform:  (Matrix4.identity() + Matrix4.rotationZ(math.pi / 4))
+                      ),
+                    ],
+                  ),
+                ),
+                RepostPostCard(
+                  name: widget.name,
+                  profileImageURL: widget.profileImageURL,
+                  chat: widget.chat,
+                  avatarID: widget.avatarID,
+                callback: setPostContent,
+
+                ),
+              ],
             )));
   }
 }
@@ -92,7 +206,8 @@ class RepostPostCard extends StatefulWidget {
   String? profileImageURL;
   String chat;
   String avatarID;
-  RepostPostCard({super.key, required this.name, required this.profileImageURL, required this.chat, required this.avatarID, this.onTap});
+  void Function(String) callback;
+  RepostPostCard({super.key, required this.name, required this.profileImageURL, required this.chat, required this.avatarID, this.onTap, required this.callback});
 
 
 
@@ -158,7 +273,9 @@ class _RepostPostCardState extends State<RepostPostCard> {
                         border: InputBorder.none, // No underline/border
                         hintText: "What do you think about this chat?"
                       ),
-                      onChanged: (text) {},
+                      onChanged: (text) {
+                        widget.callback(text);
+                      },
                     ),
                   )
                 ]),
