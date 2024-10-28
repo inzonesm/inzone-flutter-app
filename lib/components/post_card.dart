@@ -10,7 +10,6 @@ import 'package:inzone/config/custom_icons.dart';
 import 'package:inzone/data/comment_class.dart';
 import 'package:inzone/data/inzone_post.dart';
 import 'package:inzone/inzone_database.dart';
-import 'package:inzone/post_chat_screen.dart';
 import 'package:inzone/profile_screen.dart';
 import 'package:random_avatar/random_avatar.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -177,7 +176,7 @@ class _PostCardState extends State<PostCard> {
                         //     context,
                         //     widget.post.userName,
                         //     widget.post.userReference)
-                      ];;
+                      ];
                     },
                   ),
                 ],
@@ -199,7 +198,7 @@ class _PostCardState extends State<PostCard> {
                 height: 10,
               ),
               (widget.post.imageContent.isNotEmpty) ||
-                  (widget.post.videoContent?.isNotEmpty ?? false)
+                  (widget.post.videoContent.isNotEmpty ?? false)
                ?SizedBox(
                 width: MediaQuery.of(context).size.width - 30,
                 child: SingleChildScrollView(
@@ -207,8 +206,8 @@ class _PostCardState extends State<PostCard> {
                   child: Row(
                     children: [
                       // Display all images first
-                      if (widget.post.imageContent!.isNotEmpty)
-                        ...widget.post.imageContent!.map((imageUrl) {
+                      if (widget.post.imageContent.isNotEmpty)
+                        ...widget.post.imageContent.map((imageUrl) {
                           return imageUrl.isNotEmpty
                               ? Padding(
                             padding: const EdgeInsets.only(right: 5.0),
@@ -325,7 +324,7 @@ class _PostCardState extends State<PostCard> {
                 ));
               }));
           } else if(value == "not_interested"){
-          final snackBar = const SnackBar(
+          const snackBar = SnackBar(
             content: Text("This post has been flagged for review."),
             backgroundColor: Colors.red,
           );

@@ -2,9 +2,7 @@ import 'dart:async';
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:inzone/chat_screen.dart';
 import 'package:inzone/inzone_database.dart';
 import 'package:random_avatar/random_avatar.dart';
@@ -56,7 +54,7 @@ class _AllChatsScreenState extends State<AllChatsScreen> {
         }
       }
       print(data.length);
-      if (data.length == 0){
+      if (data.isEmpty){
         _chatUsers = [];
         return;
       }

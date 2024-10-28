@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:inzone/all_chats_screen.dart';
 import 'package:inzone/config/custom_icons.dart';
-import 'package:inzone/data/inzone_avatar.dart';
 import 'package:inzone/inzone_database.dart';
 import 'package:inzone/post_chat_screen.dart';
 import 'package:random_avatar/random_avatar.dart';
@@ -19,7 +17,7 @@ class ChatScreen extends StatefulWidget {
 
 class _ChatScreenState extends State<ChatScreen> {
   TextEditingController msg = TextEditingController();
-  ScrollController _scrollController =
+  final ScrollController _scrollController =
       ScrollController(); // Create a ScrollController
   final ScrollController _mainScrollController = ScrollController();
 
@@ -80,7 +78,7 @@ class _ChatScreenState extends State<ChatScreen> {
             },
           ),
           title: Text(widget.userData.name!,
-              style: TextStyle(fontSize: 26, fontWeight: FontWeight.w700)),
+              style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w700)),
         ),
       ),
       body: SafeArea(
@@ -251,9 +249,9 @@ class _ChatScreenState extends State<ChatScreen> {
                   topLeft: const Radius.circular(18),
                   topRight: const Radius.circular(18),
                   bottomRight:
-                      isMe ? const Radius.circular(18) : Radius.circular(0),
+                      isMe ? const Radius.circular(18) : const Radius.circular(0),
                   bottomLeft:
-                      isMe ? Radius.circular(0) : const Radius.circular(18),
+                      isMe ? const Radius.circular(0) : const Radius.circular(18),
                 ),
               ),
               child: Text(

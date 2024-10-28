@@ -21,7 +21,7 @@ class SplashScreen extends StatelessWidget {
         ],
       ),
       backgroundColor: Theme.of(context).canvasColor,
-     nextScreen: loggedIn ? const RootApp() : IntroductionScreen(),
+     nextScreen: loggedIn ? const RootApp() : const IntroductionScreen(),
     );
   }
 }

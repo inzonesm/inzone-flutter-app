@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:inzone/user_profile_screen.dart';
 import 'package:random_avatar/random_avatar.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import 'inzone_database.dart';
 
@@ -20,8 +19,8 @@ class _ProfileScreenState extends State<ProfileScreen>
   String bio =
   'Loading';
   List<String> userNames = [];
-  TextEditingController _bioController = TextEditingController();
-  FocusNode _focusNode = FocusNode(); // Focus node to manage focus on TextField
+  final TextEditingController _bioController = TextEditingController();
+  final FocusNode _focusNode = FocusNode(); // Focus node to manage focus on TextField
 
 
   void fetchUserProfile() async {
@@ -40,7 +39,7 @@ class _ProfileScreenState extends State<ProfileScreen>
       print('Failed to fetch user profile.');
     }
   }
-  bool _isEditing = false; // Track if the user is editing
+  final bool _isEditing = false; // Track if the user is editing
 
   @override
   void initState() {
@@ -50,11 +49,11 @@ class _ProfileScreenState extends State<ProfileScreen>
 
   Widget getScreen() {
     if (currentPage == 0) {
-      return  PersonalFeedScreen();
+      return  const PersonalFeedScreen();
     } else if (currentPage == 1) {
       return const LikedScreen();
     } else {
-      return FollowersFollowingScreen( userList: {"followers": [], "following": []},);
+      return FollowersFollowingScreen( userList: const {"followers": [], "following": []},);
     }
   }
 
@@ -98,7 +97,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                           children: [
                             Flexible(child:   Text(
                               name,
-                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
                             ),),
                             Flexible(
                               child: SingleChildScrollView(

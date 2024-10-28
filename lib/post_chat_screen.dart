@@ -1,19 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:comment_tree/widgets/comment_tree_widget.dart';
-import 'package:comment_tree/widgets/tree_theme_data.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:http/http.dart';
-import 'package:inzone/components/avatar_card.dart';
 import 'package:inzone/config/custom_icons.dart';
 import 'package:inzone/data/comment_class.dart';
-import 'package:inzone/data/inzone_avatar.dart';
 import 'package:inzone/data/inzone_post.dart';
 import 'package:inzone/inzone_database.dart';
 import 'package:random_avatar/random_avatar.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 class PostChatScreen extends StatefulWidget {
 String name;
@@ -99,10 +90,9 @@ class _PostChatScreenState extends State<PostChatScreen> {
                     });
 
                     if (doesNotWork == false){
-  ;
                       Navigator.pop(context);
 
-  final snackBar = const SnackBar(
+  const snackBar = SnackBar(
     content: Text("Post Successful"),
     backgroundColor: Colors.blue,
   );
@@ -272,8 +262,8 @@ class _RepostPostCardState extends State<RepostPostCard> {
                       textInputAction: TextInputAction.done,
             autofocus: true,
                       textAlign: TextAlign.start,
-                      style:  TextStyle(height: 1.5, color: Colors.black),
-                      decoration:  InputDecoration(
+                      style:  const TextStyle(height: 1.5, color: Colors.black),
+                      decoration:  const InputDecoration(
                         border: InputBorder.none, // No underline/border
                         hintText: "What do you think about this chat?"
                       ),
@@ -286,7 +276,7 @@ class _RepostPostCardState extends State<RepostPostCard> {
                 const SizedBox(
                   height: 10,
                 ),
-                Divider(
+                const Divider(
                   color: Colors.blue,
                 ),
                 Center(
@@ -378,7 +368,7 @@ class _RepostPostCardState extends State<RepostPostCard> {
               padding: const EdgeInsets.symmetric(horizontal: 15.0),
               child: Text(
                 widget.name,
-                style: TextStyle(color: Colors.blue),
+                style: const TextStyle(color: Colors.blue),
               ),
             ),
             Row(

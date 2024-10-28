@@ -6,7 +6,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:inzone/all_chats_screen.dart';
 import 'package:inzone/chat_screen.dart';
-import 'package:inzone/components/avatar_card.dart';
 import 'package:inzone/config/custom_icons.dart';
 import 'package:inzone/data/comment_class.dart';
 import 'package:inzone/data/inzone_avatar.dart';
@@ -152,7 +151,7 @@ class _RepostCardState extends State<RepostCard> {
               const SizedBox(
                 height: 10,
               ),
-Divider(
+const Divider(
   color: Colors.blue,
 
 ),
@@ -264,7 +263,7 @@ Divider(
           String? chatID = await InZoneDatabase.startConversation(widget.post.id);
           print(chatID);
         } else if(value == "not_interested"){
-          final snackBar = SnackBar(
+          const snackBar = SnackBar(
             content: Text("This post has been flagged for review."),
             backgroundColor: Colors.red,
           );
@@ -826,8 +825,8 @@ Divider(
           crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start, // Align properly for different users
           mainAxisSize: MainAxisSize.min,
           children: [
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 15.0),
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 15.0),
               child: Text(
                 "Miles",
                 style: TextStyle(color: Colors.blue),

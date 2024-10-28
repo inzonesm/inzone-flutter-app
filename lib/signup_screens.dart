@@ -116,7 +116,7 @@ By using the Licensed Application, you agree to abide by these terms and conditi
           }
         } else {
 
-          final snackBar = const  SnackBar(
+          const snackBar = SnackBar(
             content: Text("Error: Please fill all the fields!"),
             backgroundColor: Colors.red,
           );
@@ -467,9 +467,7 @@ By using the Licensed Application, you agree to abide by these terms and conditi
   // Content Selection Page
   Widget _buildContentSelectionPage() {
     void addToList(String topic){
-      if (interests == null){
-        interests = [];
-      }
+      interests ??= [];
       interests!.add(topic);
     }
 

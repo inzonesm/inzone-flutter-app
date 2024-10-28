@@ -33,7 +33,7 @@ class SettingsScreen extends StatelessWidget {
       // Navigate to the introduction screen and clear navigation stack
       Navigator.pushAndRemoveUntil(
         context,
-        MaterialPageRoute(builder: (context) => IntroductionScreen()),
+        MaterialPageRoute(builder: (context) => const IntroductionScreen()),
             (Route<dynamic> route) => false, // This removes all previous routes
       );
     } catch (e) {
@@ -123,7 +123,7 @@ class SettingsScreen extends StatelessWidget {
                         onPressed: () {
                           Navigator.of(context)
                               .push(MaterialPageRoute(builder: (context) {
-                            return ContentSelectionSettingsScreen();
+                            return const ContentSelectionSettingsScreen();
                           }));
                         }),
 
@@ -207,7 +207,7 @@ class SettingsScreen extends StatelessWidget {
 
 
 class ContentSelectionSettingsScreen extends StatefulWidget {
-  const ContentSelectionSettingsScreen({Key? key}) : super(key: key);
+  const ContentSelectionSettingsScreen({super.key});
 
   @override
   _ContentSelectionSettingsScreenState createState() => _ContentSelectionSettingsScreenState();

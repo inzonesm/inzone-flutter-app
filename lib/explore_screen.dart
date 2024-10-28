@@ -5,7 +5,6 @@ import 'package:inzone/components/avatar_card.dart';
 import 'package:inzone/components/category_selector_bar.dart';
 import 'package:inzone/components/post_card.dart';
 
-import 'package:flutter/material.dart';
 import 'package:inzone/data/inzone_avatar.dart';
 import 'package:inzone/inzone_database.dart';
 import 'package:shimmer/shimmer.dart';
@@ -32,7 +31,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
   int _currentPage = 0; // Keep track of the current page for pagination
   final int _pageSize = 100; // Load 10 posts per batch
   bool isSearching = false;
-  ScrollController _scrollController = ScrollController();
+  final ScrollController _scrollController = ScrollController();
   TextEditingController searchController = TextEditingController();
   @override
   void initState() {
@@ -250,7 +249,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
                     child: TextField(
                       controller: searchController,
                       autofocus: true,
-                      decoration: InputDecoration(
+                      decoration: const InputDecoration(
                         hintText: 'Search...',
                         border: InputBorder.none,
                       ),

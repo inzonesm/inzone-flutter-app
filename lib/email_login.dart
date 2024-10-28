@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:inzone/root_app.dart';
 
 class EmailLogInPage extends StatefulWidget {
-  EmailLogInPage({super.key});
+  const EmailLogInPage({super.key});
 
   @override
   State<EmailLogInPage> createState() => _EmailLogInPageState();
@@ -149,7 +149,7 @@ class _EmailLogInPageState extends State<EmailLogInPage> {
                               email: email!,
                               password: password!,
                             ).then((value) async {
-                                                            Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => RootApp()));
+                                                            Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const RootApp()));
                             });
                           } on FirebaseAuthException catch (e) {
                             errorMessage = e.message;
@@ -181,7 +181,7 @@ class _EmailLogInPageState extends State<EmailLogInPage> {
                 const SizedBox(
                   height: 30,
                 ),
-                errorMessage == null ? SizedBox() : Text(errorMessage!, style: TextStyle(color: Colors.red, fontSize: 15, ),)
+                errorMessage == null ? const SizedBox() : Text(errorMessage!, style: const TextStyle(color: Colors.red, fontSize: 15, ),)
                 // const Padding(
                 //   padding: EdgeInsets.all(8.0),
                 //   child: Row(

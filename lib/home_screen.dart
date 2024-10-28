@@ -4,9 +4,7 @@ import 'package:inzone/components/category_selector_bar.dart';
 import 'package:inzone/components/post_card.dart';
 
 
-import 'package:flutter/material.dart';
 import 'package:inzone/components/repost_card.dart';
-import 'package:inzone/data/comment_class.dart';
 import 'package:inzone/data/inzone_avatar.dart';
 import 'package:inzone/inzone_database.dart';
 import 'package:shimmer/shimmer.dart';
@@ -31,7 +29,7 @@ class _HomeScreenState extends State<HomeScreen> {
   int _currentPage = 0; // Keep track of the current page for pagination
   final int _pageSize = 100; // Load 10 posts per batch
 
-  ScrollController _scrollController = ScrollController();
+  final ScrollController _scrollController = ScrollController();
 
   @override
   void initState() {

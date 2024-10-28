@@ -22,8 +22,8 @@ class _UserProfileScreenState extends State<UserProfileScreen>
   String name = "Error";
   String? _bio;
   List<String> userNames = [];
-  TextEditingController _bioController = TextEditingController();
-  FocusNode _focusNode = FocusNode(); // Focus node to manage focus on TextField
+  final TextEditingController _bioController = TextEditingController();
+  final FocusNode _focusNode = FocusNode(); // Focus node to manage focus on TextField
 
   void fetchUserProfile() async {
     Map<String, dynamic>? userProfile =
@@ -86,13 +86,13 @@ class _UserProfileScreenState extends State<UserProfileScreen>
 
   Widget getScreen()  {
     if (currentPage == 0) {
-      return PersonalFeedScreen();
+      return const PersonalFeedScreen();
     } else if (currentPage == 1) {
       return const LikedScreen();
     } else {
       backgroundTasks();
       return FollowersFollowingScreen(
-        userList: {"followers": [], "following": []},
+        userList: const {"followers": [], "following": []},
       );
     }
   }
@@ -104,7 +104,7 @@ class _UserProfileScreenState extends State<UserProfileScreen>
       appBar: AppBar(
         scrolledUnderElevation: 0,
         backgroundColor: Theme.of(context).canvasColor,
-        title: Text("Profile",
+        title: const Text("Profile",
             style: TextStyle(fontSize: 26, fontWeight: FontWeight.w700)),
       ),
       body: SafeArea(
@@ -136,7 +136,7 @@ class _UserProfileScreenState extends State<UserProfileScreen>
                         Flexible(
                           child: Text(
                             name,
-                            style: TextStyle(
+                            style: const TextStyle(
                                 fontWeight: FontWeight.bold, fontSize: 18),
                           ),
                         ),
@@ -253,7 +253,7 @@ class _UserProfileScreenState extends State<UserProfileScreen>
 }
 
 class PersonalFeedScreen extends StatefulWidget {
-   PersonalFeedScreen({super.key});
+   const PersonalFeedScreen({super.key});
 
   @override
   State<PersonalFeedScreen> createState() => _PersonalFeedScreenState();
@@ -559,19 +559,19 @@ class _FollowersFollowingScreenState extends State<FollowersFollowingScreen> {
                 children: [
                   Text(
                     "${widget.userList["following"]!.length}",
-                    style: TextStyle(fontWeight: FontWeight.bold),
+                    style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
-                  Text(
+                  const Text(
                     " Following ",
                   ),
-                  SizedBox(
+                  const SizedBox(
                     width: 10,
                   ),
                   Text(
                     "${widget.userList["followers"]!.length}",
-                    style: TextStyle(fontWeight: FontWeight.bold),
+                    style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
-                  Text(
+                  const Text(
                     " Followers",
                   ),
                 ],

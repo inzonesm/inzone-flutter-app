@@ -153,7 +153,7 @@ For any questions or concerns regarding this Privacy Policy, please contact us: 
                             Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                    builder: ((context) =>   EmailLogInPage())));
+                                    builder: ((context) =>   const EmailLogInPage())));
 
                           },
                           child: Text(

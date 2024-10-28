@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:math';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:http/http.dart' as http;
 import 'package:inzone/data/inzone_post.dart';
@@ -28,14 +27,9 @@ class InZoneDatabase {
         final Map<String, dynamic> jsonMap = jsonDecode(response.body);
 
         // Ensure the expected data structure is valid
-        if (jsonMap != null && jsonMap is Map<String, dynamic>) {
-          // Return the decoded JSON map
-          return jsonMap;
-        } else {
-          // Return null if the response body is not a valid JSON map
-          return null;
-        }
-      } else {
+        // Return the decoded JSON map
+        return jsonMap;
+            } else {
         // Log if status code is not 200 (OK)
         print('Failed to load posts. Status code: ${response.statusCode}');
         return null;
@@ -67,14 +61,9 @@ print(response.body);
         final Map<String, dynamic> jsonMap = jsonDecode(response.body);
 
         // Ensure the expected data structure is valid
-        if (jsonMap != null && jsonMap is Map<String, dynamic>) {
-          // Return the decoded JSON map
-          return jsonMap;
-        } else {
-          // Return null if the response body is not a valid JSON map
-          return null;
-        }
-      } else {
+        // Return the decoded JSON map
+        return jsonMap;
+            } else {
         // Log if status code is not 200 (OK)
         print('Failed to load posts. Status code: ${response.statusCode}');
         return null;
@@ -157,6 +146,7 @@ print(response.body);
         return 'Error occurred: $e';
       }
     }
+    return null;
   }
 
   static Future<String?> startConversation(String aiUsername) async {
@@ -207,11 +197,12 @@ print(response.body);
         return 'Error occurred: $e';
       }
     }
+    return null;
   }
 
   static Future<Map<String, dynamic>?> getCurrentUserProfile() async {
     // API endpoint URL
-    final String url =
+    const String url =
         'https://us-central1-inzonebackend.cloudfunctions.net/api/user/get-profile';
     String? currentUserUID;
     await InZoneDatabase.getCurrentUserUid().then((value) {
@@ -252,7 +243,7 @@ print(response.body);
   static Future<Map<String, dynamic>?> getUserProfile(String userID) async {
     print("Fetching profile for uid $userID");
     // API endpoint URL
-    final String url =
+    const String url =
         'https://us-central1-inzonebackend.cloudfunctions.net/api/user/get-profile';
 
     // Create the request body
@@ -376,6 +367,7 @@ print(response.body);
         print('Error occurred: $e');
       }
     }
+    return null;
   }
 
   static Future<int> postContent({
@@ -405,7 +397,7 @@ print(response.body);
           }
           DateTime now = DateTime.now();
           int currentHour = now.hour;
-          if (category.length < 1) {
+          if (category.isEmpty) {
             category = "Entertainment";
           }
           String url =
@@ -617,8 +609,9 @@ print(response.body);
     bool? result;
     try {
       result = await appsflyerSdk.logEvent(eventName, eventValues);
-    } on Exception catch (e) {}
+    } on Exception {}
     print("Result logEvent: $result");
+    return null;
   }
 }
 

@@ -1,6 +1,4 @@
 
-import 'package:intl/intl.dart';
-import 'package:inzone/components/post_card.dart';
 import 'package:inzone/data/comment_class.dart';
 class InZonePost
 
@@ -117,13 +115,13 @@ class InZonePost
 
       if (elem['replies'] != null) {
         List<dynamic> replies = elem['replies'] as List<dynamic>;
-        replies.forEach((reply) {
+        for (var reply in replies) {
           repliesList.add(ReplyClass(
             name: reply['name'] ?? 'Unknown',
             text: reply['text'] ?? '',
             uid: reply['uid'] ?? '',
           ));
-        });
+        }
       }
 
       return CommentClass(
@@ -212,13 +210,13 @@ class InZonePost
 
       if (elem['replies'] != null) {
         List<dynamic> replies = elem['replies'] as List<dynamic>;
-        replies.forEach((reply) {
+        for (var reply in replies) {
           repliesList.add(ReplyClass(
             name: reply['name'] ?? 'Unknown',
             text: reply['text'] ?? '',
             uid: reply['uid'] ?? '',
           ));
-        });
+        }
       }
 
       return CommentClass(

@@ -43,7 +43,15 @@
 	</array>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
+	<key>LSApplicationCategoryType</key>
+	<string></string>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>We need access to your photo library to upload and share photos within the app</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>We need microphone for video recording and sharing within the app</string>
+	<key>NSCameraUsageDescription</key>
+	<string>We need camera for photo and video recording and sharing within the app</string>
 </dict>
 </plist>

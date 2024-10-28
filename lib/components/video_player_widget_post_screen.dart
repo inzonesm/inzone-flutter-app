@@ -4,7 +4,7 @@ import 'package:video_player/video_player.dart';
 class VideoPlayerWidgetPostScreen extends StatefulWidget {
   final String videoUrl;
 
-  VideoPlayerWidgetPostScreen(this.videoUrl);
+  const VideoPlayerWidgetPostScreen(this.videoUrl, {super.key});
 
   @override
   _VideoPlayerWidgetPostScreenState createState() => _VideoPlayerWidgetPostScreenState();

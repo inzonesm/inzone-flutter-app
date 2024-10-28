@@ -1,11 +1,9 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:inzone/inzone_database.dart';
 import 'package:inzone/shared_preferences_helper_class.dart';
 import 'package:lottie/lottie.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'components/lottie_with_timer.dart';
 
 class CharacterCreationScreen extends StatefulWidget {
   const CharacterCreationScreen({super.key});
@@ -119,7 +117,7 @@ class _CharacterCreationScreenState extends State<CharacterCreationScreen> {
                                   ],
                                   radius: 0.5,
                                   center: const Alignment(0.0, 0.0),
-                                  stops: [0.0, 1.0],
+                                  stops: const [0.0, 1.0],
                                 ),
                               ),
                               child: Column(
@@ -144,7 +142,7 @@ class _CharacterCreationScreenState extends State<CharacterCreationScreen> {
                         url != null
                             ? Visibility(
                                 visible: !showLoading,
-                                child: Container(
+                                child: SizedBox(
                                   width: MediaQuery.of(context).size.width - 60,
                                   child: ClipRRect(
                                     borderRadius: BorderRadius.circular(8.0),
@@ -291,7 +289,7 @@ class _CharacterCreationScreenState extends State<CharacterCreationScreen> {
                                           });
                                         },
 
-                                        child:  Text(
+                                        child:  const Text(
                                           "Regenerate",
                                           style: TextStyle(
                                               fontSize: 18,
@@ -321,9 +319,9 @@ class _CharacterCreationScreenState extends State<CharacterCreationScreen> {
                                                     BorderRadius.circular(60)),
                                             padding: const EdgeInsets.symmetric(
                                                 vertical: 10)),
-                                        child: Padding(
-                                          padding: const EdgeInsets.all(8.0),
-                                          child: const Text(
+                                        child: const Padding(
+                                          padding: EdgeInsets.all(8.0),
+                                          child: Text(
                                             "Save",
                                             style: TextStyle(
                                                 fontSize: 18,

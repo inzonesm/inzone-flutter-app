@@ -175,7 +175,7 @@ int comments = 23;
                                 color: isDownvoted ? Colors.red : Colors.black,
                               ),
                             ),
-                            Align(
+                            const Align(
                               alignment: Alignment.bottomCenter,
                               child: Icon(
                                 Icons.chat_bubble_rounded,
@@ -188,7 +188,7 @@ int comments = 23;
                                 comments.toString(),
                               ),
                             ),
-                       SizedBox(width: 8,),
+                       const SizedBox(width: 8,),
                             ElevatedButton(
                               onPressed: () {
                                 Navigator.push(context,

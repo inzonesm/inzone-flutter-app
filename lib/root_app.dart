@@ -1,7 +1,6 @@
 
 
 
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_advanced_drawer/flutter_advanced_drawer.dart';
 import 'package:flutter_expandable_fab/flutter_expandable_fab.dart';
@@ -17,7 +16,7 @@ import 'package:inzone/user_profile_screen.dart';
 import 'package:sliding_sheet2/sliding_sheet2.dart';
 import 'dart:async';
 class RootApp extends StatefulWidget {
-  const RootApp({Key? key}) : super(key: key);
+  const RootApp({super.key});
 
   @override
   _RootAppState createState() => _RootAppState();
@@ -26,7 +25,7 @@ class RootApp extends StatefulWidget {
 class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
   final _advancedDrawerController = AdvancedDrawerController();
   bool _isDrawerOpen = false;
-int _currentPage = 0;
+final int _currentPage = 0;
 
   final _key = GlobalKey<ExpandableFabState>();
   @override
@@ -145,7 +144,6 @@ int _currentPage = 0;
             FloatingActionButton.small(
               // shape: const CircleBorder(),
               heroTag: null,
-              child: const Icon(Icons.person_add),
               foregroundColor: Colors.black,
               backgroundColor: Theme.of(context).canvasColor,
               onPressed: () {
@@ -156,15 +154,15 @@ int _currentPage = 0;
                       duration: const Duration(seconds: 1),
                       snapSpec: const SnapSpec(snappings: [0.9]),
                       builder: (context, state) {
-                        return CharacterCreationScreen();
+                        return const CharacterCreationScreen();
                       },
                     ));
               },
+              child: const Icon(Icons.person_add),
             ),
             FloatingActionButton.small(
               // shape: const CircleBorder(),
               heroTag: null,
-              child: const Icon(Icons.add),
               foregroundColor: Colors.black,
               backgroundColor: Theme.of(context).canvasColor,
               onPressed: () {
@@ -182,6 +180,7 @@ int _currentPage = 0;
                       },
                     ));
               },
+              child: const Icon(Icons.add),
             ),
 
           ],
@@ -252,7 +251,7 @@ int _currentPage = 0;
               //     blurRadius: 0.0,
               //   ),
               // ],
-              borderRadius: const BorderRadius.all(Radius.circular(16)),
+              borderRadius: BorderRadius.all(Radius.circular(16)),
             ),
             child: const HomeScreen()));
   }

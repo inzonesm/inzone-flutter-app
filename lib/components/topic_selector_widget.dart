@@ -64,10 +64,10 @@ if (selected){
               width: 25,
             ),
             const SizedBox(width: 10,),
-            Text(replaceAndCapitalize(widget.topic), style: selected? TextStyle(color: Colors.white, fontWeight: FontWeight.bold): TextStyle(color: Colors.black)),
+            Text(replaceAndCapitalize(widget.topic), style: selected? const TextStyle(color: Colors.white, fontWeight: FontWeight.bold): const TextStyle(color: Colors.black)),
           ],
         ),
       ),
-    );;
+    );
   }
 }
