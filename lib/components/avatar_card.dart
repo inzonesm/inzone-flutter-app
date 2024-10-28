@@ -1,4 +1,8 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
+import 'package:inzone/all_chats_screen.dart';
+import 'package:inzone/chat_screen.dart';
   import 'package:inzone/data/inzone_avatar.dart';
 
 class AvatarCard extends StatefulWidget {
@@ -15,10 +19,17 @@ class _AvatarCardState extends State<AvatarCard> {
   bool isUpvoted = false; // State for tracking upvote
   bool isDownvoted = false; // State for tracking downvote
   int voteCount = 23; // Initial vote count (change this as per your actual data)
-
+int comments = 23;
   @override
   void initState() {
     super.initState();
+    voteCount = getRandomNumber(0, 999);
+    comments = getRandomNumber(0, 300);
+  }
+
+  int getRandomNumber(int min, int max) {
+    final random = Random();
+    return min + random.nextInt(max - min + 1);
   }
 
   void handleUpvote() {
@@ -173,13 +184,22 @@ class _AvatarCardState extends State<AvatarCard> {
                             ),
                             Align(
                               alignment: Alignment.topCenter,
-                              child: const Text(
-                                "222",
+                              child:  Text(
+                                comments.toString(),
                               ),
                             ),
                        SizedBox(width: 8,),
                             ElevatedButton(
-                              onPressed: () {},
+                              onPressed: () {
+                                Navigator.push(context,
+                                    MaterialPageRoute(builder: (context) {
+                                      return ChatScreen(userData: ChatUser(
+                                          name: widget.avatar.name,
+                                          email: widget.avatar.id,
+                                          chatId: null
+                                      ));
+                                    }));
+                              },
                               style: ElevatedButton.styleFrom(
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(16), // Adjust the value to make it less round
@@ -193,7 +213,7 @@ class _AvatarCardState extends State<AvatarCard> {
                         Align(
                           alignment: Alignment.bottomLeft,
                           child: Text(
-                            "@michael",
+                            "@${widget.avatar.username}",
                             style: Theme.of(context).textTheme.bodySmall!.copyWith(
                               color: Colors.grey,
                               fontWeight: FontWeight.w800,

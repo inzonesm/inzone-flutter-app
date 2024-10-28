@@ -66,6 +66,8 @@ class _PostChatScreenState extends State<PostChatScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+        resizeToAvoidBottomInset: true, // Allows the view to resize with keyboard
+
         appBar: AppBar(
           elevation: 0, // No shadow/elevation
           backgroundColor: Colors.transparent, // Blend with background
@@ -123,80 +125,82 @@ class _PostChatScreenState extends State<PostChatScreen> {
             ),
           ],
         ),
-        body: Center(
-            child: Column(
-
-              children: [
-                Padding(
-                  padding: const EdgeInsets.only(left: 6.0, right: 6.0, top: 6.0,),
-                  child: Center(
-                    child: Text(
-
-                      doesNotWork ? "Please rephrase. Your message violates our guideline.":"Your post works well with InZone guidelines",
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                          color: doesNotWork ? Colors.red : Colors.blue,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500),
+        body: SingleChildScrollView(
+          child: Center(
+              child: Column(
+          
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.only(left: 6.0, right: 6.0, top: 6.0,),
+                    child: Center(
+                      child: Text(
+          
+                        doesNotWork ? "Please rephrase. Your message violates our guideline.":"Your post works well with InZone guidelines",
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                            color: doesNotWork ? Colors.red : Colors.blue,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500),
+                      ),
                     ),
                   ),
-                ),
-
-                SizedBox(
-                  width: MediaQuery.of(context).size.width - 50,
-                  height: 30,
-                  child: Stack(
-                    alignment: AlignmentDirectional.centerStart,
-                    children: [
-                      LayoutBuilder(builder:
-                          (BuildContext context,
-                          BoxConstraints constraints) {
-                        maxWidth = constraints.maxWidth;
-                        return Container(
-                          height: 14,
-                          width: double.infinity,
-                          margin: const EdgeInsets.all(8.0),
-                          decoration: BoxDecoration(
-                            borderRadius:
-                            BorderRadius.circular(30),
-                            gradient: const LinearGradient(
-                              colors: [
-                                Color(0xffff8d6c),
-                                Color(0xffe064f7),
-                                Color(0xff00b2e7)
-                              ],
+          
+                  SizedBox(
+                    width: MediaQuery.of(context).size.width - 50,
+                    height: 30,
+                    child: Stack(
+                      alignment: AlignmentDirectional.centerStart,
+                      children: [
+                        LayoutBuilder(builder:
+                            (BuildContext context,
+                            BoxConstraints constraints) {
+                          maxWidth = constraints.maxWidth;
+                          return Container(
+                            height: 14,
+                            width: double.infinity,
+                            margin: const EdgeInsets.all(8.0),
+                            decoration: BoxDecoration(
+                              borderRadius:
+                              BorderRadius.circular(30),
+                              gradient: const LinearGradient(
+                                colors: [
+                                  Color(0xffff8d6c),
+                                  Color(0xffe064f7),
+                                  Color(0xff00b2e7)
+                                ],
+                              ),
                             ),
-                          ),
+                            // transform:  (Matrix4.identity() + Matrix4.rotationZ(math.pi / 4))
+                          );
+                        }),
+                        AnimatedContainer(
+                          height: 14,
+                          width: 16,
+                          margin: EdgeInsets.only(
+                              left: maxWidth * maxMovable * moveValue),
+                          decoration: BoxDecoration(
+                              border: Border.all(
+                                  color:  Theme.of(context).canvasColor),
+                              borderRadius:
+                              BorderRadius.circular(30),
+                              color: Colors.white),
+                          duration: const Duration(seconds: 1),
                           // transform:  (Matrix4.identity() + Matrix4.rotationZ(math.pi / 4))
-                        );
-                      }),
-                      AnimatedContainer(
-                        height: 14,
-                        width: 16,
-                        margin: EdgeInsets.only(
-                            left: maxWidth * maxMovable * moveValue),
-                        decoration: BoxDecoration(
-                            border: Border.all(
-                                color:  Theme.of(context).canvasColor),
-                            borderRadius:
-                            BorderRadius.circular(30),
-                            color: Colors.white),
-                        duration: const Duration(seconds: 1),
-                        // transform:  (Matrix4.identity() + Matrix4.rotationZ(math.pi / 4))
-                      ),
-                    ],
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-                RepostPostCard(
-                  name: widget.name,
-                  profileImageURL: widget.profileImageURL,
-                  chat: widget.chat,
-                  avatarID: widget.avatarID,
-                callback: setPostContent,
-
-                ),
-              ],
-            )));
+                  RepostPostCard(
+                    name: widget.name,
+                    profileImageURL: widget.profileImageURL,
+                    chat: widget.chat,
+                    avatarID: widget.avatarID,
+                  callback: setPostContent,
+          
+                  ),
+                ],
+              )),
+        ));
   }
 }
 

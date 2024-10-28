@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:inzone/email_login.dart';
 import 'package:inzone/signup_screens.dart';
 
 class IntroductionScreen extends StatelessWidget {
@@ -149,16 +150,11 @@ For any questions or concerns regarding this Privacy Policy, please contact us: 
                         const Spacer(),
                         GestureDetector(
                           onTap: () {
-                            // Navigator.push(
-                            //   context,
-                            //   MaterialPageRoute(
-                            //     builder: (context) => const SignIn(),
-                            //   ),
-                            // );
-                            // Navigator.push(
-                            //     context,
-                            //     MaterialPageRoute(
-                            //         builder: (context) => PhoneAuthBackEnd()));
+                            Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                    builder: ((context) =>   EmailLogInPage())));
+
                           },
                           child: Text(
                             "Sign In",

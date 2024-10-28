@@ -50,7 +50,7 @@ class _ProfileScreenState extends State<ProfileScreen>
 
   Widget getScreen() {
     if (currentPage == 0) {
-      return const PersonalFeedScreen();
+      return  PersonalFeedScreen();
     } else if (currentPage == 1) {
       return const LikedScreen();
     } else {
@@ -126,7 +126,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                           currentPage = 0;
                         });
                       },
-                      child: Text("Feed",
+                      child: Text("Posts",
                           style: TextStyle(
                               color: Colors.black,
                               fontSize: 16,
@@ -142,7 +142,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                           currentPage = 1;
                         });
                       },
-                      child: Text("Likes",
+                      child: Text("Characters",
                           style: TextStyle(
                               color: Colors.black,
                               fontSize: 16,

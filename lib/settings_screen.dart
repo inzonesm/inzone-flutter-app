@@ -6,6 +6,8 @@ import 'package:inzone/introduction_screen.dart';
 import 'package:sliding_sheet2/sliding_sheet2.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import 'components/topic_selector_widget.dart';
+
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
   Future<void> _launchInBrowser(String url) async {
@@ -22,19 +24,46 @@ class SettingsScreen extends StatelessWidget {
   }
   Future<void> _deleteAccount(BuildContext context) async {
     try {
-      // Your logic to delete the account comes here
-      // Example: Firebase Auth to delete the current user
+      // Sign out of Firebase
+      await FirebaseAuth.instance.signOut();
+
+      // Delete the user account
       await FirebaseAuth.instance.currentUser?.delete();
 
-      // After deleting the account, navigate to the introduction screen
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (context) => const IntroductionScreen()),
+      // Navigate to the introduction screen and clear navigation stack
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (context) => IntroductionScreen()),
+            (Route<dynamic> route) => false, // This removes all previous routes
       );
-    } on FirebaseAuthException catch (e) {
-      // If an error occurs, show the error message
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to delete the account: ${e.message}')),
-      );
+    } catch (e) {
+      // Handle any errors (e.g., re-authentication required)
+      if (e.toString().contains('requires-recent-login')) {
+        // Show a dialog informing the user to re-authenticate
+        showDialog(
+          context: context,
+          builder: (BuildContext context) {
+            return AlertDialog(
+              title: const Text('Re-authentication required'),
+              content: const Text(
+                  'For security reasons, please sign in again to delete your account.'),
+              actions: <Widget>[
+                TextButton(
+                  child: const Text('OK'),
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                  },
+                ),
+              ],
+            );
+          },
+        );
+      } else {
+        // Display an error message
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: ${e.toString()}')),
+        );
+      }
     }
   }
   @override
@@ -79,23 +108,23 @@ class SettingsScreen extends StatelessWidget {
                   decoration: BoxDecoration(
                       color: Colors.white, borderRadius: BorderRadius.circular(15)),
                   child: Column(children: [
-                    SettingsTile(
-                        title: "InZone Schedule",
-                        imagePath: "icons/settings/content_scheduling.svg",
-                        onPressed: () {
-                          // Navigator.of(context)
-                          //     .push(MaterialPageRoute(builder: (context) {
-                          //   return const InZoneSchedule();
-                          // }));
-                        }),
+                    // SettingsTile(
+                    //     title: "InZone Schedule",
+                    //     imagePath: "icons/settings/content_scheduling.svg",
+                    //     onPressed: () {
+                    //       // Navigator.of(context)
+                    //       //     .push(MaterialPageRoute(builder: (context) {
+                    //       //   return const InZoneSchedule();
+                    //       // }));
+                    //     }),
                     SettingsTile(
                         title: "Content Selection",
                         imagePath: "icons/settings/content_selection.svg",
                         onPressed: () {
-                          // Navigator.of(context)
-                          //     .push(MaterialPageRoute(builder: (context) {
-                          //   return ContentSelectionSignupScreen(newUser: false);
-                          // }));
+                          Navigator.of(context)
+                              .push(MaterialPageRoute(builder: (context) {
+                            return ContentSelectionSettingsScreen();
+                          }));
                         }),
 
 
@@ -117,15 +146,6 @@ class SettingsScreen extends StatelessWidget {
                   decoration: BoxDecoration(
                       color: Colors.white, borderRadius: BorderRadius.circular(30)),
                   child: Column(children: [
-                    SettingsTile(
-                        title: "Edit Profile",
-                        imagePath:"icons/settings/edit_profile.svg",
-                        onPressed: () {
-                          // Navigator.of(context)
-                          //     .push(MaterialPageRoute(builder: (context) {
-                          //   return const  Charactertemp();
-                          // }));
-                        }),
 
                     SettingsTile(
                         title: "Privacy Policy",
@@ -137,35 +157,36 @@ class SettingsScreen extends StatelessWidget {
                         onPressed: () {_launchInBrowser(
                             "https://www.inzone.ai/terms-condition");}),
                     SettingsTile(
-                        title: "Delete Account",
-                        imagePath: "icons/settings/delete_account.svg",
-                        onPressed: () {
-                          showDialog(
-                            context: context,
-                            builder: (BuildContext context) {
-                              return AlertDialog(
-                                title: const Text('Delete Account'),
-                                content: const Text('Are you sure you want to delete your account? This cannot be undone.'),
-                                actions: <Widget>[
-                                  TextButton(
-                                    child: const Text('Cancel'),
-                                    onPressed: () {
-                                      Navigator.of(context).pop();
-                                    },
-                                  ),
-                                  TextButton(
-                                    child: const Text('Delete'),
-                                    onPressed: () {
-                                      // Dismiss the dialog and then call the delete account method
-                                      Navigator.of(context).pop();
-                                      _deleteAccount(context);
-                                    },
-                                  ),
-                                ],
-                              );
-                            },
-                          );
-                        }
+                      title: "Delete Account",
+                      imagePath: "icons/settings/delete_account.svg",
+                      onPressed: () {
+                        showDialog(
+                          context: context,
+                          builder: (BuildContext context) {
+                            return AlertDialog(
+                              title: const Text('Delete Account'),
+                              content: const Text(
+                                  'Are you sure you want to delete your account? This cannot be undone.'),
+                              actions: <Widget>[
+                                TextButton(
+                                  child: const Text('Cancel'),
+                                  onPressed: () {
+                                    Navigator.of(context).pop();
+                                  },
+                                ),
+                                TextButton(
+                                  child: const Text('Delete'),
+                                  onPressed: () {
+                                    // Close the dialog, then call the delete account method
+                                    Navigator.of(context).pop();
+                                    _deleteAccount(context);
+                                  },
+                                ),
+                              ],
+                            );
+                          },
+                        );
+                      },
                     ),
                     SettingsTile(
                         title: "Logout",
@@ -180,6 +201,122 @@ class SettingsScreen extends StatelessWidget {
               ],
             ),
           )),
+    );
+  }
+}
+
+
+class ContentSelectionSettingsScreen extends StatefulWidget {
+  const ContentSelectionSettingsScreen({Key? key}) : super(key: key);
+
+  @override
+  _ContentSelectionSettingsScreenState createState() => _ContentSelectionSettingsScreenState();
+}
+
+class _ContentSelectionSettingsScreenState extends State<ContentSelectionSettingsScreen> {
+  final List<String> selectedTopics = [];
+
+  void addToList(String topic) {
+    setState(() {
+      selectedTopics.contains(topic) ? selectedTopics.remove(topic) : selectedTopics.add(topic);
+    });
+  }
+
+  Widget _buildContentSelectionPage() {
+    List<String> topicList = [
+      'environmental_conservation',
+      'bullying_prevention',
+      'mental_health',
+      'inclusivity',
+      'anti_discrimination',
+      'healthy_habits',
+      'community_service',
+      'creativity',
+      'science',
+      'funny_memes',
+      'diy',
+      'video_game_reviews',
+      'animated_movies',
+      'challenge_videos',
+      'cooking',
+      'animals',
+      'magic_tricks',
+      'board_games',
+      'art',
+      'dance',
+      'outdoor_adventures',
+      'music',
+      'books',
+      'travel',
+      'lego',
+      'fashion',
+      'financial_literacy',
+      'empowerment',
+      'friendship',
+    ];
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 10),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.only(
+          topLeft: Radius.circular(20),
+          topRight: Radius.circular(20),
+        ),
+      ),
+      child: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.only(bottom: 80.0),
+          child: Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: List.generate(
+              topicList.length,
+                  (index) {
+                String currentTopic = topicList[index];
+                return TopicSelectorWidget(
+                  topic: currentTopic,
+                  callBack: addToList,
+                );
+              },
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _saveSelection() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text("Saved"),
+        backgroundColor: Colors.blue,
+      ),
+    );
+    Navigator.pop(context);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text("Select Topics"),
+      ),
+      body: Column(
+        children: [
+          Expanded(child: _buildContentSelectionPage()),
+          Padding(
+            padding: const EdgeInsets.all(10.0),
+            child: SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: _saveSelection,
+                child: const Text("Save"),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
