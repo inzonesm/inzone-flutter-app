@@ -116,8 +116,22 @@ class _ChatScreenState extends State<ChatScreen> {
                               style: TextStyle(color: Colors.blue),
                             ),
                             const SizedBox(height: 20),
-                            RandomAvatar(widget.userData.name!,
-                                width: 200, height: 200),
+
+                            widget.userData.profilePictureURL == null ? RandomAvatar(widget.userData.name!,
+                                width: 200, height: 200) : Padding(
+                              padding: const EdgeInsets.only(right: 5.0,left: 5),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(200.0),
+                                child: Image.network(
+                                  widget.userData.profilePictureURL!,
+                                  fit: BoxFit.fitWidth,
+                                  width: MediaQuery.of(context).size.width - 60,
+                                  errorBuilder: (context, object, st) {
+                                    return const SizedBox();
+                                  },
+                                ),
+                              ),
+                            ),
                             const SizedBox(height: 20),
                             Text(
                               "${widget.userData.name} was authored by @${widget.userData.email}",

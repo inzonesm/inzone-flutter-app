@@ -10,6 +10,7 @@ import 'package:inzone/config/custom_icons.dart';
 import 'package:inzone/data/comment_class.dart';
 import 'package:inzone/data/inzone_post.dart';
 import 'package:inzone/inzone_database.dart';
+import 'package:inzone/post_screen.dart';
 import 'package:inzone/profile_screen.dart';
 import 'package:random_avatar/random_avatar.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -227,19 +228,17 @@ class _PostCardState extends State<PostCard> {
                         }),
 
                       // Display all videos after images
-                      if (widget.post.videoContent.isNotEmpty)
+                      if (widget.post.videoContent.isNotEmpty && widget.post.videoContent.first.length > 3)
                         ...widget.post.videoContent.map((videoUrl) {
+                          print("\nVideo Content\n");
+                          print(widget.post.videoContent);
                           return Padding(
                             padding: const EdgeInsets.only(right: 5.0),
                             child: SizedBox(
                               width: MediaQuery.of(context).size.width - 60,
                               child: ClipRRect(
                                 borderRadius: BorderRadius.circular(8.0),
-                                child: const SizedBox(
-                                  height: 1,
-                                  // Replace SizedBox with your Video widget
-                                  // VideoWidget(videoUrl: videoUrl),
-                                ),
+                                child:   VideoWidget(videoUrl: videoUrl),
                               ),
                             ),
                           );
@@ -315,6 +314,7 @@ class _PostCardState extends State<PostCard> {
         if (value == "chat") {
           // String? chatID = await InZoneDatabase.send(widget.post.userReference);
           // print(chatID);
+
           Navigator.push(context,
               MaterialPageRoute(builder: (context) {
                 return ChatScreen(userData: ChatUser(

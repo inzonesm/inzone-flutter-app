@@ -1,11 +1,11 @@
 
 import 'package:firebase_storage/firebase_storage.dart';
 import 'dart:io';
-
+import 'package:ffmpeg_kit_flutter/ffmpeg_kit.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:inzone/all_chats_screen.dart';
-import 'package:video_thumbnail/video_thumbnail.dart';
 
 class AuthWork {
   static FirebaseAuth auth = FirebaseAuth.instance;
@@ -64,7 +64,7 @@ class AuthWork {
       return {"videoUrl": videoUrl, "thumbnailUrl":thumbnailUrl};
     } catch (e) {
       print('Error uploading video: $e');
-      throw Exception('Error uploading video');
+      throw Exception('Error uploading video: throwing an error');
     }
   }
 
@@ -101,19 +101,22 @@ class AuthWork {
 
     return imageUrl;
   }
-
   static Future<File> generateThumbnail(File videoFile) async {
-    // Generate thumbnail using video_thumbnail package
-    final thumbnail = await VideoThumbnail.thumbnailFile(
-      video: videoFile.path,
-      imageFormat: ImageFormat.JPEG,
-      maxWidth: 150, // Specify the width of the thumbnail
-      quality: 25, // Specify the quality of the thumbnail
-    );
-    return File(thumbnail.toString());
+    // Define the path for the thumbnail
+    final tempDir = await getTemporaryDirectory();
+    final thumbnailPath = '${tempDir.path}/${DateTime.now().millisecondsSinceEpoch}_thumbnail.jpg';
+
+    // Generate the thumbnail using ffmpeg command
+    final command = '-i ${videoFile.path} -ss 00:00:01 -vframes 1 -q:v 2 $thumbnailPath';
+    await FFmpegKit.execute(command);
+
+    final thumbnailFile = File(thumbnailPath);
+    if (await thumbnailFile.exists()) {
+      return thumbnailFile;
+    } else {
+      throw Exception('Failed to generate thumbnail.');
+    }
   }
-
-
 
 
 

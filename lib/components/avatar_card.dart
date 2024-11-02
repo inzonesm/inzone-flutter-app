@@ -191,12 +191,14 @@ int comments = 23;
                        const SizedBox(width: 8,),
                             ElevatedButton(
                               onPressed: () {
+                                print(widget.avatar.profilePicture);
                                 Navigator.push(context,
                                     MaterialPageRoute(builder: (context) {
                                       return ChatScreen(userData: ChatUser(
                                           name: widget.avatar.name,
                                           email: widget.avatar.id,
-                                          chatId: null
+                                          chatId: null,
+                                        profilePictureURL: widget.avatar.profilePicture
                                       ));
                                     }));
                               },

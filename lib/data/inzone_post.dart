@@ -232,6 +232,7 @@ class InZonePost
       );
     }).toList();
 
+
     // Safely return the constructed InZonePost object
     return InZonePost(
       category: category,
@@ -241,7 +242,7 @@ class InZonePost
       likes: likes,
       id: id,
       imageContent: imageList,
-      videoContent: [], // Add logic if needed for videoContent
+      videoContent: videoList,
       textContent: textContent,
       userReference: userReference,
       mainCategory: mainCategory,

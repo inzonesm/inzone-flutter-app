@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'dart:io' show Platform;
 
 import 'package:inzone/components/topic_selector_widget.dart';
+import 'package:inzone/introduction_screen.dart';
 import 'package:inzone/inzone_database.dart';
 import 'package:inzone/loading_screen.dart';
 import 'package:inzone/root_app.dart'; // Import this to detect the platform
@@ -106,22 +107,28 @@ By using the Licensed Application, you agree to abide by these terms and conditi
               userInterests: interests!,
             );
 
-            Navigator.pushReplacement(
+            Navigator.pushAndRemoveUntil(
               context,
-              MaterialPageRoute(
-                builder: (context) =>
-                const RootApp(), // Replace with your HomeScreen
-              ),
+              MaterialPageRoute(builder: (context) => RootApp()),
+                  (route) => false, // removes all previous routes
             );
+
+
           }
         } else {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => IntroductionScreen(),
+            ),
+          );
 
           const snackBar = SnackBar(
             content: Text("Error: Please fill all the fields!"),
             backgroundColor: Colors.red,
           );
           ScaffoldMessenger.of(context).showSnackBar(snackBar);
-          _navigateToPage(0);
+
         }
 
       } on FirebaseAuthException catch (e) {

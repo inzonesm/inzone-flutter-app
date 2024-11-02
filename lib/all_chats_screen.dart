@@ -158,23 +158,28 @@ class ChatUser {
   String? name;
   String? email;
   String? chatId;
+  String? profilePictureURL;
 
 
   ChatUser({
     this.name,
     this.email,
     this.chatId,
+    this.profilePictureURL
   });
 
   // Static method to handle null returning logic
   static ChatUser? fromJson(Map<String, dynamic> map) {
     try {
+      print("from json called");
+      print(map);
       // Check if 'aiProfile' and 'conversationId' exist in the map
       if (map.containsKey('aiProfile') && map['aiProfile'] != null && map.containsKey('conversationId')) {
         return ChatUser(
           email: map['aiProfile']['username'] ?? '',
           name: map['aiProfile']["name"] ?? '',
           chatId: map['conversationId'] ?? '',
+
         );
       }
       // Return null if required fields are missing

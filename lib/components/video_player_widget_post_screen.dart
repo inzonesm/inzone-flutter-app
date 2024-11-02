@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 
@@ -76,67 +78,84 @@ class _VideoPlayerWidgetPostScreenState extends State<VideoPlayerWidgetPostScree
       },
       child: Scaffold(
         backgroundColor: Colors.black,
-        body: Center(
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              AspectRatio(
-                aspectRatio: aspectRatio,
-                child: VideoPlayer(_controller),
-              ),
-              if (_isLoading)
-                const CircularProgressIndicator(
-                  color: Colors.red,
-                ),
-              if (_showControls)
-                Positioned(
-                  bottom: 0,
-                  left: 0,
-                  right: 0,
-                  child: Container(
-                    color: Colors.black54,
-                    padding: const EdgeInsets.all(8.0),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        IconButton(
-                          onPressed: _togglePlay,
-                          icon: Icon(
-                            _controller.value.isPlaying ? Icons.pause : Icons.play_arrow,
-                            color: Colors.white,
-                          ),
-                        ),
-                        Expanded(
-                          child: VideoProgressIndicator(
-                            _controller,
-                            allowScrubbing: true,
-                            colors: VideoProgressColors(
-                              playedColor: Theme.of(context).canvasColor,
-                              bufferedColor: Colors.white.withOpacity(0.3),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 15),
-                        Padding(
-                          padding: const EdgeInsets.only(top: 5.0),
-                          child: Text(
-                            _formatDuration(_controller.value.duration),
-                            style: const TextStyle(color: Colors.white, fontSize: 10),
-                            textAlign: TextAlign.center,
-                          ),
-                        ),
-                      ],
-                    ),
+        body: Stack(
+          children: [
+            Center(
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  AspectRatio(
+                    aspectRatio: aspectRatio,
+                    child: VideoPlayer(_controller),
                   ),
-                ),
-              if (!_controller.value.isPlaying && !_isPlaying && !_showControls)
-                const Icon(
-                  Icons.play_circle_filled,
-                  size: 64,
+                  if (_isLoading)
+                    const CircularProgressIndicator(
+                      color: Colors.red,
+                    ),
+                  if (_showControls)
+                    Positioned(
+                      bottom: 0,
+                      left: 0,
+                      right: 0,
+                      child: Container(
+                        color: Colors.black54,
+                        padding: const EdgeInsets.all(8.0),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            IconButton(
+                              onPressed: _togglePlay,
+                              icon: Icon(
+                                _controller.value.isPlaying ? Icons.pause : Icons.play_arrow,
+                                color: Colors.white,
+                              ),
+                            ),
+                            Expanded(
+                              child: VideoProgressIndicator(
+                                _controller,
+                                allowScrubbing: true,
+                                colors: VideoProgressColors(
+                                  playedColor: Theme.of(context).canvasColor,
+                                  bufferedColor: Colors.white.withOpacity(0.3),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 15),
+                            Padding(
+                              padding: const EdgeInsets.only(top: 5.0),
+                              child: Text(
+                                _formatDuration(_controller.value.duration),
+                                style: const TextStyle(color: Colors.white, fontSize: 10),
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  if (!_controller.value.isPlaying && !_isPlaying && !_showControls)
+                    const Icon(
+                      Icons.play_circle_filled,
+                      size: 64,
+                      color: Colors.white,
+                    ),
+                ],
+              ),
+            ),
+            Positioned(
+              top: 16.0,
+              left: 8.0,
+              child: IconButton(
+                icon: Icon(
+                  Platform.isIOS ? Icons.close : Icons.arrow_back,
                   color: Colors.white,
                 ),
-            ],
-          ),
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
+              ),
+            ),
+          ],
         ),
       ),
     );
