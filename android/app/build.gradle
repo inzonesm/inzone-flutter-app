@@ -39,18 +39,26 @@ android {
         // You can update the following values to match your application needs.
         // For more information, see: https://docs.flutter.dev/deployment/android#reviewing-the-gradle-build-configuration.
         minSdk = flutter.minSdkVersion
-        targetSdk = 33
+        targetSdk = 34
         versionCode = flutterVersionCode.toInteger()
         versionName = flutterVersionName
     }
 
-    buildTypes {
+signingConfigs {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.debug
+            storePassword = "@Inzone2023"
+            keyPassword = "@Inzone2023"
+            keyAlias = "key"
+            storeFile = file("key.jks") // Relative path to the key.jks file in the `android` folder
         }
     }
+       buildTypes {
+        release {
+            signingConfig = signingConfigs.release
+        }
+    }
+
+    
 }
 
 flutter {
