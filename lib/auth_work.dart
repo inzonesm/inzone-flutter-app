@@ -1,14 +1,16 @@
 
-
+import 'package:firebase_storage/firebase_storage.dart';
 import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:inzone/all_chats_screen.dart';
+import 'package:video_thumbnail/video_thumbnail.dart';
 
 class AuthWork {
   static FirebaseAuth auth = FirebaseAuth.instance;
   static FirebaseFirestore firestore = FirebaseFirestore.instance;
+  static FirebaseStorage storage = FirebaseStorage.instance;
 
   static User get user => auth.currentUser!;
   // static FirebaseStorage storage = FirebaseStorage.instance;
@@ -28,6 +30,44 @@ class AuthWork {
   //       .limit(1)
   //       .snapshots();
   // }
+  static Future<Map<String, String>> sendPostVideo(String chatUserID, File videoFile) async {
+    try {
+      // Getting video file extension
+      final ext = videoFile.path.split('.').last;
+
+      // Storage file ref with path for video
+      final ref = storage.ref().child(
+          'videos/${chatUserID}/${DateTime.now().millisecondsSinceEpoch}.$ext');
+
+      // Uploading video
+      await ref
+          .putFile(videoFile, SettableMetadata(contentType: 'video/$ext'))
+          .then((p0) {
+        print('Data Transferred: ${p0.bytesTransferred / 1000} kb');
+      });
+
+      // Getting video URL
+      final videoUrl = await ref.getDownloadURL();
+
+      // Generate thumbnail
+      final thumbnail = await generateThumbnail(videoFile);
+
+      // Storage file ref with path for thumbnail
+      final thumbnailRef = storage.ref().child(
+          'thumbnails/${chatUserID}/${DateTime.now().millisecondsSinceEpoch}_thumbnail.jpg');
+
+      // Uploading thumbnail
+      final thumbnailTask = thumbnailRef.putFile(thumbnail);
+      final thumbnailSnapshot = await thumbnailTask.whenComplete(() {});
+      final thumbnailUrl = await thumbnailSnapshot.ref.getDownloadURL();
+
+      return {"videoUrl": videoUrl, "thumbnailUrl":thumbnailUrl};
+    } catch (e) {
+      print('Error uploading video: $e');
+      throw Exception('Error uploading video');
+    }
+  }
+
 
 
 
@@ -39,6 +79,40 @@ class AuthWork {
         .doc(user.chatId)
         .snapshots();
   }
+
+
+  static Future<String> sendPostImage(String chatUserID, File file) async {
+    //getting image file extension
+    final ext = file.path.split('.').last;
+
+    //storage file ref with path
+    final ref = storage.ref().child(
+        'images/${chatUserID}/${DateTime.now().millisecondsSinceEpoch}.$ext');
+
+    //uploading image
+    await ref
+        .putFile(file, SettableMetadata(contentType: 'image/$ext'))
+        .then((p0) {
+      print('Data Transferred: ${p0.bytesTransferred / 1000} kb');
+    });
+
+    //updating image in firestore database
+    final imageUrl = await ref.getDownloadURL();
+
+    return imageUrl;
+  }
+
+  static Future<File> generateThumbnail(File videoFile) async {
+    // Generate thumbnail using video_thumbnail package
+    final thumbnail = await VideoThumbnail.thumbnailFile(
+      video: videoFile.path,
+      imageFormat: ImageFormat.JPEG,
+      maxWidth: 150, // Specify the width of the thumbnail
+      quality: 25, // Specify the quality of the thumbnail
+    );
+    return File(thumbnail.toString());
+  }
+
 
 
 

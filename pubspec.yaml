@@ -63,6 +63,10 @@ dependencies:
   appsflyer_sdk: ^6.15.1
   flutter_launcher_icons: ^0.14.1
   video_player: ^2.9.0
+  firebase_storage: ^11.6.5
+  video_thumbnail: ^0.5.3
+
+
 
 
 dev_dependencies:

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:inzone/components/video_player_widget_post_screen.dart';
 import 'package:inzone/inzone_database.dart';
 import 'package:inzone/shared_preferences_helper_class.dart';
@@ -9,6 +10,8 @@ import 'package:action_slider/action_slider.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:lottie/lottie.dart';
+
+import 'auth_work.dart';
 
 class PostScreen extends StatefulWidget {
   const PostScreen({super.key});
@@ -280,9 +283,9 @@ class _PostScreenState extends State<PostScreen> {
                   children: [
                     IconButton(
                       onPressed: () async {
-                        final ImagePicker picker = ImagePicker();
+                        final ImagePicker _picker = ImagePicker();
                         // Pick an image
-                        final XFile? image = await picker.pickImage(
+                        final XFile? image = await _picker.pickImage(
                             source: ImageSource.gallery, imageQuality: 90);
                         if (image != null) {
                           // setState(() {
@@ -292,16 +295,16 @@ class _PostScreenState extends State<PostScreen> {
                           setState(() {
                             isUploading = true;
                           });
-                          // await AuthWork.sendPostImage(FirebaseAuth.instance.currentUser!.uid , File(image.path)).then((value) {
-                          //   imageUrl = value;
-                          // });
+                          await AuthWork.sendPostImage(FirebaseAuth.instance.currentUser!.uid , File(image.path)).then((value) {
+                            imageUrl = value;
+                          });
                           // Navigator.pop(context);
                           setState(() {
                             isUploading = false;
                           });
                         }
                       },
-                      icon: const Icon(
+                      icon: Icon(
                         Icons.image,
                         color: Colors.blue,
                         size: 28,
@@ -310,24 +313,24 @@ class _PostScreenState extends State<PostScreen> {
 
                     IconButton(
                       onPressed: () async {
-                        final ImagePicker picker = ImagePicker();
+                        final ImagePicker _picker = ImagePicker();
                         // Pick a video
-                        final XFile? video = await picker.pickVideo(
-                            source: ImageSource.gallery, maxDuration: const Duration(minutes: 5));
+                        final XFile? video = await _picker.pickVideo(
+                            source: ImageSource.gallery, maxDuration: Duration(minutes: 5));
                         if (video != null) {
                           setState(() {
                             isUploading = true;
                           });
-                          // await AuthWork.sendPostVideo(FirebaseAuth.instance.currentUser!.uid , File(video.path)).then((value){
-                          //   videoUrl = value["videoUrl"]!;
-                          //   thumbnailUrl = value["thumbnailUrl"]!;
-                          // });
+                          await AuthWork.sendPostVideo(FirebaseAuth.instance.currentUser!.uid , File(video.path)).then((value){
+                            videoUrl = value["videoUrl"]!;
+                            thumbnailUrl = value["thumbnailUrl"]!;
+                          });
                           setState(() {
                             isUploading = false;
                           });
                         }
                       },
-                      icon: const Icon(
+                      icon: Icon(
                         Icons.switch_video_outlined,
                         color: Colors.blue,
                         size: 28,
@@ -337,9 +340,9 @@ class _PostScreenState extends State<PostScreen> {
 
                     IconButton(
                       onPressed: () async {
-                        final ImagePicker picker = ImagePicker();
+                        final ImagePicker _picker = ImagePicker();
                         // Pick an image
-                        final XFile? image = await picker.pickImage(
+                        final XFile? image = await _picker.pickImage(
                             source: ImageSource.camera, imageQuality: 90);
                         if (image != null) {
                           // setState(() {
@@ -349,16 +352,16 @@ class _PostScreenState extends State<PostScreen> {
                           setState(() {
                             isUploading = true;
                           });
-                          // await AuthWork.sendPostImage(FirebaseAuth.instance.currentUser!.uid , File(image.path)).then((value) {
-                          //   imageUrl = value;
-                          // });
+                          await AuthWork.sendPostImage(FirebaseAuth.instance.currentUser!.uid , File(image.path)).then((value) {
+                            imageUrl = value;
+                          });
                           // Navigator.pop(context);
                           setState(() {
                             isUploading = false;
                           });
                         }
                       },
-                      icon: const Icon(
+                      icon: Icon(
                         Icons.camera_alt_rounded,
                         color: Colors.blue,
                         size: 28,
