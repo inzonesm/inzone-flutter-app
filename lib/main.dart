@@ -5,7 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:inzone/default_firebase_options.dart';
 import 'package:inzone/splash_screen.dart';
 import 'package:appsflyer_sdk/appsflyer_sdk.dart';
-
+x
 AppsFlyerOptions appsFlyerOptions = AppsFlyerOptions(
   afDevKey: "GouQRMcXkXP2CMBgZfHdfB",
   appId: "6478089068",
