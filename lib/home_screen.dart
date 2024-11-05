@@ -27,7 +27,7 @@ class _HomeScreenState extends State<HomeScreen> {
   late DateTime _startTime; // To store the start time
   int pageOpened = 0;
   int _currentPage = 0; // Keep track of the current page for pagination
-  final int _pageSize = 100; // Load 10 posts per batch
+  final int _pageSize = 30; // Load 10 posts per batch
 
   final ScrollController _scrollController = ScrollController();
 
@@ -175,9 +175,10 @@ class _HomeScreenState extends State<HomeScreen> {
       isLoading =false;
     });
     posts.shuffle();
-
+    avatarCards.shuffle();
     for (int i = 0; i < posts.length; i++) {
-      if (i % 7 == 0 && i != 0) {
+
+      if (i % 20 == 0 && i != 0) {
         finalHomeScreen.add(SizedBox(
           height: 550, // Adjust height as necessary
           child: Column(
