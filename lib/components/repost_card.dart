@@ -233,6 +233,7 @@ const Divider(
                             return ChatScreen(userData: ChatUser(
                                 name: widget.repost.username,
                                 email: widget.repost.id,
+                                profilePictureURL: widget.repost.profilePicture,
                                 chatId: null
                             ));
                           }));
@@ -825,10 +826,10 @@ const Divider(
           crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start, // Align properly for different users
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Padding(
+             Padding(
               padding: EdgeInsets.symmetric(horizontal: 15.0),
               child: Text(
-                "Miles",
+                widget.repost.name,
                 style: TextStyle(color: Colors.blue),
               ),
             ),
