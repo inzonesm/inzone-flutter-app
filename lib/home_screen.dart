@@ -175,7 +175,7 @@ class _HomeScreenState extends State<HomeScreen> {
       isLoading =false;
     });
     posts.shuffle();
-    avatarCards.shuffle();
+    finalHomeScreen.shuffle();
     for (int i = 0; i < posts.length; i++) {
 
       if (i % 20 == 0 && i != 0) {
