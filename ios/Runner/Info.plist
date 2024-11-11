@@ -2,6 +2,8 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>NSAppleMusicUsageDescription</key>
+	<string>We need access to your photo library to upload and share photos within the app.</string>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
@@ -43,15 +45,13 @@
 	</array>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
-	<key>LSApplicationCategoryType</key>
-	<string></string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>We need your microphone for video recording and sharing within the app.</string>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>We need access to your photo library to upload and share photos within the app</string>
-	<key>NSMicrophoneUsageDescription</key>
-	<string>We need microphone for video recording and sharing within the app</string>
+	<string>We need access to your photo library to upload and share photos within the app.</string>
 	<key>NSCameraUsageDescription</key>
-	<string>We need camera for photo and video recording and sharing within the app</string>
+	<string>We need access to your camera to upload and share photos within the app.</string>
 </dict>
 </plist>
