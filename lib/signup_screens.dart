@@ -109,17 +109,15 @@ By using the Licensed Application, you agree to abide by these terms and conditi
 
             Navigator.pushAndRemoveUntil(
               context,
-              MaterialPageRoute(builder: (context) => RootApp()),
+              MaterialPageRoute(builder: (context) => const RootApp()),
                   (route) => false, // removes all previous routes
             );
-
-
           }
         } else {
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(
-              builder: (context) => IntroductionScreen(),
+              builder: (context) => const IntroductionScreen(),
             ),
           );
 
@@ -155,6 +153,7 @@ By using the Licensed Application, you agree to abide by these terms and conditi
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      resizeToAvoidBottomInset: false,
       appBar: AppBar(
         title: Text(
           _currentPage == 0 ? 'Sign Up' : 'Content Selection',
@@ -521,17 +520,22 @@ By using the Licensed Application, you agree to abide by these terms and conditi
         ),
         child: SingleChildScrollView(
           scrollDirection: Axis.vertical,
-          child: Padding(
-            padding: const EdgeInsets.only(bottom: 80.0),
-            child: Wrap(
-              children: List.generate(
-                topicList.length,
-                (index) {
-                  String currentTopic = topicList[index];
-                  return TopicSelectorWidget(topic: currentTopic, callBack: addToList);
-                },
+          child: Column(
+            children: [
+              Center(child: Text("Select your favorite categories", style: TextStyle(color: Colors.blue),)),
+              Padding(
+                padding: const EdgeInsets.only(bottom: 80.0),
+                child: Wrap(
+                  children: List.generate(
+                    topicList.length,
+                    (index) {
+                      String currentTopic = topicList[index];
+                      return TopicSelectorWidget(topic: currentTopic, callBack: addToList);
+                    },
+                  ),
+                ),
               ),
-            ),
+            ],
           ),
         ));
   }

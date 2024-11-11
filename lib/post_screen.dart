@@ -132,16 +132,7 @@ class _PostScreenState extends State<PostScreen> {
                 topLeft: Radius.circular(20), topRight: Radius.circular(20))),
         child: Scaffold(
           backgroundColor:  Theme.of(context).canvasColor,
-          // appBar: AppBar(
-          //   elevation: 0,
-          //   backgroundColor: backgroundColor,
-          //   leading: IconButton(
-          //       onPressed: () {},
-          //       icon: const Icon(
-          //         Icons.highlight_remove_outlined,
-          //         color: Colors.grey,
-          //       )),
-          // ),
+
           body: Padding(
             padding: const EdgeInsets.only(bottom: 8.0, left: 8.0, right: 8.0),
             child: Column(
@@ -211,26 +202,6 @@ class _PostScreenState extends State<PostScreen> {
                 ),
 
 
-                //
-                // SlideAction(
-                //   sliderButtonIconPadding: 6,
-                //   sliderRotate: false,
-                //   outerColor: Colors.blue,
-                //   text: "Post to InZone",
-                //   height: 60,
-                //   elevation: 0,
-                //   onSubmit: () {
-                //     setState(() {
-                //       submitted = true;
-                //     });
-                //   },
-                // ),
-                // PostSlider(
-                //     afterSlideText: "Post Successful",
-                //     beforeSlideText: "Post to InZone"),
-                // SizedBox(
-                //   height: 5,
-                // ),
 
                 //  const Divider(),
                 const SizedBox(height: 10,),
@@ -391,48 +362,53 @@ class _PostScreenState extends State<PostScreen> {
                         ),
                       ),
                     ),
-                    videoUrl == ""
-                        ? const SizedBox(
-                      height: 5,
-                    )
-                        : Padding(
-                      padding: const EdgeInsets.all(8.0),
-                      child: ClipRRect(
+                    if (videoUrl.isNotEmpty || isUploading)
+                      Padding(
+                        padding: const EdgeInsets.all(8.0),
+                        child: ClipRRect(
                           borderRadius: BorderRadius.circular(20.0),
-                          child: InkWell(
-                            onTap: () {
-                              // Play video
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => VideoPlayerWidgetPostScreen(
-                                      videoUrl),
-                                ),
-                              );
-                            },
-                            child: Stack(
-                              children: [
-                                CachedNetworkImage(
-                                    height: 140,
-                                    width: 140,
-                                    fit: BoxFit.fill,
-                                    imageUrl: thumbnailUrl,
-                                    placeholder: (context, url) => const Center(
-                                        child: CircularProgressIndicator()),
-                                    errorWidget: (context, url, error) => const SizedBox()
-
-                                ),
-                                const Positioned.fill(
-                                  child: Center(
-                                    child: Icon(Icons.play_arrow,
-                                        size: 50, color: Colors.white),
+                          child: Stack(
+                            alignment: Alignment.center,
+                            children: [
+                              if (videoUrl.isNotEmpty)
+                                InkWell(
+                                  onTap: () {
+                                    // Navigate to video player screen
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) => VideoPlayerWidgetPostScreen(videoUrl),
+                                      ),
+                                    );
+                                  },
+                                  child: Stack(
+                                    children: [
+                                      CachedNetworkImage(
+                                        height: 140,
+                                        width: 140,
+                                        fit: BoxFit.fill,
+                                        imageUrl: thumbnailUrl,
+                                        placeholder: (context, url) => const Center(
+                                          child: CircularProgressIndicator(),
+                                        ),
+                                        errorWidget: (context, url, error) => const SizedBox(),
+                                      ),
+                                      const Positioned.fill(
+                                        child: Center(
+                                          child: Icon(Icons.play_arrow, size: 50, color: Colors.white),
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
-                              ],
-                            ),
-                          )
+                              if (isUploading)
+                                const Center(
+                                  child: CircularProgressIndicator(),
+                                ),
+                            ],
+                          ),
+                        ),
                       ),
-                    ),
                   ],
                 ),
 
@@ -441,199 +417,7 @@ class _PostScreenState extends State<PostScreen> {
                 const SizedBox(height: 5,),
                 const Spacer(flex: 3),
 
-                // isTyping
-                //     ? Container()
-                //     : SizedBox(
-                //   height: MediaQuery.of(context).size.height / 2.8,
-                // ),
 
-                // const  Divider(),
-
-
-
-                // const  Text(
-                //            "Suggestions based on your InZone post"),
-                //
-                //
-                //
-                //      SingleChildScrollView(
-                //          child: InlineChoice(
-                //            multiple: true,
-                //            clearable: true,
-                //            value: multipleSelected,
-                //            onChanged: setMultipleSelected,
-                //            itemCount: choices.length,
-                //            itemBuilder: (selection, i) {
-                //              return ChoiceChip(
-                //                color:
-                //                MaterialStateProperty.resolveWith(
-                //                        (states) {
-                //                      if (states.contains(
-                //                          MaterialState.selected)) {
-                //                        return backgroundColor;
-                //                      }
-                //                      return Colors.white;
-                //                    }),
-                //                selected:
-                //                selection.selected(choices[i]),
-                //                onSelected:
-                //                selection.onSelected(choices[i]),
-                //                label: Text(choices[i]),
-                //              );
-                //            },
-                //            listBuilder: ChoiceList.createWrapped(
-                //              spacing: 10,
-                //              runSpacing: 10,
-                //              padding: const EdgeInsets.symmetric(
-                //                horizontal: 20,
-                //                vertical: 25,
-                //              ),
-                //            ),
-                //          ),
-                //        ),
-
-                //
-                // isTyping
-                //     ? Container(
-                //   margin: const EdgeInsets.only(top: 0),
-                //   padding: const EdgeInsets.only(
-                //       top: 0, left: 10, right: 10),
-                //   width: MediaQuery.of(context).size.width,
-                //   height: 250,
-                //   decoration: BoxDecoration(
-                //     borderRadius:
-                //     const BorderRadius.all(Radius.circular(40.0)),
-                //     color: isTyping ? Colors.white : backgroundColor,
-                //   ),
-                //   child: Column(
-                //     crossAxisAlignment: CrossAxisAlignment.center,
-                //     mainAxisAlignment: MainAxisAlignment.start,
-                //     children: [
-                //       const SizedBox(
-                //         height: 10,
-                //       ),
-                //       const Flexible(
-                //         flex: 1,
-                //         child: Text(
-                //             "Suggestions based on your InZone post"),
-                //       ),
-                //
-                //       // TODO: Replace the row with ListView.builder
-                //
-                //       Flexible(
-                //         flex: 5,
-                //         child: SingleChildScrollView(
-                //           child: InlineChoice(
-                //             multiple: true,
-                //             clearable: true,
-                //             value: multipleSelected,
-                //             onChanged: setMultipleSelected,
-                //             itemCount: choices.length,
-                //             itemBuilder: (selection, i) {
-                //               return ChoiceChip(
-                //                 color:
-                //                 MaterialStateProperty.resolveWith(
-                //                         (states) {
-                //                       if (states.contains(
-                //                           MaterialState.selected)) {
-                //                         return backgroundColor;
-                //                       }
-                //                       return Colors.white;
-                //                     }),
-                //                 selected:
-                //                 selection.selected(choices[i]),
-                //                 onSelected:
-                //                 selection.onSelected(choices[i]),
-                //                 label: Text(choices[i]),
-                //               );
-                //             },
-                //             listBuilder: ChoiceList.createWrapped(
-                //               spacing: 10,
-                //               runSpacing: 10,
-                //               padding: const EdgeInsets.symmetric(
-                //                 horizontal: 20,
-                //                 vertical: 25,
-                //               ),
-                //             ),
-                //           ),
-                //         ),
-                //       ),
-                //
-                //
-                //
-                //     ],
-                //   ),
-                // )
-                //     : const SizedBox(),
-
-                // Row(
-                //   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                //   children: [
-                //     GestureDetector(
-                //       onTap: () {
-                //         _pickImagefromGallery();
-                //       },
-                //       child: Container(
-                //         height: 70,
-                //         width: 70,
-                //         decoration: BoxDecoration(
-                //             borderRadius: BorderRadius.circular(15),
-                //             color: Colors.white,
-                //             boxShadow: const [
-                //               BoxShadow(
-                //                   color: Color(0xffe064f7),
-                //                   blurRadius: 1.0,
-                //                   spreadRadius: 1.0,
-                //                   offset: Offset(1, 1))
-                //             ]),
-                //         child: Column(
-                //           mainAxisAlignment: MainAxisAlignment.center,
-                //           children: [
-                //             SvgPicture.asset("assets/picture_icon.svg"),
-                //             const SizedBox(height: 5),
-                //             const Text(
-                //               "Image",
-                //               style: TextStyle(
-                //                   color: Colors.black,
-                //                   fontWeight: FontWeight.w700,
-                //                   fontSize: 14),
-                //             )
-                //           ],
-                //         ),
-                //       ),
-                //     ),
-                //     Container(
-                //       height: 70,
-                //       width: 70,
-                //       decoration: BoxDecoration(
-                //           borderRadius: BorderRadius.circular(15),
-                //           color: Colors.white,
-                //           boxShadow: const [
-                //             BoxShadow(
-                //                 color: Color(0xff00b2e7),
-                //                 blurRadius: 1.0,
-                //                 spreadRadius: 1.0,
-                //                 offset: Offset(1, 1))
-                //           ]),
-                //       child: Column(
-                //         mainAxisAlignment: MainAxisAlignment.center,
-                //         children: [
-                //           SvgPicture.asset("assets/link_icon.svg"),
-                //           const SizedBox(height: 5),
-                //           const Text(
-                //             "Link",
-                //             style: TextStyle(
-                //                 color: Colors.black,
-                //                 fontWeight: FontWeight.w700,
-                //                 fontSize: 14),
-                //           )
-                //         ],
-                //       ),
-                //     ),
-                //
-                //     // Image.asset("icons/post_icons/1.png"),
-                //   ],
-                // ),
                 Align(
                   alignment: Alignment.bottomCenter,
                   child: SizedBox(
@@ -1338,6 +1122,7 @@ class _PostScreenState extends State<PostScreen> {
 
 
 
+
 class VideoWidget extends StatefulWidget {
   final String videoUrl;
 
@@ -1434,13 +1219,29 @@ class _VideoWidgetState extends State<VideoWidget> {
       child: Stack(
         alignment: Alignment.center,
         children: [
-          // Video Player
           AspectRatio(
             aspectRatio: _controller.value.aspectRatio,
             child: VideoPlayer(_controller),
           ),
           if (_isBuffering)
             const CircularProgressIndicator(),
+          // Central play button overlay
+          if (!_isPlaying)
+            GestureDetector(
+              onTap: _togglePlayPause,
+              child: Container(
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.black.withOpacity(0.5),
+                ),
+                padding: const EdgeInsets.all(10.0),
+                child: const Icon(
+                  Icons.play_arrow,
+                  color: Colors.white,
+                  size: 50.0,
+                ),
+              ),
+            ),
           // Controls Overlay
           if (_showControls)
             Positioned(
