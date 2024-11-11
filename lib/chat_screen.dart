@@ -280,7 +280,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 Navigator.push(context, MaterialPageRoute(builder: (context) {
                   return PostChatScreen(
                     name: widget.userData.name!,
-                    profileImageURL: null,
+                    profileImageURL: widget.userData.profilePictureURL!,
                     chat: text,
                     avatarID: widget.userData.email!,
                   );
