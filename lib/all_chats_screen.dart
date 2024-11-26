@@ -175,11 +175,12 @@ class ChatUser {
       print(map);
       // Check if 'aiProfile' and 'conversationId' exist in the map
       if (map.containsKey('aiProfile') && map['aiProfile'] != null && map.containsKey('conversationId')) {
+      print(map);
         return ChatUser(
           email: map['aiProfile']['username'] ?? '',
           name: map['aiProfile']["name"] ?? '',
-          chatId: map['conversationId'] ?? '',
-
+          chatId: map['conversationId'] ?? null,
+        profilePictureURL: map['aiProfile']['profilePicture']
         );
       }
       // Return null if required fields are missing
@@ -229,14 +230,26 @@ class _ChatUserCardState extends State<ChatUserCard> {
             height: 50,
             width: 50,
             decoration: BoxDecoration(
-                border: Border.all(
-                  color: const Color(0xffFFE2A9),
-                  width: 1.5,
-                ),
-                shape: BoxShape.circle),
-            child: RandomAvatar(widget.userData.name.toString(),
-                height: 30, width: 30),
+              border: Border.all(
+                color: const Color(0xffFFE2A9),
+                width: 1.5,
+              ),
+              shape: BoxShape.circle,
+            ),
+            child: widget.userData.profilePictureURL != null && widget.userData.profilePictureURL!.isNotEmpty
+                ? ClipOval(
+              child: Image.network(
+                widget.userData.profilePictureURL!,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) {
+                  // Fallback to RandomAvatar if the image fails to load
+                  return RandomAvatar(widget.userData.name.toString(), height: 30, width: 30);
+                },
+              ),
+            )
+                : RandomAvatar(widget.userData.name.toString(), height: 30, width: 30),
           ),
+
           title: Text(
             '${widget.userData.name}',
             style: GoogleFonts.openSans(

@@ -12,6 +12,7 @@ class CustomIcons {
   static String music = "icons/music.svg";
   static String send = "icons/send-final.svg";
   static String comment = "icons/comment.svg";
+  static String uncomment = "icons/uncomment.png";
   static String sports = "icons/sports.svg";
   static String humorAndMemes = "icons/humor_and_memes.svg";
   static String games = "icons/games.svg";

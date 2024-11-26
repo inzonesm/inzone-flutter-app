@@ -10,7 +10,7 @@ import 'package:action_slider/action_slider.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:lottie/lottie.dart';
-
+import 'package:http/http.dart' as http;
 import 'auth_work.dart';
 
 class PostScreen extends StatefulWidget {
@@ -1119,92 +1119,97 @@ class _PostScreenState extends State<PostScreen> {
 //   }
 //
 // }
-
-
-
-
 class VideoWidget extends StatefulWidget {
   final String videoUrl;
 
-  const VideoWidget({super.key, required this.videoUrl});
+  const VideoWidget({Key? key, required this.videoUrl}) : super(key: key);
 
   @override
   _VideoWidgetState createState() => _VideoWidgetState();
 }
 
 class _VideoWidgetState extends State<VideoWidget> {
-  late VideoPlayerController _controller;
-  bool _isPlaying = false;
-  bool _isBuffering = true;
-  bool _showControls = false;
+  late VideoPlayerController _videoPlayerController;
+  bool _isInitialized = false;
+  bool _isPlayable = false;
+  bool _showControls = true;
   Timer? _hideControlsTimer;
 
   @override
   void initState() {
     super.initState();
-    _controller = VideoPlayerController.network(widget.videoUrl)
-      ..addListener(() {
-        final bool isBuffering = _controller.value.isBuffering;
-        if (_isBuffering != isBuffering) {
-          setState(() {
-            _isBuffering = isBuffering;
-          });
-        }
-      })
-      ..initialize().then((_) {
-        setState(() {
-          _isBuffering = false;
-        });
+    _checkHeadersAndInitialize();
+  }
+
+  Future<void> _checkHeadersAndInitialize() async {
+    try {
+      final response = await http.head(Uri.parse(widget.videoUrl));
+      var headers = response.headers;
+if (Platform.isIOS){
+  // Check if Content-Disposition header is missing
+  if (!headers.containsKey('content-disposition')) {
+    print('Content-Disposition header is missing');
+    // Handle missing header (e.g., show error or avoid playback)
+
+    setState(() {
+      _isPlayable = false;
+    });
+    return;
+  }
+}
+
+
+      // Proceed to initialize the video player
+      await _initializeVideoPlayer();
+    } catch (e) {
+      print('Error checking headers: $e');
+      setState(() {
+        _isPlayable = false;
       });
-
-    _controller.addListener(_videoListener);
-  }
-
-  void _videoListener() {
-    setState(() {
-      _isPlaying = _controller.value.isPlaying;
-    });
-  }
-
-  @override
-  void dispose() {
-    _controller.removeListener(_videoListener);
-    _controller.dispose();
-    _hideControlsTimer?.cancel();
-    super.dispose();
-  }
-
-  void _togglePlayPause() {
-    setState(() {
-      _isPlaying ? _controller.pause() : _controller.play();
-      _isPlaying = !_isPlaying;
-    });
-    _startHideControlsTimer();
-  }
-
-  void _seekForward() {
-    final newPosition = _controller.value.position + const Duration(seconds: 10);
-    _controller.seekTo(newPosition);
-    _startHideControlsTimer();
-  }
-
-  void _seekBackward() {
-    final newPosition = _controller.value.position - const Duration(seconds: 10);
-    _controller.seekTo(newPosition);
-    _startHideControlsTimer();
-  }
-
-  void _toggleControlsVisibility() {
-    setState(() {
-      _showControls = !_showControls;
-    });
-    if (_showControls) {
-      _startHideControlsTimer();
     }
   }
 
+  Future<void> _initializeVideoPlayer() async {
+    _videoPlayerController = VideoPlayerController.networkUrl(Uri.parse(widget.videoUrl));
+
+
+    try {
+      await _videoPlayerController.initialize();
+      setState(() {
+        _isInitialized = true;
+
+        // Check if the video has valid dimensions and is in a playable state
+        if (_videoPlayerController.value.size != null &&
+            _videoPlayerController.value.size.width > 0 &&
+            _videoPlayerController.value.size.height > 0 &&
+            _videoPlayerController.value.isInitialized &&
+            !_videoPlayerController.value.hasError) {
+          _isPlayable = true;
+        } else {
+          _isPlayable = false;
+        }
+      });
+    } catch (e) {
+      print('Error initializing video: $e');
+      setState(() {
+        _isPlayable = false;
+      });
+    }
+  }
+
+  void _togglePlayback() {
+    setState(() {
+      if (_videoPlayerController.value.isPlaying) {
+        _videoPlayerController.pause();
+      } else {
+        _videoPlayerController.play();
+        _startHideControlsTimer(); // Start the timer to hide controls
+      }
+    });
+  }
+
   void _startHideControlsTimer() {
-    _hideControlsTimer?.cancel();
+    _hideControlsTimer?.cancel(); // Cancel any existing timer
     _hideControlsTimer = Timer(const Duration(seconds: 3), () {
       setState(() {
         _showControls = false;
@@ -1212,80 +1217,45 @@ class _VideoWidgetState extends State<VideoWidget> {
     });
   }
 
+  void _showControlsTemporarily() {
+    setState(() {
+      _showControls = true;
+    });
+    _startHideControlsTimer(); // Restart the timer
+  }
+
+  @override
+  void dispose() {
+    _videoPlayerController.dispose();
+    _hideControlsTimer?.cancel();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
+    if (!_isInitialized || !_isPlayable) {
+      return const SizedBox.shrink(); // Hide the widget if video is not playable
+    }
+
     return GestureDetector(
-      onTap: _toggleControlsVisibility,
+      onTap: _showControlsTemporarily, // Show controls temporarily on tap
       child: Stack(
         alignment: Alignment.center,
         children: [
           AspectRatio(
-            aspectRatio: _controller.value.aspectRatio,
-            child: VideoPlayer(_controller),
+            aspectRatio: _videoPlayerController.value.aspectRatio,
+            child: VideoPlayer(_videoPlayerController),
           ),
-          if (_isBuffering)
-            const CircularProgressIndicator(),
-          // Central play button overlay
-          if (!_isPlaying)
-            GestureDetector(
-              onTap: _togglePlayPause,
-              child: Container(
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Colors.black.withOpacity(0.5),
-                ),
-                padding: const EdgeInsets.all(10.0),
-                child: const Icon(
-                  Icons.play_arrow,
-                  color: Colors.white,
-                  size: 50.0,
-                ),
-              ),
-            ),
-          // Controls Overlay
           if (_showControls)
-            Positioned(
-              bottom: 0,
-              left: 0,
-              right: 0,
-              child: Container(
-                color: Colors.black.withOpacity(0.3), // Semi-transparent background
-                padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 12.0),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    VideoProgressIndicator(
-                      _controller,
-                      allowScrubbing: true,
-                      colors: VideoProgressColors(
-                        playedColor: Colors.red,
-                        bufferedColor: Colors.white.withOpacity(0.5),
-                        backgroundColor: Colors.grey,
-                      ),
-                    ),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        IconButton(
-                          icon: const Icon(Icons.replay_10, color: Colors.white),
-                          onPressed: _seekBackward,
-                        ),
-                        IconButton(
-                          icon: Icon(
-                            _isPlaying ? Icons.pause : Icons.play_arrow,
-                            color: Colors.white,
-                          ),
-                          onPressed: _togglePlayPause,
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.forward_10, color: Colors.white),
-                          onPressed: _seekForward,
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
+            IconButton(
+              icon: Icon(
+                _videoPlayerController.value.isPlaying
+                    ? Icons.pause
+                    : Icons.play_arrow,
+                color: Colors.white,
+                size: 48.0,
               ),
+              onPressed: _togglePlayback,
             ),
         ],
       ),

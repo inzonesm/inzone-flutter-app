@@ -94,22 +94,22 @@ print(savedPosts);
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Theme.of(context).canvasColor,
-      appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(60),
-        child: AppBar(
-          elevation: 0,
-          backgroundColor: Theme.of(context).canvasColor,
-          iconTheme: const IconThemeData(color: Colors.black),
-          title: const Text(
-            "Favorites",
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              color: Colors.black,
-            ),
-          ),
-        ),
-      ),
+      // appBar: PreferredSize(
+      //   preferredSize: const Size.fromHeight(60),
+      //   child: AppBar(
+      //     elevation: 0,
+      //     backgroundColor: Theme.of(context).canvasColor,
+      //     iconTheme: const IconThemeData(color: Colors.black),
+      //     title: const Text(
+      //       "Favorites",
+      //       textAlign: TextAlign.center,
+      //       style: TextStyle(
+      //         fontWeight: FontWeight.bold,
+      //         color: Colors.black,
+      //       ),
+      //     ),
+      //   ),
+      // ),
       body: SafeArea(
         left: false,
         right: false,
@@ -123,6 +123,7 @@ print(savedPosts);
               mainAxisAlignment: MainAxisAlignment.start,
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
+                SizedBox(height: 20,),
                 isLoading
                     ? Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
