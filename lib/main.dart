@@ -9,8 +9,7 @@ import 'package:appsflyer_sdk/appsflyer_sdk.dart';
 AppsFlyerOptions appsFlyerOptions = AppsFlyerOptions(
   afDevKey: "GouQRMcXkXP2CMBgZfHdfB",
   appId: "6478089068",
-  showDebug: false,
-  // timeToWaitForATTUserAuthorization: 50, // for iOS 14.5
+  showDebug: false, // timeToWaitForATTUserAuthorization: 50, // for iOS 14.5
   // appInviteOneLink: oneLinkID, // Optional field
   // disableAdvertisingIdentifier: false, // Optional field
   // disableCollectASA: false, //Optional field
@@ -34,8 +33,6 @@ void main() async {
   String? advertisingId = await appsflyerSdk.getAppsFlyerUID();
 print("The advertising ID is $advertisingId");
   runApp(const MyApp());
-
-
 
 }
 
@@ -105,7 +102,6 @@ class MyApp extends StatelessWidget {
             return SplashScreen(
               loggedIn: false,
             );
-
           }
         },
       ),

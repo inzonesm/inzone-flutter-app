@@ -213,7 +213,7 @@ print(response.body);
     });
     // Create the request body
     final Map<String, dynamic> requestBody = {
-      'userUid': '4zQrT4Zd1oMFjlaPDEz3wWcJSOv2',
+      'userUid': currentUserUID,
     };
     try {
       final http.Response response = await http.post(
@@ -225,6 +225,7 @@ print(response.body);
       // Check if the request was successful (status code 200-299)
       if (response.statusCode == 200) {
         // Parse the response body and return as Map
+        print("BODY");
         print(response.body);
         return jsonDecode(response.body) as Map<String, dynamic>;
       } else {

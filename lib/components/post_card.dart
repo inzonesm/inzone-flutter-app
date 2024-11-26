@@ -33,7 +33,23 @@ class _PostCardState extends State<PostCard> {
   CommentClass? comment;
 
   bool isLiked = false;
+  Future<bool> isCommentPresent() async {
+    DocumentReference postDocumentReference = _firestore.collection('postComments').doc(widget.post.id.toString());
 
+    // Get the document snapshot
+    DocumentSnapshot postSnapshot = await postDocumentReference.get();
+
+    // Initialize currentComments
+    List<dynamic> currentComments = [];
+
+    if (postSnapshot.exists) {
+      // If the document exists, retrieve the current comments list
+      currentComments = postSnapshot['comments'] ?? [];
+      return currentComments.length > 0;
+    }
+
+    return false;
+  }
   @override
   void initState() {
     super.initState();
@@ -57,22 +73,25 @@ class _PostCardState extends State<PostCard> {
       isLiked = !isLiked; // Toggle the like state
     });
   }
+  checkComment() async {
+    isCommentPresent().then((value) {
+      if (mounted) { // Check if the widget is still in the tree
+        setState(() {
+          isCommentPresentbool = value;
+        });
+      }
+    });
+  }
 
-
+bool isCommentPresentbool = false;
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context)  {
+
+checkComment();
     return GestureDetector(
       onDoubleTap: handleLike, // Handle like on double tap
 
-      onTap: (){
-        if (widget.post.userReference.contains('aiUser')) {
-          Navigator.push(context, MaterialPageRoute(builder: (context)=>ProfileScreen(uid: widget.post.userName)));
 
-        } else {
-          Navigator.push(context, MaterialPageRoute(builder: (context)=>ProfileScreen(uid: widget.post.id)));
-
-        }
-      },
       child: Padding(
         padding: const EdgeInsets.only(bottom: 20.0),
         child: Container(
@@ -88,7 +107,7 @@ class _PostCardState extends State<PostCard> {
               blurRadius: 15,
               offset: const Offset(0, 4), // changes position of shadow
             ),
-          ], color: Colors.white, borderRadius: BorderRadius.circular(15)),
+          ], color: Colors.white.withOpacity(0.97), borderRadius: BorderRadius.circular(15)),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
@@ -100,12 +119,23 @@ class _PostCardState extends State<PostCard> {
                     width: 10,
                   ),
                   Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text(
-                      widget.post.userName,
-                      style: const TextStyle(
-                          color: Colors.black,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 20),
+                    GestureDetector(
+                      onTap: (){
+                        if (widget.post.userReference.contains('aiUser')) {
+                          Navigator.push(context, MaterialPageRoute(builder: (context)=>ProfileScreen(uid: widget.post.userName)));
+
+                        } else {
+                          Navigator.push(context, MaterialPageRoute(builder: (context)=>ProfileScreen(uid: widget.post.id)));
+
+                        }
+                      },
+                      child: Text(
+                        widget.post.userName,
+                        style: const TextStyle(
+                            color: Colors.black,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 20),
+                      ),
                     ),
 
                   ]),
@@ -230,8 +260,6 @@ class _PostCardState extends State<PostCard> {
                       // Display all videos after images
                       if (widget.post.videoContent.isNotEmpty && widget.post.videoContent.first.length > 3)
                         ...widget.post.videoContent.map((videoUrl) {
-                          print("\nVideo Content\n");
-                          print(widget.post.videoContent);
                           return Padding(
                             padding: const EdgeInsets.only(right: 5.0),
                             child: SizedBox(
@@ -268,11 +296,23 @@ class _PostCardState extends State<PostCard> {
                   const SizedBox(
                     width: 10,
                   ),
-                  InkWell(
+                  // InkWell(
+                  //     onTap: () {
+                  //       filterSheetModel();
+                  //     },
+                  //     child: SizedBox(height: 35, width: 35, child: SvgPicture.asset(CustomIcons.comment))),
+                  if (isCommentPresentbool == true)
+                    InkWell(
+                        onTap: () {
+                          filterSheetModel();
+                        },
+                        child: SizedBox(height: 35, width: 35, child: SvgPicture.asset(CustomIcons.comment
+                        ))),
+                  if (isCommentPresentbool == false)  InkWell(
                       onTap: () {
                         filterSheetModel();
                       },
-                      child: SizedBox(height: 35, width: 35, child: SvgPicture.asset(CustomIcons.comment))),
+                      child: SizedBox(height: 35, width: 35, child: Image.asset(CustomIcons.uncomment))),
                   const SizedBox(
                     width: 10,
                   ),
@@ -320,7 +360,7 @@ class _PostCardState extends State<PostCard> {
                 return ChatScreen(userData: ChatUser(
                   name: widget.post.userName,
                   email: widget.post.userReference,
-                  chatId: null
+                    chatId: null,
                 ));
               }));
           } else if(value == "not_interested"){
@@ -605,27 +645,6 @@ class _PostCardState extends State<PostCard> {
     return !isDisliked;
   }
 
-// Inside the retrieveLikedComments method
-  Future<void> retrieveLikedComments() async {
-    // SharedPreferences prefs = await SharedPreferences.getInstance();
-    // likedComments.clear(); // Clear the existing map
-    // for (String commentId in prefs.getKeys()) {
-    //   if (prefs.getBool(commentId)!) {
-    //     likedComments[commentId] = true;
-    //   }
-    // }
-  }
-
-// Inside the retrieveUnLikedComments method
-//   Future<void> retrieveUnLikedComments() async {
-//     SharedPreferences prefs = await SharedPreferences.getInstance();
-//     dislikedComments.clear(); // Clear the existing map
-//     for (String commentId in prefs.getKeys()) {
-//       if (!prefs.getBool(commentId)!) {
-//         dislikedComments[commentId] = true;
-//       }
-//     }
-//   }
 
   Future<CommentClass> getComment(String commentId) async {
     DocumentSnapshot snapshot =

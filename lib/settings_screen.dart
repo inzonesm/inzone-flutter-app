@@ -71,22 +71,22 @@ class SettingsScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: Theme.of(context).canvasColor,
 
-      appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(60),
-        child: AppBar(
-          elevation: 0,
-          backgroundColor:  Theme.of(context).canvasColor,
-          iconTheme: const IconThemeData(color: Colors.black),
-          title: const Text(
-            "Settings",
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              color: Colors.black,
-            ),
-          ),
-        ),
-      ),
+      // appBar: PreferredSize(
+      //   preferredSize: const Size.fromHeight(60),
+      //   child: AppBar(
+      //     elevation: 0,
+      //     backgroundColor:  Theme.of(context).canvasColor,
+      //     iconTheme: const IconThemeData(color: Colors.black),
+      //     title: const Text(
+      //       "Settings",
+      //       textAlign: TextAlign.center,
+      //       style: TextStyle(
+      //         fontWeight: FontWeight.bold,
+      //         color: Colors.black,
+      //       ),
+      //     ),
+      //   ),
+      // ),
 
       body: SafeArea(
           child: Padding(
@@ -96,7 +96,7 @@ class SettingsScreen extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
-                  "Settings",
+                  "Main Settings",
                   style:
                   TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
                 ),

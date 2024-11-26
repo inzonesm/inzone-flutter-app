@@ -16,8 +16,7 @@ class UserProfileScreen extends StatefulWidget {
   State<UserProfileScreen> createState() => _UserProfileScreenState();
 }
 
-class _UserProfileScreenState extends State<UserProfileScreen>
-    with SingleTickerProviderStateMixin {
+class _UserProfileScreenState extends State<UserProfileScreen> {
   int currentPage = 0;
   String name = "Error";
   String? _bio;
@@ -25,31 +24,36 @@ class _UserProfileScreenState extends State<UserProfileScreen>
   final TextEditingController _bioController = TextEditingController();
   final FocusNode _focusNode = FocusNode(); // Focus node to manage focus on TextField
 
-  void fetchUserProfile() async {
-    Map<String, dynamic>? userProfile =
-        await InZoneDatabase.getCurrentUserProfile();
-    print("Printing user profile");
-    print(userProfile);
-    if (userProfile != null) {
-      setState(() {
-        name = userProfile["name"];
-      });
-    }
-    if (userProfile != null) {
-      print('User profile fetched: $userProfile');
-    } else {
-      print('Failed to fetch user profile.');
-    }
-  }
-
-  bool _isEditing = false; // Track if the user is editing
+  final TextEditingController _nameController = TextEditingController();
+  bool _isEditing = false; // Track if the user is editing the bio or name
 
   @override
   void initState() {
     super.initState();
-    fetchUserProfile();
+  //  fetchUserProfile();
     _loadBio();
+    _loadName(); // Load name from local storage
   }
+
+  // void fetchUserProfile() {
+  //   InZoneDatabase.getCurrentUserProfile().then((userProfile) {
+  //     print("Printing user profile");
+  //     print(userProfile);
+  //
+  //     if (userProfile != null) {
+  //       setState(() {
+  //         name = userProfile["name"];
+  //         _saveName(name); // Save name to local storage when fetched
+  //       });
+  //       print('User profile fetched: $userProfile');
+  //     } else {
+  //       print('Failed to fetch user profile.');
+  //     }
+  //   }).catchError((error) {
+  //     // Handle any errors that occur during the fetch
+  //     print('Error fetching user profile: $error');
+  //   });
+  // }
 
   _loadBio() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -69,22 +73,39 @@ class _UserProfileScreenState extends State<UserProfileScreen>
     });
   }
 
-  backgroundTasks()async {
+  _loadName() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    setState(() {
+      name = prefs.getString('userName') ?? "Error"; // Default to "Error" if not set
+      if (name != "Error") {
+        _nameController.text = name;
+      }
+    });
+  }
 
-    //TODO getFollowers()
+  _saveName(String userName) async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    prefs.setString('userName', userName);
+    setState(() {
+      name = userName;
+    });
+  }
+
+  backgroundTasks() async {
+    // TODO getFollowers()
     String uid = "Error";
-    await InZoneDatabase.getCurrentUserUid().then((value){
-      if(value != null){
+    await InZoneDatabase.getCurrentUserUid().then((value) {
+      if (value != null) {
         uid = value;
       }
     });
     print("Getting followers for $uid");
     await InZoneDatabase.getFollowers(uid);
-    //TODO getFollowing()
-    //TODO Make them into the required format of FollowersFOllowingScreen
+    // TODO getFollowing()
+    // TODO Make them into the required format of FollowersFollowingScreen
   }
 
-  Widget getScreen()  {
+  Widget getScreen() {
     if (currentPage == 0) {
       return const PersonalFeedScreen();
     } else if (currentPage == 1) {
@@ -101,159 +122,163 @@ class _UserProfileScreenState extends State<UserProfileScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Theme.of(context).canvasColor,
-      appBar: AppBar(
-        scrolledUnderElevation: 0,
-        backgroundColor: Theme.of(context).canvasColor,
-        title: const Text("Profile",
-            style: TextStyle(fontSize: 26, fontWeight: FontWeight.w700)),
-      ),
       body: SafeArea(
-          child: Padding(
-        padding: const EdgeInsets.all(10.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            SizedBox(
-              height: 80,
-              //width: screenWidth!,
-              child: Row(
-                children: [
-                  // CircleAvatar(
-                  //   radius: 30,
-                  //   child:
-                  //       RandomAvatar("Renny Dedws", height: 100, width: 100),
-                  // ),
-
-                  Padding(
-                    padding: const EdgeInsets.only(left: 10.0, right: 10),
-                    child: RandomAvatar(name, height: 60, width: 30),
-                  ),
-                  Flexible(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Flexible(
-                          child: Text(
-                            name,
-                            style: const TextStyle(
-                                fontWeight: FontWeight.bold, fontSize: 18),
-                          ),
-                        ),
-                        Flexible(
-                          child: _bio == null || _bio!.isEmpty || _isEditing
-                              ? Expanded(
-                                  child: TextField(
-                                    controller: _bioController,
-                                    focusNode:
-                                        _focusNode, // Attach focus node to TextField
-
-                                    decoration: const InputDecoration(
-                                      labelText: 'Tap to enter bio',
-                                      border: InputBorder.none, // No border
-                                    ),
-                                    onChanged: (text) {
-                                      _saveBio(
-                                          text);
-                                    },
-                                    onSubmitted: (text) {
-                                      _saveBio(text); // Save on submission
-                                      setState(() {
-                                        _isEditing =
-                                            false; // Switch to display mode after submission
-                                      });
-                                    },
-                                  ),
-                                )
-                              : GestureDetector(
-                                  onTap: () {
-                                    setState(() {
-                                      _isEditing =
-                                          true; // Switch to editing mode when tapped
-                                      _focusNode
-                                          .requestFocus(); // Focus the TextField
-                                    });
-                                  },
-                                  child: ListTile(
-                                    title: Text(_bio!),
-                                  ),
-                                ),
-                        ),
-                      ],
+        child: Padding(
+          padding: const EdgeInsets.all(10.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              SizedBox(
+                height: 100,
+                child: Row(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.only(left: 10.0, right: 10),
+                      child: RandomAvatar(name, height: 60, width: 30),
                     ),
-                  ),
-                ],
+                    Flexible(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Flexible(
+                            child: _isEditing
+                                ? TextField(
+                              controller: _nameController,
+                              decoration: const InputDecoration(
+                                labelText: 'Enter name',
+                                border: InputBorder.none,
+                              ),
+                              onChanged: (text) {
+                                _saveName(text); // Save the name as the user types
+                              },
+                              onSubmitted: (text) {
+                                _saveName(text);
+                                setState(() {
+                                  _isEditing = false; // Switch to display mode
+                                });
+                              },
+                            )
+                                : GestureDetector(
+                              onTap: () {
+                                setState(() {
+                                  _isEditing = true;
+                                });
+                              },
+                              child: Text(
+                                name,
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 18),
+                              ),
+                            ),
+                          ),
+                          Flexible(
+                            child: _bio == null || _bio!.isEmpty || _isEditing
+                                ? TextField(
+                              controller: _bioController,
+                              focusNode:
+                              _focusNode, // Attach focus node to TextField
+                              decoration: const InputDecoration(
+                                labelText: 'Tap to enter bio',
+                                border: InputBorder.none, // No border
+                              ),
+                              onChanged: (text) {
+                                _saveBio(text);
+                              },
+                              onSubmitted: (text) {
+                                _saveBio(text); // Save on submission
+                                setState(() {
+                                  _isEditing = false; // Switch to display mode
+                                });
+                              },
+                            )
+                                : GestureDetector(
+                              onTap: () {
+                                setState(() {
+                                  _isEditing = true;
+                                  _focusNode
+                                      .requestFocus(); // Focus the TextField
+                                });
+                              },
+                              child: ListTile(
+                                title: Text(_bio!),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-            //const Divider(),
-            const SizedBox(
-              height: 30,
-            ),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              mainAxisSize: MainAxisSize.max,
-              children: [
-                TextButton(
-                  onPressed: () {
-                    setState(() {
-                      currentPage = 0;
-                    });
-                  },
-                  child: Text("Posts",
+              const SizedBox(height: 30),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  TextButton(
+                    onPressed: () {
+                      setState(() {
+                        currentPage = 0;
+                      });
+                    },
+                    child: Text(
+                      "Posts",
                       style: TextStyle(
                           color: Colors.black,
                           fontSize: 16,
                           fontWeight: currentPage == 0
                               ? FontWeight.bold
-                              : FontWeight.normal)),
-                ),
-                // const Text(" | ",
-                //     style: TextStyle(color: Colors.black54, fontSize: 20)),
-                TextButton(
-                  onPressed: () {
-                    setState(() {
-                      currentPage = 1;
-                    });
-                  },
-                  child: Text("Characters",
+                              : FontWeight.normal),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () {
+                      setState(() {
+                        currentPage = 1;
+                      });
+                    },
+                    child: Text(
+                      "Characters",
                       style: TextStyle(
                           color: Colors.black,
                           fontSize: 16,
                           fontWeight: currentPage == 1
                               ? FontWeight.bold
-                              : FontWeight.normal)),
-                ),
-                // const Text(" | ",
-                //     style: TextStyle(color: Colors.black, fontSize: 20)),
-                TextButton(
-                  onPressed: () {
-                    setState(() {
-                      currentPage = 2;
-                    });
-                  },
-                  child: Text("Community",
+                              : FontWeight.normal),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () {
+                      setState(() {
+                        currentPage = 2;
+                      });
+                    },
+                    child: Text(
+                      "Community",
                       style: TextStyle(
                           color: Colors.black,
                           fontSize: 16,
                           fontWeight: currentPage == 2
                               ? FontWeight.bold
-                              : FontWeight.normal)),
-                )
-              ],
-            ),
-            const SizedBox(
-              height: 10,
-            ),
-            getScreen()
-          ],
+                              : FontWeight.normal),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              getScreen(),
+            ],
+          ),
         ),
-      )),
+      ),
     );
   }
 }
 
+
 class PersonalFeedScreen extends StatefulWidget {
-   const PersonalFeedScreen({super.key});
+  const PersonalFeedScreen({super.key});
 
   @override
   State<PersonalFeedScreen> createState() => _PersonalFeedScreenState();
@@ -261,31 +286,38 @@ class PersonalFeedScreen extends StatefulWidget {
 
 class _PersonalFeedScreenState extends State<PersonalFeedScreen> {
   List<PostCard> posts = [];
-
   List<AvatarCard> avatarCards = [];
+  bool isLoading = true; // Loading state
 
   Future<void> getFeed({bool isRefresh = false}) async {
+    try {
+      setState(() {
+        isLoading = true; // Start loading
+      });
 
-    final response = await InZoneDatabase.getFeed();
-    // Ensure the response contains the expected structure
-    if (response != null &&
-        response.containsKey('posts') &&
-        response.containsKey('characters')) {
-      // Parse the posts and avatars
-      List<dynamic> fetchedPosts = response['posts'];
-      List<dynamic> fetchedCharacters = response['characters'];
+      final response = await InZoneDatabase.getFeed();
+      if (response != null &&
+          response.containsKey('posts') &&
+          response.containsKey('characters')) {
+        // Parse the posts and avatars
+        List<dynamic> fetchedPosts = response['posts'];
+        List<dynamic> fetchedCharacters = response['characters'];
 
-      for (var characterJson in fetchedCharacters) {
-        InZoneAvatar avatar = InZoneAvatar.fromJson(characterJson);
-        avatarCards.add(AvatarCard(avatar: avatar));
+        for (var characterJson in fetchedCharacters) {
+          InZoneAvatar avatar = InZoneAvatar.fromJson(characterJson);
+          avatarCards.add(AvatarCard(avatar: avatar));
+        }
+
+        _addPostsToScreen(fetchedPosts);
+      } else {
+        throw Exception('Invalid response structure');
       }
-
-      _addPostsToScreen(fetchedPosts);
-
-
-
-    } else {
-      throw Exception('Invalid response structure');
+    } catch (e) {
+      print('Error fetching feed: $e');
+    } finally {
+      setState(() {
+        isLoading = false; // End loading
+      });
     }
   }
 
@@ -298,31 +330,29 @@ class _PersonalFeedScreenState extends State<PersonalFeedScreen> {
           print('You tapped on post with ID: $postId');
         },
       ));
-
-
-      // Add unique categories to the list
-
     }
     setState(() {
       posts.shuffle();
-
     });
   }
+
   @override
   void initState() {
-    // TODO: implement initState
     super.initState();
-  getFeed();
+    getFeed();
   }
-
 
   @override
   Widget build(BuildContext context) {
-
-
-    return Expanded(
+    return isLoading
+        ? const Center(
+      child: CircularProgressIndicator(), // Show loading indicator
+    )
+        : Expanded(
       child: SingleChildScrollView(
-        child: Column(children: posts),
+        child: Column(
+          children: posts, // Display posts once loaded
+        ),
       ),
     );
   }
@@ -337,36 +367,47 @@ class LikedScreen extends StatefulWidget {
 
 class _LikedScreenState extends State<LikedScreen> {
   List<PostCard> posts = [];
-
   List<AvatarCard> avatarCards = [];
+  bool isLoading = true; // Loading state
 
   Future<void> getFeed({bool isRefresh = false}) async {
+    try {
+      setState(() {
+        isLoading = true; // Start loading
+      });
 
-    final response = await InZoneDatabase.getFeed();
-    // Ensure the response contains the expected structure
-    if (response != null &&
-        response.containsKey('posts') &&
-        response.containsKey('characters')) {
-      // Parse the posts and avatars
-      List<dynamic> fetchedPosts = response['posts'];
-      List<dynamic> fetchedCharacters = response['characters'];
+      final response = await InZoneDatabase.getFeed();
 
-      for (var characterJson in fetchedCharacters) {
-        InZoneAvatar avatar = InZoneAvatar.fromJson(characterJson);
-        avatarCards.add(AvatarCard(avatar: avatar));
+      // Ensure the response contains the expected structure
+      if (response != null &&
+          response.containsKey('posts') &&
+          response.containsKey('characters')) {
+        // Parse the posts and avatars
+        List<dynamic> fetchedPosts = response['posts'];
+        List<dynamic> fetchedCharacters = response['characters'];
+
+        for (var characterJson in fetchedCharacters) {
+          InZoneAvatar avatar = InZoneAvatar.fromJson(characterJson);
+          avatarCards.add(AvatarCard(avatar: avatar));
+        }
+
+        _addPostsToScreen(fetchedPosts);
+      } else {
+        throw Exception('Invalid response structure');
       }
-
-      _addPostsToScreen(fetchedPosts);
-
-
-
-    } else {
-      throw Exception('Invalid response structure');
+    } catch (e) {
+      print('Error fetching feed: $e');
+    } finally {
+      setState(() {
+        isLoading = false; // End loading
+      });
     }
   }
-
   void _addPostsToScreen(List<dynamic> fetchedPosts) async {
-    for (var postJson in fetchedPosts) {
+    // Limit the posts to a maximum of 10
+    final limitedPosts = fetchedPosts.take(10).toList();
+
+    for (var postJson in limitedPosts) {
       InZonePost post = InZonePost.fromJson(postJson);
       posts.add(PostCard(
         post: post,
@@ -374,29 +415,29 @@ class _LikedScreenState extends State<LikedScreen> {
           print('You tapped on post with ID: $postId');
         },
       ));
-
-
-      // Add unique categories to the list
-
     }
+
     setState(() {
       posts.shuffle();
-
     });
   }
+
   @override
   void initState() {
-    // TODO: implement initState
     super.initState();
     getFeed();
   }
 
-
   @override
   Widget build(BuildContext context) {
-
-
-    return Expanded(
+    return isLoading
+        ? Align(
+      alignment: Alignment.center,
+          child: const Center(
+                child: CircularProgressIndicator(), // Show loading indicator
+              ),
+        )
+        : Expanded(
       child: SingleChildScrollView(
         child: Wrap(
           spacing: 10, // Horizontal space between items
@@ -404,8 +445,7 @@ class _LikedScreenState extends State<LikedScreen> {
           children: avatarCards, // Use your avatar cards list here
         ),
       ),
-    )
-;
+    );
   }
 }
 

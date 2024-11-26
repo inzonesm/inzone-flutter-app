@@ -98,6 +98,9 @@ class _CategorySelectorBarState extends State<CategorySelectorBar> {
       child: Container(
         padding: const EdgeInsets.only(left: 10),
         child: Row(
+          mainAxisAlignment: MainAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
           children: List.generate(widget.categories.length, (index) {
             String category = widget.categories[index];
             bool isSelected = index == selectedCategoryIndex;

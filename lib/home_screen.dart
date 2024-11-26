@@ -15,9 +15,9 @@ class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
   @override
-  State<HomeScreen> createState() => _HomeScreenState();
+  State<HomeScreen> createState() => HomeScreenState();
 }
-class _HomeScreenState extends State<HomeScreen> {
+class HomeScreenState extends State<HomeScreen> {
   List<PostCard> posts = [];
   List<String> categoriesList = [];
   List<Widget> finalHomeScreen = [];
@@ -27,7 +27,7 @@ class _HomeScreenState extends State<HomeScreen> {
   late DateTime _startTime; // To store the start time
   int pageOpened = 0;
   int _currentPage = 0; // Keep track of the current page for pagination
-  final int _pageSize = 30; // Load 10 posts per batch
+  final int _pageSize = 20; // Load 10 posts per batch
 
   final ScrollController _scrollController = ScrollController();
 
@@ -52,9 +52,8 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _onScroll() {
-    // Load more posts when scrolled to the bottom
-    if (_scrollController.position.pixels ==
-        _scrollController.position.maxScrollExtent &&
+    if (_scrollController.position.pixels >=
+        _scrollController.position.maxScrollExtent - 200 &&
         !isLoadingMore) {
       _loadMorePosts();
     }
@@ -178,7 +177,7 @@ class _HomeScreenState extends State<HomeScreen> {
     finalHomeScreen.shuffle();
     for (int i = 0; i < posts.length; i++) {
 
-      if (i % 20 == 0 && i != 0) {
+      if (i % 15 == 0 && i != 0) {
         finalHomeScreen.add(SizedBox(
           height: 550, // Adjust height as necessary
           child: Column(
@@ -219,12 +218,15 @@ class _HomeScreenState extends State<HomeScreen> {
       body: SafeArea(
         left: false,
         right: false,
+        top: false,
         child: RefreshIndicator(
           onRefresh: () async {
             await getFeed(isRefresh: true);
           },
+
           child: ListView.builder(
-            controller: _scrollController,
+            controller: _scrollController, // Attach the ScrollController
+
             itemCount: isLoading
                 ? 2
                 : finalHomeScreen.length + (isLoadingMore ? 1 : 0),
@@ -245,7 +247,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 // Category bar when not loading
                 return categoriesList.isNotEmpty
                     ? Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 10.0),
+                  padding: const EdgeInsets.only(bottom: 10.0),
                   child: CategorySelectorBar(
                     categories: categoriesList,
                     onTap: (value) {
@@ -268,7 +270,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 return const Center(child: CircularProgressIndicator()); // Loading indicator for lazy loading
               } else {
                 return Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 0),
                   child: finalHomeScreen[index],
                 );
               }

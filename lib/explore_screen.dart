@@ -74,7 +74,6 @@ class _ExploreScreenState extends State<ExploreScreen> {
       isLoading = true;
     });
 
-    // Clear lists before fetching new data
     categoriesList.clear();
     avatarCards.clear();
 
