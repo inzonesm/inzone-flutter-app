@@ -21,39 +21,52 @@ class RootApp extends StatefulWidget {
 }
 
 class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
-  bool _isDrawerOpen = false;
+  final bool _isDrawerOpen = false;
   int _currentPage = 0; // Track selected tab index
   final GlobalKey<HomeScreenState> _homeScreenKey = GlobalKey(); // Key to access HomeScreen state
+  final ScrollController _homeScrollController = ScrollController();
 
   final _key = GlobalKey<ExpandableFabState>();
   @override
   void initState() {
-    // TODO: implement initState
     _pages = [
-      HomeScreen(key: _homeScreenKey), // Assign the GlobalKey to HomeScreen
-      UserProfileScreen(),
-      SavedScreen(),
-      SettingsScreen(),
+      HomeScreen( controller: _homeScrollController), // Assign the GlobalKey to HomeScreen
+      const UserProfileScreen(),
+      const SavedScreen(),
+      const SettingsScreen(),
     ];
     super.initState();
   }
 
   late List<Widget>_pages ;
   void _onItemTapped(int index) {
-    setState(() {
+
       if (_currentPage == index) {
         // Reload the HomeScreen when it's already active
         if (index == 0) {
-          _homeScreenKey.currentState?.getFeed(isRefresh: true);
+          // If Home is tapped and is already selected, scroll to the top
+          _homeScrollController.animateTo(
+            0.0,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeOut,
+          );
+          setState(() {
+            _currentPage = index;
+          });
+         // _homeScreenKey.currentState?.getFeed(isRefresh: true);
         }
       } else {
-        _currentPage = index;
+        setState(() {
+          _currentPage = index;
+
+        });
       }
-    });
+
   }
 
   @override
   void dispose() {
+_homeScrollController.dispose();
     super.dispose();
   }
 
@@ -88,73 +101,95 @@ class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
              backgroundColor: Theme.of(context).canvasColor,
             ),
        ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
 
-      floatingActionButtonLocation: ExpandableFab.location,
-      floatingActionButton: ExpandableFab(
-        openButtonBuilder: RotateFloatingActionButtonBuilder(
-          child: SvgPicture.asset('icons/post.svg'),
-          fabSize: ExpandableFabSize.regular,
-          foregroundColor: Colors.black,
-          backgroundColor: Theme.of(context).canvasColor,
-        ),
-        overlayStyle: ExpandableFabOverlayStyle(
-          color: Colors.black.withOpacity(0.5),
-          blur: 5,
-        ),
-        onOpen: () {},
-        afterOpen: () {
-          final state = _key.currentState;
-          if (state != null) {
-            state.toggle();
-          }
+      //floatingActionButtonLocation: ExpandableFab.location,
+      // floatingActionButton: ExpandableFab(
+      //   openButtonBuilder: RotateFloatingActionButtonBuilder(
+      //     child: SvgPicture.asset('icons/post.svg'),
+      //     fabSize: ExpandableFabSize.regular,
+      //     foregroundColor: Colors.black,
+      //     backgroundColor: Theme.of(context).canvasColor,
+      //   ),
+      //   overlayStyle: ExpandableFabOverlayStyle(
+      //     color: Colors.black.withOpacity(0.5),
+      //     blur: 5,
+      //   ),
+      //   onOpen: () {},
+      //   afterOpen: () {
+      //     final state = _key.currentState;
+      //     if (state != null) {
+      //       state.toggle();
+      //     }
+      //   },
+      //   onClose: () {},
+      //   afterClose: () {},
+      //   children: [
+      //     // FloatingActionButton.small(
+      //     //   // shape: const CircleBorder(),
+      //     //   heroTag: null,
+      //     //   foregroundColor: Colors.black,
+      //     //   backgroundColor: Theme.of(context).canvasColor,
+      //     //   onPressed: () {
+      //     //     showSlidingBottomSheet(context,
+      //     //         builder: (context) => SlidingSheetDialog(
+      //     //               cornerRadius: 30,
+      //     //               backdropColor:
+      //     //                   Theme.of(context).canvasColor.withOpacity(0.6),
+      //     //               duration: const Duration(seconds: 1),
+      //     //               snapSpec: const SnapSpec(snappings: [0.9]),
+      //     //               builder: (context, state) {
+      //     //                 return const CharacterCreationScreen();
+      //     //               },
+      //     //             ));
+      //     //   },
+      //     //   child: const Icon(Icons.person_add),
+      //     // ),
+      //     FloatingActionButton.small(
+      //       // shape: const CircleBorder(),
+      //       heroTag: null,
+      //       foregroundColor: Colors.black,
+      //       backgroundColor: Theme.of(context).canvasColor,
+      //       onPressed: () {
+      //         // const SnackBar snackBar = SnackBar(
+      //         //   content: Text("SnackBar"),
+      //         // );
+      //         showSlidingBottomSheet(context,
+      //             builder: (context) => SlidingSheetDialog(
+      //                   cornerRadius: 30,
+      //                   backdropColor:
+      //                       Theme.of(context).canvasColor.withOpacity(0.6),
+      //                   duration: const Duration(seconds: 1),
+      //                   snapSpec: const SnapSpec(snappings: [0.9]),
+      //                   builder: (context, state) {
+      //                     return const PostScreen();
+      //                   },
+      //                 ));
+      //       },
+      //       child: const Icon(Icons.add),
+      //     ),
+      //   ],
+      // ),
+
+      floatingActionButton: FloatingActionButton(
+        heroTag: null,
+
+        foregroundColor: Colors.black,
+        backgroundColor: Theme.of(context).canvasColor,
+        onPressed: () {
+          showSlidingBottomSheet(context,
+              builder: (context) => SlidingSheetDialog(
+                cornerRadius: 30,
+                backdropColor:
+                Theme.of(context).canvasColor.withOpacity(0.6),
+                duration: const Duration(seconds: 1),
+                snapSpec: const SnapSpec(snappings: [0.9]),
+                builder: (context, state) {
+                  return const PostScreen();
+                },
+              ));
         },
-        onClose: () {},
-        afterClose: () {},
-        children: [
-          FloatingActionButton.small(
-            // shape: const CircleBorder(),
-            heroTag: null,
-            foregroundColor: Colors.black,
-            backgroundColor: Theme.of(context).canvasColor,
-            onPressed: () {
-              showSlidingBottomSheet(context,
-                  builder: (context) => SlidingSheetDialog(
-                        cornerRadius: 30,
-                        backdropColor:
-                            Theme.of(context).canvasColor.withOpacity(0.6),
-                        duration: const Duration(seconds: 1),
-                        snapSpec: const SnapSpec(snappings: [0.9]),
-                        builder: (context, state) {
-                          return const CharacterCreationScreen();
-                        },
-                      ));
-            },
-            child: const Icon(Icons.person_add),
-          ),
-          FloatingActionButton.small(
-            // shape: const CircleBorder(),
-            heroTag: null,
-            foregroundColor: Colors.black,
-            backgroundColor: Theme.of(context).canvasColor,
-            onPressed: () {
-              // const SnackBar snackBar = SnackBar(
-              //   content: Text("SnackBar"),
-              // );
-              showSlidingBottomSheet(context,
-                  builder: (context) => SlidingSheetDialog(
-                        cornerRadius: 30,
-                        backdropColor:
-                            Theme.of(context).canvasColor.withOpacity(0.6),
-                        duration: const Duration(seconds: 1),
-                        snapSpec: const SnapSpec(snappings: [0.9]),
-                        builder: (context, state) {
-                          return const PostScreen();
-                        },
-                      ));
-            },
-            child: const Icon(Icons.add),
-          ),
-        ],
+        child: SvgPicture.asset('icons/post.svg'),
       ),
       backgroundColor: Theme.of(context).canvasColor,
       body:
@@ -182,7 +217,7 @@ class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
                     elevation: 0,
                     automaticallyImplyLeading: false,
                     surfaceTintColor: Colors.transparent,
-                    backgroundColor: Theme.of(context).canvasColor,
+                    backgroundColor:  Theme.of(context).canvasColor,
                     title: Row(
                       crossAxisAlignment: CrossAxisAlignment.center,
                       mainAxisSize: MainAxisSize.min,
@@ -195,21 +230,21 @@ class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
                               .copyWith(fontSize: 30),
                         ),
                         const Spacer(),
-                        _currentPage == 0
-                            ? GestureDetector(
-                                onTap: () {
-                                  Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                          builder: (context) =>
-                                              const ExploreScreen()));
-                                },
-                                child: const Icon(
-                                  Icons.search,
-                                  color: Colors.black,
-                                  size: 22,
-                                ))
-                            : SizedBox(),
+                        // _currentPage == 0
+                        //     ? GestureDetector(
+                        //         onTap: () {
+                        //           Navigator.push(
+                        //               context,
+                        //               MaterialPageRoute(
+                        //                   builder: (context) =>
+                        //                       const ExploreScreen()));
+                        //         },
+                        //         child: const Icon(
+                        //           Icons.search,
+                        //           color: Colors.black,
+                        //           size: 22,
+                        //         ))
+                        //     : SizedBox(),
                         const SizedBox(
                           width: 10,
                         ),
@@ -230,7 +265,7 @@ class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
                                       color: Colors.black,
                                       size: 21,
                                     )))
-                            : SizedBox(),
+                            : const SizedBox(),
                       ],
                     ))
               ];

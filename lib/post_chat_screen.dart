@@ -67,49 +67,90 @@ class _PostChatScreenState extends State<PostChatScreen> {
           actions: [
             TextButton(
               onPressed: () async {
-                if(postContent!=null){
-                  if (postContent!.isNotEmpty){
-                    await InZoneDatabase.postContent(postMessage: postContent!, imageRef: [], videoRef: [], aiName: widget.name, aiChatContent: widget.chat, aiProfileImageURL: widget.profileImageURL, avatarID: widget.avatarID).then((value) {
-                      setState(() {
-
-                        if (value == -1){
-                          moveValue = low;
-                          doesNotWork = true;
-                        } else if (value == 0){
-                          moveValue = medium;
-                          doesNotWork = false;
-                        } else if (value == 1){
-                          moveValue = high;
-                          doesNotWork = false;
-
-                        } else {
-                          moveValue = low;
-                          doesNotWork = true;
-                        }
-                      });
+                if(postContent != null && postContent!.isNotEmpty) {
+                  try {
+                    // First analyze sentiment
+                    final analysis = await InZoneDatabase.analyzeSentiment(postContent!);
+                    print("Sentiment analysis result: $analysis"); // Debug print
+                    
+                    // Update state before proceeding with post creation
+                    int sentiment = analysis["sentiment"] as int;
+                    setState(() {
+                      if (sentiment == -1) {
+                        moveValue = low;
+                        doesNotWork = true;
+                      } else if (sentiment == 0) {
+                        moveValue = medium;
+                        doesNotWork = false;
+                      } else if (sentiment == 1) {
+                        moveValue = high;
+                        doesNotWork = false;
+                      }
                     });
 
-                    if (doesNotWork == false){
-                      Navigator.pop(context);
-
-  const snackBar = SnackBar(
-    content: Text("Post Successful"),
-    backgroundColor: Colors.blue,
-  );
-  ScaffoldMessenger.of(context).showSnackBar(snackBar);
-
-                      //starts success animation
+                    // Show error message and return if content is inappropriate
+                    if (sentiment == -1) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Your post contains inappropriate content. Please revise and try again.'),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                      return;
                     }
+
+                    // Only proceed with repost if sentiment is acceptable (0 or 1)
+                    final result = await InZoneDatabase.createRepost(
+                      content: postContent!,
+                      aiName: widget.name,
+                      aiProfileImageURL: widget.profileImageURL ?? "",
+                      aiChatContent: widget.chat,
+                      aiId: widget.avatarID,
+                      imageRefs: [],
+                      videoRefs: [],
+                    );
+                    
+                    print("Repost creation result: $result"); // Debug print
+                    
+                    if (!result["success"]) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(result["error"] ?? 'Failed to create repost'),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                      return;
+                    }
+
+                    Navigator.pop(context);
+                    const snackBar = SnackBar(
+                      content: Text("Post Successful"),
+                      backgroundColor: Colors.blue,
+                    );
+                    ScaffoldMessenger.of(context).showSnackBar(snackBar);
+                  } catch (e) {
+                    print('Error creating repost: $e');
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Error creating repost: $e'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
                   }
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Please enter some text for your post'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
                 }
-
-
               },
               child: Text(
                 'Post',
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
-                  color: Theme.of(context).primaryColor, // Set to primary color
+                  color: Theme.of(context).primaryColor,
                 ),
               ),
             ),

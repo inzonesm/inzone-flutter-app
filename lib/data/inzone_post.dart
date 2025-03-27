@@ -1,4 +1,3 @@
-
 import 'package:inzone/data/comment_class.dart';
 class InZonePost
 
@@ -14,6 +13,7 @@ class InZonePost
   final String textContent;
   final String userReference;
   final String mainCategory;
+  final bool isAi;
 
   InZonePost({
     required this.category,
@@ -27,11 +27,13 @@ class InZonePost
     required this.textContent,
     required this.userReference,
     required this.mainCategory,
+    required this.isAi,
   });
 
   // Convert InZonePost object to a JSON-compatible map
   Map<String, dynamic> toJson() {
-    return {
+    // Create a map with all necessary fields
+    Map<String, dynamic> jsonMap = {
       'category': category,
       'userName': userName,
       'likes': likes,
@@ -41,197 +43,210 @@ class InZonePost
       'textContent': textContent,
       'userReference': userReference,
       'mainCategory': mainCategory,
+      'isAi': isAi,
+      // We don't include comments as they're complex objects
+      // We don't include datePosted as it's a DateTime object
     };
+    
+    return jsonMap;
   }
 // Create InZonePost object from JSON
   factory InZonePost.fromJsonLocal(Map<String, dynamic> json) {
-    return InZonePost(
-      category: json['category'],
-      userName: json['userName'],
-      likes: json['likes'],
-      id: json['id'],
-      imageContent: List<String>.from(json['imageContent']),  // Convert JSON array to List<String>
-      videoContent: List<String>.from(json['videoContent']),  // Convert JSON array to List<String>
-      textContent: json['textContent'],
-      userReference: json['userReference'],
-      mainCategory: json['mainCategory'], comments: [], datePosted: DateTime.now(),
-    );
+    try {
+      // Handle image and video content safely
+      List<String> imageContent = [];
+      if (json['imageContent'] != null) {
+        imageContent = List<String>.from(json['imageContent']);
+      }
+      
+      List<String> videoContent = [];
+      if (json['videoContent'] != null) {
+        videoContent = List<String>.from(json['videoContent']);
+      }
+      
+      // Create the InZonePost object with all fields
+      InZonePost post = InZonePost(
+        category: json['category'] ?? '',
+        userName: json['userName'] ?? 'Unknown',
+        likes: json['likes'] ?? 0,
+        id: json['id'] ?? 'unknown',
+        imageContent: imageContent,
+        videoContent: videoContent,
+        textContent: json['textContent'] ?? '',
+        userReference: json['userReference'] ?? '',
+        mainCategory: json['mainCategory'] ?? '',
+        isAi: json['isAi'] ?? false,
+        comments: [], // Initialize with empty comments
+        datePosted: DateTime.now(), // Use current time as default
+      );
+      
+      return post;
+    } catch (e) {
+      print("Error creating InZonePost from JSON: $e");
+      
+      // Return a default post in case of error
+      return InZonePost(
+        category: '',
+        userName: 'Error',
+        likes: 0,
+        id: 'error',
+        imageContent: [],
+        videoContent: [],
+        textContent: 'Error loading post: $e',
+        userReference: '',
+        mainCategory: '',
+        isAi: false,
+        comments: [],
+        datePosted: DateTime.now(),
+      );
+    }
   }
   static InZonePost fromJson(Map<String, dynamic> json) {
-    // Extract the 'data' field from the JSON or assign an empty map if it's missing
-    Map<String, dynamic> data = json['data'] ?? {};
-
+    // Use the json directly instead of looking for a data field
+    
     // Safely initialize variables with default values
-    String category = data['category'] ?? 'animals';
-    String userName = data['user_name'] ?? 'Unknown';
-    int likes = data['likes'] ?? 0;
-    String id = json['id'] ?? 'unknown';
-    String textContent = (data['post'] != null && data['post']['textContent'] != null)
-        ? data['post']['textContent']
-        : '';
-    String userReference = data['user_references'] ?? 'unknown';
-    String mainCategory = data['sub_category'] ?? '';
-    DateTime datePosted = DateTime.now(); // Assuming current time if not provided
+    String category;
+    try {
+      // Check if category is a list and not empty
+      if (json['category'] is List && (json['category'] as List).isNotEmpty) {
+        category = json['category'][0] ?? 'General';
+      } else {
+        // Default category if the list is empty or not a list
+        category = 'General';
+      }
+    } catch (e) {
+      print('Error accessing category: $e');
+      category = 'General';
+    }
+    
+    String userName = json['user_name'] ?? 'Unknown';
+    int likes = json['likes'] ?? 0;
+    
+    // More robust ID handling
+    String id;
+    if (json.containsKey('id') && json['id'] != null && json['id'].toString().isNotEmpty) {
+      id = json['id'].toString();
+    } else if (json.containsKey('_id') && json['_id'] != null && json['_id'].toString().isNotEmpty) {
+      id = json['_id'].toString();
+    } else {
+      // Generate a unique ID based on content and timestamp if no ID is available
+      String timestamp = DateTime.now().millisecondsSinceEpoch.toString();
+      String contentHash = userName;
+      id = "generated_${contentHash.hashCode}_$timestamp";
+    }
+    
+    // Handle text content
+    String textContent = '';
+    try {
+      if (json['post'] != null) {
+        if (json['post'] is Map) {
+          if (json['post']['text_content'] != null) {
+            textContent = json['post']['text_content'].toString();
+          }
+        }
+      }
+    } catch (e) {
+      print("Error extracting text content: $e");
+    }
+    
+    String userReference = json['user_name'] ?? 'unknown';
+    
+    // Parse date_posted if available
+    DateTime datePosted;
+    try {
+      if (json['date_posted'] != null) {
+        datePosted = DateTime.parse(json['date_posted']);
+      } else {
+        datePosted = DateTime.now();
+      }
+    } catch (e) {
+      print("Error parsing date: $e");
+      datePosted = DateTime.now();
+    }
 
-    // Initialize imageList
+    // Initialize imageList and videoList
     List<String> imageList = [];
     List<String> videoList = [];
 
     // Handle image content safely
-    if (data['post'] != null && data['post']['image_content'] != null) {
-      if (data['post']['image_content'] is List) {
-        List<dynamic> imageContentList = List.from(data['post']['image_content']);
-        for (var element in imageContentList) {
-          imageList.add(element.toString());
+    try {
+      if (json['post'] != null) {
+        // Get image content
+        var imageContent = json['post']['image_content'];
+        
+        if (imageContent != null) {
+          if (imageContent is List) {
+            for (var element in imageContent) {
+              if (element != null) {
+                imageList.add(element.toString());
+              }
+            }
+          } else if (imageContent is String) {
+            imageList.add(imageContent);
+          }
         }
-      } else if (data['post']['image_content'] is String) {
-        imageList.add(data['post']['image_content']);
-      }
-    }
-    if (data['post'] != null && data['post']['video_content'] != null) {
-      if (data['post']['video_content'] is List) {
-        List<dynamic> videoContentList = List.from(data['post']['video_content']);
-        for (var element in videoContentList) {
-          videoList.add(element.toString());
-        }
-      } else if (data['post']['video_content'] is String) {
-        videoList.add(data['post']['video_content']);
-      }
-    }
-
-    // Safely handle comments
-    List<dynamic> commentsList = [];
-    if (data['comments'] is Map && (data['comments'] as Map).isEmpty) {
-      commentsList = [];
-    } else if (data['comments'] is List) {
-      commentsList = data['comments'] as List<dynamic>;
-    } else if (data['comments'] != null) {
-      commentsList = [data['comments']];
-    }
-
-    // Prepare final comments list
-    List<CommentClass> finalCommentsList = commentsList.map((elem) {
-      List<ReplyClass> repliesList = [];
-
-      if (elem['replies'] != null) {
-        List<dynamic> replies = elem['replies'] as List<dynamic>;
-        for (var reply in replies) {
-          repliesList.add(ReplyClass(
-            name: reply['name'] ?? 'Unknown',
-            text: reply['text'] ?? '',
-            uid: reply['uid'] ?? '',
-          ));
+        
+        // Get video content
+        var videoContent = json['post']['video_content'];
+        
+        if (videoContent != null) {
+          if (videoContent is List) {
+            for (var element in videoContent) {
+              if (element != null) {
+                videoList.add(element.toString());
+              }
+            }
+          } else if (videoContent is String) {
+            videoList.add(videoContent);
+          }
         }
       }
-
-      return CommentClass(
-        author: elem['name'] ?? 'Unknown',
-        text: elem['text'] ?? '',
-        timestamp: DateTime.now().toString(), // Placeholder, replace with actual timestamp
-        id: elem['uid'] ?? '',
-        postId: json['id'] ?? 'Error', // Fallback to 'Error' if postId is missing
-        userId: data['user_name'] ?? 'Unknown',
-        replies: repliesList,
-        likedBy: elem['likedBy'] != null ? List<String>.from(elem['likedBy']) : [],
-        dislikedBy: elem['dislikedBy'] != null ? List<String>.from(elem['dislikedBy']) : [],
-      );
-    }).toList();
-
-    // Safely return the constructed InZonePost object
-    return InZonePost(
-      category: category,
-      userName: userName,
-      comments: finalCommentsList,
-      datePosted: datePosted,
-      likes: likes,
-      id: id,
-      imageContent: imageList,
-      videoContent: [], // Add logic if needed for videoContent
-      textContent: textContent,
-      userReference: userReference,
-      mainCategory: mainCategory,
-    );
-  }
-  static InZonePost fromJsonForHumans(Map<String, dynamic> json) {
-    // Extract the 'data' field from the JSON or assign an empty map if it's missing
-    Map<String, dynamic> data = json;
-
-    // Safely initialize variables with default values
-    String category = data['category'] ?? 'animals';
-    String userName = data['user_name'] ?? 'Unknown';
-    int likes = data['likes'] ?? 0;
-    String id = json['id'] ?? 'unknown';
-    String textContent = (data['post'] != null && data['post']['textContent'] != null)
-        ? data['post']['textContent']
-        : '';
-    String userReference = data['user_references'] ?? 'unknown';
-    String mainCategory = data['sub_category'] ?? '';
-    DateTime datePosted = DateTime.now(); // Assuming current time if not provided
-
-    // Initialize imageList
-    List<String> imageList = [];
-    List<String> videoList = [];
-
-    // Handle image content safely
-    if (data['post'] != null && data['post']['image_content'] != null) {
-      if (data['post']['image_content'] is List) {
-        List<dynamic> imageContentList = List.from(data['post']['image_content']);
-        for (var element in imageContentList) {
-          imageList.add(element.toString());
-        }
-      } else if (data['post']['image_content'] is String) {
-        imageList.add(data['post']['image_content']);
-      }
-    }
-    if (data['post'] != null && data['post']['video_content'] != null) {
-      if (data['post']['video_content'] is List) {
-        List<dynamic> videoContentList = List.from(data['post']['video_content']);
-        for (var element in videoContentList) {
-          videoList.add(element.toString());
-        }
-      } else if (data['post']['video_content'] is String) {
-        videoList.add(data['post']['video_content']);
-      }
+    } catch (e) {
+      print("Error extracting media content: $e");
     }
 
     // Safely handle comments
     List<dynamic> commentsList = [];
-    if (data['comments'] is Map && (data['comments'] as Map).isEmpty) {
+    if (json['comments'] is Map && (json['comments'] as Map).isEmpty) {
       commentsList = [];
-    } else if (data['comments'] is List) {
-      commentsList = data['comments'] as List<dynamic>;
-    } else if (data['comments'] != null) {
-      commentsList = [data['comments']];
+    } else if (json['comments'] is List) {
+      commentsList = json['comments'] as List<dynamic>;
+    } else if (json['comments'] != null) {
+      commentsList = [json['comments']];
     }
-
+    
     // Prepare final comments list
-    List<CommentClass> finalCommentsList = commentsList.map((elem) {
-      List<ReplyClass> repliesList = [];
-
-      if (elem['replies'] != null) {
-        List<dynamic> replies = elem['replies'] as List<dynamic>;
-        for (var reply in replies) {
-          repliesList.add(ReplyClass(
-            name: reply['name'] ?? 'Unknown',
-            text: reply['text'] ?? '',
-            uid: reply['uid'] ?? '',
-          ));
+    List<CommentClass> finalCommentsList = [];
+    try {
+      finalCommentsList = commentsList.map((elem) {
+        List<ReplyClass> repliesList = [];
+      
+        if (elem['replies'] != null) {
+          List<dynamic> replies = elem['replies'] as List<dynamic>;
+          for (var reply in replies) {
+            repliesList.add(ReplyClass(
+              name: reply['name'] ?? 'Unknown',
+              text: reply['text'] ?? '',
+              uid: reply['uid'] ?? '',
+            ));
+          }
         }
-      }
-
-      return CommentClass(
-        author: elem['name'] ?? 'Unknown',
-        text: elem['text'] ?? '',
-        timestamp: DateTime.now().toString(), // Placeholder, replace with actual timestamp
-        id: elem['uid'] ?? '',
-        postId: json['id'] ?? 'Error', // Fallback to 'Error' if postId is missing
-        userId: data['user_name'] ?? 'Unknown',
-        replies: repliesList,
-        likedBy: elem['likedBy'] != null ? List<String>.from(elem['likedBy']) : [],
-        dislikedBy: elem['dislikedBy'] != null ? List<String>.from(elem['dislikedBy']) : [],
-      );
-    }).toList();
-
+      
+        return CommentClass(
+          author: elem['name'] ?? 'Unknown',
+          text: elem['text'] ?? '',
+          timestamp: DateTime.now().toString(), // Placeholder, replace with actual timestamp
+          id: elem['uid'] ?? '',
+          postId: json['id'] ?? 'Error', // Fallback to 'Error' if postId is missing
+          userId: json['user_name'] ?? 'Unknown',
+          replies: repliesList,
+          likedBy: elem['likedBy'] != null ? List<String>.from(elem['likedBy']) : [],
+          dislikedBy: elem['dislikedBy'] != null ? List<String>.from(elem['dislikedBy']) : [],
+        );
+      }).toList();
+    } catch (e) {
+      print("Error processing comments: $e");
+    }
 
     // Safely return the constructed InZonePost object
     return InZonePost(
@@ -245,6 +260,153 @@ class InZonePost
       videoContent: videoList,
       textContent: textContent,
       userReference: userReference,
+      mainCategory: category,
+      isAi: false,
+    );
+  }
+  static InZonePost fromJsonForHumans(Map<String, dynamic> json) {
+    Map<String, dynamic> data = json;
+    
+    // Safely initialize variables with default values
+    String category;
+    try {
+      // Check if category is a list and not empty
+      if (data['category'] is List && (data['category'] as List).isNotEmpty) {
+        category = data['category'][0] ?? 'animals';
+      } else {
+        // Default category if the list is empty or not a list
+        category = 'animals';
+      }
+    } catch (e) {
+      // Fallback in case of any error
+      print('Error accessing category: $e');
+      category = 'animals';
+    }
+    
+    String userName = data['user_name'] ?? 'Unknown';
+    int likes = data['likes'] ?? 0;
+    
+    // More robust ID handling
+    String id;
+    if (json.containsKey('id') && json['id'] != null && json['id'].toString().isNotEmpty) {
+      id = json['id'].toString();
+    } else if (json.containsKey('_id') && json['_id'] != null && json['_id'].toString().isNotEmpty) {
+      id = json['_id'].toString();
+    } else {
+      // Generate a unique ID based on content and timestamp if no ID is available
+      String timestamp = DateTime.now().millisecondsSinceEpoch.toString();
+      String contentHash = userName;
+      id = "generated_${contentHash.hashCode}_$timestamp";
+    }
+    
+    // Handle text content
+    String textContent = '';
+    try {
+      if (data['post'] != null) {
+        if (data['post'] is Map) {
+          if (data['post']['text_content'] != null) {
+            textContent = data['post']['text_content'].toString();
+          }
+        }
+      }
+    } catch (e) {
+      print("Error extracting text content: $e");
+    }
+    
+    String userReference = json['user_document_id'] ?? 'unknown';
+    String mainCategory = json['category'] is List && (json['category'] as List).isNotEmpty ? json['category'][0] : '';
+    DateTime datePosted = DateTime.now(); // Assuming current time if not provided
+
+    // Initialize imageList and videoList
+    List<String> imageList = [];
+    List<String> videoList = [];
+
+    // Handle image content safely
+    try {
+      if (data['post'] != null) {
+        // Get image content
+        var imageContent = data['post']['image_content'];
+        
+        if (imageContent != null) {
+          if (imageContent is List) {
+            for (var element in imageContent) {
+              if (element != null) {
+                imageList.add(element.toString());
+              }
+            }
+          } else if (imageContent is String) {
+            imageList.add(imageContent);
+          }
+        }
+        
+        // Get video content
+        var videoContent = data['post']['video_content'];
+        
+        if (videoContent != null) {
+          if (videoContent is List) {
+            for (var element in videoContent) {
+              if (element != null) {
+                videoList.add(element.toString());
+              }
+            }
+          } else if (videoContent is String) {
+            videoList.add(videoContent);
+          }
+        }
+      }
+    } catch (e) {
+      print("Error extracting media content: $e");
+    }
+
+    // Safely handle comments
+    List<CommentClass> finalCommentsList = [];
+    try {
+      if (json['comments'] != null && json['comments'] is List) {
+        List<dynamic> commentsList = json['comments'] as List<dynamic>;
+        finalCommentsList = commentsList.map((elem) {
+          List<ReplyClass> repliesList = [];
+        
+          if (elem['replies'] != null) {
+            List<dynamic> replies = elem['replies'] as List<dynamic>;
+            for (var reply in replies) {
+              repliesList.add(ReplyClass(
+                name: reply['name'] ?? 'Unknown',
+                text: reply['text'] ?? '',
+                uid: reply['uid'] ?? '',
+              ));
+            }
+          }
+        
+          return CommentClass(
+            author: elem['name'] ?? 'Unknown',
+            text: elem['text'] ?? '',
+            timestamp: DateTime.now().toString(),
+            id: elem['uid'] ?? '',
+            postId: json['id'] ?? 'Error',
+            userId: json['user_name'] ?? 'Unknown',
+            replies: repliesList,
+            likedBy: elem['likedBy'] != null ? List<String>.from(elem['likedBy']) : [],
+            dislikedBy: elem['dislikedBy'] != null ? List<String>.from(elem['dislikedBy']) : [],
+          );
+        }).toList();
+      }
+    } catch (e) {
+      print("Error processing comments: $e");
+    }
+
+    // Safely return the constructed InZonePost object
+    return InZonePost(
+      category: category,
+      userName: userName,
+      comments: finalCommentsList,
+      datePosted: datePosted,
+      likes: likes,
+      id: id,
+      imageContent: imageList,
+      videoContent: videoList,
+      textContent: textContent,
+      userReference: userReference,
+      isAi: json.containsKey('is_ai') ? json['is_ai'] == true : false,
       mainCategory: mainCategory,
     );
   }

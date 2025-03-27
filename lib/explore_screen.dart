@@ -10,7 +10,6 @@ import 'package:inzone/inzone_database.dart';
 import 'package:shimmer/shimmer.dart';
 
 import '../data/inzone_post.dart';
-import 'components/repost_card.dart';
 
 class ExploreScreen extends StatefulWidget {
   const ExploreScreen({super.key});
@@ -140,38 +139,38 @@ class _ExploreScreenState extends State<ExploreScreen> {
       // Add unique categories to the list
 
     }
-    final responseHuman = await InZoneDatabase.getHumanFeed();
-    // Ensure the response contains the expected structure
-    if (responseHuman != null ) {
-      print(responseHuman);
-      List<dynamic> fetchedHumanPosts = responseHuman['posts'];
-      for (var postJson in fetchedHumanPosts.skip(_currentPage * _pageSize).take(_pageSize)) {
-
-        if (postJson.containsKey("aiName")) {
-          InZonePost post = InZonePost.fromJsonForHumans(postJson);
-          InZoneAvatar avatar = InZoneAvatar.fromRepostJson(postJson);
-          finalHomeScreen.add(RepostCard(post: post, repost: avatar, aiChat: postJson["aiChatContent"],
-
-          ));
-        } else {
-          InZonePost post = InZonePost.fromJsonForHumans(postJson);
-          posts.add(PostCard(
-            post: post,
-            onTap: (postId) {
-              print('You tapped on post with ID: $postId');
-            },
-          ));
-          if (!categoriesList.contains(post.category) && post.category.isNotEmpty) {
-            categoriesList.add(post.category);
-          }
-        }
-
-
-        // Add unique categories to the list
-
-      }
-      finalHomeScreen.shuffle();
-    }
+    // final responseHuman = await InZoneDatabase.getHumanFeed();
+    // // Ensure the response contains the expected structure
+    // if (responseHuman != null ) {
+    //   print(responseHuman);
+    //   List<dynamic> fetchedHumanPosts = responseHuman['posts'];
+    //   for (var postJson in fetchedHumanPosts.skip(_currentPage * _pageSize).take(_pageSize)) {
+    //
+    //     if (postJson.containsKey("aiName")) {
+    //       InZonePost post = InZonePost.fromJsonForHumans(postJson);
+    //       InZoneAvatar avatar = InZoneAvatar.fromRepostJson(postJson);
+    //       finalHomeScreen.add(RepostCard(post: post, repost: avatar, aiChat: postJson["aiChatContent"],
+    //
+    //       ));
+    //     } else {
+    //       InZonePost post = InZonePost.fromJsonForHumans(postJson);
+    //       posts.add(PostCard(
+    //         post: post,
+    //         onTap: (postId) {
+    //           print('You tapped on post with ID: $postId');
+    //         },
+    //       ));
+    //       if (!categoriesList.contains(post.category) && post.category.isNotEmpty) {
+    //         categoriesList.add(post.category);
+    //       }
+    //     }
+    //
+    //
+    //     // Add unique categories to the list
+    //
+    //   }
+    //   finalHomeScreen.shuffle();
+    // }
     setState(() {
       isLoading =false;
     });

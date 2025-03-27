@@ -191,20 +191,20 @@ const Divider(
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
-                  LikeButtonWidget(post: widget.post, liked: isLiked),
-                  const SizedBox(
-                    width: 10,
-                  ),
-                  InkWell(
-                      onTap: () {
-
-                        filterSheetModel();
-
-                      },
-                      child: SizedBox(height: 35, width: 35, child: SvgPicture.asset(CustomIcons.comment))),
-                  const SizedBox(
-                    width: 10,
-                  ),
+                  // LikeButtonWidget(post: widget.post, liked: isLiked),
+                  // const SizedBox(
+                  //   width: 10,
+                  // ),
+                  // InkWell(
+                  //     onTap: () {
+                  //
+                  //       filterSheetModel();
+                  //
+                  //     },
+                  //     child: SizedBox(height: 35, width: 35, child: SvgPicture.asset(CustomIcons.comment))),
+                  // const SizedBox(
+                  //   width: 10,
+                  // ),
                   // GestureDetector(
                   //     onTap: () {
                   //       // Navigator.push(context,
@@ -262,7 +262,7 @@ const Divider(
       onTap: () async {
         if (value == "chat") {
           String? chatID = await InZoneDatabase.startConversation(widget.post.id);
-          print(chatID);
+
         } else if(value == "not_interested"){
           const snackBar = SnackBar(
             content: Text("This post has been flagged for review."),
@@ -827,10 +827,10 @@ const Divider(
           mainAxisSize: MainAxisSize.min,
           children: [
              Padding(
-              padding: EdgeInsets.symmetric(horizontal: 15.0),
+              padding: const EdgeInsets.symmetric(horizontal: 15.0),
               child: Text(
                 widget.repost.name,
-                style: TextStyle(color: Colors.blue),
+                style: const TextStyle(color: Colors.blue),
               ),
             ),
             Row(

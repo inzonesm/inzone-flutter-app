@@ -1,4 +1,3 @@
-
 import 'package:firebase_storage/firebase_storage.dart';
 import 'dart:io';
 import 'package:ffmpeg_kit_flutter/ffmpeg_kit.dart';
@@ -37,7 +36,7 @@ class AuthWork {
 
       // Storage file ref with path for video
       final ref = storage.ref().child(
-          'videos/${chatUserID}/${DateTime.now().millisecondsSinceEpoch}.$ext');
+          'videos/$chatUserID/${DateTime.now().millisecondsSinceEpoch}.$ext');
 
       // Uploading video
       await ref
@@ -54,7 +53,7 @@ class AuthWork {
 
       // Storage file ref with path for thumbnail
       final thumbnailRef = storage.ref().child(
-          'thumbnails/${chatUserID}/${DateTime.now().millisecondsSinceEpoch}_thumbnail.jpg');
+          'thumbnails/$chatUserID/${DateTime.now().millisecondsSinceEpoch}_thumbnail.jpg');
 
       // Uploading thumbnail
       final thumbnailTask = thumbnailRef.putFile(thumbnail);
@@ -87,7 +86,7 @@ class AuthWork {
 
     //storage file ref with path
     final ref = storage.ref().child(
-        'images/${chatUserID}/${DateTime.now().millisecondsSinceEpoch}.$ext');
+        'images/$chatUserID/${DateTime.now().millisecondsSinceEpoch}.$ext');
 
     //uploading image
     await ref
@@ -430,5 +429,32 @@ class AuthWork {
 //     ? '${user.uid}_$id'
 //     : '${id}_${user.uid}';
 
+  static Future<void> deletePostImage(String imageUrl) async {
+    try {
+      // Create a reference to the file to delete
+      final ref = storage.refFromURL(imageUrl);
+      await ref.delete();
+      print('Image deleted successfully');
+    } catch (e) {
+      print('Error deleting image: $e');
+      throw Exception('Failed to delete image');
+    }
+  }
 
+  static Future<void> deletePostVideo(String videoUrl, String thumbnailUrl) async {
+    try {
+      // Delete video file
+      final videoRef = storage.refFromURL(videoUrl);
+      await videoRef.delete();
+
+      // Delete thumbnail file
+      final thumbnailRef = storage.refFromURL(thumbnailUrl);
+      await thumbnailRef.delete();
+      
+      print('Video and thumbnail deleted successfully');
+    } catch (e) {
+      print('Error deleting video: $e');
+      throw Exception('Failed to delete video');
+    }
+  }
 }

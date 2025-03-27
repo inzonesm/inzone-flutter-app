@@ -12,7 +12,12 @@ import 'package:image_picker/image_picker.dart';
 import 'package:lottie/lottie.dart';
 import 'package:http/http.dart' as http;
 import 'auth_work.dart';
-
+import 'package:ffmpeg_kit_flutter/ffprobe_kit.dart';
+import 'dart:async';
+import 'package:flutter/material.dart';
+import 'package:video_player/video_player.dart';
+import 'package:ffmpeg_kit_flutter/ffmpeg_kit.dart';
+import 'package:ffmpeg_kit_flutter/ffprobe_kit.dart';
 class PostScreen extends StatefulWidget {
   const PostScreen({super.key});
 
@@ -254,9 +259,9 @@ class _PostScreenState extends State<PostScreen> {
                   children: [
                     IconButton(
                       onPressed: () async {
-                        final ImagePicker _picker = ImagePicker();
+                        final ImagePicker picker = ImagePicker();
                         // Pick an image
-                        final XFile? image = await _picker.pickImage(
+                        final XFile? image = await picker.pickImage(
                             source: ImageSource.gallery, imageQuality: 90);
                         if (image != null) {
                           // setState(() {
@@ -275,7 +280,7 @@ class _PostScreenState extends State<PostScreen> {
                           });
                         }
                       },
-                      icon: Icon(
+                      icon: const Icon(
                         Icons.image,
                         color: Colors.blue,
                         size: 28,
@@ -284,10 +289,10 @@ class _PostScreenState extends State<PostScreen> {
 
                     IconButton(
                       onPressed: () async {
-                        final ImagePicker _picker = ImagePicker();
+                        final ImagePicker picker = ImagePicker();
                         // Pick a video
-                        final XFile? video = await _picker.pickVideo(
-                            source: ImageSource.gallery, maxDuration: Duration(minutes: 5));
+                        final XFile? video = await picker.pickVideo(
+                            source: ImageSource.gallery, maxDuration: const Duration(minutes: 5));
                         if (video != null) {
                           setState(() {
                             isUploading = true;
@@ -296,13 +301,13 @@ class _PostScreenState extends State<PostScreen> {
                             videoUrl = value["videoUrl"]!;
                             thumbnailUrl = value["thumbnailUrl"]!;
                           });
-                          print("The video url is"  + videoUrl);
+                          print("The video url is$videoUrl");
                           setState(() {
                             isUploading = false;
                           });
                         }
                       },
-                      icon: Icon(
+                      icon: const Icon(
                         Icons.switch_video_outlined,
                         color: Colors.blue,
                         size: 28,
@@ -312,9 +317,9 @@ class _PostScreenState extends State<PostScreen> {
 
                     IconButton(
                       onPressed: () async {
-                        final ImagePicker _picker = ImagePicker();
+                        final ImagePicker picker = ImagePicker();
                         // Pick an image
-                        final XFile? image = await _picker.pickImage(
+                        final XFile? image = await picker.pickImage(
                             source: ImageSource.camera, imageQuality: 90);
                         if (image != null) {
                           // setState(() {
@@ -333,7 +338,7 @@ class _PostScreenState extends State<PostScreen> {
                           });
                         }
                       },
-                      icon: Icon(
+                      icon: const Icon(
                         Icons.camera_alt_rounded,
                         color: Colors.blue,
                         size: 28,
@@ -352,14 +357,47 @@ class _PostScreenState extends State<PostScreen> {
                     )
                         : Padding(
                       padding: const EdgeInsets.all(8.0),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(20.0),
-                        child: Image(
-                          height: 140,
-                          width: 140,
-                          fit: BoxFit.cover,
-                          image: NetworkImage(imageUrl),
-                        ),
+                      child: Stack(
+                        children: [
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(20.0),
+                            child: Image(
+                              height: 140,
+                              width: 140,
+                              fit: BoxFit.cover,
+                              image: NetworkImage(imageUrl),
+                            ),
+                          ),
+                          Positioned(
+                            top: 5,
+                            right: 5,
+                            child: GestureDetector(
+                              onTap: () async {
+                                try {
+                                  // Delete from Firebase Storage
+                                  await AuthWork.deletePostImage(imageUrl);
+                                  setState(() {
+                                    imageUrl = "";
+                                  });
+                                } catch (e) {
+                                  print('Error deleting image: $e');
+                                }
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.all(4),
+                                decoration: BoxDecoration(
+                                  color: Colors.black.withOpacity(0.5),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(
+                                  Icons.close,
+                                  color: Colors.white,
+                                  size: 20,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                     if (videoUrl.isNotEmpty || isUploading)
@@ -373,7 +411,6 @@ class _PostScreenState extends State<PostScreen> {
                               if (videoUrl.isNotEmpty)
                                 InkWell(
                                   onTap: () {
-                                    // Navigate to video player screen
                                     Navigator.push(
                                       context,
                                       MaterialPageRoute(
@@ -396,6 +433,36 @@ class _PostScreenState extends State<PostScreen> {
                                       const Positioned.fill(
                                         child: Center(
                                           child: Icon(Icons.play_arrow, size: 50, color: Colors.white),
+                                        ),
+                                      ),
+                                      Positioned(
+                                        top: 5,
+                                        right: 5,
+                                        child: GestureDetector(
+                                          onTap: () async {
+                                            try {
+                                              // Delete video and thumbnail from Firebase Storage
+                                              await AuthWork.deletePostVideo(videoUrl, thumbnailUrl);
+                                              setState(() {
+                                                videoUrl = "";
+                                                thumbnailUrl = "";
+                                              });
+                                            } catch (e) {
+                                              print('Error deleting video: $e');
+                                            }
+                                          },
+                                          child: Container(
+                                            padding: const EdgeInsets.all(4),
+                                            decoration: BoxDecoration(
+                                              color: Colors.black.withOpacity(0.5),
+                                              shape: BoxShape.circle,
+                                            ),
+                                            child: const Icon(
+                                              Icons.close,
+                                              color: Colors.white,
+                                              size: 20,
+                                            ),
+                                          ),
                                         ),
                                       ),
                                     ],
@@ -435,66 +502,104 @@ class _PostScreenState extends State<PostScreen> {
                             fontWeight: FontWeight.w400,
                             fontSize: 23),
                       ),
-                      action: (controller)  async {
+                      action: (controller) async {
+                        if (postContent.trim().isEmpty) {
+                          controller.reset();
+                          return;
+                        }
 
-                        controller.loading(); //starts loading animation
-                        //     await Future.delayed(const Duration(seconds: 2));
-                        await InZoneDatabase.postContent(postMessage: postContent, imageRef: [imageUrl], videoRef: [videoUrl]).then((value) {
+                        controller.loading();
+                        
+                        try {
+                          // First analyze sentiment
+                          var analysis = await InZoneDatabase.analyzeSentiment(postContent);
+                          print("Sentiment analysis result: $analysis"); // Debug print
+                          
+                          int sentiment = analysis["sentiment"] as int;
                           setState(() {
-
-                            if (value == -1){
+                            if (sentiment == -1) {
                               moveValue = low;
                               doesNotWork = true;
-                              controller.reset();
-                            } else if (value == 0){
+                            } else if (sentiment == 0) {
                               moveValue = medium;
                               doesNotWork = false;
-                            } else if (value == 1){
+                            } else if (sentiment == 1) {
                               moveValue = high;
                               doesNotWork = false;
-
-                            } else {
-                              moveValue = low;
-                              doesNotWork = true;
-                              controller.reset();
                             }
                           });
-                        });
 
-                        if (doesNotWork == false){
-                          controller.success();
-                          Navigator.pop(context);
+                          // If content is inappropriate, reset and return immediately
+                          if (sentiment == -1) {
+                            controller.reset();
+                            return;
+                          }
+                          
+                          // Only proceed with post creation if sentiment is 0 or 1
+                          if (sentiment >= 0) {
+                            // Create a human post
+                            final result = await InZoneDatabase.createHumanPost(
+                              content: postContent,
+                              imageRefs: [imageUrl],
+                              videoRefs: [videoUrl],
+                            );
+                            
+                            print("Post creation result: $result"); // Debug print
+                            
+                            if (!result["success"]) {
+                              controller.reset();
+                              return;
+                            }
 
-                          showDialog(
+                            // Only show success dialog if the post was successful
+                            controller.success();
+                            Navigator.pop(context);
+
+                            showDialog(
                               context: context,
                               builder: (_) {
                                 _timer = Timer(const Duration(seconds: 1), () {
                                   Navigator.of(_).pop();
-
                                 });
                                 return Dialog(
                                   backgroundColor: Colors.transparent,
-                                  child:  Stack(
+                                  child: Stack(
                                     children: [
-                                      RotatedBox(quarterTurns: 2, child: SizedBox(height:MediaQuery.of(context).size.height, width:MediaQuery.of(context).size.width, child: Lottie.asset("assets/animations/confetti.json")),),
+                                      RotatedBox(
+                                        quarterTurns: 2,
+                                        child: SizedBox(
+                                          height: MediaQuery.of(context).size.height,
+                                          width: MediaQuery.of(context).size.width,
+                                          child: Lottie.asset("assets/animations/confetti.json")
+                                        ),
+                                      ),
                                       const Align(
-                                          alignment: Alignment.center,
-                                          child: Text("Post Sucessful", style: TextStyle(color: Colors.white, fontSize: 25, fontWeight: FontWeight.w400),))
+                                        alignment: Alignment.center,
+                                        child: Text(
+                                          "Post Successful",
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 25,
+                                            fontWeight: FontWeight.w400
+                                          ),
+                                        )
+                                      )
                                     ],
                                   ),
                                 );
                               }
-                          ).then((value) {
-                            if (_timer.isActive) {
-                              _timer.cancel();
-                            }
-                          });
-
-                          //starts success animation
+                            ).then((value) {
+                              if (_timer.isActive) {
+                                _timer.cancel();
+                              }
+                            });
+                          } else {
+                            controller.reset();
+                          }
+                        } catch (e) {
+                          print('Error posting content: $e');
+                          controller.reset();
                         }
-
-
-
                       },
                     ),
                   ),
@@ -1119,146 +1224,4 @@ class _PostScreenState extends State<PostScreen> {
 //   }
 //
 // }
-class VideoWidget extends StatefulWidget {
-  final String videoUrl;
 
-  const VideoWidget({Key? key, required this.videoUrl}) : super(key: key);
-
-  @override
-  _VideoWidgetState createState() => _VideoWidgetState();
-}
-
-class _VideoWidgetState extends State<VideoWidget> {
-  late VideoPlayerController _videoPlayerController;
-  bool _isInitialized = false;
-  bool _isPlayable = false;
-  bool _showControls = true;
-  Timer? _hideControlsTimer;
-
-  @override
-  void initState() {
-    super.initState();
-    _checkHeadersAndInitialize();
-  }
-
-  Future<void> _checkHeadersAndInitialize() async {
-    try {
-      final response = await http.head(Uri.parse(widget.videoUrl));
-      var headers = response.headers;
-if (Platform.isIOS){
-  // Check if Content-Disposition header is missing
-  if (!headers.containsKey('content-disposition')) {
-    print('Content-Disposition header is missing');
-    // Handle missing header (e.g., show error or avoid playback)
-
-    setState(() {
-      _isPlayable = false;
-    });
-    return;
-  }
-}
-
-
-      // Proceed to initialize the video player
-      await _initializeVideoPlayer();
-    } catch (e) {
-      print('Error checking headers: $e');
-      setState(() {
-        _isPlayable = false;
-      });
-    }
-  }
-
-  Future<void> _initializeVideoPlayer() async {
-    _videoPlayerController = VideoPlayerController.networkUrl(Uri.parse(widget.videoUrl));
-
-
-    try {
-      await _videoPlayerController.initialize();
-      setState(() {
-        _isInitialized = true;
-
-        // Check if the video has valid dimensions and is in a playable state
-        if (_videoPlayerController.value.size != null &&
-            _videoPlayerController.value.size.width > 0 &&
-            _videoPlayerController.value.size.height > 0 &&
-            _videoPlayerController.value.isInitialized &&
-            !_videoPlayerController.value.hasError) {
-          _isPlayable = true;
-        } else {
-          _isPlayable = false;
-        }
-      });
-    } catch (e) {
-      print('Error initializing video: $e');
-      setState(() {
-        _isPlayable = false;
-      });
-    }
-  }
-
-  void _togglePlayback() {
-    setState(() {
-      if (_videoPlayerController.value.isPlaying) {
-        _videoPlayerController.pause();
-      } else {
-        _videoPlayerController.play();
-        _startHideControlsTimer(); // Start the timer to hide controls
-      }
-    });
-  }
-
-  void _startHideControlsTimer() {
-    _hideControlsTimer?.cancel(); // Cancel any existing timer
-    _hideControlsTimer = Timer(const Duration(seconds: 3), () {
-      setState(() {
-        _showControls = false;
-      });
-    });
-  }
-
-  void _showControlsTemporarily() {
-    setState(() {
-      _showControls = true;
-    });
-    _startHideControlsTimer(); // Restart the timer
-  }
-
-  @override
-  void dispose() {
-    _videoPlayerController.dispose();
-    _hideControlsTimer?.cancel();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (!_isInitialized || !_isPlayable) {
-      return const SizedBox.shrink(); // Hide the widget if video is not playable
-    }
-
-    return GestureDetector(
-      onTap: _showControlsTemporarily, // Show controls temporarily on tap
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          AspectRatio(
-            aspectRatio: _videoPlayerController.value.aspectRatio,
-            child: VideoPlayer(_videoPlayerController),
-          ),
-          if (_showControls)
-            IconButton(
-              icon: Icon(
-                _videoPlayerController.value.isPlaying
-                    ? Icons.pause
-                    : Icons.play_arrow,
-                color: Colors.white,
-                size: 48.0,
-              ),
-              onPressed: _togglePlayback,
-            ),
-        ],
-      ),
-    );
-  }
-}

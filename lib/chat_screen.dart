@@ -133,10 +133,11 @@ class _ChatScreenState extends State<ChatScreen> {
                               ),
                             ),
                             const SizedBox(height: 20),
-                            Text(
-                              "${widget.userData.name} was authored by @${widget.userData.email}",
-                              style: const TextStyle(color: Colors.blue),
-                            ),
+                            // Text(
+                            //   textAlign: TextAlign.center,
+                            //   "${widget.userData.name} was authored by @${widget.userData.email}",
+                            //   style: const TextStyle(color: Colors.blue),
+                            // ),
                             getMessages()
                           ],
                         ),
@@ -215,12 +216,15 @@ class _ChatScreenState extends State<ChatScreen> {
               String? aiResponse;
               if (widget.userData.chatId != null) {
                 print("Chat id found.");
+                print(widget.userData.email);
                 aiResponse = await InZoneDatabase.sendMessageToAI(userMessage,
                     widget.userData.email!, widget.userData.chatId);
               } else {
                 print("Chat id not found.");
+                print(widget.userData.email
+                );
                 aiResponse = await InZoneDatabase.sendMessageToAI(
-                    userMessage, widget.userData.name!, null);
+                    userMessage, widget.userData.email!, null);
               }
               if (aiResponse != null) {
                 addMessage(aiResponse, false);
@@ -274,7 +278,7 @@ class _ChatScreenState extends State<ChatScreen> {
               ),
             ),
           ),
-          if (!isMe)
+          if (!isMe && !widget.userData.email!.contains('.'))
             GestureDetector(
               onTap: () {
                 Navigator.push(context, MaterialPageRoute(builder: (context) {
