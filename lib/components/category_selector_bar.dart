@@ -6,7 +6,7 @@ import 'package:inzone/data/inzone_category.dart';
 
 class CategorySelectorBar extends StatefulWidget {
   List<String> categories = [];
-  Function(String) onTap;
+  Function(String?) onTap;
   CategorySelectorBar(
       {super.key, required this.categories, required this.onTap});
 
@@ -31,7 +31,7 @@ class _CategorySelectorBarState extends State<CategorySelectorBar> {
     return text.capitalize(); // Assuming you have a capitalize() extension on String
   }
 
-  int selectedCategoryIndex = 0;
+  int? selectedCategoryIndex;
   // final List<Color> startColorList = [
   //   const Color(0xff8674ED),
   //   const Color(0xff26DD90),
@@ -60,9 +60,9 @@ class _CategorySelectorBarState extends State<CategorySelectorBar> {
     const Color(0xffFF9F1C),  // Orange
     const Color(0xff2EC4B6),  // Mint Green
     const Color(0xff8338EC),  // Purple
-    const Color(0xffFF006E),  // Pink
-    const Color(0xff3A86FF),  // Sky Blue
     const Color(0xff06D6A0),  // Bright Green
+    const Color(0xff3A86FF),  // Sky Blue
+    const Color(0xffFF006E),  // Pink
     const Color(0xffEF476F),  // Bright Pinkish Red
     const Color(0xff118AB2),  // Blue
     const Color(0xff073B4C),  // Dark Teal
@@ -78,9 +78,9 @@ class _CategorySelectorBarState extends State<CategorySelectorBar> {
     const Color(0xffF46036),  // Dark Orange
     const Color(0xff197278),  // Dark Teal
     const Color(0xff3A0CA3),  // Deep Purple
-    const Color(0xffFB5607),  // Bright Orange
-    const Color(0xff005F99),  // Deep Blue
     const Color(0xff40916C),  // Darker Green
+    const Color(0xff005F99),  // Deep Blue
+    const Color(0xffFB5607),  // Bright Orange
     const Color(0xffD62828),  // Dark Red
     const Color(0xff073B4C),  // Darker Blue
     const Color(0xff0A9396),  // Aquatic Blue
@@ -104,27 +104,47 @@ class _CategorySelectorBarState extends State<CategorySelectorBar> {
           children: List.generate(widget.categories.length, (index) {
             String category = widget.categories[index];
             bool isSelected = index == selectedCategoryIndex;
+            String capitalizedCategory = replaceAndCapitalize(category);
 
             // Use modulo to loop through the color lists
             int colorIndex = index % startColorList.length;
+            
+            // Construct the icon path and log it for debugging
+            String categoryIconPath = category.length > 2
+                ? "icons/category_icons/$category.svg"
+                : "icons/category_icons/creativity.svg";
+            
+            print("Category: $category, Icon Path: $categoryIconPath");
 
             return GestureDetector(
               onTap: () {
+                print("Category tapped: $capitalizedCategory, index: $index, currently selected: $selectedCategoryIndex");
+                
                 setState(() {
-                  selectedCategoryIndex = index;
+                  // If the same category is tapped again, deselect it
+                  if (selectedCategoryIndex == index) {
+                    selectedCategoryIndex = null;
+                    widget.onTap(null); // Pass null to indicate no category is selected
+                  } else {
+                    selectedCategoryIndex = index;
+                    print("Setting selected category to: $capitalizedCategory");
+                    widget.onTap(category); // Pass the original category for filtering
+                  }
                 });
               },
               child: CategorySelector(
                 startColor: startColorList[colorIndex],
                 endColor: endColorList[colorIndex],
+                isSelected: isSelected,
                 category: InZoneCategory(
-                  categoryName: replaceAndCapitalize(category),
+                  categoryName: capitalizedCategory,
                   index: colorIndex,
-                  categoryIconPath: category.length > 2
-                      ? "icons/category_icons/$category.svg"
-                      : "icons/category_icons/animals.svg",
+                  categoryIconPath: categoryIconPath,
                 ),
-                onTap: widget.onTap,
+                onTap: (_) {
+                  // We're handling the tap in the InkWell above
+                  // This is just a placeholder to satisfy the required parameter
+                },
               ),
             );
           }),

@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:inzone/all_chats_screen.dart';
 import 'package:inzone/chat_screen.dart';
+import 'package:inzone/components/video_widget.dart';
 import 'package:inzone/config/custom_icons.dart';
 import 'package:inzone/data/comment_class.dart';
 import 'package:inzone/data/inzone_post.dart';
@@ -15,11 +16,23 @@ import 'package:inzone/profile_screen.dart';
 import 'package:random_avatar/random_avatar.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../human_chat_screen.dart';
+
 class PostCard extends StatefulWidget {
   InZonePost post;
   final Function(String)? onTap;
-
-  PostCard({super.key, required this.post, this.onTap});
+  final bool showHue;
+  
+  InZonePost getPost () {
+    return post;
+  }
+  
+  PostCard({
+    super.key, 
+    required this.post, 
+    this.onTap,
+    this.showHue = true,
+  });
 
   @override
   State<PostCard> createState() => _PostCardState();
@@ -45,7 +58,7 @@ class _PostCardState extends State<PostCard> {
     if (postSnapshot.exists) {
       // If the document exists, retrieve the current comments list
       currentComments = postSnapshot['comments'] ?? [];
-      return currentComments.length > 0;
+      return currentComments.isNotEmpty;
     }
 
     return false;
@@ -56,22 +69,52 @@ class _PostCardState extends State<PostCard> {
     _loadLikedState(); // Load the liked state when the widget is initialized
   }
 
+  @override
+  void didUpdateWidget(PostCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // If the post ID changed, reload the liked state
+    if (oldWidget.post.id != widget.post.id) {
+      _loadLikedState();
+    }
+  }
+
   Future<void> _loadLikedState() async {
+    // Skip loading like state for posts with unknown IDs
+    if (widget.post.id == "unknown" || widget.post.id.isEmpty) {
+      setState(() {
+        isLiked = false; // Always set to false for unknown posts
+      });
+      return;
+    }
+    
     bool liked = await LikedPostsPreferences.isPostLiked(widget.post.id);
-    setState(() {
-      isLiked = liked;
-    });
+    if (mounted) {
+      setState(() {
+        isLiked = liked;
+      });
+    }
   }
 
   Future<void> handleLike() async {
-    if (isLiked) {
+    // Skip like handling for posts with unknown IDs
+    if (widget.post.id == "unknown" || widget.post.id.isEmpty) {
+      return;
+    }
+    
+    // Check current like status
+    bool currentLikeStatus = isLiked;
+    
+    if (currentLikeStatus) {
       await LikedPostsPreferences.removeLikedPost(widget.post.id);
     } else {
       await LikedPostsPreferences.addLikedPost(widget.post);
     }
-    setState(() {
-      isLiked = !isLiked; // Toggle the like state
-    });
+    
+    if (mounted) {
+      setState(() {
+        isLiked = !currentLikeStatus; // Toggle the like state
+      });
+    }
   }
   checkComment() async {
     isCommentPresent().then((value) {
@@ -88,6 +131,7 @@ bool isCommentPresentbool = false;
   Widget build(BuildContext context)  {
 
 checkComment();
+
     return GestureDetector(
       onDoubleTap: handleLike, // Handle like on double tap
 
@@ -100,13 +144,26 @@ checkComment();
           ),
           width: MediaQuery.of(context).size.width - 30,
           padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 10),
-          decoration: BoxDecoration(boxShadow: [
+
+          decoration: BoxDecoration(
+              boxShadow: [
             BoxShadow(
               color: const Color(0xff959595).withOpacity(0.3),
               spreadRadius: 0,
               blurRadius: 15,
               offset: const Offset(0, 4), // changes position of shadow
+
             ),
+            
+                // Only add blue hue for human posts (not AI)
+                if (!widget.post.isAi && widget.showHue) 
+                  BoxShadow(
+                    color: Colors.lightBlueAccent.withOpacity(0.5), // Blue hue color
+                    spreadRadius: 5, // Spread of the hue
+                    blurRadius: 12, // Soft edges for blending
+                    offset: const Offset(0, 0), // Center the glow around the container
+                  ),
+
           ], color: Colors.white.withOpacity(0.97), borderRadius: BorderRadius.circular(15)),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -121,20 +178,30 @@ checkComment();
                   Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                     GestureDetector(
                       onTap: (){
-                        if (widget.post.userReference.contains('aiUser')) {
-                          Navigator.push(context, MaterialPageRoute(builder: (context)=>ProfileScreen(uid: widget.post.userName)));
+                        if (widget.post.isAi) {
+                          print(widget.post.userName);
+                          Navigator.push(context, MaterialPageRoute(builder: (context)=>ProfileScreen(
+                            uid: widget.post.userName,
+                            isAI: true, // AI user
+                          )));
 
                         } else {
-                          Navigator.push(context, MaterialPageRoute(builder: (context)=>ProfileScreen(uid: widget.post.id)));
+                          Navigator.push(context, MaterialPageRoute(builder: (context)=>ProfileScreen(
+                            uid: widget.post.userReference,
+                            isAI: widget.post.isAi, // Use the post's isAi field
+                          )));
 
                         }
                       },
-                      child: Text(
-                        widget.post.userName,
-                        style: const TextStyle(
-                            color: Colors.black,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 20),
+                      child: SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Text(
+                          widget.post.userName,
+                          style: const TextStyle(
+                              color: Colors.black,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 20),
+                        ),
                       ),
                     ),
 
@@ -153,15 +220,7 @@ checkComment();
                       // your logic
                     },
                     itemBuilder: (BuildContext bc) {
-                      return   widget.post.userReference.contains("aiUser") ? [
-
-                       menuOption(
-                            CustomIcons.save,
-                            "Start a chat",
-                            "chat",
-                            context,
-                            widget.post.userName,
-                            widget.post.userReference),
+                      return [
                         menuOption(
                             CustomIcons.notInterested,
                             "Flag this post",
@@ -176,37 +235,6 @@ checkComment();
                             context,
                             widget.post.userName,
                             widget.post.userReference),
-                        // menuOption(
-                        //     CustomIcons.manage,
-                        //     "Report this post",
-                        //     "manage",
-                        //     context,
-                        //     widget.post.userName,
-                        //     widget.post.userReference)
-                      ] : [
-
-
-                        menuOption(
-                            CustomIcons.notInterested,
-                            "Flag this post",
-                            "not_interested",
-                            context,
-                            widget.post.userName,
-                            widget.post.userReference),
-                        menuOption(
-                            CustomIcons.dontShow,
-                            "Block ${widget.post.userName}",
-                            "dont_show",
-                            context,
-                            widget.post.userName,
-                            widget.post.userReference),
-                        // menuOption(
-                        //     CustomIcons.manage,
-                        //     "Report this post",
-                        //     "manage",
-                        //     context,
-                        //     widget.post.userName,
-                        //     widget.post.userReference)
                       ];
                     },
                   ),
@@ -222,7 +250,7 @@ checkComment();
                 child: Text(
                   widget.post.textContent,
                   textAlign: TextAlign.start,
-                  style: const TextStyle(height: 1.5, color: Colors.black),
+                  style: const TextStyle(height: 1, color: Colors.black),
                 ),
               ),
               const SizedBox(
@@ -247,6 +275,21 @@ checkComment();
                               child: Image.network(
                                 imageUrl,
                                 fit: BoxFit.fitWidth,
+                                loadingBuilder: (context, child, loadingProgress) {
+                                  if (loadingProgress == null) {
+                                    return child; // The image has loaded
+                                  } else {
+                                    return Container(
+                                      width: MediaQuery.of(context).size.width - 60,
+                                      height: 200, // Adjust to the approximate expected height
+                                      color: Colors.grey[300], // Placeholder color
+                                      child: const Center(
+                                        child: CircularProgressIndicator(),
+                                      ),
+                                    );
+                                  }
+                                },
+
                                 width: MediaQuery.of(context).size.width - 60,
                                 errorBuilder: (context, object, st) {
                                   return const SizedBox();
@@ -266,7 +309,7 @@ checkComment();
                               width: MediaQuery.of(context).size.width - 60,
                               child: ClipRRect(
                                 borderRadius: BorderRadius.circular(8.0),
-                                child:   VideoWidget(videoUrl: videoUrl),
+                                child:  VideoWidget(videoUrl: videoUrl),
                               ),
                             ),
                           );
@@ -351,31 +394,13 @@ checkComment();
     return PopupMenuItem(
       value: value,
       onTap: () async {
-        if (value == "chat") {
-          // String? chatID = await InZoneDatabase.send(widget.post.userReference);
-          // print(chatID);
-
-          Navigator.push(context,
-              MaterialPageRoute(builder: (context) {
-                return ChatScreen(userData: ChatUser(
-                  name: widget.post.userName,
-                  email: widget.post.userReference,
-                    chatId: null,
-                ));
-              }));
-          } else if(value == "not_interested"){
+        if(value == "not_interested"){
           const snackBar = SnackBar(
             content: Text("This post has been flagged for review."),
             backgroundColor: Colors.red,
           );
           ScaffoldMessenger.of(context).showSnackBar(snackBar);
-        }else if(value == "dont_show"){
-          final snackBar = SnackBar(
-            content: Text("Posts from ${widget.post.userName} will not be shown."),
-            backgroundColor: Colors.red,
-          );
-          ScaffoldMessenger.of(context).showSnackBar(snackBar);
-        }else if(value == "dont_show"){
+        } else if(value == "dont_show"){
           final snackBar = SnackBar(
             content: Text("Posts from ${widget.post.userName} will not be shown."),
             backgroundColor: Colors.red,

@@ -104,15 +104,12 @@ By using the Licensed Application, you agree to abide by these terms and conditi
 
 
             FirebaseAuth.instance.currentUser!.updateDisplayName(username!) ;
-            print("Creating credential");
-            // Call the create user API after successful Firebase authentication
-            print("Creating profile");
             await InZoneDatabase.createUserProfile(
               name: username!,
               email: email!,
               age: age ?? 101,
               gender: "male",
-              userUid: credential.user!.uid, // Use the generated user UID
+              userUid: credential.user!.uid,
               userInterests: interests!,
             );
 
@@ -219,7 +216,7 @@ By using the Licensed Application, you agree to abide by these terms and conditi
               ),
               ConstrainedBox(
       
-                constraints: BoxConstraints(
+                constraints: const BoxConstraints(
                   minHeight: 50
               ),
                 child: Container(
@@ -259,7 +256,7 @@ By using the Licensed Application, you agree to abide by these terms and conditi
                 height: 10,
               ),
               ConstrainedBox(
-                constraints: BoxConstraints(
+                constraints: const BoxConstraints(
                     minHeight: 50
                 ),
                 child: Container(
@@ -299,7 +296,7 @@ By using the Licensed Application, you agree to abide by these terms and conditi
               ),
               ConstrainedBox(
       
-                constraints: BoxConstraints(
+                constraints: const BoxConstraints(
                     minHeight: 50
                 ),
                 child: Container(
@@ -339,7 +336,7 @@ By using the Licensed Application, you agree to abide by these terms and conditi
                 height: 10,
               ),
               ConstrainedBox(
-                constraints: BoxConstraints(
+                constraints: const BoxConstraints(
                     minHeight: 50
                 ),
                 child: Container(
@@ -553,7 +550,7 @@ By using the Licensed Application, you agree to abide by these terms and conditi
           scrollDirection: Axis.vertical,
           child: Column(
             children: [
-              Center(child: Text("Select your favorite categories (Optional)", style: TextStyle(color: Colors.blue),)),
+              const Center(child: Text("Select your favorite categories (Optional)", style: TextStyle(color: Colors.blue),)),
               Padding(
                 padding: const EdgeInsets.only(bottom: 80.0),
                 child: Wrap(
@@ -599,7 +596,7 @@ By using the Licensed Application, you agree to abide by these terms and conditi
                 },
                 child: Icon(
                   _currentPage == 1
-                      ? Icons.check // Show tick icon on the last page
+                      ? Icons.check
                       : (Platform.isIOS
                           ? Icons.arrow_forward_ios
                           : Icons.arrow_forward), // Platform-specific arrow

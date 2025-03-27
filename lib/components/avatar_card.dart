@@ -3,7 +3,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:inzone/all_chats_screen.dart';
 import 'package:inzone/chat_screen.dart';
-  import 'package:inzone/data/inzone_avatar.dart';
+import 'package:inzone/data/inzone_avatar.dart';
 
 class AvatarCard extends StatefulWidget {
   InZoneAvatar avatar;
@@ -18,8 +18,8 @@ class AvatarCard extends StatefulWidget {
 class _AvatarCardState extends State<AvatarCard> {
   bool isUpvoted = false; // State for tracking upvote
   bool isDownvoted = false; // State for tracking downvote
-  int voteCount = 23; // Initial vote count (change this as per your actual data)
-int comments = 23;
+  int voteCount = 23;
+  int comments = 23;
   @override
   void initState() {
     super.initState();
@@ -81,7 +81,7 @@ int comments = 23;
         child: Padding(
           padding: const EdgeInsets.only(bottom: 20.0),
           child: Container(
-            height: 450,
+            height: 550,
             width: 250,
             padding: const EdgeInsets.only(bottom: 2),
             decoration: BoxDecoration(
@@ -97,98 +97,157 @@ int comments = 23;
               borderRadius: BorderRadius.circular(15),
             ),
             child: Column(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              mainAxisAlignment: MainAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.max,
               children: [
                 SizedBox(
                   height: 280,
+                  width: double.infinity,
                   child: ClipRRect(
-                    borderRadius: BorderRadius.circular(15),
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(15),
+                      topRight: Radius.circular(15),
+                    ),
                     child: Image.network(
                       widget.avatar.profilePicture,
                       fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) {
+                        print("Error loading image: ${error.toString()} for ${widget.avatar.profilePicture} ");
+                        return Container(
+                          color: Colors.grey[300],
+                          child: Center(
+                            child: Text(
+                              widget.avatar.name.isNotEmpty 
+                                  ? widget.avatar.name.substring(0, 1).toUpperCase()
+                                  : "?",
+                              style: const TextStyle(
+                                fontSize: 40,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        );
+                      },
                     ),
                   ),
                 ),
-                const SizedBox(height: 5),
-                Flexible(
+                Expanded(
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
                     child: Column(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
                           widget.avatar.name,
-                          style: Theme.of(context).textTheme.bodyMedium!.copyWith(
+                          style: Theme.of(context).textTheme.titleMedium!.copyWith(
                             fontWeight: FontWeight.bold,
                           ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 13.0),
-                          child: Text.rich(
-                            TextSpan(
-                              text: widget.avatar.bio.substring(
-                                  0, widget.avatar.bio.length), // Part of the description
-                              children: const [
-                                TextSpan(
-                                  text: '... ', // Ellipsis with a space
-                                ),
-                                TextSpan(
-                                  text: 'more', // Text after the ellipsis
-                                  style: TextStyle(
-                                    color: Colors.blue, // Optional: styling the "Read more" part
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ],
+                        // Text(
+                        //   "@${widget.avatar.username}",
+                        //   style: Theme.of(context).textTheme.bodySmall!.copyWith(
+                        //     color: Colors.grey[700],
+                        //     fontWeight: FontWeight.w500,
+                        //   ),
+                        //   maxLines: 1,
+                        //   overflow: TextOverflow.ellipsis,
+                        // ),
+                        const SizedBox(height: 10),
+                        if (widget.avatar.greeting != null && widget.avatar.greeting!.isNotEmpty)
+                          Container(
+                            width: double.infinity,
+                            decoration: BoxDecoration(
+                              color: Colors.grey[100],
+                              borderRadius: BorderRadius.circular(8),
                             ),
-                            overflow: TextOverflow.ellipsis,
-                            maxLines: 2,
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                            margin: const EdgeInsets.only(bottom: 12),
+                            child: Text(
+                              '"${widget.avatar.greeting!}"',
+                              style: TextStyle(
+                                fontStyle: FontStyle.italic,
+                                fontSize: 13,
+                                color: Colors.grey[800],
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        Expanded(
+                          child: SingleChildScrollView(
+                            child: SizedBox(
+                              width: double.infinity,
+                              child: Text(
+                                widget.avatar.bio,
+
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.grey[800],
+                                  height: 1,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                                maxLines: 3,
+                              ),
+                            ),
                           ),
                         ),
+                        const SizedBox(height: 8),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
-                            GestureDetector(
-                              onTap: handleUpvote,
-                              child: Icon(
-                                Icons.keyboard_arrow_up_rounded,
-                                color: isUpvoted ? Colors.green : Colors.black,
-                              ),
+                            Row(
+                              children: [
+                                GestureDetector(
+                                  onTap: handleUpvote,
+                                  child: Icon(
+                                    Icons.keyboard_arrow_up_rounded,
+                                    color: isUpvoted ? Colors.green : Colors.black,
+                                    size: 28,
+                                  ),
+                                ),
+                                const SizedBox(width: 2),
+                                Text(
+                                  '$voteCount',
+                                  style: TextStyle(
+                                    color: isUpvoted
+                                        ? Colors.green
+                                        : isDownvoted
+                                        ? Colors.red
+                                        : Colors.black,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const SizedBox(width: 2),
+                                GestureDetector(
+                                  onTap: handleDownvote,
+                                  child: Icon(
+                                    Icons.keyboard_arrow_down_rounded,
+                                    color: isDownvoted ? Colors.red : Colors.black,
+                                    size: 28,
+                                  ),
+                                ),
+                              ],
                             ),
-                            Text(
-                              '$voteCount',
-                              style: TextStyle(
-                                color: isUpvoted
-                                    ? Colors.green
-                                    : isDownvoted
-                                    ? Colors.red
-                                    : Colors.black,
-                                fontWeight: FontWeight.bold,
-                              ),
+                            Row(
+                              children: [
+                                const Icon(
+                                  Icons.chat_bubble_outline_rounded,
+                                  size: 16,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  comments.toString(),
+                                  style: TextStyle(
+                                    color: Colors.grey[800],
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
                             ),
-                            GestureDetector(
-                              onTap: handleDownvote,
-                              child: Icon(
-                                Icons.keyboard_arrow_down_rounded,
-                                color: isDownvoted ? Colors.red : Colors.black,
-                              ),
-                            ),
-                            const Align(
-                              alignment: Alignment.bottomCenter,
-                              child: Icon(
-                                Icons.chat_bubble_rounded,
-                                size: 16,
-                              ),
-                            ),
-                            Align(
-                              alignment: Alignment.topCenter,
-                              child:  Text(
-                                comments.toString(),
-                              ),
-                            ),
-                       const SizedBox(width: 8,),
                             ElevatedButton(
                               onPressed: () {
                                 print(widget.avatar.profilePicture);
@@ -204,28 +263,23 @@ int comments = 23;
                               },
                               style: ElevatedButton.styleFrom(
                                 shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(16), // Adjust the value to make it less round
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                              ),
+                              child: const Text(
+                                "Chat",
+                                style: TextStyle(
+                                  fontSize: 13,
                                 ),
                               ),
-                              child: const Text("Chat"),
-                            )
-
-                          ],
-                        ),
-                        Align(
-                          alignment: Alignment.bottomLeft,
-                          child: Text(
-                            "@${widget.avatar.username}",
-                            style: Theme.of(context).textTheme.bodySmall!.copyWith(
-                              color: Colors.grey,
-                              fontWeight: FontWeight.w800,
                             ),
-                          ),
+                          ],
                         ),
                       ],
                     ),
                   ),
-                )
+                ),
               ],
             ),
           ),

@@ -1,10 +1,13 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:inzone/default_firebase_options.dart';
 import 'package:inzone/splash_screen.dart';
 import 'package:appsflyer_sdk/appsflyer_sdk.dart';
+import 'package:media_kit/media_kit.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 AppsFlyerOptions appsFlyerOptions = AppsFlyerOptions(
   afDevKey: "GouQRMcXkXP2CMBgZfHdfB",
@@ -19,26 +22,32 @@ AppsFlyerOptions appsFlyerOptions = AppsFlyerOptions(
 AppsflyerSdk appsflyerSdk = AppsflyerSdk(appsFlyerOptions);
 
 void main() async {
-
-
   WidgetsFlutterBinding.ensureInitialized();
+  MediaKit.ensureInitialized();
+
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+
   await appsflyerSdk.initSdk(
       registerConversionDataCallback: true,
       registerOnAppOpenAttributionCallback: true,
       registerOnDeepLinkingCallback: true
   );
+  
   String? advertisingId = await appsflyerSdk.getAppsFlyerUID();
-print("The advertising ID is $advertisingId");
-  runApp(const MyApp());
-
+  print("The advertising ID is $advertisingId");
+  
+  SystemChrome.setPreferredOrientations([
+    DeviceOrientation.portraitUp,
+    DeviceOrientation.portraitDown,
+  ]).then((_) {
+    runApp(const MyApp());
+  });
 }
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
-
 
   @override
   Widget build(BuildContext context) {
@@ -50,18 +59,18 @@ class MyApp extends StatelessWidget {
         primaryColor: Colors.blue,
         textTheme: TextTheme(
             titleLarge: GoogleFonts.afacad(
-                fontSize: 22,
+                fontSize: 25,
                 fontWeight: FontWeight.bold
             ),
           titleMedium: GoogleFonts.afacad(
-              fontSize: 19,
+              fontSize: 22,
             fontWeight: FontWeight.bold
           ),
           bodyMedium: GoogleFonts.afacad(
-            fontSize: 15
+            fontSize: 18
           ),
           bodySmall: GoogleFonts.afacad(
-            fontSize: 13,
+            fontSize: 16,
           )
         ),
         colorScheme: const ColorScheme.light(
@@ -74,7 +83,6 @@ class MyApp extends StatelessWidget {
           backgroundColor:  Color(0xffdaf5ff),
           elevation: 0,
           iconTheme: IconThemeData(color: Colors.black),
-
         ),
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(
@@ -90,18 +98,36 @@ class MyApp extends StatelessWidget {
         ),
         useMaterial3: true,
       ),
-
-         home: StreamBuilder<User?>(
+      home: StreamBuilder<User?>(
         stream: FirebaseAuth.instance.authStateChanges(),
         builder: (context, snapshot) {
-          if (snapshot.hasData) {
-            return SplashScreen(
-              loggedIn: true,
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          
+          if (snapshot.hasData && snapshot.data != null) {
+            // User is logged in, check if they have a document in humanUsers collection
+            return FutureBuilder<DocumentSnapshot>(
+              future: FirebaseFirestore.instance
+                  .collection('humanUsers')
+                  .doc(snapshot.data!.uid)
+                  .get(),
+              builder: (context, userDocSnapshot) {
+                if (userDocSnapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                
+                if (userDocSnapshot.hasData && userDocSnapshot.data!.exists) {
+                  // User has a document in humanUsers collection
+                  return SplashScreen(loggedIn: true);
+                } else {
+                  FirebaseAuth.instance.signOut();
+                  return SplashScreen(loggedIn: false);
+                }
+              },
             );
           } else {
-            return SplashScreen(
-              loggedIn: false,
-            );
+            return SplashScreen(loggedIn: false);
           }
         },
       ),

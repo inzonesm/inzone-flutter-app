@@ -77,6 +77,7 @@ Contact Information
 For any questions or concerns regarding this Privacy Policy, please contact us: InZone Inc., Riverdale, Maryland 20737 Email: contact@inzone.ai Phone: 240-681-4298
         ''';
     return Scaffold(
+      backgroundColor: Colors.black,
         body: SafeArea(
           left: false,
           right: false,
@@ -190,7 +191,7 @@ For any questions or concerns regarding this Privacy Policy, please contact us: 
                             ));
                       },
                     );
-                  }, child:  Text("Terms", style: Theme.of(context).textTheme.bodySmall!.copyWith(color: Colors.white, decoration: TextDecoration.underline, ),)),
+                  }, child:  Text("Terms", style: Theme.of(context).textTheme.bodySmall!.copyWith(color: Colors.white,  ),)),
                     TextButton(onPressed: (){
                       showDialog(
                         context: context,
@@ -208,7 +209,7 @@ For any questions or concerns regarding this Privacy Policy, please contact us: 
                               ));
                         },
                       );
-                    }, child:  Text("Privacy", style: Theme.of(context).textTheme.bodySmall!.copyWith(color: Colors.white,decoration: TextDecoration.underline, ),)),
+                    }, child:  Text("Privacy", style: Theme.of(context).textTheme.bodySmall!.copyWith(color: Colors.white, ),)),
                ],),
               ))
             ],

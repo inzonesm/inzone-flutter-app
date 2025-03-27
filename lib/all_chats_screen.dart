@@ -1,9 +1,11 @@
 import 'dart:async';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:inzone/chat_screen.dart';
+import 'package:inzone/human_chat_screen.dart';
 import 'package:inzone/inzone_database.dart';
 import 'package:random_avatar/random_avatar.dart';
 
@@ -17,75 +19,137 @@ class AllChatsScreen extends StatefulWidget {
 class _AllChatsScreenState extends State<AllChatsScreen> {
   List<ChatUser> _chatUsers = [];
   bool _isLoading = false;
-  String? id = "";
+  String? currentUserId;
   late DateTime _startTime; // To store the start time
   int pageOpened = 0;
-
-  setID() async {
-    id = await InZoneDatabase.getCurrentUserUid();
-  }
 
   @override
   void initState() {
     super.initState();
     _isLoading = true;
-
-    _fetchConversations();
-    setID();
     _startTime = DateTime.now();
-
+    
+    _loadCurrentUser();
+  }
+  
+  Future<void> _loadCurrentUser() async {
+    currentUserId = await InZoneDatabase.getCurrentUserUid();
+    if (currentUserId != null) {
+      _fetchConversations();
+    } else {
+      setState(() => _isLoading = false);
+    }
   }
 
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   Future<void> _fetchConversations() async {
     _chatUsers.clear();
-    List<dynamic>? data  = await InZoneDatabase.getConversations();
+    setState(() => _isLoading = true);
 
-    if (data!= null) {
-      // Create a Set to store unique conversation IDs
-      Set<dynamic> uniqueConversationIds = {};
-      List<dynamic> uniqueConversations = [];
+    if (currentUserId == null) {
+      setState(() => _isLoading = false);
+      return;
+    }
 
-      for (var conversation in data) {
-        // Check if conversationId is not in the Set
-        if (uniqueConversationIds.add(conversation['aiProfile']['username'])) {
-          // Add conversation to unique list if the ID is new
-          uniqueConversations.add(conversation);
+    List<ChatUser> allChats = [];
+
+    try {
+      // Fetch AI user conversations
+      List<dynamic>? aiData = await InZoneDatabase.getConversations();
+      if (aiData != null) {
+        for (var conversation in aiData) {
+          ChatUser? aiUser = ChatUser.fromJson(conversation);
+          if (aiUser != null) allChats.add(aiUser);
         }
       }
-      print(data.length);
-      if (data.isEmpty){
-        _chatUsers = [];
-        return;
-      }
-      List<ChatUser?> users =
-      uniqueConversations.map((json) => ChatUser.fromJson(json)).toList();
-      print(users.length);
-      List<ChatUser> nonNullUsers = users.where((user) => user != null).cast<ChatUser>().toList();
-      print(nonNullUsers.length);
-      users.clear();
-      _chatUsers.clear();
 
+      // Fetch human conversations - FIXED QUERY
+      // First, get all conversations where the current user is a participant
+      QuerySnapshot conversationsSnapshot = await _firestore
+          .collection('conversations')
+          .where('participants', arrayContains: currentUserId)
+          .get();
+
+      // Process each conversation document
+      for (var doc in conversationsSnapshot.docs) {
+        var data = doc.data() as Map<String, dynamic>;
+        
+        // Get the other participant's ID (not the current user)
+        List<dynamic> participants = data['participants'] ?? [];
+        String? otherUserId = participants.firstWhere(
+          (id) => id != currentUserId, 
+          orElse: () => null
+        );
+        
+        if (otherUserId != null) {
+          // Get the other user's name from the conversation document
+          Map<String, dynamic> participantNames = data['participantNames'] ?? {};
+          String otherUserName = participantNames[otherUserId] ?? 'User';
+          
+          // If name is not in conversation, try to get it from humanUsers collection
+          if (otherUserName == 'User') {
+            try {
+              DocumentSnapshot userDoc = await _firestore
+                  .collection('humanUsers')
+                  .doc(otherUserId)
+                  .get();
+              
+              if (userDoc.exists && userDoc.data() != null) {
+                var userData = userDoc.data() as Map<String, dynamic>;
+                otherUserName = userData['name'] ?? userData['Name'] ?? 'User';
+              }
+            } catch (e) {
+              print('Error getting user name: $e');
+            }
+          }
+          
+          // Create a ChatUser object
+          allChats.add(ChatUser(
+            name: otherUserName,
+            email: otherUserId,
+            chatId: doc.id,
+            lastMessage: data['lastMessage'],
+            lastMessageTime: data['lastMessageTime'],
+            isHuman: true,
+          ));
+        }
+      }
+
+      // Sort the conversations by lastMessageTime (newest first)
+      allChats.sort((a, b) {
+        // If either timestamp is null, put it at the end
+        if (a.lastMessageTime == null) return 1;
+        if (b.lastMessageTime == null) return -1;
+        
+        // Otherwise sort by timestamp (descending)
+        return b.lastMessageTime!.compareTo(a.lastMessageTime!);
+      });
+
+      // Update state
       setState(() {
-        _chatUsers = nonNullUsers;
-        print(_chatUsers.length);
+        _chatUsers = allChats;
         _isLoading = false;
       });
-    } else {
+    } catch (e) {
+      print('Error fetching conversations: $e');
       setState(() {
         _isLoading = false;
       });
+      
+      // Show error to user
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error loading conversations: $e'))
+      );
     }
   }
 
   @override
   void dispose() {
     DateTime endTime = DateTime.now();
-  Duration timeSpent = endTime.difference(_startTime);
-  InZoneDatabase.logEvent('all_chats_screen', {"timeSpent" : timeSpent.inSeconds,  "pageOpenedCount" : pageOpened});
-
+    Duration timeSpent = endTime.difference(_startTime);
+    InZoneDatabase.logEvent('all_chats_screen', {"timeSpent" : timeSpent.inSeconds,  "pageOpenedCount" : pageOpened});
     super.dispose();
-
   }
 
   @override
@@ -135,15 +199,20 @@ class _AllChatsScreenState extends State<AllChatsScreen> {
                   ),
                   child: _isLoading
                       ? const Center(
-                          child:
-                              CircularProgressIndicator()) // Show loading indicator while fetching data
-                      : SingleChildScrollView(
-                          child: Column(
-                            children: _chatUsers
-                                .map((user) => ChatUserCard(userData: user))
-                                .toList(),
-                          ),
-                        ),
+                          child: CircularProgressIndicator()) 
+                      : _chatUsers.isEmpty
+                          ? const Center(
+                              child: Text("No conversations yet"),
+                            )
+                          : ListView.builder(
+                              itemCount: _chatUsers.length,
+                              itemBuilder: (context, index) {
+                                return ChatUserCard(
+                                  userData: _chatUsers[index],
+                                  currentUserId: currentUserId ?? '',
+                                );
+                              },
+                            ),
                 ),
               )
             ],
@@ -159,28 +228,31 @@ class ChatUser {
   String? email;
   String? chatId;
   String? profilePictureURL;
-
+  String? lastMessage;
+  Timestamp? lastMessageTime;
+  bool isHuman;
 
   ChatUser({
     this.name,
     this.email,
     this.chatId,
-    this.profilePictureURL
+    this.profilePictureURL,
+    this.lastMessage,
+    this.lastMessageTime,
+    this.isHuman = false,
   });
 
   // Static method to handle null returning logic
   static ChatUser? fromJson(Map<String, dynamic> map) {
     try {
-      print("from json called");
-      print(map);
       // Check if 'aiProfile' and 'conversationId' exist in the map
       if (map.containsKey('aiProfile') && map['aiProfile'] != null && map.containsKey('conversationId')) {
-      print(map);
         return ChatUser(
           email: map['aiProfile']['username'] ?? '',
           name: map['aiProfile']["name"] ?? '',
-          chatId: map['conversationId'] ?? null,
-        profilePictureURL: map['aiProfile']['profilePicture']
+          chatId: map['conversationId'],
+          profilePictureURL: map['aiProfile']['profilePicture'],
+          isHuman: false,
         );
       }
       // Return null if required fields are missing
@@ -193,29 +265,60 @@ class ChatUser {
 }
 
 class ChatUserCard extends StatefulWidget {
-  ChatUser userData;
+  final ChatUser userData;
+  final String currentUserId;
 
-  ChatUserCard({super.key, required this.userData});
+  const ChatUserCard({
+    super.key, 
+    required this.userData,
+    required this.currentUserId,
+  });
 
   @override
   State<ChatUserCard> createState() => _ChatUserCardState();
 }
 
 class _ChatUserCardState extends State<ChatUserCard> {
-  List<ChatUser> userData = [];
-
-  final user = FirebaseAuth.instance.currentUser!.uid;
-
-  @override
-  void initState() {
-    // TODO: implement initState
-    super.initState();
-  }
-
   @override
   Widget build(BuildContext context) {
+    String formattedTime = '';
+    if (widget.userData.lastMessageTime != null) {
+      DateTime messageTime = widget.userData.lastMessageTime!.toDate();
+      DateTime now = DateTime.now();
+      
+      if (now.difference(messageTime).inDays == 0) {
+        // Today - show time
+        formattedTime = '${messageTime.hour.toString().padLeft(2, '0')}:${messageTime.minute.toString().padLeft(2, '0')}';
+      } else if (now.difference(messageTime).inDays == 1) {
+        // Yesterday
+        formattedTime = 'Yesterday';
+      } else {
+        // Other days - show date
+        formattedTime = '${messageTime.day}/${messageTime.month}/${messageTime.year}';
+      }
+    }
+
     return InkWell(
-        onTap: () {
+      onTap: () {
+        if (widget.userData.isHuman) {
+          // Navigate to human chat
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => HumanChatScreen(
+                conversationId: widget.userData.chatId ?? '',
+                otherUserName: widget.userData.name ?? 'User',
+                otherUserId: widget.userData.email ?? '',
+              ),
+            ),
+          ).then((_) {
+            // Refresh the conversation list when returning from chat
+            if (mounted) {
+              (context.findAncestorStateOfType<_AllChatsScreenState>())?._fetchConversations();
+            }
+          });
+        } else {
+          // Navigate to AI chat
           Navigator.push(
             context,
             MaterialPageRoute(
@@ -224,49 +327,70 @@ class _ChatUserCardState extends State<ChatUserCard> {
               ),
             ),
           );
-        },
-        child: ListTile(
-          leading: Container(
-            height: 50,
-            width: 50,
-            decoration: BoxDecoration(
-              border: Border.all(
-                color: const Color(0xffFFE2A9),
-                width: 1.5,
+        }
+      },
+      child: ListTile(
+        leading: Container(
+          height: 50,
+          width: 50,
+          decoration: BoxDecoration(
+            border: Border.all(
+              color: const Color(0xffFFE2A9),
+              width: 1.5,
+            ),
+            shape: BoxShape.circle,
+          ),
+          child: widget.userData.profilePictureURL != null && widget.userData.profilePictureURL!.isNotEmpty
+              ? ClipOval(
+                child: Image.network(
+                  widget.userData.profilePictureURL!,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) {
+                    // Fallback to RandomAvatar if the image fails to load
+                    return RandomAvatar(widget.userData.name.toString(), height: 30, width: 30);
+                  },
+                ),
+              )
+              : RandomAvatar(widget.userData.name.toString(), height: 30, width: 30),
+        ),
+        title: Text(
+          widget.userData.name ?? 'Unknown',
+          style: GoogleFonts.openSans(
+            color: Colors.black,
+            fontSize: 17,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        subtitle: widget.userData.lastMessage != null
+            ? Text(
+                widget.userData.lastMessage!,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.openSans(
+                  color: Colors.black45,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w400,
+                ),
+              )
+            : Text(
+                widget.userData.email ?? '',
+                maxLines: 1,
+                style: GoogleFonts.openSans(
+                  color: Colors.black45,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w400,
+                ),
               ),
-              shape: BoxShape.circle,
-            ),
-            child: widget.userData.profilePictureURL != null && widget.userData.profilePictureURL!.isNotEmpty
-                ? ClipOval(
-              child: Image.network(
-                widget.userData.profilePictureURL!,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) {
-                  // Fallback to RandomAvatar if the image fails to load
-                  return RandomAvatar(widget.userData.name.toString(), height: 30, width: 30);
-                },
-              ),
-            )
-                : RandomAvatar(widget.userData.name.toString(), height: 30, width: 30),
-          ),
-
-          title: Text(
-            '${widget.userData.name}',
-            style: GoogleFonts.openSans(
-              color: Colors.black,
-              fontSize: 17,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-          subtitle: Text(
-            '${widget.userData.email}',
-            maxLines: 1,
-            style: GoogleFonts.openSans(
-              color: Colors.black45,
-              fontSize: 14,
-              fontWeight: FontWeight.w400,
-            ),
-          ),
-        ));
+        trailing: formattedTime.isNotEmpty
+            ? Text(
+                formattedTime,
+                style: GoogleFonts.openSans(
+                  color: Colors.black45,
+                  fontSize: 12,
+                ),
+              )
+            : null,
+      ),
+    );
   }
 }
