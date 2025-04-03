@@ -36,28 +36,21 @@ class _SavedScreenState extends State<SavedScreen> {
 
       // Debug: Check raw SharedPreferences data
       SharedPreferences prefs = await SharedPreferences.getInstance();
-      String? rawData = prefs.getString('likedPostDetails');
-      print("Raw liked posts data: $rawData");
+      prefs.getString('likedPostDetails');
 
       // Get all liked posts
       List<InZonePost> savedPosts = await LikedPostsPreferences.getLikedPosts();
-      print("Number of saved posts retrieved: ${savedPosts.length}");
-      
+
       if (savedPosts.isEmpty) {
-        print("No saved posts found in SharedPreferences");
       } else {
         // Print details of the first post to debug
-        print("First saved post ID: ${savedPosts.isNotEmpty ? savedPosts[0].id : 'none'}");
-        print("First saved post content: ${savedPosts.isNotEmpty ? savedPosts[0].textContent : 'none'}");
-        
+
         // Print all post IDs for debugging
-        print("All post IDs: ${savedPosts.map((post) => post.id).toList()}");
       }
 
       // Process saved posts - add each one to the list
       for (var post in savedPosts) {
-        print("Processing post ID: ${post.id}");
-        
+
         // Add the post widget to the list with padding
         posts.add(
           Padding(
@@ -68,7 +61,6 @@ class _SavedScreenState extends State<SavedScreen> {
                 post: post,
                 showHue: false,
                 onTap: (postId) {
-                  print('You tapped on post with ID: $postId');
                 },
               ),
             ),
@@ -81,18 +73,14 @@ class _SavedScreenState extends State<SavedScreen> {
         }
       }
 
-      print("Total post widgets created: ${posts.length}");
 
       // Stop loading and update UI sys
       setState(() {
         isLoading = false;
       });
       
-      print("UI updated, isLoading set to false");
     } catch (e) {
       // Handle errors
-      print("Error occurred while fetching saved posts: $e");
-      print("Stack trace: ${StackTrace.current}");
       setState(() {
         isLoading = false;
       });

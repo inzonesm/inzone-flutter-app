@@ -31,7 +31,6 @@ class _UserPostsTabState extends State<UserPostsTab> {
     });
 
     try {
-      print("Fetching posts for user: ${widget.userId}");
       List? posts = [];
       if (widget.ai){
          posts = await InZoneDatabase.getAIUserPosts(widget.userId);
@@ -43,8 +42,7 @@ class _UserPostsTabState extends State<UserPostsTab> {
       if (!mounted) return; // Check again after the async operation
       
       if (posts != null && posts.isNotEmpty) {
-        print("Received ${posts.length} posts for user ${widget.userId}");
-        
+
         setState(() {
           // Convert each post JSON to a PostCard widget
           postWidgets = [];
@@ -53,7 +51,6 @@ class _UserPostsTabState extends State<UserPostsTab> {
             try {
               // Verify postJson is not null
               if (postJson == null) {
-                print('Skipping null post data');
                 continue;
               }
               
@@ -66,21 +63,16 @@ class _UserPostsTabState extends State<UserPostsTab> {
                   post: post,
                   showHue: false,
                   onTap: (postId) {
-                    print('Tapped on post with ID: $postId');
                   },
                 )
               );
             } catch (e) {
-              print('Error processing individual post: $e');
-              print('Problematic post data: $postJson');
             }
           }
         });
       } else {
-        print('No posts found for user ${widget.userId}');
       }
     } catch (e) {
-      print('Error fetching user posts: $e');
     } finally {
       if (mounted) { // Check if still mounted before final setState
         setState(() {

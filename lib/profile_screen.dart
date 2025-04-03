@@ -41,7 +41,6 @@ class _ProfileScreenState extends BaseProfileScreenState<ProfileScreen> {
       userProfile = await InZoneDatabase.getAIUserProfile(userId);
       // If API fails, try to get profile from Firestore
       if (userProfile == null) {
-        print("API profile fetch failed, trying Firestore for user $userId");
         try {
           DocumentSnapshot userDoc = await FirebaseFirestore.instance
               .collection('aiUsers')
@@ -50,15 +49,11 @@ class _ProfileScreenState extends BaseProfileScreenState<ProfileScreen> {
 
           if (userDoc.exists && userDoc.data() != null) {
             userProfile = userDoc.data() as Map<String, dynamic>;
-            print("Found user profile in Firestore");
           } else {
-            print("User profile not found in Firestore either");
           }
         } catch (e) {
-          print("Error fetching profile from Firestore: $e");
         }
       } else {
-        print("User Profile: $userProfile");
       }
     } else {
       // For human users, use the regular user profile endpoint
@@ -66,7 +61,6 @@ class _ProfileScreenState extends BaseProfileScreenState<ProfileScreen> {
       
       // If API fails, try to get profile from Firestore
       if (userProfile == null) {
-        print("API profile fetch failed, trying Firestore for user $userId");
         try {
           DocumentSnapshot userDoc = await FirebaseFirestore.instance
               .collection('humanUsers')
@@ -75,12 +69,9 @@ class _ProfileScreenState extends BaseProfileScreenState<ProfileScreen> {
           
           if (userDoc.exists && userDoc.data() != null) {
             userProfile = userDoc.data() as Map<String, dynamic>;
-            print("Found user profile in Firestore");
           } else {
-            print("User profile not found in Firestore either");
           }
         } catch (e) {
-          print("Error fetching profile from Firestore: $e");
         }
       }
     }
@@ -116,7 +107,6 @@ class _ProfileScreenState extends BaseProfileScreenState<ProfileScreen> {
               });
             }
           } catch (e) {
-            print("Error fetching follower profile: $e");
           }
         }
       }
@@ -143,7 +133,6 @@ class _ProfileScreenState extends BaseProfileScreenState<ProfileScreen> {
               });
             }
           } catch (e) {
-            print("Error fetching following profile: $e");
           }
         }
       }
@@ -231,12 +220,10 @@ class _ProfileScreenState extends BaseProfileScreenState<ProfileScreen> {
               }
             }
             
-            print('Current user $currentUserId is ${isFollowing ? '' : 'not '}following user $userId');
           });
         }
       }
     } catch (e) {
-      print('Error checking follow status: $e');
       setState(() {
         isFollowing = false;
       });
@@ -327,7 +314,6 @@ class _ProfileScreenState extends BaseProfileScreenState<ProfileScreen> {
         );
       }
     } catch (e) {
-      print('Error in toggleFollow: $e');
       // If there's an error, revert the UI change
       setState(() {
         isFollowing = currentFollowState;
@@ -484,7 +470,6 @@ class _ProfileScreenState extends BaseProfileScreenState<ProfileScreen> {
                     ),
                   );
                 } catch (e) {
-                  print('Error creating conversation: $e');
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('Failed to open conversation. Please try again.'))
                   );
@@ -516,7 +501,6 @@ class _ProfileScreenState extends BaseProfileScreenState<ProfileScreen> {
         return userProfile["Name"] ?? userProfile["name"] ?? defaultName;
       }
     } catch (e) {
-      print('Error getting user name: $e');
     }
     
     return defaultName;

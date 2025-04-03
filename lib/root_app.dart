@@ -15,9 +15,8 @@ class RootApp extends StatefulWidget {
 }
 
 class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
-  final bool _isDrawerOpen = false;
   int _currentPage = 0; // Track selected tab index
-  final GlobalKey<HomeScreenState> _homeScreenKey = GlobalKey(); // Key to access HomeScreen state
+// Key to access HomeScreen state
   final ScrollController _homeScrollController = ScrollController();
 
   final _key = GlobalKey<ExpandableFabState>();

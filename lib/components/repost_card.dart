@@ -391,7 +391,6 @@ const Divider(
 
   // Add comment to Firestore
   void _addComment() async {
-    print(widget.post.id);
     String commentText = mySearchController.text.trim();
     // Reference to the document where comments are stored
     DocumentReference postDocumentReference = _firestore.collection('postComments').doc(widget.post.id.toString());

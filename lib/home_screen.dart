@@ -69,11 +69,9 @@ class HomeScreenState extends State<HomeScreen> {
     try {
       final characters = await InZoneDatabase.getCarouselCharacters();
       if (mounted && characters != null) {
-        print("Fetched ${characters.length} characters for carousel");
         _processAvatars(characters);
       }
     } catch (e) {
-      print('Error loading avatars: $e');
     }
   }
 
@@ -107,8 +105,7 @@ class HomeScreenState extends State<HomeScreen> {
       if (response != null) {
         if (response.containsKey('posts')) {
           List<dynamic> newPosts = response['posts'] ?? [];
-          print("Loaded ${newPosts.length} posts");
-          
+
           setState(() {
             posts.addAll(newPosts);
             originalPosts = List.from(posts); // Store original posts for filtering
@@ -125,13 +122,10 @@ class HomeScreenState extends State<HomeScreen> {
             hasMorePosts = newPosts.isNotEmpty;
           });
         } else {
-          print("Response doesn't contain 'posts' field: $response");
         }
       } else {
-        print("Feed response was null");
       }
     } catch (e) {
-      print('Error loading feed: $e');
     } finally {
       if (mounted) {
         setState(() {
@@ -157,8 +151,7 @@ class HomeScreenState extends State<HomeScreen> {
       if (response != null) {
         if (response.containsKey('posts')) {
           List<dynamic> newPosts = response['posts'] ?? [];
-          print("Loaded ${newPosts.length} additional posts");
-          
+
           setState(() {
             posts.addAll(newPosts);
             originalPosts = List.from(posts); // Update original posts
@@ -183,16 +176,13 @@ class HomeScreenState extends State<HomeScreen> {
           setState(() {
             hasMorePosts = false;
           });
-          print("Response doesn't contain 'posts' field: $response");
         }
       } else {
         setState(() {
           hasMorePosts = false;
         });
-        print("Load more response was null");
       }
     } catch (e) {
-      print('Error loading more posts: $e');
     } finally {
       if (mounted) {
         setState(() {
@@ -204,19 +194,15 @@ class HomeScreenState extends State<HomeScreen> {
 
   void _processAvatars(List<dynamic> fetchedCharacters) {
     avatarCards.clear();
-    print("Processing avatars with format: ${fetchedCharacters.runtimeType}");
     try {
       for (var characterData in fetchedCharacters) {
-        print("Processing avatar: $characterData");
-        
+
         // Use the new factory method
         InZoneAvatar avatar = InZoneAvatar.fromDirectJson(characterData);
         avatarCards.add(AvatarCard(avatar: avatar));
       }
       avatarCards.shuffle();
-      print("Successfully processed ${avatarCards.length} avatars");
     } catch (e) {
-      print("Error processing avatars: $e");
     }
   }
 
@@ -238,8 +224,7 @@ class HomeScreenState extends State<HomeScreen> {
 
   // Filter posts by category
   void _filterPostsByCategory(String? category) {
-    print("Filtering posts by category: $category");
-    
+
     setState(() {
       selectedCategory = category;
       
@@ -271,7 +256,6 @@ class HomeScreenState extends State<HomeScreen> {
       // Combine filtered posts with other posts
       posts = [...filteredPosts, ...otherPosts];
       
-      print("Found ${filteredPosts.length} matching posts");
     });
   }
 
@@ -366,7 +350,6 @@ class HomeScreenState extends State<HomeScreen> {
           return PostCard(
             post: postObj,
             onTap: (postId) {
-              print('You tapped on AI post with ID: $postId');
             },
           );
           
@@ -390,7 +373,6 @@ class HomeScreenState extends State<HomeScreen> {
           return PostCard(
             post: postObj,
             onTap: (postId) {
-              print('You tapped on human post with ID: $postId');
             },
           );
           
@@ -414,13 +396,10 @@ class HomeScreenState extends State<HomeScreen> {
           return PostCard(
             post: postObj,
             onTap: (postId) {
-              print('You tapped on unknown post type with ID: $postId');
             },
           );
       }
     } catch (e) {
-      print('Error building post widget: $e');
-      print('Problematic post: $post');
       return const SizedBox.shrink(); // Return empty widget for problematic posts
     }
   }
@@ -468,7 +447,6 @@ class HomeScreenState extends State<HomeScreen> {
                         child: CategorySelectorBar(
                           categories: categoriesList,
                           onTap: (selectedCat) {
-                            print("Category selected: $selectedCat");
                             _filterPostsByCategory(selectedCat);
                           },
                         ),

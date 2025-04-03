@@ -114,12 +114,10 @@ class _CategorySelectorBarState extends State<CategorySelectorBar> {
                 ? "icons/category_icons/$category.svg"
                 : "icons/category_icons/creativity.svg";
             
-            print("Category: $category, Icon Path: $categoryIconPath");
 
             return GestureDetector(
               onTap: () {
-                print("Category tapped: $capitalizedCategory, index: $index, currently selected: $selectedCategoryIndex");
-                
+
                 setState(() {
                   // If the same category is tapped again, deselect it
                   if (selectedCategoryIndex == index) {
@@ -127,7 +125,6 @@ class _CategorySelectorBarState extends State<CategorySelectorBar> {
                     widget.onTap(null); // Pass null to indicate no category is selected
                   } else {
                     selectedCategoryIndex = index;
-                    print("Setting selected category to: $capitalizedCategory");
                     widget.onTap(category); // Pass the original category for filtering
                   }
                 });

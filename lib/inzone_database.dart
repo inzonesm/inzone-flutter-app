@@ -13,8 +13,6 @@ class InZoneDatabase {
 
     // If page parameter is provided, add it to the URL
     if (page != null ) {
-      print("PAGE");
-      print(page);
       if (page!=0){
         url = 'https://inzoneapi-912424781531.us-central1.run.app/feed/posts-flow?user_id=${FirebaseAuth.instance.currentUser!.uid}&page=$page';
       } else {
@@ -35,19 +33,15 @@ class InZoneDatabase {
       // Check if the response status code is 200 (OK)
       if (response.statusCode == 200) {
         final jsonData = jsonDecode(response.body);
-        print("The feed data is");
-        print(jsonData);
-        
+
         // Return the response as is - it should contain a 'posts' field with post_type
         return jsonData;
       } else {
         // Log if status code is not 200 (OK)
-        print('Failed to load posts. Status code: ${response.statusCode}');
         return null;
       }
     } catch (e) {
       // Handle any other exceptions
-      print('Error occurred: $e');
       return null;
     }
   }
@@ -175,8 +169,6 @@ class InZoneDatabase {
       }
     });
     if (currentUserUID != null) {
-      print(aiUsername);
-      print(currentUserUID);
       try {
         // Create the request body
         Map<String, String> requestBody = {
@@ -198,7 +190,6 @@ class InZoneDatabase {
         if (response.statusCode == 200) {
           // Decode the response body as JSON
           final Map<String, dynamic> jsonResponse = jsonDecode(response.body);
-          print(jsonResponse);
           // Return the 'response' field if it exists in the JSON
           if (jsonResponse.containsKey('response')) {
             return jsonResponse['response'];
@@ -221,19 +212,16 @@ class InZoneDatabase {
         'https://inzoneapi-912424781531.us-central1.run.app/user/get-profile';
     String? currentUserUID;
     await InZoneDatabase.getCurrentUserUid().then((value) {
-      print(value);
       if (value != null) {
         currentUserUID = value;
       }
     });
     
     if (currentUserUID == null) {
-      print('Cannot get profile: User not logged in');
       return null;
     }
     
-    print(currentUserUID);
-    
+
     try {
       // Create URL with query parameter
       final Uri uri = Uri.parse('$url?uid=$currentUserUID');
@@ -246,7 +234,6 @@ class InZoneDatabase {
 
       // Check if the request was successful (status code 200-299)
       if (response.statusCode == 200) {
-        print(response.body);
         final Map<String, dynamic> responseData = jsonDecode(response.body);
         
         // Check if the response has the expected structure
@@ -254,24 +241,19 @@ class InZoneDatabase {
           // Return the user data from the "data" field
           return responseData["data"] as Map<String, dynamic>;
         } else {
-          print('API returned success: false');
           return null;
         }
       } else {
         // Handle unsuccessful requests here
-        print(
-            'Failed to load user profile. Status code: ${response.statusCode}');
         return null;
       }
     } catch (e) {
       // Handle any exceptions (network issues, parsing errors, etc.)
-      print('Error occurred: $e');
       return null;
     }
   }
 
   static Future<Map<String, dynamic>?> getUserProfile(String userID) async {
-    print("Fetching profile for uid $userID");
     const String baseUrl =
         'https://inzoneapi-912424781531.us-central1.run.app/user/get-profile';
 
@@ -286,7 +268,6 @@ class InZoneDatabase {
       );
 
       // Check if the request was successful (status code 200-299)
-      print("Profile response: ${response.body}");
       if (response.statusCode == 200) {
         // Parse the response body
         final Map<String, dynamic> responseData = jsonDecode(response.body);
@@ -296,18 +277,14 @@ class InZoneDatabase {
           // Return the user data from the "data" field
           return responseData["data"] as Map<String, dynamic>;
         } else {
-          print('API returned success: false - ${responseData["error"] ?? "Unknown error"}');
           return null;
         }
       } else {
         // Handle unsuccessful requests here
-        print('Failed to load user profile. Status code: ${response.statusCode}');
-        print('Response body: ${response.body}');
         return null;
       }
     } catch (e) {
       // Handle any exceptions (network issues, parsing errors, etc.)
-      print('Error fetching user profile: $e');
       return null;
     }
   }
@@ -330,8 +307,7 @@ class InZoneDatabase {
       if (response.statusCode == 200) {
         // Parse the response
         final Map<String, dynamic> responseData = jsonDecode(response.body);
-        print('Followers response: $responseData');
-        
+
         // Extract the followers list
         final List<dynamic> followers = responseData['followers'] ?? [];
         
@@ -346,11 +322,9 @@ class InZoneDatabase {
         }).toList();
       } else {
         // Handle errors
-        print('Error: ${response.statusCode}, ${response.body}');
         return [];
       }
     } catch (error) {
-      print('Error occurred: $error');
       return [];
     }
   }
@@ -385,11 +359,8 @@ class InZoneDatabase {
       final response = await http.post(url, headers: headers, body: body);
 
       if (response.statusCode != 200) {
-        print("Failed to follow user. Status code: ${response.statusCode}");
-        print("Response body: ${response.body}");
       }
     } catch (e) {
-      print("Error occurred: $e");
     }
   }
 
@@ -422,11 +393,8 @@ class InZoneDatabase {
       final response = await http.post(url, headers: headers, body: body);
 
       if (response.statusCode != 200) {
-        print("Failed to unfollow user. Status code: ${response.statusCode}");
-        print("Response body: ${response.body}");
       }
     } catch (e) {
-      print("Error occurred: $e");
     }
   }
 
@@ -440,7 +408,6 @@ class InZoneDatabase {
         Map<String, String> requestBody = {
           'userUid': userID,
         };
-        print("Fetching conversations for the following user $userID");
 
         // Make the POST request
         final response = await http.post(
@@ -450,7 +417,6 @@ class InZoneDatabase {
           },
           body: jsonEncode(requestBody), // Encode request body to JSON
         );
-        print(response.body);
         // Check if the request was successful
         if (response.statusCode == 200) {
           // Parse the response body as JSON
@@ -461,7 +427,6 @@ class InZoneDatabase {
         }
       } catch (e) {
         // Handle errors and return the error message
-        print('Error occurred: $e');
       }
     }
     return null;
@@ -493,7 +458,6 @@ class InZoneDatabase {
       }
       return {"sentiment": -1, "category": "Entertainment"};
     } catch (e) {
-      print('Error analyzing sentiment: $e');
       return {"sentiment": -1, "category": "Entertainment"};
     }
   }
@@ -538,8 +502,6 @@ class InZoneDatabase {
           "postId": responseData["postId"],
         };
       } else {
-        print('Failed to create human post. Status code: ${response.statusCode}');
-        print('Response body: ${response.body}');
         return {
           "success": false,
           "sentiment": analysis["sentiment"],
@@ -547,7 +509,6 @@ class InZoneDatabase {
         };
       }
     } catch (e) {
-      print('Error creating human post: $e');
       return {
         "success": false,
         "sentiment": -1,
@@ -596,8 +557,6 @@ class InZoneDatabase {
           "postId": responseData["postId"],
         };
       } else {
-        print('Failed to create AI post. Status code: ${response.statusCode}');
-        print('Response body: ${response.body}');
         return {
           "success": false,
           "sentiment": analysis["sentiment"],
@@ -605,7 +564,6 @@ class InZoneDatabase {
         };
       }
     } catch (e) {
-      print('Error creating AI post: $e');
       return {
         "success": false,
         "sentiment": -1,
@@ -661,8 +619,6 @@ class InZoneDatabase {
           "postId": responseData["postId"],
         };
       } else {
-        print('Failed to create repost. Status code: ${response.statusCode}');
-        print('Response body: ${response.body}');
         return {
           "success": false,
           "sentiment": analysis["sentiment"],
@@ -670,7 +626,6 @@ class InZoneDatabase {
         };
       }
     } catch (e) {
-      print('Error creating repost: $e');
       return {
         "success": false,
         "sentiment": -1,
@@ -706,7 +661,7 @@ class InZoneDatabase {
           if (requiredKeys.every((key) => sentimentData.containsKey(key))) {
             // Get the OverallSentiment value as string
             String overallSentiment = sentimentData['OverallSentiment'].toString();
-            print('Raw sentiment value: $overallSentiment'); // Debug print
+            // Debug print
             
             // Convert string sentiment to our three categories
             int sentimentCategory;
@@ -721,7 +676,6 @@ class InZoneDatabase {
                 sentimentCategory = 0;
                 break;
               default:
-                print('Unexpected sentiment value: $overallSentiment');
                 sentimentCategory = 0; // Default to neutral for unknown values
             }
             
@@ -731,20 +685,16 @@ class InZoneDatabase {
                          sentimentData['Categories'][0] : "Entertainment"
             };
           } else {
-            print('Missing required keys in sentiment data');
             return null;
           }
         } else if (responseData.containsKey('error')) {
-          print('API Error: ${responseData['error']} (Code: ${responseData['code']})');
           return null;
         }
         return null;
       } else {
-        print('Failed to analyze sentiment. Status code: ${response.statusCode}');
         return null;
       }
     } catch (e) {
-      print('Error in sentiment analysis: $e');
       return null;
     }
   }
@@ -778,8 +728,7 @@ class InZoneDatabase {
 
     try {
       // Print the request body for debugging
-      print("Sending request with body: ${json.encode(requestBody)}");
-      
+
       final http.Response response = await http.post(
         Uri.parse(url),
         headers: <String, String>{
@@ -788,32 +737,24 @@ class InZoneDatabase {
         body: json.encode(requestBody),
       );
       
-      print("Response status code: ${response.statusCode}");
-      print("Response body: ${response.body}");
-      
+
       if (response.statusCode == 200) {
         try {
           final Map<String, dynamic> responseData = json.decode(response.body);
-          print("Response decoded successfully");
-          
+
           // Check if the response has the expected structure
           if (responseData.containsKey("success") && responseData["success"] == true) {
             return responseData;
           } else {
-            print("API returned success: false");
             return null;
           }
         } catch (e) {
-          print("Error parsing response: $e");
           return null;
         }
       } else {
-        print("Failed to create profile. Status code: ${response.statusCode}");
-        print("Response body: ${response.body}");
         return null;
       }
     } catch (e) {
-      print('Error creating user profile: $e');
       return null;
     }
   }
@@ -838,13 +779,10 @@ class InZoneDatabase {
       );
 
       if (response.statusCode == 200) {
-        print("Character created successfully");
-        print(response.body); // Handle response here
+        // Handle response here
       } else {
-        print("Failed to create character: ${response.statusCode}");
       }
     } catch (e) {
-      print("Error occurred: $e");
     }
   }
 
@@ -876,16 +814,12 @@ class InZoneDatabase {
           }
         }
         
-        print("Unexpected response format: $jsonResponse");
         return null;
       } else {
         // Handle failure and return null
-        print("Failed to generate image: ${response.statusCode}");
-        print("Response body: ${response.body}");
         return null;
       }
     } catch (e) {
-      print("Error occurred during image generation: $e");
       return null;
     }
   }
@@ -895,7 +829,6 @@ class InZoneDatabase {
     try {
       result = await appsflyerSdk.logEvent(eventName, eventValues);
     } on Exception {}
-    print("Result logEvent: $result");
     return null;
   }
 
@@ -933,19 +866,14 @@ class InZoneDatabase {
         
         // Check if the update was successful
         if (responseData.containsKey("success") && responseData["success"] == true) {
-          print("Profile updated successfully");
           return true;
         } else {
-          print("API returned success: false");
           return false;
         }
       } else {
-        print("Failed to update profile. Status code: ${response.statusCode}");
-        print("Response body: ${response.body}");
         return false;
       }
     } catch (e) {
-      print('Error updating user profile: $e');
       return false;
     }
   }
@@ -981,22 +909,16 @@ class InZoneDatabase {
         
         // Check if the update was successful
         if (responseData.containsKey("success") && responseData["success"] == true) {
-          print("Post updated successfully");
           return true;
         } else {
-          print("API returned success: false");
           return false;
         }
       } else if (response.statusCode == 404) {
-        print("Post not found");
         return false;
       } else {
-        print("Failed to update post. Status code: ${response.statusCode}");
-        print("Response body: ${response.body}");
         return false;
       }
     } catch (e) {
-      print('Error updating post: $e');
       return false;
     }
   }
@@ -1016,7 +938,6 @@ class InZoneDatabase {
     });
 
     if (currentUserUID == null) {
-      print("Cannot write comment: User not logged in");
       return null;
     }
 
@@ -1041,19 +962,14 @@ class InZoneDatabase {
         
         // Check if the response contains the comment ID
         if (responseData.containsKey("commentId")) {
-          print("Comment added successfully with ID: ${responseData["commentId"]}");
           return responseData["commentId"];
         } else {
-          print("Comment added but no ID returned");
           return null;
         }
       } else {
-        print("Failed to add comment. Status code: ${response.statusCode}");
-        print("Response body: ${response.body}");
         return null;
       }
     } catch (e) {
-      print('Error writing comment: $e');
       return null;
     }
   }
@@ -1070,7 +986,6 @@ class InZoneDatabase {
     });
 
     if (currentUserUID == null) {
-      print("Cannot like post: User not logged in");
       return false;
     }
 
@@ -1094,19 +1009,14 @@ class InZoneDatabase {
         
         // Check if the operation was successful
         if (responseData.containsKey("success") && responseData["success"] == true) {
-          print("Post liked successfully");
           return true;
         } else {
-          print("API returned success: false");
           return false;
         }
       } else {
-        print("Failed to like post. Status code: ${response.statusCode}");
-        print("Response body: ${response.body}");
         return false;
       }
     } catch (e) {
-      print('Error liking post: $e');
       return false;
     }
   }
@@ -1123,7 +1033,6 @@ class InZoneDatabase {
     });
 
     if (currentUserUID == null) {
-      print("Cannot unlike post: User not logged in");
       return false;
     }
 
@@ -1147,19 +1056,14 @@ class InZoneDatabase {
         
         // Check if the operation was successful
         if (responseData.containsKey("success") && responseData["success"] == true) {
-          print("Post unliked successfully");
           return true;
         } else {
-          print("API returned success: false");
           return false;
         }
       } else {
-        print("Failed to unlike post. Status code: ${response.statusCode}");
-        print("Response body: ${response.body}");
         return false;
       }
     } catch (e) {
-      print('Error unliking post: $e');
       return false;
     }
   }
@@ -1176,7 +1080,6 @@ class InZoneDatabase {
     });
 
     if (currentUserUID == null) {
-      print("Cannot remove from following: User not logged in");
       return false;
     }
 
@@ -1198,12 +1101,9 @@ class InZoneDatabase {
       if (response.statusCode == 200) {
         return true;
       } else {
-        print("Failed to remove from following. Status code: ${response.statusCode}");
-        print("Response body: ${response.body}");
         return false;
       }
     } catch (e) {
-      print('Error removing from following: $e');
       return false;
     }
   }
@@ -1220,7 +1120,6 @@ class InZoneDatabase {
     });
 
     if (currentUserUID == null) {
-      print("Cannot remove from followers: User not logged in");
       return false;
     }
 
@@ -1242,12 +1141,9 @@ class InZoneDatabase {
       if (response.statusCode == 200) {
         return true;
       } else {
-        print("Failed to remove from followers. Status code: ${response.statusCode}");
-        print("Response body: ${response.body}");
         return false;
       }
     } catch (e) {
-      print('Error removing from followers: $e');
       return false;
     }
   }
@@ -1267,20 +1163,15 @@ class InZoneDatabase {
       if (response.statusCode == 200) {
         // Parse the response as a list of characters
         final List<dynamic> responseData = jsonDecode(response.body);
-        print("Retrieved ${responseData.length} carousel characters");
-        
+
         // Convert the dynamic list to a list of maps
-        print(responseData);
-        return responseData.map((character) => 
+        return responseData.map((character) =>
           character as Map<String, dynamic>
         ).toList();
       } else {
-        print("Failed to get carousel characters. Status code: ${response.statusCode}");
-        print("Response body: ${response.body}");
         return null;
       }
     } catch (e) {
-      print('Error getting carousel characters: $e');
       return null;
     }
   }
@@ -1306,23 +1197,18 @@ class InZoneDatabase {
       if (response.statusCode == 200) {
         // Parse the response body as a list
         final List<dynamic> rawPosts = jsonDecode(response.body);
-        print('Retrieved ${rawPosts.length} posts for user $userId');
-        
+
         // Print the raw structure of the first post for debugging
         if (rawPosts.isNotEmpty) {
-          print('First raw post structure: ${rawPosts[0]}');
         }
         
         return rawPosts; // Return the raw posts directly without transformation
       } else {
         // Handle unsuccessful requests
-        print('Failed to load user posts. Status code: ${response.statusCode}');
-        print('Response body: ${response.body}');
         return null;
       }
     } catch (e) {
       // Handle any exceptions
-      print('Error occurred while fetching user posts: $e');
       return null;
     }
   }
@@ -1347,23 +1233,18 @@ class InZoneDatabase {
       if (response.statusCode == 200) {
         // Parse the response body as a list
         final List<dynamic> rawPosts = jsonDecode(response.body);
-        print('Retrieved ${rawPosts.length} posts for user $userId');
 
         // Print the raw structure of the first post for debugging
         if (rawPosts.isNotEmpty) {
-          print('First raw post structure: ${rawPosts[0]}');
         }
 
         return rawPosts; // Return the raw posts directly without transformation
       } else {
         // Handle unsuccessful requests
-        print('Failed to load user posts. Status code: ${response.statusCode}');
-        print('Response body: ${response.body}');
         return null;
       }
     } catch (e) {
       // Handle any exceptions
-      print('Error occurred while fetching user posts: $e');
       return null;
     }
   }
@@ -1388,22 +1269,17 @@ class InZoneDatabase {
         
         // Check if the response has the expected structure
         if (responseData.containsKey("success") && responseData["success"] == true) {
-          print("Successfully retrieved AI user profile for $username");
           // Return the user data from the "data" field
           return responseData["data"] as Map<String, dynamic>;
         } else {
-          print('API returned success: false - ${responseData["error"] ?? "Unknown error"}');
           return null;
         }
       } else {
         // Handle unsuccessful requests
-        print('Failed to load AI user profile. Status code: ${response.statusCode}');
-        print('Response body: ${response.body}');
         return null;
       }
     } catch (e) {
       // Handle any exceptions
-      print('Error fetching AI user profile: $e');
       return null;
     }
   }
@@ -1436,7 +1312,6 @@ class InZoneDatabase {
         final Map<String, dynamic> responseData = jsonDecode(response.body);
         
         if (responseData.containsKey("success") && responseData["success"] == true) {
-          print('User profile updated successfully: $profileData');
         } else {
           throw Exception('API returned success: false - ${responseData["error"] ?? "Unknown error"}');
         }
@@ -1444,7 +1319,6 @@ class InZoneDatabase {
         throw Exception('Failed to update profile. Status code: ${response.statusCode}');
       }
     } catch (e) {
-      print('Error updating user profile: $e');
       rethrow; // Rethrow to handle in UI
     }
   }
@@ -1457,7 +1331,6 @@ class InZoneDatabase {
     String? currentUserName = FirebaseAuth.instance.currentUser?.displayName;
     
     if (currentUserUID == null) {
-      print("Cannot follow AI user: User not logged in");
       return false;
     }
 
@@ -1479,12 +1352,9 @@ class InZoneDatabase {
         final responseData = jsonDecode(response.body);
         return responseData['success'] ?? false;
       } else {
-        print('Failed to follow AI user. Status code: ${response.statusCode}');
-        print('Response body: ${response.body}');
         return false;
       }
     } catch (e) {
-      print('Error following AI user: $e');
       return false;
     }
   }
@@ -1496,7 +1366,6 @@ class InZoneDatabase {
     String? currentUserName = FirebaseAuth.instance.currentUser?.displayName;
     
     if (currentUserUID == null) {
-      print("Cannot unfollow AI user: User not logged in");
       return false;
     }
 
@@ -1518,12 +1387,9 @@ class InZoneDatabase {
         final responseData = jsonDecode(response.body);
         return responseData['success'] ?? false;
       } else {
-        print('Failed to unfollow AI user. Status code: ${response.statusCode}');
-        print('Response body: ${response.body}');
         return false;
       }
     } catch (e) {
-      print('Error unfollowing AI user: $e');
       return false;
     }
   }
@@ -1545,12 +1411,9 @@ class InZoneDatabase {
         final List<dynamic> followers = responseData['followers'] ?? [];
         return followers.map((e) => e.toString()).toList();
       } else {
-        print('Failed to get AI followers. Status code: ${response.statusCode}');
-        print('Response body: ${response.body}');
         return [];
       }
     } catch (e) {
-      print('Error getting AI followers: $e');
       return [];
     }
   }
@@ -1572,12 +1435,9 @@ class InZoneDatabase {
         final List<dynamic> following = responseData['following'] ?? [];
         return following.map((e) => e.toString()).toList();
       } else {
-        print('Failed to get AI following. Status code: ${response.statusCode}');
-        print('Response body: ${response.body}');
         return [];
       }
     } catch (e) {
-      print('Error getting AI following: $e');
       return [];
     }
   }
@@ -1587,7 +1447,6 @@ class InZoneDatabase {
 
     String? currentUserUID = await getCurrentUserUid();
     if (currentUserUID == null) {
-      print("Cannot remove AI follower: User not logged in");
       return false;
     }
 
@@ -1605,12 +1464,9 @@ class InZoneDatabase {
         final responseData = jsonDecode(response.body);
         return responseData['success'] ?? false;
       } else {
-        print('Failed to remove AI follower. Status code: ${response.statusCode}');
-        print('Response body: ${response.body}');
         return false;
       }
     } catch (e) {
-      print('Error removing AI follower: $e');
       return false;
     }
   }
@@ -1620,7 +1476,6 @@ class InZoneDatabase {
 
     String? currentUserUID = await getCurrentUserUid();
     if (currentUserUID == null) {
-      print("Cannot remove from AI following: User not logged in");
       return false;
     }
 
@@ -1638,12 +1493,9 @@ class InZoneDatabase {
         final responseData = jsonDecode(response.body);
         return responseData['success'] ?? false;
       } else {
-        print('Failed to remove from AI following. Status code: ${response.statusCode}');
-        print('Response body: ${response.body}');
         return false;
       }
     } catch (e) {
-      print('Error removing from AI following: $e');
       return false;
     }
   }
@@ -1656,7 +1508,6 @@ class LikedPostsPreferences {
   static Future<void> addLikedPost(InZonePost post) async {
     // Validate post ID before proceeding
     if (post.id == "unknown" || post.id.isEmpty) {
-      print("ERROR: Cannot save post with invalid ID: ${post.id}");
       return;
     }
     
@@ -1677,7 +1528,6 @@ class LikedPostsPreferences {
       // Save the updated liked posts back to SharedPreferences
       await prefs.setString(likedPostsKey, jsonEncode(likedPosts));
     } catch (e) {
-      print("Error saving liked post: $e");
     }
   }
 
@@ -1685,7 +1535,6 @@ class LikedPostsPreferences {
   static Future<void> removeLikedPost(String postId) async {
     // Validate post ID before proceeding
     if (postId == "unknown" || postId.isEmpty) {
-      print("ERROR: Cannot remove post with invalid ID: $postId");
       return;
     }
     
@@ -1736,13 +1585,11 @@ class LikedPostsPreferences {
           InZonePost post = InZonePost.fromJsonLocal(postMap);
           posts.add(post);
         } catch (e) {
-          print("Error processing post $postId: $e");
         }
       });
       
       return posts;
     } catch (e) {
-      print("Error converting liked posts: $e");
       return [];
     }
   }

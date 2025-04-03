@@ -51,7 +51,6 @@ class _FollowersFollowingTabState extends State<FollowersFollowingTab> {
       // We're not making API calls anymore, just refreshing the UI with existing data
       updateMessageShown();
     } catch (e) {
-      print('Error processing followers/following: $e');
       // Show error message
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Failed to process followers/following: $e'))
@@ -392,7 +391,6 @@ class _FollowButtonState extends State<FollowButton> {
         });
       }
     } catch (e) {
-      print('Error checking follow status: $e');
       setState(() {
         isLoading = false;
       });
