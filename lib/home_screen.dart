@@ -30,6 +30,10 @@ class HomeScreenState extends State<HomeScreen> {
   bool hasMorePosts = true;
   String? selectedCategory; // Track the currently selected category
   int reloadCount = 0; // Track number of reloads
+  
+  // Store the actual posts data from API
+  List<dynamic> posts = [];
+  List<dynamic> originalPosts = []; // For category filtering
 
   @override
   void initState() {
@@ -79,8 +83,8 @@ class HomeScreenState extends State<HomeScreen> {
     if (isRefresh) {
       setState(() {
         _currentPage = 0;
-        feedItems.clear();
-        originalFeedItems.clear();
+        posts.clear();
+        originalPosts.clear();
         categoriesList.clear();
         avatarCards.clear();
         hasMorePosts = true;
@@ -100,71 +104,29 @@ class HomeScreenState extends State<HomeScreen> {
       
       if (!mounted) return;
       
-      print("Feed response structure: ${response?.keys.toList()}");
-      
       if (response != null) {
-        int totalPostsProcessed = 0;
-        int skippedRepostsCount = 0;
-        
-        // Collect all posts from different categories
-        List<dynamic> allPosts = [];
-        if (response.containsKey('reposts')) {
-          List<dynamic> reposts = response['reposts'] ?? [];
-          print("Found ${reposts.length} reposts");
-          allPosts.addAll(reposts.map((post) => {'type': 'repost', 'data': post}));
-          totalPostsProcessed += reposts.length;
-        }
-        // Add posts from each category to the combined list
-        if (response.containsKey('aiPosts')) {
-          List<dynamic> aiPosts = response['aiPosts'] ?? [];
-          print("Found ${aiPosts.length} AI posts");
-          allPosts.addAll(aiPosts.map((post) => {'type': 'ai', 'data': post}));
-          totalPostsProcessed += aiPosts.length;
-        }
-        
-        if (response.containsKey('humanPosts')) {
-          List<dynamic> humanPosts = response['humanPosts'] ?? [];
-          print("Found ${humanPosts.length} human posts");
-          allPosts.addAll(humanPosts.map((post) => {'type': 'human', 'data': post}));
-          totalPostsProcessed += humanPosts.length;
-        }
-        
-
-        
-        // For backward compatibility, also check for 'posts' key
         if (response.containsKey('posts')) {
-          List<dynamic> posts = response['posts'] ?? [];
-          print("Found ${posts.length} posts from 'posts' key");
-          allPosts.addAll(posts.map((post) => {'type': 'generic', 'data': post}));
-          totalPostsProcessed += posts.length;
-        }
-        
-        // Shuffle all posts to mix different types
-        allPosts.shuffle();
-        print("Shuffled ${allPosts.length} total posts");
-
-        // Process the shuffled posts
-        for (var wrappedPost in allPosts) {
-          bool wasProcessed = _processPost(wrappedPost['data'], wrappedPost['type']);
-          if (!wasProcessed && wrappedPost['type'] == 'repost') {
-            skippedRepostsCount++;
-          }
-        }
-        
-        print("Total posts processed: $totalPostsProcessed");
-        print("Reposts skipped due to empty ai_id: $skippedRepostsCount");
-        
-        // Store the original order of feed items
-        originalFeedItems = List.from(feedItems);
-        
-        // If no posts were processed at all, we might have reached the end
-        if (totalPostsProcessed == 0 && _currentPage > 0) {
+          List<dynamic> newPosts = response['posts'] ?? [];
+          print("Loaded ${newPosts.length} posts");
+          
           setState(() {
-            hasMorePosts = false;
+            posts.addAll(newPosts);
+            originalPosts = List.from(posts); // Store original posts for filtering
+            
+            // Extract categories from posts
+            for (var post in newPosts) {
+              String category = _extractCategoryFromPost(post);
+              if (category.isNotEmpty && !categoriesList.contains(category)) {
+                categoriesList.add(category);
+              }
+            }
+            
+            _currentPage++;
+            hasMorePosts = newPosts.isNotEmpty;
           });
+        } else {
+          print("Response doesn't contain 'posts' field: $response");
         }
-        
-        _currentPage++;
       } else {
         print("Feed response was null");
       }
@@ -192,82 +154,42 @@ class HomeScreenState extends State<HomeScreen> {
       
       if (!mounted) return;
       
-      print("Load more response structure: ${response?.keys.toList()}");
-      
       if (response != null) {
-        int totalNewPosts = 0;
-        int skippedRepostsCount = 0;
-        
-        // Collect all posts from different categories
-        List<dynamic> allPosts = [];
-        
-        // Add posts from each category to the combined list
-        if (response.containsKey('aiPosts')) {
-          List<dynamic> aiPosts = response['aiPosts'] ?? [];
-          print("Loading more: Found ${aiPosts.length} AI posts");
-          allPosts.addAll(aiPosts.map((post) => {'type': 'ai', 'data': post}));
-          totalNewPosts += aiPosts.length;
-        }
-        
-        if (response.containsKey('humanPosts')) {
-          List<dynamic> humanPosts = response['humanPosts'] ?? [];
-          print("Loading more: Found ${humanPosts.length} human posts");
-          allPosts.addAll(humanPosts.map((post) => {'type': 'human', 'data': post}));
-          totalNewPosts += humanPosts.length;
-        }
-        
-        if (response.containsKey('reposts')) {
-          List<dynamic> reposts = response['reposts'] ?? [];
-          print("Loading more: Found ${reposts.length} reposts");
-          allPosts.addAll(reposts.map((post) => {'type': 'repost', 'data': post}));
-          totalNewPosts += reposts.length;
-        }
-        
-        // For backward compatibility, also check for 'posts' key
         if (response.containsKey('posts')) {
-          List<dynamic> posts = response['posts'] ?? [];
-          print("Loading more: Found ${posts.length} posts from 'posts' key");
-          allPosts.addAll(posts.map((post) => {'type': 'generic', 'data': post}));
-          totalNewPosts += posts.length;
-        }
-        
-        // Shuffle all posts to mix different types
-        allPosts.shuffle();
-        print("Shuffled ${allPosts.length} total new posts");
-        
-        // Process the shuffled posts
-        for (var wrappedPost in allPosts) {
-          bool wasProcessed = _processPost(wrappedPost['data'], wrappedPost['type']);
-          if (!wasProcessed && wrappedPost['type'] == 'repost') {
-            skippedRepostsCount++;
-          }
-        }
-        
-        print("Total new posts loaded: $totalNewPosts");
-        print("Reposts skipped due to empty ai_id: $skippedRepostsCount");
-        
-        // Update the original feed items list
-        originalFeedItems = List.from(feedItems);
-        
-        // If a category is selected, reapply the filter
-        if (selectedCategory != null) {
-          _filterPostsByCategory(selectedCategory!);
-        }
-        
-        print("Total new posts loaded: $totalNewPosts");
-        
-        if (totalNewPosts == 0) {
+          List<dynamic> newPosts = response['posts'] ?? [];
+          print("Loaded ${newPosts.length} additional posts");
+          
+          setState(() {
+            posts.addAll(newPosts);
+            originalPosts = List.from(posts); // Update original posts
+            
+            // Extract additional categories
+            for (var post in newPosts) {
+              String category = _extractCategoryFromPost(post);
+              if (category.isNotEmpty && !categoriesList.contains(category)) {
+                categoriesList.add(category);
+              }
+            }
+            
+            // If a category is selected, reapply the filter
+            if (selectedCategory != null) {
+              _filterPostsByCategory(selectedCategory!);
+            }
+            
+            _currentPage++;
+            hasMorePosts = newPosts.isNotEmpty;
+          });
+        } else {
           setState(() {
             hasMorePosts = false;
           });
-        } else {
-          _currentPage++;
+          print("Response doesn't contain 'posts' field: $response");
         }
       } else {
-        print("Load more response was null");
         setState(() {
           hasMorePosts = false;
         });
+        print("Load more response was null");
       }
     } catch (e) {
       print('Error loading more posts: $e');
@@ -277,112 +199,6 @@ class HomeScreenState extends State<HomeScreen> {
           isLoadingMore = false;
         });
       }
-    }
-  }
-
-  bool _processPost(dynamic postJson, String type) {
-    // Process a single post and add to the feed
-    Widget postWidget;
-    
-    try {
-      // Check if this is a repost (has AI chat content)
-      if (type=='repost') {
-
-        
-        // This is a repost
-        InZonePost post = InZonePost.fromJsonForHumans(postJson);
-        // Override isAi property based on the post type
-        post = InZonePost(
-          category: post.category,
-          userName: post.userName,
-          comments: post.comments,
-          datePosted: post.datePosted,
-          likes: post.likes,
-          id: post.id,
-          imageContent: post.imageContent,
-          videoContent: post.videoContent,
-          textContent: post.textContent,
-          userReference: post.userReference,
-          mainCategory: post.mainCategory,
-          isAi: false, // Set isAi based on the post type
-        );
-        InZoneAvatar avatar = InZoneAvatar.fromRepostJson(postJson);
-        postWidget = RepostCard(
-          post: post,
-          repost: avatar,
-          aiChat: postJson["ai_chat_content"] ?? "",
-        );
-
-      } else {
-        InZonePost post;
-        
-        if (postJson.containsKey('data')) {
-          post = InZonePost.fromJson(postJson);
-        } else {
-          post = InZonePost.fromJsonForHumans(postJson);
-        }
-          post = InZonePost(
-          category: post.category,
-          userName: post.userName,
-          comments: post.comments,
-          datePosted: post.datePosted,
-          likes: post.likes,
-          id: post.id,
-          imageContent: post.imageContent,
-          videoContent: post.videoContent,
-          textContent: post.textContent,
-          userReference: post.userReference,
-          mainCategory: post.mainCategory,
-          isAi: type == 'ai', // Set isAi based on the post type
-        );
-        
-        if (type == 'ai') {
-          print("Processing AI post: ${post.id}");
-          print("AI post details: userName=${post.userName}, isAi=${post.isAi}, userReference=${post.userReference}");
-        }
-        
-        postWidget = PostCard(
-          post: post,
-          onTap: (postId) {
-            print('You tapped on post with ID: $postId');
-          },
-        );
-        
-        // Add category if it's new
-        if (!categoriesList.contains(post.category) && post.category.isNotEmpty) {
-          categoriesList.add(post.category);
-        }
-      }
-      
-      // Add to feed items
-      print("adding $postWidget");
-      feedItems.add(postWidget);
-      
-      // Insert avatar carousel after 20 posts, and then after every 20 posts
-      if ((feedItems.length % 20 == 0) && avatarCards.isNotEmpty) {
-        print("Inserting avatar carousel at position ${feedItems.length}");
-        feedItems.add(_buildAvatarCarousel());
-      }
-      
-      return true; // Post was processed successfully
-    } catch (e) {
-      print('Error processing post: $e');
-      print('Problematic post: $postJson');
-      return false; // Post processing failed
-    }
-  }
-
-  void _processPosts(List<dynamic> fetchedPosts) {
-    // Process each post in the list
-    int skippedPosts = 0;
-    for (var postJson in fetchedPosts) {
-      bool wasProcessed = _processPost(postJson, 'generic'); // Use 'generic' as the default type
-      if (!wasProcessed) {
-        skippedPosts++;
-      }
-    }
-    if (skippedPosts > 0) {
-      print("Skipped $skippedPosts posts during processing");
     }
   }
 
@@ -397,10 +213,27 @@ class HomeScreenState extends State<HomeScreen> {
         InZoneAvatar avatar = InZoneAvatar.fromDirectJson(characterData);
         avatarCards.add(AvatarCard(avatar: avatar));
       }
+      avatarCards.shuffle();
       print("Successfully processed ${avatarCards.length} avatars");
     } catch (e) {
       print("Error processing avatars: $e");
     }
+  }
+
+  // Extract the first category from a post
+  String _extractCategoryFromPost(dynamic post) {
+    // Check if category is an array
+    if (post.containsKey('category')) {
+      var category = post['category'];
+      if (category is List && category.isNotEmpty) {
+        // Return the first category from the array
+        return category[0].toString();
+      } else if (category is String && category.isNotEmpty) {
+        // Handle case where category is a string
+        return category;
+      }
+    }
+    return '';
   }
 
   // Filter posts by category
@@ -412,54 +245,37 @@ class HomeScreenState extends State<HomeScreen> {
       
       if (category == null) {
         // If no category is selected, restore original order
-        feedItems = List.from(originalFeedItems);
+        posts = List.from(originalPosts);
         return;
       }
       
-      // Create a new list with posts of the selected category at the top
-      List<Widget> filteredItems = [];
-      List<Widget> otherItems = [];
+      // Filter posts by the selected category
+      List<dynamic> filteredPosts = originalPosts.where((post) {
+        String postCategory = _extractCategoryFromPost(post).toLowerCase();
+        String searchCategory = category.toLowerCase();
+        
+        return postCategory == searchCategory || 
+               postCategory.contains(searchCategory) ||
+               searchCategory.contains(postCategory);
+      }).toList();
       
-      for (var item in originalFeedItems) {
-        if (item is PostCard) {
-          String postCategory = item.post.category.toLowerCase();
-          String searchCategory = category.toLowerCase();
-          
-          if (postCategory == searchCategory || 
-              postCategory.contains(searchCategory) ||
-              searchCategory.contains(postCategory)) {
-            print("Found matching post: ${item.post.id} with category $postCategory");
-            filteredItems.add(item);
-          } else {
-            otherItems.add(item);
-          }
-        } else if (item is RepostCard) {
-          String postCategory = item.post.category.toLowerCase();
-          String searchCategory = category.toLowerCase();
-          
-          if (postCategory == searchCategory || 
-              postCategory.contains(searchCategory) ||
-              searchCategory.contains(postCategory)) {
-            print("Found matching repost with category $postCategory");
-            filteredItems.add(item);
-          } else {
-            otherItems.add(item);
-          }
-        } else {
-          // Keep non-post widgets (like avatar carousels) in their original position
-          otherItems.add(item);
-        }
-      }
+      List<dynamic> otherPosts = originalPosts.where((post) {
+        String postCategory = _extractCategoryFromPost(post).toLowerCase();
+        String searchCategory = category.toLowerCase();
+        
+        return !(postCategory == searchCategory || 
+                postCategory.contains(searchCategory) ||
+                searchCategory.contains(postCategory));
+      }).toList();
       
-      print("Found ${filteredItems.length} matching posts and ${otherItems.length} other items");
+      // Combine filtered posts with other posts
+      posts = [...filteredPosts, ...otherPosts];
       
-      // Combine the filtered items with other items
-      feedItems = [...filteredItems, ...otherItems];
+      print("Found ${filteredPosts.length} matching posts");
     });
   }
 
   Widget _buildAvatarCarousel() {
-
     return SizedBox(
       height: 580,
       child: Column(
@@ -492,6 +308,123 @@ class HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  Widget _buildPostWidget(dynamic post, int index) {
+    String postType = post['post_type'] ?? 'unknown';
+    
+    // Insert avatar carousel after certain number of posts
+    if (index > 0 && index % 20 == 0 && avatarCards.isNotEmpty) {
+      return _buildAvatarCarousel();
+    }
+    
+    try {
+      // Extract the category for the post
+      String category = _extractCategoryFromPost(post);
+      
+      switch (postType) {
+        case 'repost':
+          // Build repost card
+          InZonePost postObj = InZonePost.fromJsonForHumans(post);
+          // Ensure correct category is set
+          postObj = InZonePost(
+            category: category,
+            userName: postObj.userName,
+            comments: postObj.comments,
+            datePosted: postObj.datePosted,
+            likes: postObj.likes,
+            id: postObj.id,
+            imageContent: postObj.imageContent,
+            videoContent: postObj.videoContent,
+            textContent: postObj.textContent,
+            userReference: postObj.userReference,
+            mainCategory: postObj.mainCategory,
+            isAi: false,
+          );
+          InZoneAvatar avatar = InZoneAvatar.fromRepostJson(post);
+          return RepostCard(
+            post: postObj,
+            repost: avatar,
+            aiChat: post["ai_chat_content"] ?? "",
+          );
+          
+        case 'ai_post':
+          // Build AI post card
+          InZonePost postObj = InZonePost.fromJsonForHumans(post);
+          postObj = InZonePost(
+            category: category,
+            userName: postObj.userName,
+            comments: postObj.comments,
+            datePosted: postObj.datePosted,
+            likes: postObj.likes,
+            id: postObj.id,
+            imageContent: postObj.imageContent,
+            videoContent: postObj.videoContent,
+            textContent: postObj.textContent,
+            userReference: postObj.userReference,
+            mainCategory: postObj.mainCategory,
+            isAi: true,
+          );
+          return PostCard(
+            post: postObj,
+            onTap: (postId) {
+              print('You tapped on AI post with ID: $postId');
+            },
+          );
+          
+        case 'human_post':
+          // Build human post card
+          InZonePost postObj = InZonePost.fromJsonForHumans(post);
+          postObj = InZonePost(
+            category: category,
+            userName: postObj.userName,
+            comments: postObj.comments,
+            datePosted: postObj.datePosted,
+            likes: postObj.likes,
+            id: postObj.id,
+            imageContent: postObj.imageContent,
+            videoContent: postObj.videoContent,
+            textContent: postObj.textContent,
+            userReference: postObj.userReference,
+            mainCategory: postObj.mainCategory,
+            isAi: false,
+          );
+          return PostCard(
+            post: postObj,
+            onTap: (postId) {
+              print('You tapped on human post with ID: $postId');
+            },
+          );
+          
+        default:
+          // For unknown post types, try to render as a regular post
+          InZonePost postObj = InZonePost.fromJsonForHumans(post);
+          postObj = InZonePost(
+            category: category,
+            userName: postObj.userName,
+            comments: postObj.comments,
+            datePosted: postObj.datePosted,
+            likes: postObj.likes,
+            id: postObj.id,
+            imageContent: postObj.imageContent,
+            videoContent: postObj.videoContent,
+            textContent: postObj.textContent,
+            userReference: postObj.userReference,
+            mainCategory: postObj.mainCategory,
+            isAi: false,
+          );
+          return PostCard(
+            post: postObj,
+            onTap: (postId) {
+              print('You tapped on unknown post type with ID: $postId');
+            },
+          );
+      }
+    } catch (e) {
+      print('Error building post widget: $e');
+      print('Problematic post: $post');
+      return const SizedBox.shrink(); // Return empty widget for problematic posts
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -511,7 +444,7 @@ class HomeScreenState extends State<HomeScreen> {
             controller: widget.controller,
             itemCount: isLoading
                 ? 2
-                : feedItems.length + (isLoadingMore ? 1 : 0),
+                : 1 + posts.length + (isLoadingMore ? 1 : 0), // +1 for category bar
             itemBuilder: (context, index) {
               if (isLoading) {
                 return index == 0
@@ -541,14 +474,14 @@ class HomeScreenState extends State<HomeScreen> {
                         ),
                       )
                     : const Text("No categories available");
-              } else if (index == feedItems.length && isLoadingMore) {
+              } else if (index == posts.length + 1 && isLoadingMore) {
                 return const Center(
                     child: CircularProgressIndicator());
               } else {
-
+                // Render the post directly from the posts list
                 return Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 0),
-                  child: feedItems[index - 1],
+                  child: _buildPostWidget(posts[index - 1], index - 1),
                 );
               }
             },

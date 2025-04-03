@@ -3,7 +3,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:http/http.dart' as http;
 import 'package:inzone/data/inzone_post.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'main.dart';
 
@@ -17,11 +16,10 @@ class InZoneDatabase {
       print("PAGE");
       print(page);
       if (page!=0){
-        url = 'https://inzoneapi-912424781531.us-central1.run.app/feed/posts-flow?page=$page';
+        url = 'https://inzoneapi-912424781531.us-central1.run.app/feed/posts-flow?user_id=${FirebaseAuth.instance.currentUser!.uid}&page=$page';
       } else {
-        url = 'https://inzoneapi-912424781531.us-central1.run.app/feed/posts-flow?page=1';
+        url = 'https://inzoneapi-912424781531.us-central1.run.app/feed/posts-flow?user_id=${FirebaseAuth.instance.currentUser!.uid}&page=1';
       }
-
     }
 
     try {
@@ -39,78 +37,9 @@ class InZoneDatabase {
         final jsonData = jsonDecode(response.body);
         print("The feed data is");
         print(jsonData);
-        print("Raw response structure: ${jsonData.runtimeType}");
-        if (jsonData is Map) {
-          print("Response keys: ${jsonData.keys.toList()}");
-          if (jsonData.containsKey('aiPosts')) {
-            print("AI posts count from server: ${(jsonData['aiPosts'] as List).length}");
-          }
-        } else if (jsonData is List) {
-          print("Response is a list with ${jsonData.length} items");
-        }
         
-        // Check if the response is already in the expected format with aiPosts, humanPosts, and reposts
-        if (jsonData is Map && 
-            (jsonData.containsKey('aiPosts') || 
-             jsonData.containsKey('humanPosts') || 
-             jsonData.containsKey('reposts'))) {
-          // The response is already in the expected format, keep it as is
-          print("The json data is $jsonData");
-          return jsonData;
-        } else if (jsonData is List) {
-          // The response is a list of posts, try to categorize them
-          
-          // Create empty lists for each category
-          List<dynamic> aiPosts = [];
-          List<dynamic> humanPosts = [];
-          List<dynamic> reposts = [];
-          int emptyAiIdCount = 0;
-          
-          // Categorize posts based on their properties
-          for (var post in jsonData) {
-            if (post.containsKey('aiChatContent') || 
-                post.containsKey('aiName') || 
-                post.containsKey('aiProfileImageURL')) {
-              // This is a repost
-              
-              // Check if ai_id is empty
-              if (post.containsKey('ai_id') && (post['ai_id'] == null || post['ai_id'] == "")) {
-                print("Found repost with empty ai_id: ${post['id'] ?? 'unknown id'}");
-                emptyAiIdCount++;
-              }
-              
-              reposts.add(post);
-            } else if (post.containsKey('is_ai') && post['is_ai'] == true) {
-              // This is an AI post
-              print("Found AI post: ${post['id'] ?? 'unknown id'}");
-              aiPosts.add(post);
-            } else {
-              // This is a human post
-              humanPosts.add(post);
-            }
-          }
-          
-          print("Total AI posts found: ${aiPosts.length}");
-          print("Total reposts found: ${reposts.length}");
-          print("Reposts with empty ai_id: $emptyAiIdCount");
-          if (aiPosts.isNotEmpty) {
-            print("First AI post structure: ${aiPosts[0]}");
-          }
-          
-          return {
-            'aiPosts': aiPosts,
-            'humanPosts': humanPosts,
-            'reposts': reposts
-          };
-        } else {
-          // Unexpected format
-          print("Unexpected response format: $jsonData");
-          return {
-            'aiPosts': [],
-            'humanPosts': [],
-            'reposts': []
-          };
-        }
+        // Return the response as is - it should contain a 'posts' field with post_type
+        return jsonData;
       } else {
         // Log if status code is not 200 (OK)
         print('Failed to load posts. Status code: ${response.statusCode}');

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:inzone/all_chats_screen.dart';
@@ -215,14 +216,19 @@ class _ChatScreenState extends State<ChatScreen> {
               scrollToEnd();
               String? aiResponse;
               if (widget.userData.chatId != null) {
-                print("Chat id found.");
-                print(widget.userData.email);
+                if (kDebugMode) {
+                  print("Chat id found.");
+                }
+                if (kDebugMode) {
+                  print(widget.userData.email);
+                }
                 aiResponse = await InZoneDatabase.sendMessageToAI(userMessage,
                     widget.userData.email!, widget.userData.chatId);
               } else {
-                print("Chat id not found.");
-                print(widget.userData.email
-                );
+                if (kDebugMode) {
+                  print("Chat id not found.");
+                }
+  
                 aiResponse = await InZoneDatabase.sendMessageToAI(
                     userMessage, widget.userData.email!, null);
               }

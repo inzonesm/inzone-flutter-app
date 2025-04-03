@@ -1,8 +1,8 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:inzone/inzone_database.dart';
 import 'package:inzone/shared_preferences_helper_class.dart';
 import 'package:lottie/lottie.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 
 class CharacterCreationScreen extends StatefulWidget {
@@ -14,8 +14,7 @@ class CharacterCreationScreen extends StatefulWidget {
 }
 
 class _CharacterCreationScreenState extends State<CharacterCreationScreen> {
-  late SharedPreferences _prefs;
-  List<String> _savedList = [];
+  List<String> _savedList = []; 
   String? url;
   late DateTime _startTime; // To store the start time
   int pageOpened = 0;
@@ -355,7 +354,9 @@ class _CharacterCreationScreenState extends State<CharacterCreationScreen> {
                                                     .text.isEmpty
                                                 ? "No description given by user"
                                                 : descriptionController.text);
-                                        print(url);
+                                        if (kDebugMode) {
+                                          print(url);
+                                        }
                                         if (url != null) {
                                           await InZoneDatabase.createCharacter(
                                                   nameController.text,

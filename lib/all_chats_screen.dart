@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:inzone/chat_screen.dart';
@@ -16,22 +15,33 @@ class AllChatsScreen extends StatefulWidget {
   State<AllChatsScreen> createState() => _AllChatsScreenState();
 }
 
-class _AllChatsScreenState extends State<AllChatsScreen> {
-  List<ChatUser> _chatUsers = [];
+class _AllChatsScreenState extends State<AllChatsScreen> with SingleTickerProviderStateMixin {
+  final List<ChatUser> _chatUsers = [];
+  List<ChatUser> _groupChats = [];
   bool _isLoading = false;
   String? currentUserId;
-  late DateTime _startTime; // To store the start time
+  late DateTime _startTime;
   int pageOpened = 0;
+  late TabController _tabController;
 
   @override
   void initState() {
     super.initState();
     _isLoading = true;
     _startTime = DateTime.now();
-    
+    _tabController = TabController(length: 2, vsync: this);
     _loadCurrentUser();
   }
-  
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    DateTime endTime = DateTime.now();
+    Duration timeSpent = endTime.difference(_startTime);
+    InZoneDatabase.logEvent('all_chats_screen', {"timeSpent" : timeSpent.inSeconds,  "pageOpenedCount" : pageOpened});
+    super.dispose();
+  }
+
   Future<void> _loadCurrentUser() async {
     currentUserId = await InZoneDatabase.getCurrentUserUid();
     if (currentUserId != null) {
@@ -45,6 +55,7 @@ class _AllChatsScreenState extends State<AllChatsScreen> {
 
   Future<void> _fetchConversations() async {
     _chatUsers.clear();
+    _groupChats.clear();
     setState(() => _isLoading = true);
 
     if (currentUserId == null) {
@@ -53,6 +64,7 @@ class _AllChatsScreenState extends State<AllChatsScreen> {
     }
 
     List<ChatUser> allChats = [];
+    List<ChatUser> groupChats = [];
 
     try {
       // Fetch AI user conversations
@@ -64,71 +76,89 @@ class _AllChatsScreenState extends State<AllChatsScreen> {
         }
       }
 
-      // Fetch human conversations - FIXED QUERY
-      // First, get all conversations where the current user is a participant
+      // Fetch human conversations
       QuerySnapshot conversationsSnapshot = await _firestore
           .collection('conversations')
           .where('participants', arrayContains: currentUserId)
           .get();
 
-      // Process each conversation document
       for (var doc in conversationsSnapshot.docs) {
         var data = doc.data() as Map<String, dynamic>;
         
-        // Get the other participant's ID (not the current user)
-        List<dynamic> participants = data['participants'] ?? [];
-        String? otherUserId = participants.firstWhere(
-          (id) => id != currentUserId, 
-          orElse: () => null
-        );
+        // Check if this is a group chat
+        bool isGroupChat = data['isGroupChat'] ?? false;
         
-        if (otherUserId != null) {
-          // Get the other user's name from the conversation document
-          Map<String, dynamic> participantNames = data['participantNames'] ?? {};
-          String otherUserName = participantNames[otherUserId] ?? 'User';
-          
-          // If name is not in conversation, try to get it from humanUsers collection
-          if (otherUserName == 'User') {
-            try {
-              DocumentSnapshot userDoc = await _firestore
-                  .collection('humanUsers')
-                  .doc(otherUserId)
-                  .get();
-              
-              if (userDoc.exists && userDoc.data() != null) {
-                var userData = userDoc.data() as Map<String, dynamic>;
-                otherUserName = userData['name'] ?? userData['Name'] ?? 'User';
-              }
-            } catch (e) {
-              print('Error getting user name: $e');
-            }
-          }
-          
-          // Create a ChatUser object
+        if (isGroupChat) {
+          // Handle group chat
+          String groupName = data['groupName'] ?? 'Group Chat';
           allChats.add(ChatUser(
-            name: otherUserName,
-            email: otherUserId,
+            name: groupName,
+            email: doc.id,
             chatId: doc.id,
             lastMessage: data['lastMessage'],
             lastMessageTime: data['lastMessageTime'],
             isHuman: true,
+            isGroupChat: true,
           ));
+        } else {
+          // Handle individual chat
+          List<dynamic> participants = data['participants'] ?? [];
+          String? otherUserId = participants.firstWhere(
+            (id) => id != currentUserId, 
+            orElse: () => null
+          );
+          
+          if (otherUserId != null) {
+            Map<String, dynamic> participantNames = data['participantNames'] ?? {};
+            String otherUserName = participantNames[otherUserId] ?? 'User';
+            
+            if (otherUserName == 'User') {
+              try {
+                DocumentSnapshot userDoc = await _firestore
+                    .collection('humanUsers')
+                    .doc(otherUserId)
+                    .get();
+                
+                if (userDoc.exists && userDoc.data() != null) {
+                  var userData = userDoc.data() as Map<String, dynamic>;
+                  otherUserName = userData['name'] ?? userData['Name'] ?? 'User';
+                }
+              } catch (e) {
+                print('Error getting user name: $e');
+              }
+            }
+            
+            allChats.add(ChatUser(
+              name: otherUserName,
+              email: otherUserId,
+              chatId: doc.id,
+              lastMessage: data['lastMessage'],
+              lastMessageTime: data['lastMessageTime'],
+              isHuman: true,
+              isGroupChat: false,
+            ));
+          }
         }
       }
 
-      // Sort the conversations by lastMessageTime (newest first)
+      // Sort conversations by lastMessageTime
       allChats.sort((a, b) {
-        // If either timestamp is null, put it at the end
         if (a.lastMessageTime == null) return 1;
         if (b.lastMessageTime == null) return -1;
-        
-        // Otherwise sort by timestamp (descending)
         return b.lastMessageTime!.compareTo(a.lastMessageTime!);
       });
 
-      // Update state
+      // Separate group chats and individual chats
+      for (var chat in allChats) {
+        if (chat.isGroupChat) {
+          groupChats.add(chat);
+        } else {
+          _chatUsers.add(chat);
+        }
+      }
+
       setState(() {
-        _chatUsers = allChats;
+        _groupChats = groupChats;
         _isLoading = false;
       });
     } catch (e) {
@@ -137,7 +167,6 @@ class _AllChatsScreenState extends State<AllChatsScreen> {
         _isLoading = false;
       });
       
-      // Show error to user
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error loading conversations: $e'))
       );
@@ -145,80 +174,71 @@ class _AllChatsScreenState extends State<AllChatsScreen> {
   }
 
   @override
-  void dispose() {
-    DateTime endTime = DateTime.now();
-    Duration timeSpent = endTime.difference(_startTime);
-    InZoneDatabase.logEvent('all_chats_screen', {"timeSpent" : timeSpent.inSeconds,  "pageOpenedCount" : pageOpened});
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Theme.of(context).canvasColor,
-      appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(50),
-        child: AppBar(
-          elevation: 0,
-          automaticallyImplyLeading: false,
-          backgroundColor: Theme.of(context).canvasColor,
-          leading: IconButton(
-            icon: const Icon(
-              Icons.arrow_back_ios_new,
-              size: 20,
-            ),
-            color: Colors.black,
-            onPressed: () {
-              Navigator.pop(context);
-            },
-          ),
-          title: const Text("Chats",
-              style: TextStyle(fontSize: 26, fontWeight: FontWeight.w700)),
-        ),
-      ),
       body: SafeArea(
         bottom: false,
-        child: Padding(
-          padding: const EdgeInsets.only(top: 10),
-          child: Column(
-            children: [
-              Expanded(
-                child: Container(
-                  width: MediaQuery.of(context).size.width,
-                  decoration: BoxDecoration(
-                    border: Border.all(
-                      color: Colors.white,
-                      style: BorderStyle.solid,
-                      width: 10.0,
-                    ),
-                    color: Colors.white,
-                    borderRadius: const BorderRadius.only(
-                      topRight: Radius.circular(30),
-                      topLeft: Radius.circular(30),
-                    ),
-                  ),
-                  child: _isLoading
-                      ? const Center(
-                          child: CircularProgressIndicator()) 
-                      : _chatUsers.isEmpty
-                          ? const Center(
-                              child: Text("No conversations yet"),
-                            )
-                          : ListView.builder(
-                              itemCount: _chatUsers.length,
-                              itemBuilder: (context, index) {
-                                return ChatUserCard(
-                                  userData: _chatUsers[index],
-                                  currentUserId: currentUserId ?? '',
-                                );
-                              },
-                            ),
-                ),
-              )
-            ],
-          ),
+        child: Column(
+          children: [
+            // Tab Bar
+            TabBar(
+              controller: _tabController,
+              labelColor: Colors.blue,
+              unselectedLabelColor: Colors.grey,
+              indicatorColor: Colors.blue,
+              dividerColor: Colors.transparent,
+              tabs: const [
+                Tab(text: 'Individual Chats'),
+                Tab(text: 'Group Chats'),
+              ],
+            ),
+            // Tab Views
+            Expanded(
+              child: TabBarView(
+                controller: _tabController,
+                children: [
+                  // Individual Chats Tab
+                  _buildChatsList(_chatUsers),
+                  // Group Chats Tab
+                  _buildChatsList(_groupChats),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
+    );
+  }
+
+  Widget _buildChatsList(List<ChatUser> users) {
+    return Container(
+      width: MediaQuery.of(context).size.width,
+      decoration: BoxDecoration(
+        border: Border.all(
+          color: Colors.white,
+          style: BorderStyle.solid,
+          width: 10.0,
+        ),
+        color: Colors.white,
+        borderRadius: const BorderRadius.only(
+          topRight: Radius.circular(30),
+          topLeft: Radius.circular(30),
+        ),
+      ),
+      child: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : users.isEmpty
+              ? const Center(child: Text("No conversations yet"))
+              : ListView.builder(
+                  itemCount: users.length,
+                  itemBuilder: (context, index) {
+                    return ChatUserCard(
+                      userData: users[index],
+                      currentUserId: currentUserId ?? '',
+                    );
+                  },
+                ),
     );
   }
 }
@@ -231,6 +251,7 @@ class ChatUser {
   String? lastMessage;
   Timestamp? lastMessageTime;
   bool isHuman;
+  bool isGroupChat;
 
   ChatUser({
     this.name,
@@ -240,12 +261,11 @@ class ChatUser {
     this.lastMessage,
     this.lastMessageTime,
     this.isHuman = false,
+    this.isGroupChat = false,
   });
 
-  // Static method to handle null returning logic
   static ChatUser? fromJson(Map<String, dynamic> map) {
     try {
-      // Check if 'aiProfile' and 'conversationId' exist in the map
       if (map.containsKey('aiProfile') && map['aiProfile'] != null && map.containsKey('conversationId')) {
         return ChatUser(
           email: map['aiProfile']['username'] ?? '',
@@ -253,12 +273,11 @@ class ChatUser {
           chatId: map['conversationId'],
           profilePictureURL: map['aiProfile']['profilePicture'],
           isHuman: false,
+          isGroupChat: false,
         );
       }
-      // Return null if required fields are missing
       return null;
     } catch (e) {
-      // Return null if any error occurs during parsing
       return null;
     }
   }

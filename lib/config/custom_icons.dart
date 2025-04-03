@@ -1,9 +1,4 @@
 class CustomIcons {
-  static String homeSelected = "icons/home.svg";
-  static String exploreUnselected = "icons/explore.svg";
-  static String meUnselected = "icons/me.svg";
-  static String me = "icons/me.svg";
-  static String homeUnselected = "icons/home.svg";
   static String postButton = "icons/post.svg";
   static String message = "icons/message.svg";
   static String threeDots = "icons/three_dots.svg";
