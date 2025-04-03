@@ -54,7 +54,6 @@ class _PostScreenState extends State<PostScreen> {
   void setMultipleSelected(List<String> value) {
     setState(() => multipleSelected = value);
   }
-  List<String> _savedList = [];
 
 
   _pickImagefromGallery() async {
@@ -93,7 +92,6 @@ class _PostScreenState extends State<PostScreen> {
   Future<void> _loadPreferences() async {
     List<String>? list = await SharedPreferencesHelperClass.getStringList();
     setState(() {
-      _savedList = list ?? [];
     });
   }
 
@@ -293,7 +291,6 @@ class _PostScreenState extends State<PostScreen> {
                             videoUrl = value["videoUrl"]!;
                             thumbnailUrl = value["thumbnailUrl"]!;
                           });
-                          print("The video url is$videoUrl");
                           setState(() {
                             isUploading = false;
                           });
@@ -372,7 +369,6 @@ class _PostScreenState extends State<PostScreen> {
                                     imageUrl = "";
                                   });
                                 } catch (e) {
-                                  print('Error deleting image: $e');
                                 }
                               },
                               child: Container(
@@ -440,7 +436,6 @@ class _PostScreenState extends State<PostScreen> {
                                                 thumbnailUrl = "";
                                               });
                                             } catch (e) {
-                                              print('Error deleting video: $e');
                                             }
                                           },
                                           child: Container(
@@ -505,7 +500,7 @@ class _PostScreenState extends State<PostScreen> {
                         try {
                           // First analyze sentiment
                           var analysis = await InZoneDatabase.analyzeSentiment(postContent);
-                          print("Sentiment analysis result: $analysis"); // Debug print
+                          // Debug print
                           
                           int sentiment = analysis["sentiment"] as int;
                           setState(() {
@@ -536,7 +531,7 @@ class _PostScreenState extends State<PostScreen> {
                               videoRefs: [videoUrl],
                             );
                             
-                            print("Post creation result: $result"); // Debug print
+                            // Debug print
                             
                             if (!result["success"]) {
                               controller.reset();
@@ -589,7 +584,6 @@ class _PostScreenState extends State<PostScreen> {
                             controller.reset();
                           }
                         } catch (e) {
-                          print('Error posting content: $e');
                           controller.reset();
                         }
                       },

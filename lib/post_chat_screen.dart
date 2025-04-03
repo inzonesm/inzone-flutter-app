@@ -71,7 +71,7 @@ class _PostChatScreenState extends State<PostChatScreen> {
                   try {
                     // First analyze sentiment
                     final analysis = await InZoneDatabase.analyzeSentiment(postContent!);
-                    print("Sentiment analysis result: $analysis"); // Debug print
+                    // Debug print
                     
                     // Update state before proceeding with post creation
                     int sentiment = analysis["sentiment"] as int;
@@ -110,7 +110,7 @@ class _PostChatScreenState extends State<PostChatScreen> {
                       videoRefs: [],
                     );
                     
-                    print("Repost creation result: $result"); // Debug print
+                    // Debug print
                     
                     if (!result["success"]) {
                       ScaffoldMessenger.of(context).showSnackBar(
@@ -129,7 +129,6 @@ class _PostChatScreenState extends State<PostChatScreen> {
                     );
                     ScaffoldMessenger.of(context).showSnackBar(snackBar);
                   } catch (e) {
-                    print('Error creating repost: $e');
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
                         content: Text('Error creating repost: $e'),

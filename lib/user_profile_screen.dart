@@ -42,7 +42,6 @@ class _UserProfileScreenState extends BaseProfileScreenState<UserProfileScreen> 
         bio = "Please log in to view your profile";
         isLoading = false;
       });
-      print('Cannot fetch profile: User not logged in');
     } else {
       // Ensure we start fetching data if we have a valid user ID
       fetchUserProfile();
@@ -68,8 +67,6 @@ class _UserProfileScreenState extends BaseProfileScreenState<UserProfileScreen> 
         const Center(child: Text('Please log in to view your community')),
       ];
     }
-    print("Blacads");
-    print(_communityTabData);
     return [
       UserPostsTab(userId: currentUserId!, ai: false,),
       FollowersFollowingTab(
@@ -173,7 +170,6 @@ class _UserProfileScreenState extends BaseProfileScreenState<UserProfileScreen> 
               });
             }
           } catch (e) {
-            print("Error fetching follower profile: $e");
           }
         }
       }
@@ -200,7 +196,6 @@ class _UserProfileScreenState extends BaseProfileScreenState<UserProfileScreen> 
               });
             }
           } catch (e) {
-            print("Error fetching following profile: $e");
           }
         }
       }
@@ -220,9 +215,7 @@ class _UserProfileScreenState extends BaseProfileScreenState<UserProfileScreen> 
           "following": formattedFollowing
         };
       });
-      print('User profile fetched: $userProfile');
     } else {
-      print('Failed to fetch user profile.');
     }
   }
 
@@ -270,7 +263,6 @@ class _PersonalFeedScreenState extends State<PersonalFeedScreen> {
         throw Exception('Invalid response structure');
       }
     } catch (e) {
-      print('Error fetching feed: $e');
     } finally {
       setState(() {
         isLoading = false; // End loading
@@ -285,7 +277,6 @@ class _PersonalFeedScreenState extends State<PersonalFeedScreen> {
         post: post,
         showHue: false,
         onTap: (postId) {
-          print('You tapped on post with ID: $postId');
         },
       ));
     }
@@ -354,7 +345,6 @@ class _LikedScreenState extends State<LikedScreen> {
         throw Exception('Invalid response structure');
       }
     } catch (e) {
-      print('Error fetching feed: $e');
     } finally {
       setState(() {
         isLoading = false; // End loading
@@ -372,7 +362,6 @@ class _LikedScreenState extends State<LikedScreen> {
         showHue: false
         ,
         onTap: (postId) {
-          print('You tapped on post with ID: $postId');
         },
       ));
     }

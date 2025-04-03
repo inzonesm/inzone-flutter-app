@@ -691,7 +691,6 @@ checkComment();
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (BuildContext context, StateSetter setState) {
-          var width = MediaQuery.of(context).size.width;
           return GestureDetector(
             onTap: (){
               FocusScope.of(context).unfocus();

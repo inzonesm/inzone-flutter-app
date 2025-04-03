@@ -42,7 +42,6 @@ class AuthWork {
       await ref
           .putFile(videoFile, SettableMetadata(contentType: 'video/$ext'))
           .then((p0) {
-        print('Data Transferred: ${p0.bytesTransferred / 1000} kb');
       });
 
       // Getting video URL
@@ -62,7 +61,6 @@ class AuthWork {
 
       return {"videoUrl": videoUrl, "thumbnailUrl":thumbnailUrl};
     } catch (e) {
-      print('Error uploading video: $e');
       throw Exception('Error uploading video: throwing an error');
     }
   }
@@ -92,7 +90,6 @@ class AuthWork {
     await ref
         .putFile(file, SettableMetadata(contentType: 'image/$ext'))
         .then((p0) {
-      print('Data Transferred: ${p0.bytesTransferred / 1000} kb');
     });
 
     //updating image in firestore database
@@ -434,9 +431,7 @@ class AuthWork {
       // Create a reference to the file to delete
       final ref = storage.refFromURL(imageUrl);
       await ref.delete();
-      print('Image deleted successfully');
     } catch (e) {
-      print('Error deleting image: $e');
       throw Exception('Failed to delete image');
     }
   }
@@ -451,9 +446,7 @@ class AuthWork {
       final thumbnailRef = storage.refFromURL(thumbnailUrl);
       await thumbnailRef.delete();
       
-      print('Video and thumbnail deleted successfully');
     } catch (e) {
-      print('Error deleting video: $e');
       throw Exception('Failed to delete video');
     }
   }

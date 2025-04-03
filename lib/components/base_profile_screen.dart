@@ -70,9 +70,7 @@ abstract class BaseProfileScreenState<T extends BaseProfileScreen> extends State
         followersCount = userProfile["followers_count"] ?? followers.length ?? 0;
         followingCount = userProfile["following_count"] ?? following.length ?? 0;
       });
-      print('User profile fetched: $userProfile');
     } else {
-      print('Failed to fetch user profile.');
     }
   }
 

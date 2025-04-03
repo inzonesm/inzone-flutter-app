@@ -82,8 +82,7 @@ class InZonePost
       
       return post;
     } catch (e) {
-      print("Error creating InZonePost from JSON: $e");
-      
+
       // Return a default post in case of error
       return InZonePost(
         category: '',
@@ -115,7 +114,6 @@ class InZonePost
         category = 'General';
       }
     } catch (e) {
-      print('Error accessing category: $e');
       category = 'General';
     }
     
@@ -146,7 +144,6 @@ class InZonePost
         }
       }
     } catch (e) {
-      print("Error extracting text content: $e");
     }
     
     String userReference = json['user_name'] ?? 'unknown';
@@ -160,7 +157,6 @@ class InZonePost
         datePosted = DateTime.now();
       }
     } catch (e) {
-      print("Error parsing date: $e");
       datePosted = DateTime.now();
     }
 
@@ -202,7 +198,6 @@ class InZonePost
         }
       }
     } catch (e) {
-      print("Error extracting media content: $e");
     }
 
     // Safely handle comments
@@ -245,7 +240,6 @@ class InZonePost
         );
       }).toList();
     } catch (e) {
-      print("Error processing comments: $e");
     }
 
     // Safely return the constructed InZonePost object
@@ -279,7 +273,6 @@ class InZonePost
       }
     } catch (e) {
       // Fallback in case of any error
-      print('Error accessing category: $e');
       category = 'animals';
     }
     
@@ -310,7 +303,6 @@ class InZonePost
         }
       }
     } catch (e) {
-      print("Error extracting text content: $e");
     }
     
     String userReference = json['user_document_id'] ?? 'unknown';
@@ -355,7 +347,6 @@ class InZonePost
         }
       }
     } catch (e) {
-      print("Error extracting media content: $e");
     }
 
     // Safely handle comments
@@ -391,7 +382,6 @@ class InZonePost
         }).toList();
       }
     } catch (e) {
-      print("Error processing comments: $e");
     }
 
     // Safely return the constructed InZonePost object

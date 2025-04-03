@@ -29,7 +29,6 @@ class _CategorySelectorState extends State<CategorySelector> {
 
   Widget _getSvg(String? iconPath) {
     if (iconPath == null || iconPath.isEmpty) {
-      print('No icon path provided, using default creativity.svg');
       return SvgPicture.asset(
         'icons/category_icons/creativity.svg',
         height: 25,
@@ -44,7 +43,6 @@ class _CategorySelectorState extends State<CategorySelector> {
         height: 25,
         width: 25,
         placeholderBuilder: (BuildContext context) {
-          print('SVG not found or error loading: $iconPath - using default');
           return SvgPicture.asset(
             'icons/category_icons/creativity.svg',
             height: 25,
@@ -53,7 +51,6 @@ class _CategorySelectorState extends State<CategorySelector> {
         },
       );
     } catch (e) {
-      print('Error loading SVG: $iconPath - $e');
       return SvgPicture.asset(
         'icons/category_icons/creativity.svg', // Default icon in case of error
         height: 25,
