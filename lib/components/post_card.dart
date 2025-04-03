@@ -4,19 +4,15 @@ import 'package:comment_tree/widgets/tree_theme_data.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:inzone/all_chats_screen.dart';
-import 'package:inzone/chat_screen.dart';
 import 'package:inzone/components/video_widget.dart';
 import 'package:inzone/config/custom_icons.dart';
 import 'package:inzone/data/comment_class.dart';
 import 'package:inzone/data/inzone_post.dart';
 import 'package:inzone/inzone_database.dart';
-import 'package:inzone/post_screen.dart';
 import 'package:inzone/profile_screen.dart';
 import 'package:random_avatar/random_avatar.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../human_chat_screen.dart';
 
 class PostCard extends StatefulWidget {
   InZonePost post;

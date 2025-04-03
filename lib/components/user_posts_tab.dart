@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:inzone/components/post_card.dart';
 import 'package:inzone/data/inzone_post.dart';
 import 'package:inzone/inzone_database.dart';
-import 'dart:math';
 
 class UserPostsTab extends StatefulWidget {
   final String userId;

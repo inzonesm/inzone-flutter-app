@@ -5,19 +5,11 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:inzone/components/video_player_widget_post_screen.dart';
 import 'package:inzone/inzone_database.dart';
 import 'package:inzone/shared_preferences_helper_class.dart';
-import 'package:video_player/video_player.dart';
 import 'package:action_slider/action_slider.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:lottie/lottie.dart';
-import 'package:http/http.dart' as http;
 import 'auth_work.dart';
-import 'package:ffmpeg_kit_flutter/ffprobe_kit.dart';
-import 'dart:async';
-import 'package:flutter/material.dart';
-import 'package:video_player/video_player.dart';
-import 'package:ffmpeg_kit_flutter/ffmpeg_kit.dart';
-import 'package:ffmpeg_kit_flutter/ffprobe_kit.dart';
 class PostScreen extends StatefulWidget {
   const PostScreen({super.key});
 

@@ -1,16 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:inzone/components/avatar_card.dart';
-import 'package:inzone/components/inzone_searchbar.dart';
 import 'package:inzone/components/post_card.dart';
 import 'package:inzone/data/inzone_avatar.dart';
 import 'package:inzone/inzone_database.dart';
-import 'package:random_avatar/random_avatar.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'dart:math';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:inzone/chat_screen.dart';
-import 'package:inzone/human_chat_screen.dart';
-import 'package:inzone/all_chats_screen.dart';
 import 'package:flutter/services.dart';
 import 'package:inzone/components/base_profile_screen.dart';
 import 'package:inzone/components/user_posts_tab.dart';
