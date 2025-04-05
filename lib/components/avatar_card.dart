@@ -113,7 +113,6 @@ class _AvatarCardState extends State<AvatarCard> {
                       widget.avatar.profilePicture,
                       fit: BoxFit.cover,
                       errorBuilder: (context, error, stackTrace) {
-                        print("Error loading image: ${error.toString()} for ${widget.avatar.profilePicture} ");
                         return Container(
                           color: Colors.grey[300],
                           child: Center(
