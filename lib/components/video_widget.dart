@@ -5,10 +5,8 @@ import 'package:video_player/video_player.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 import 'package:visibility_detector/visibility_detector.dart';
-import 'package:ffmpeg_kit_flutter/ffprobe_kit.dart';
 import 'package:youtube_player_flutter/youtube_player_flutter.dart';
-
-
+import 'package:ffmpeg_kit_flutter_full/ffprobe_kit.dart';
 
 bool _isYoutubeFullscreenActive = false;
 
@@ -46,7 +44,7 @@ class _VideoWidgetState extends State<VideoWidget> {
       _isLoading = true;
       _isPlayable = true;
     });
-    
+
     // Check if URL is a YouTube video
     if (_isYoutubeUrl(widget.videoUrl)) {
       _initializeYoutubePlayer(widget.videoUrl);
@@ -66,7 +64,7 @@ class _VideoWidgetState extends State<VideoWidget> {
 
   void _initializeYoutubePlayer(String url) {
     _youtubeVideoId = _getYoutubeVideoId(url);
-    
+
     if (_youtubeVideoId != null) {
       _youtubePlayerController = YoutubePlayerController(
         initialVideoId: _youtubeVideoId!,
@@ -78,7 +76,7 @@ class _VideoWidgetState extends State<VideoWidget> {
           forceHD: true,
         ),
       );
-      
+
       setState(() {
         _isYoutubeVideo = true;
         _isInitialized = true;
@@ -123,7 +121,7 @@ class _VideoWidgetState extends State<VideoWidget> {
             return stream.getCodec();
           }
         }
-            }
+      }
     } catch (e) {
       print('FFprobe error: $e');
     }
@@ -195,7 +193,7 @@ class _VideoWidgetState extends State<VideoWidget> {
   void _toggleControls() {
     // Don't toggle controls for YouTube videos as they have their own controls
     if (_isYoutubeVideo) return;
-    
+
     setState(() {
       _showControls = !_showControls;
     });
@@ -245,18 +243,20 @@ class _VideoWidgetState extends State<VideoWidget> {
     if (_youtubeVideoId != null && !_isYoutubeFullscreenActive) {
       // Set the global flag to prevent multiple instances
       _isYoutubeFullscreenActive = true;
-      
+
       // Store the current position before navigating
       final Duration currentPosition = _youtubePlayerController!.value.position;
-      
-      Navigator.of(context).push(
+
+      Navigator.of(context)
+          .push(
         MaterialPageRoute(
           builder: (context) => FullscreenYoutubePlayer(
             videoId: _youtubeVideoId!,
             startAt: currentPosition,
           ),
         ),
-      ).then((_) {
+      )
+          .then((_) {
         // Reset the flag when returning from fullscreen
         _isYoutubeFullscreenActive = false;
       });
@@ -278,7 +278,8 @@ class _VideoWidgetState extends State<VideoWidget> {
     } else if (_videoPlayerController != null) {
       aspectRatio = _videoPlayerController!.value.aspectRatio;
     }
-    aspectRatio = defaultWidth / defaultHeight; // Final fallback in case both are null
+    aspectRatio =
+        defaultWidth / defaultHeight; // Final fallback in case both are null
 
     // Show loading indicator
     if (_isLoading) {
@@ -313,7 +314,8 @@ class _VideoWidgetState extends State<VideoWidget> {
         key: Key('youtube-${widget.videoUrl}'),
         onVisibilityChanged: (info) {
           if (mounted && _youtubePlayerController != null) {
-            if (info.visibleFraction == 0 && _youtubePlayerController!.value.isPlaying) {
+            if (info.visibleFraction == 0 &&
+                _youtubePlayerController!.value.isPlaying) {
               _youtubePlayerController!.pause();
             }
           }
@@ -360,7 +362,7 @@ class _VideoWidgetState extends State<VideoWidget> {
       key: Key(widget.videoUrl),
       onVisibilityChanged: (info) {
         if (!mounted) return;
-        
+
         if (info.visibleFraction == 0) {
           if (_useMediaKit && _mediaKitPlayer != null) {
             _mediaKitPlayer!.pause();
@@ -429,28 +431,28 @@ class _VideoWidgetState extends State<VideoWidget> {
   void dispose() {
     // Cancel the timer to prevent setState calls after dispose
     _hideControlsTimer?.cancel();
-    
+
     // Dispose of the YouTube player controller
     if (_youtubePlayerController != null) {
       _youtubePlayerController!.pause();
       _youtubePlayerController!.dispose();
       _youtubePlayerController = null;
     }
-    
+
     // Dispose of the video player controllers
     if (_videoPlayerController != null) {
       _videoPlayerController!.pause();
       _videoPlayerController!.dispose();
       _videoPlayerController = null;
     }
-    
+
     // Dispose of the media kit player
     if (_mediaKitPlayer != null) {
       _mediaKitPlayer!.pause();
       _mediaKitPlayer!.dispose();
       _mediaKitPlayer = null;
     }
-    
+
     super.dispose();
   }
 }
@@ -460,36 +462,38 @@ class FullscreenYoutubePlayer extends StatefulWidget {
   final Duration startAt;
 
   const FullscreenYoutubePlayer({
-    super.key, 
+    super.key,
     required this.videoId,
     required this.startAt,
   });
 
   @override
-  _FullscreenYoutubePlayerState createState() => _FullscreenYoutubePlayerState();
+  _FullscreenYoutubePlayerState createState() =>
+      _FullscreenYoutubePlayerState();
 }
 
-class _FullscreenYoutubePlayerState extends State<FullscreenYoutubePlayer> with WidgetsBindingObserver {
+class _FullscreenYoutubePlayerState extends State<FullscreenYoutubePlayer>
+    with WidgetsBindingObserver {
   late YoutubePlayerController _controller;
 
   @override
   void initState() {
     super.initState();
-    
+
     // Add observer for lifecycle events
     WidgetsBinding.instance.addObserver(this);
-    
+
     // Lock the orientation to landscape
     SystemChrome.setPreferredOrientations([
       DeviceOrientation.landscapeLeft,
       DeviceOrientation.landscapeRight,
     ]);
-    
+
     // Hide status bar
     SystemChrome.setEnabledSystemUIMode(
       SystemUiMode.immersiveSticky,
     );
-    
+
     _controller = YoutubePlayerController(
       initialVideoId: widget.videoId,
       flags: YoutubePlayerFlags(
@@ -501,7 +505,7 @@ class _FullscreenYoutubePlayerState extends State<FullscreenYoutubePlayer> with 
       ),
     );
   }
-  
+
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
@@ -519,7 +523,7 @@ class _FullscreenYoutubePlayerState extends State<FullscreenYoutubePlayer> with 
     await SystemChrome.setEnabledSystemUIMode(
       SystemUiMode.edgeToEdge,
     );
-    
+
     if (mounted && Navigator.of(context).canPop()) {
       Navigator.of(context).pop();
     }
@@ -589,7 +593,7 @@ class _FullscreenYoutubePlayerState extends State<FullscreenYoutubePlayer> with 
   void dispose() {
     // Remove observer
     WidgetsBinding.instance.removeObserver(this);
-    
+
     // Restore orientation and system UI when leaving
     SystemChrome.setPreferredOrientations(DeviceOrientation.values);
     SystemChrome.setEnabledSystemUIMode(

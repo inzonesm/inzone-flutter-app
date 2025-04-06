@@ -4,16 +4,16 @@ import 'package:inzone/components/base_profile_screen.dart';
 import 'package:inzone/components/user_posts_tab.dart';
 import 'package:inzone/components/followers_following_tab.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:inzone/chat_screen.dart';
-import 'package:inzone/human_chat_screen.dart';
-import 'package:inzone/all_chats_screen.dart'; // For ChatUser class
+import 'package:inzone/screen/chat/chat_screen.dart';
+import 'package:inzone/screen/chat/human_chat_screen.dart';
+import 'package:inzone/screen/chat/all_chats_screen.dart'; // For ChatUser class
 
-import 'inzone_database.dart';
+import 'package:inzone/services/inzone_database.dart';
 
 class ProfileScreen extends BaseProfileScreen {
   final String uid;
   final bool isAI;
-  
+
   const ProfileScreen({super.key, required this.uid, this.isAI = false});
 
   @override
@@ -22,19 +22,17 @@ class ProfileScreen extends BaseProfileScreen {
 
 class _ProfileScreenState extends BaseProfileScreenState<ProfileScreen> {
   bool isFollowing = false;
-  
-
 
   @override
   Future<void> fetchUserProfile() async {
     await super.fetchUserProfile();
-    
+
     // Additional profile data specific to viewing another user's profile
     String userId = getUserId();
     if (userId.isEmpty) return;
-    
+
     Map<String, dynamic>? userProfile;
-    
+
     // Use different API endpoints based on whether the user is an AI user or not
     if (widget.isAI) {
       // For AI users, use the AI user profile endpoint
@@ -49,16 +47,13 @@ class _ProfileScreenState extends BaseProfileScreenState<ProfileScreen> {
 
           if (userDoc.exists && userDoc.data() != null) {
             userProfile = userDoc.data() as Map<String, dynamic>;
-          } else {
-          }
-        } catch (e) {
-        }
-      } else {
-      }
+          } else {}
+        } catch (e) {}
+      } else {}
     } else {
       // For human users, use the regular user profile endpoint
       userProfile = await InZoneDatabase.getUserProfile(userId);
-      
+
       // If API fails, try to get profile from Firestore
       if (userProfile == null) {
         try {
@@ -66,25 +61,23 @@ class _ProfileScreenState extends BaseProfileScreenState<ProfileScreen> {
               .collection('humanUsers')
               .doc(userId)
               .get();
-          
+
           if (userDoc.exists && userDoc.data() != null) {
             userProfile = userDoc.data() as Map<String, dynamic>;
-          } else {
-          }
-        } catch (e) {
-        }
+          } else {}
+        } catch (e) {}
       }
     }
-    
+
     if (userProfile != null) {
       // Process followers and following data for the community tab
       List<dynamic> followers = userProfile["followers"] ?? [];
       List<dynamic> following = userProfile["following"] ?? [];
-      
+
       // Convert to the expected format for FollowersFollowingTab
       List<Map<String, dynamic>> formattedFollowers = [];
       List<Map<String, dynamic>> formattedFollowing = [];
-      
+
       // Process followers
       for (var follower in followers) {
         if (follower is Map<String, dynamic>) {
@@ -98,7 +91,8 @@ class _ProfileScreenState extends BaseProfileScreenState<ProfileScreen> {
         } else if (follower is String) {
           // Legacy format - just an ID, try to get the user's profile
           try {
-            Map<String, dynamic>? followerProfile = await InZoneDatabase.getUserProfile(follower);
+            Map<String, dynamic>? followerProfile =
+                await InZoneDatabase.getUserProfile(follower);
             if (followerProfile != null) {
               formattedFollowers.add({
                 'id': follower,
@@ -106,11 +100,10 @@ class _ProfileScreenState extends BaseProfileScreenState<ProfileScreen> {
                 'type': 'human'
               });
             }
-          } catch (e) {
-          }
+          } catch (e) {}
         }
       }
-      
+
       // Process following
       for (var follow in following) {
         if (follow is Map<String, dynamic>) {
@@ -124,7 +117,8 @@ class _ProfileScreenState extends BaseProfileScreenState<ProfileScreen> {
         } else if (follow is String) {
           // Legacy format - just an ID, try to get the user's profile
           try {
-            Map<String, dynamic>? followProfile = await InZoneDatabase.getUserProfile(follow);
+            Map<String, dynamic>? followProfile =
+                await InZoneDatabase.getUserProfile(follow);
             if (followProfile != null) {
               formattedFollowing.add({
                 'id': follow,
@@ -132,20 +126,19 @@ class _ProfileScreenState extends BaseProfileScreenState<ProfileScreen> {
                 'type': 'human'
               });
             }
-          } catch (e) {
-          }
+          } catch (e) {}
         }
       }
-      
+
       setState(() {
         // Access the fields directly from the user data object
         name = userProfile!["Name"] ?? userProfile["name"] ?? "Unknown";
         bio = userProfile["Bio"] ?? userProfile["bio"] ?? "";
-        
+
         // Get followers and following counts from the profile data if available
         followersCount = userProfile["followers_count"] ?? followers.length;
         followingCount = userProfile["following_count"] ?? following.length;
-        
+
         // Update the community tab data
         _communityTabData = {
           "followers": formattedFollowers,
@@ -160,13 +153,12 @@ class _ProfileScreenState extends BaseProfileScreenState<ProfileScreen> {
         followersCount = 0;
         followingCount = 0;
       });
-      
+
       // Show error message to user
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not load user profile'))
-      );
+          const SnackBar(content: Text('Could not load user profile')));
     }
-    
+
     // Check follow status for both human and AI users
     await checkFollowStatus();
   }
@@ -182,7 +174,7 @@ class _ProfileScreenState extends BaseProfileScreenState<ProfileScreen> {
     return [
       // Posts tab
       UserPostsTab(userId: getUserId(), ai: widget.isAI),
-      
+
       // Community tab - Use the processed data
       FollowersFollowingTab(
         userList: _communityTabData,
@@ -194,20 +186,23 @@ class _ProfileScreenState extends BaseProfileScreenState<ProfileScreen> {
   Future<void> checkFollowStatus() async {
     String userId = getUserId();
     if (userId.isEmpty) return;
-    
+
     try {
       String? currentUserId = await InZoneDatabase.getCurrentUserUid();
       if (currentUserId != null && currentUserId != userId) {
         // Get the current user's profile to check who they're following
-        Map<String, dynamic>? currentUserProfile = await InZoneDatabase.getCurrentUserProfile();
-        
-        if (currentUserProfile != null && currentUserProfile.containsKey('following')) {
-          List<dynamic> currentUserFollowing = currentUserProfile['following'] ?? [];
-          
+        Map<String, dynamic>? currentUserProfile =
+            await InZoneDatabase.getCurrentUserProfile();
+
+        if (currentUserProfile != null &&
+            currentUserProfile.containsKey('following')) {
+          List<dynamic> currentUserFollowing =
+              currentUserProfile['following'] ?? [];
+
           setState(() {
             // Check if the profile we're viewing is in the current user's following list
             isFollowing = false;
-            
+
             for (var followedUser in currentUserFollowing) {
               if (followedUser is Map<String, dynamic>) {
                 if (followedUser['id'] == userId) {
@@ -219,7 +214,6 @@ class _ProfileScreenState extends BaseProfileScreenState<ProfileScreen> {
                 break;
               }
             }
-            
           });
         }
       }
@@ -233,10 +227,10 @@ class _ProfileScreenState extends BaseProfileScreenState<ProfileScreen> {
   void toggleFollow() async {
     String userId = getUserId();
     if (userId.isEmpty) return;
-    
+
     bool currentFollowState = isFollowing;
     bool newFollowState = !currentFollowState;
-    
+
     setState(() {
       // Optimistically update UI
       isFollowing = newFollowState;
@@ -246,7 +240,7 @@ class _ProfileScreenState extends BaseProfileScreenState<ProfileScreen> {
         followersCount = followersCount > 0 ? followersCount - 1 : 0;
       }
     });
-    
+
     try {
       bool success;
       if (widget.isAI) {
@@ -259,39 +253,40 @@ class _ProfileScreenState extends BaseProfileScreenState<ProfileScreen> {
       } else {
         // For human users (existing implementation)
         if (newFollowState) {
-          await InZoneDatabase.followUser(userId, await _getCurrentUserName(userId) );
+          await InZoneDatabase.followUser(
+              userId, await _getCurrentUserName(userId));
           success = true;
         } else {
           await InZoneDatabase.unfollowUser(userId);
           success = true;
         }
       }
-      
+
       if (success) {
         // If successful, refresh the profile data to get updated followers/following lists
         String? currentUserId = await InZoneDatabase.getCurrentUserUid();
         if (currentUserId != null) {
           // Get the current user's profile
-          Map<String, dynamic>? currentUserProfile = await InZoneDatabase.getCurrentUserProfile();
-          
-          if (currentUserProfile != null && currentUserProfile.containsKey('following')) {
+          Map<String, dynamic>? currentUserProfile =
+              await InZoneDatabase.getCurrentUserProfile();
+
+          if (currentUserProfile != null &&
+              currentUserProfile.containsKey('following')) {
             // Update the community tab data with the new following list
-            List<dynamic> currentUserFollowing = currentUserProfile['following'] ?? [];
-            
+            List<dynamic> currentUserFollowing =
+                currentUserProfile['following'] ?? [];
+
             // Process the following list
             List<Map<String, dynamic>> formattedFollowing = [];
             for (var followedUser in currentUserFollowing) {
               if (followedUser is Map<String, dynamic>) {
                 formattedFollowing.add(followedUser);
               } else if (followedUser is String) {
-                formattedFollowing.add({
-                  'id': followedUser,
-                  'username': 'User',
-                  'type': 'human'
-                });
+                formattedFollowing.add(
+                    {'id': followedUser, 'username': 'User', 'type': 'human'});
               }
             }
-            
+
             // Update the following list in the community tab data
             setState(() {
               _communityTabData["following"] = formattedFollowing;
@@ -308,10 +303,10 @@ class _ProfileScreenState extends BaseProfileScreenState<ProfileScreen> {
             followersCount = followersCount > 0 ? followersCount - 1 : 0;
           }
         });
-        
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to ${newFollowState ? 'follow' : 'unfollow'} user'))
-        );
+
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(
+                'Failed to ${newFollowState ? 'follow' : 'unfollow'} user')));
       }
     } catch (e) {
       // If there's an error, revert the UI change
@@ -323,11 +318,11 @@ class _ProfileScreenState extends BaseProfileScreenState<ProfileScreen> {
           followersCount = followersCount > 0 ? followersCount - 1 : 0;
         }
       });
-      
+
       // Show error message
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to ${newFollowState ? 'follow' : 'unfollow'} user'))
-      );
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(
+              'Failed to ${newFollowState ? 'follow' : 'unfollow'} user')));
     }
   }
 
@@ -340,20 +335,20 @@ class _ProfileScreenState extends BaseProfileScreenState<ProfileScreen> {
       });
       return;
     }
-    
+
     // Fetch post count from user posts
     List? posts = [];
-    if (isAi){
-       posts = await InZoneDatabase.getAIUserPosts(userId);
+    if (isAi) {
+      posts = await InZoneDatabase.getAIUserPosts(userId);
     } else {
-       posts = await InZoneDatabase.getUserPosts(userId);
+      posts = await InZoneDatabase.getUserPosts(userId);
     }
     if (posts != null) {
       setState(() {
         postCount = posts!.length;
       });
     }
-    
+
     setState(() {
       isLoading = false;
     });
@@ -381,7 +376,8 @@ class _ProfileScreenState extends BaseProfileScreenState<ProfileScreen> {
             style: ElevatedButton.styleFrom(
               backgroundColor: isFollowing ? Colors.white : Colors.blue,
               foregroundColor: isFollowing ? Colors.black : Colors.white,
-              side: isFollowing ? BorderSide(color: Colors.grey.shade300) : null,
+              side:
+                  isFollowing ? BorderSide(color: Colors.grey.shade300) : null,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(20),
               ),
@@ -390,9 +386,9 @@ class _ProfileScreenState extends BaseProfileScreenState<ProfileScreen> {
             child: Text(isFollowing ? 'Following' : 'Follow'),
           ),
         ),
-        
+
         const SizedBox(width: 8),
-        
+
         // Message button is always shown
         Expanded(
           child: OutlinedButton(
@@ -402,13 +398,13 @@ class _ProfileScreenState extends BaseProfileScreenState<ProfileScreen> {
               if (currentUserId == null) {
                 return; // Exit if no user is logged in
               }
-              
+
               // Get the target user ID
               String targetUserId = getUserId();
-              
+
               // Check if the profile is an AI user
-              bool isAiUser = widget.isAI ;
-              
+              bool isAiUser = widget.isAI;
+
               if (isAiUser) {
                 // For AI users, navigate to ChatScreen
                 Navigator.push(
@@ -425,39 +421,40 @@ class _ProfileScreenState extends BaseProfileScreenState<ProfileScreen> {
                 );
               } else {
                 // For human users, create or open conversation
-                
+
                 // Create a consistent conversation ID that's the same for both users
                 // Sort the IDs to ensure the same ID regardless of who initiates
                 List<String> sortedIds = [currentUserId, targetUserId]..sort();
                 String conversationId = "${sortedIds[0]}_${sortedIds[1]}";
-                
+
                 try {
                   // Check if conversation already exists
                   final conversationDoc = await FirebaseFirestore.instance
                       .collection('conversations')
                       .doc(conversationId)
                       .get();
-                  
+
                   if (!conversationDoc.exists) {
                     // Get current user's name
-                    String currentUserName = await _getCurrentUserName(currentUserId);
-                    
+                    String currentUserName =
+                        await _getCurrentUserName(currentUserId);
+
                     // Create new conversation document if it doesn't exist
                     await FirebaseFirestore.instance
                         .collection('conversations')
                         .doc(conversationId)
                         .set({
-                          'participants': [currentUserId, targetUserId],
-                          'participantNames': {
-                            currentUserId: currentUserName,
-                            targetUserId: name,
-                          },
-                          'createdAt': FieldValue.serverTimestamp(),
-                          'lastUpdated': FieldValue.serverTimestamp(),
-                          'lastMessageTime': FieldValue.serverTimestamp(),
-                        });
+                      'participants': [currentUserId, targetUserId],
+                      'participantNames': {
+                        currentUserId: currentUserName,
+                        targetUserId: name,
+                      },
+                      'createdAt': FieldValue.serverTimestamp(),
+                      'lastUpdated': FieldValue.serverTimestamp(),
+                      'lastMessageTime': FieldValue.serverTimestamp(),
+                    });
                   }
-                  
+
                   // Navigate to chat screen
                   Navigator.push(
                     context,
@@ -470,9 +467,9 @@ class _ProfileScreenState extends BaseProfileScreenState<ProfileScreen> {
                     ),
                   );
                 } catch (e) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Failed to open conversation. Please try again.'))
-                  );
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                      content: Text(
+                          'Failed to open conversation. Please try again.')));
                 }
               }
             },
@@ -490,19 +487,19 @@ class _ProfileScreenState extends BaseProfileScreenState<ProfileScreen> {
       ],
     );
   }
-  
+
   // Helper method to get current user's name
   Future<String> _getCurrentUserName(String userId) async {
     String defaultName = "User";
-    
+
     try {
-      Map<String, dynamic>? userProfile = await InZoneDatabase.getUserProfile(userId);
+      Map<String, dynamic>? userProfile =
+          await InZoneDatabase.getUserProfile(userId);
       if (userProfile != null) {
         return userProfile["Name"] ?? userProfile["name"] ?? defaultName;
       }
-    } catch (e) {
-    }
-    
+    } catch (e) {}
+
     return defaultName;
   }
 
@@ -533,13 +530,14 @@ class _ProfileScreenState extends BaseProfileScreenState<ProfileScreen> {
             icon: const Icon(Icons.more_horiz, color: Colors.black),
             onSelected: (value) async {
               if (value == 'remove_follower') {
-                String? currentUserId = await InZoneDatabase.getCurrentUserUid();
+                String? currentUserId =
+                    await InZoneDatabase.getCurrentUserUid();
                 if (currentUserId != null) {
-                  bool success = await InZoneDatabase.removeFromFollowers(getUserId());
+                  bool success =
+                      await InZoneDatabase.removeFromFollowers(getUserId());
                   if (success) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('User removed from your followers'))
-                    );
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                        content: Text('User removed from your followers')));
                     // Refresh the profile data
                     fetchUserProfile();
                   }

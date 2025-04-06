@@ -3,13 +3,14 @@ import 'dart:io';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:inzone/components/video_player_widget_post_screen.dart';
-import 'package:inzone/inzone_database.dart';
-import 'package:inzone/shared_preferences_helper_class.dart';
+import 'package:inzone/services/inzone_database.dart';
+import 'package:inzone/services/shared_preferences_helper_class.dart';
 import 'package:action_slider/action_slider.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:lottie/lottie.dart';
-import 'auth_work.dart';
+import 'package:inzone/auth/auth_work.dart';
+
 class PostScreen extends StatefulWidget {
   const PostScreen({super.key});
 
@@ -18,7 +19,10 @@ class PostScreen extends StatefulWidget {
 }
 
 class _PostScreenState extends State<PostScreen> {
-  List<String> characters = ['Splash', 'Dora']; // List of characters, empty initially
+  List<String> characters = [
+    'Splash',
+    'Dora'
+  ]; // List of characters, empty initially
   String? selectedCharacter;
   bool isImageSelected = false;
   bool doesNotWork = false;
@@ -55,44 +59,35 @@ class _PostScreenState extends State<PostScreen> {
     setState(() => multipleSelected = value);
   }
 
-
   _pickImagefromGallery() async {
     try {
       final pickedImage =
-      await ImagePicker().pickImage(source: ImageSource.gallery);
+          await ImagePicker().pickImage(source: ImageSource.gallery);
       if (pickedImage != null) {
         setState(() {
           imageFile = File(pickedImage.path);
           isImageSelected = true;
         });
-      } else {
-
-      }
-    } catch (e) {
-
-    }
+      } else {}
+    } catch (e) {}
   }
 
   _pickImagefromCamera() async {
     try {
       final pickedImage =
-      await ImagePicker().pickImage(source: ImageSource.camera);
+          await ImagePicker().pickImage(source: ImageSource.camera);
       if (pickedImage != null) {
         setState(() {
           imageFile = File(pickedImage.path);
           isImageSelected = true;
         });
-      } else {
-
-      }
-    } catch (e) {
-
-    }
+      } else {}
+    } catch (e) {}
   }
+
   Future<void> _loadPreferences() async {
     List<String>? list = await SharedPreferencesHelperClass.getStringList();
-    setState(() {
-    });
+    setState(() {});
   }
 
   @override
@@ -101,15 +96,16 @@ class _PostScreenState extends State<PostScreen> {
     super.initState();
     _loadPreferences();
     _startTime = DateTime.now();
-    pageOpened+=1;
-
+    pageOpened += 1;
   }
+
   @override
   void dispose() {
     // TODO: implement dispose
     DateTime endTime = DateTime.now();
     Duration timeSpent = endTime.difference(_startTime);
-    InZoneDatabase.logEvent('post_screen', {"timeSpent" : timeSpent.inSeconds, "pageOpenedCount" : pageOpened});
+    InZoneDatabase.logEvent('post_screen',
+        {"timeSpent": timeSpent.inSeconds, "pageOpenedCount": pageOpened});
 
     super.dispose();
   }
@@ -121,13 +117,12 @@ class _PostScreenState extends State<PostScreen> {
         padding: const EdgeInsets.only(left: 10, right: 10, top: 10),
         height: MediaQuery.of(context).size.height,
         width: MediaQuery.of(context).size.width,
-        decoration:  BoxDecoration(
+        decoration: BoxDecoration(
             color: Theme.of(context).canvasColor,
             borderRadius: const BorderRadius.only(
                 topLeft: Radius.circular(20), topRight: Radius.circular(20))),
         child: Scaffold(
-          backgroundColor:  Theme.of(context).canvasColor,
-
+          backgroundColor: Theme.of(context).canvasColor,
           body: Padding(
             padding: const EdgeInsets.only(bottom: 8.0, left: 8.0, right: 8.0),
             child: Column(
@@ -136,11 +131,16 @@ class _PostScreenState extends State<PostScreen> {
               mainAxisSize: MainAxisSize.max,
               children: [
                 Padding(
-                  padding: const EdgeInsets.only(left: 6.0, right: 6.0, top: 6.0,),
+                  padding: const EdgeInsets.only(
+                    left: 6.0,
+                    right: 6.0,
+                    top: 6.0,
+                  ),
                   child: Center(
                     child: Text(
-
-                      doesNotWork ? "Please rephrase. Your message violates our guideline.":"Your post works well with InZone guidelines",
+                      doesNotWork
+                          ? "Please rephrase. Your message violates our guideline."
+                          : "Your post works well with InZone guidelines",
                       textAlign: TextAlign.center,
                       style: TextStyle(
                           color: doesNotWork ? Colors.red : Colors.blue,
@@ -157,16 +157,14 @@ class _PostScreenState extends State<PostScreen> {
                     alignment: AlignmentDirectional.centerStart,
                     children: [
                       LayoutBuilder(builder:
-                          (BuildContext context,
-                          BoxConstraints constraints) {
+                          (BuildContext context, BoxConstraints constraints) {
                         maxWidth = constraints.maxWidth;
                         return Container(
                           height: 14,
                           width: double.infinity,
                           margin: const EdgeInsets.all(8.0),
                           decoration: BoxDecoration(
-                            borderRadius:
-                            BorderRadius.circular(30),
+                            borderRadius: BorderRadius.circular(30),
                             gradient: const LinearGradient(
                               colors: [
                                 Color(0xffff8d6c),
@@ -185,9 +183,8 @@ class _PostScreenState extends State<PostScreen> {
                             left: maxWidth * maxMovable * moveValue),
                         decoration: BoxDecoration(
                             border: Border.all(
-                                color:  Theme.of(context).canvasColor),
-                            borderRadius:
-                            BorderRadius.circular(30),
+                                color: Theme.of(context).canvasColor),
+                            borderRadius: BorderRadius.circular(30),
                             color: Colors.white),
                         duration: const Duration(seconds: 1),
                         // transform:  (Matrix4.identity() + Matrix4.rotationZ(math.pi / 4))
@@ -196,10 +193,10 @@ class _PostScreenState extends State<PostScreen> {
                   ),
                 ),
 
-
-
                 //  const Divider(),
-                const SizedBox(height: 10,),
+                const SizedBox(
+                  height: 10,
+                ),
                 TextField(
                   maxLines: 3, // Set maxLines to null for multiline
                   textInputAction: TextInputAction.send,
@@ -215,11 +212,10 @@ class _PostScreenState extends State<PostScreen> {
                     contentPadding: const EdgeInsets.only(
                         bottom: 8.0), // Adjust padding as needed
                   ),
-                  onChanged: (value){
+                  onChanged: (value) {
                     setState(() {
                       postContent = value;
                     });
-
                   },
                   onEditingComplete: () {
                     setState(() {
@@ -238,12 +234,13 @@ class _PostScreenState extends State<PostScreen> {
                   },
                   onTap: () {
                     setState(() {
-
                       isTyping = true;
                     });
                   },
                 ),
-                const SizedBox(height: 2,),
+                const SizedBox(
+                  height: 2,
+                ),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
@@ -261,7 +258,10 @@ class _PostScreenState extends State<PostScreen> {
                           setState(() {
                             isUploading = true;
                           });
-                          await AuthWork.sendPostImage(FirebaseAuth.instance.currentUser!.uid , File(image.path)).then((value) {
+                          await AuthWork.sendPostImage(
+                                  FirebaseAuth.instance.currentUser!.uid,
+                                  File(image.path))
+                              .then((value) {
                             imageUrl = value;
                           });
                           // Navigator.pop(context);
@@ -276,18 +276,21 @@ class _PostScreenState extends State<PostScreen> {
                         size: 28,
                       ),
                     ),
-
                     IconButton(
                       onPressed: () async {
                         final ImagePicker picker = ImagePicker();
                         // Pick a video
                         final XFile? video = await picker.pickVideo(
-                            source: ImageSource.gallery, maxDuration: const Duration(minutes: 5));
+                            source: ImageSource.gallery,
+                            maxDuration: const Duration(minutes: 5));
                         if (video != null) {
                           setState(() {
                             isUploading = true;
                           });
-                          await AuthWork.sendPostVideo(FirebaseAuth.instance.currentUser!.uid , File(video.path)).then((value){
+                          await AuthWork.sendPostVideo(
+                                  FirebaseAuth.instance.currentUser!.uid,
+                                  File(video.path))
+                              .then((value) {
                             videoUrl = value["videoUrl"]!;
                             thumbnailUrl = value["thumbnailUrl"]!;
                           });
@@ -302,8 +305,6 @@ class _PostScreenState extends State<PostScreen> {
                         size: 28,
                       ),
                     ),
-
-
                     IconButton(
                       onPressed: () async {
                         final ImagePicker picker = ImagePicker();
@@ -318,7 +319,10 @@ class _PostScreenState extends State<PostScreen> {
                           setState(() {
                             isUploading = true;
                           });
-                          await AuthWork.sendPostImage(FirebaseAuth.instance.currentUser!.uid , File(image.path)).then((value) {
+                          await AuthWork.sendPostImage(
+                                  FirebaseAuth.instance.currentUser!.uid,
+                                  File(image.path))
+                              .then((value) {
                             imageUrl = value;
                           });
                           // Navigator.pop(context);
@@ -336,58 +340,60 @@ class _PostScreenState extends State<PostScreen> {
                   ],
                 ),
 
-                const SizedBox(height: 10,),
+                const SizedBox(
+                  height: 10,
+                ),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.start,
                   children: [
                     imageUrl == ""
                         ? const SizedBox(
-                      height: 5,
-                    )
+                            height: 5,
+                          )
                         : Padding(
-                      padding: const EdgeInsets.all(8.0),
-                      child: Stack(
-                        children: [
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(20.0),
-                            child: Image(
-                              height: 140,
-                              width: 140,
-                              fit: BoxFit.cover,
-                              image: NetworkImage(imageUrl),
+                            padding: const EdgeInsets.all(8.0),
+                            child: Stack(
+                              children: [
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(20.0),
+                                  child: Image(
+                                    height: 140,
+                                    width: 140,
+                                    fit: BoxFit.cover,
+                                    image: NetworkImage(imageUrl),
+                                  ),
+                                ),
+                                Positioned(
+                                  top: 5,
+                                  right: 5,
+                                  child: GestureDetector(
+                                    onTap: () async {
+                                      try {
+                                        // Delete from Firebase Storage
+                                        await AuthWork.deletePostImage(
+                                            imageUrl);
+                                        setState(() {
+                                          imageUrl = "";
+                                        });
+                                      } catch (e) {}
+                                    },
+                                    child: Container(
+                                      padding: const EdgeInsets.all(4),
+                                      decoration: BoxDecoration(
+                                        color: Colors.black.withOpacity(0.5),
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: const Icon(
+                                        Icons.close,
+                                        color: Colors.white,
+                                        size: 20,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
-                          Positioned(
-                            top: 5,
-                            right: 5,
-                            child: GestureDetector(
-                              onTap: () async {
-                                try {
-                                  // Delete from Firebase Storage
-                                  await AuthWork.deletePostImage(imageUrl);
-                                  setState(() {
-                                    imageUrl = "";
-                                  });
-                                } catch (e) {
-                                }
-                              },
-                              child: Container(
-                                padding: const EdgeInsets.all(4),
-                                decoration: BoxDecoration(
-                                  color: Colors.black.withOpacity(0.5),
-                                  shape: BoxShape.circle,
-                                ),
-                                child: const Icon(
-                                  Icons.close,
-                                  color: Colors.white,
-                                  size: 20,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
                     if (videoUrl.isNotEmpty || isUploading)
                       Padding(
                         padding: const EdgeInsets.all(8.0),
@@ -402,7 +408,9 @@ class _PostScreenState extends State<PostScreen> {
                                     Navigator.push(
                                       context,
                                       MaterialPageRoute(
-                                        builder: (context) => VideoPlayerWidgetPostScreen(videoUrl),
+                                        builder: (context) =>
+                                            VideoPlayerWidgetPostScreen(
+                                                videoUrl),
                                       ),
                                     );
                                   },
@@ -413,14 +421,17 @@ class _PostScreenState extends State<PostScreen> {
                                         width: 140,
                                         fit: BoxFit.fill,
                                         imageUrl: thumbnailUrl,
-                                        placeholder: (context, url) => const Center(
+                                        placeholder: (context, url) =>
+                                            const Center(
                                           child: CircularProgressIndicator(),
                                         ),
-                                        errorWidget: (context, url, error) => const SizedBox(),
+                                        errorWidget: (context, url, error) =>
+                                            const SizedBox(),
                                       ),
                                       const Positioned.fill(
                                         child: Center(
-                                          child: Icon(Icons.play_arrow, size: 50, color: Colors.white),
+                                          child: Icon(Icons.play_arrow,
+                                              size: 50, color: Colors.white),
                                         ),
                                       ),
                                       Positioned(
@@ -430,18 +441,19 @@ class _PostScreenState extends State<PostScreen> {
                                           onTap: () async {
                                             try {
                                               // Delete video and thumbnail from Firebase Storage
-                                              await AuthWork.deletePostVideo(videoUrl, thumbnailUrl);
+                                              await AuthWork.deletePostVideo(
+                                                  videoUrl, thumbnailUrl);
                                               setState(() {
                                                 videoUrl = "";
                                                 thumbnailUrl = "";
                                               });
-                                            } catch (e) {
-                                            }
+                                            } catch (e) {}
                                           },
                                           child: Container(
                                             padding: const EdgeInsets.all(4),
                                             decoration: BoxDecoration(
-                                              color: Colors.black.withOpacity(0.5),
+                                              color:
+                                                  Colors.black.withOpacity(0.5),
                                               shape: BoxShape.circle,
                                             ),
                                             child: const Icon(
@@ -468,15 +480,15 @@ class _PostScreenState extends State<PostScreen> {
 
                 // Images
 
-                const SizedBox(height: 5,),
+                const SizedBox(
+                  height: 5,
+                ),
                 const Spacer(flex: 3),
-
 
                 Align(
                   alignment: Alignment.bottomCenter,
                   child: SizedBox(
                     width: double.infinity,
-
                     child: ActionSlider.standard(
                       rolling: false,
                       backgroundColor: Colors.blue,
@@ -496,12 +508,13 @@ class _PostScreenState extends State<PostScreen> {
                         }
 
                         controller.loading();
-                        
+
                         try {
                           // First analyze sentiment
-                          var analysis = await InZoneDatabase.analyzeSentiment(postContent);
+                          var analysis = await InZoneDatabase.analyzeSentiment(
+                              postContent);
                           // Debug print
-                          
+
                           int sentiment = analysis["sentiment"] as int;
                           setState(() {
                             if (sentiment == -1) {
@@ -521,7 +534,7 @@ class _PostScreenState extends State<PostScreen> {
                             controller.reset();
                             return;
                           }
-                          
+
                           // Only proceed with post creation if sentiment is 0 or 1
                           if (sentiment >= 0) {
                             // Create a human post
@@ -530,9 +543,9 @@ class _PostScreenState extends State<PostScreen> {
                               imageRefs: [imageUrl],
                               videoRefs: [videoUrl],
                             );
-                            
+
                             // Debug print
-                            
+
                             if (!result["success"]) {
                               controller.reset();
                               return;
@@ -543,39 +556,41 @@ class _PostScreenState extends State<PostScreen> {
                             Navigator.pop(context);
 
                             showDialog(
-                              context: context,
-                              builder: (_) {
-                                _timer = Timer(const Duration(seconds: 1), () {
-                                  Navigator.of(_).pop();
-                                });
-                                return Dialog(
-                                  backgroundColor: Colors.transparent,
-                                  child: Stack(
-                                    children: [
-                                      RotatedBox(
-                                        quarterTurns: 2,
-                                        child: SizedBox(
-                                          height: MediaQuery.of(context).size.height,
-                                          width: MediaQuery.of(context).size.width,
-                                          child: Lottie.asset("assets/animations/confetti.json")
+                                context: context,
+                                builder: (_) {
+                                  _timer =
+                                      Timer(const Duration(seconds: 1), () {
+                                    Navigator.of(_).pop();
+                                  });
+                                  return Dialog(
+                                    backgroundColor: Colors.transparent,
+                                    child: Stack(
+                                      children: [
+                                        RotatedBox(
+                                          quarterTurns: 2,
+                                          child: SizedBox(
+                                              height: MediaQuery.of(context)
+                                                  .size
+                                                  .height,
+                                              width: MediaQuery.of(context)
+                                                  .size
+                                                  .width,
+                                              child: Lottie.asset(
+                                                  "assets/animations/confetti.json")),
                                         ),
-                                      ),
-                                      const Align(
-                                        alignment: Alignment.center,
-                                        child: Text(
-                                          "Post Successful",
-                                          style: TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 25,
-                                            fontWeight: FontWeight.w400
-                                          ),
-                                        )
-                                      )
-                                    ],
-                                  ),
-                                );
-                              }
-                            ).then((value) {
+                                        const Align(
+                                            alignment: Alignment.center,
+                                            child: Text(
+                                              "Post Successful",
+                                              style: TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 25,
+                                                  fontWeight: FontWeight.w400),
+                                            ))
+                                      ],
+                                    ),
+                                  );
+                                }).then((value) {
                               if (_timer.isActive) {
                                 _timer.cancel();
                               }
@@ -590,7 +605,9 @@ class _PostScreenState extends State<PostScreen> {
                     ),
                   ),
                 ),
-                const Spacer(flex: 1,),
+                const Spacer(
+                  flex: 1,
+                ),
               ],
             ),
           ),

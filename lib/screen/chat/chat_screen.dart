@@ -1,10 +1,10 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:inzone/all_chats_screen.dart';
 import 'package:inzone/config/custom_icons.dart';
-import 'package:inzone/inzone_database.dart';
-import 'package:inzone/post_chat_screen.dart';
+import 'package:inzone/services/inzone_database.dart';
+import 'package:inzone/screen/chat/all_chats_screen.dart';
+import 'package:inzone/screen/chat/post_chat_screen.dart';
 import 'package:random_avatar/random_avatar.dart';
 
 class ChatScreen extends StatefulWidget {
@@ -79,7 +79,8 @@ class _ChatScreenState extends State<ChatScreen> {
             },
           ),
           title: Text(widget.userData.name!,
-              style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w700)),
+              style:
+                  const TextStyle(fontSize: 26, fontWeight: FontWeight.w700)),
         ),
       ),
       body: SafeArea(
@@ -118,21 +119,27 @@ class _ChatScreenState extends State<ChatScreen> {
                             ),
                             const SizedBox(height: 20),
 
-                            widget.userData.profilePictureURL == null ? RandomAvatar(widget.userData.name!,
-                                width: 200, height: 200) : Padding(
-                              padding: const EdgeInsets.only(right: 5.0,left: 5),
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(200.0),
-                                child: Image.network(
-                                  widget.userData.profilePictureURL!,
-                                  fit: BoxFit.fitWidth,
-                                  width: MediaQuery.of(context).size.width - 60,
-                                  errorBuilder: (context, object, st) {
-                                    return const SizedBox();
-                                  },
-                                ),
-                              ),
-                            ),
+                            widget.userData.profilePictureURL == null
+                                ? RandomAvatar(widget.userData.name!,
+                                    width: 200, height: 200)
+                                : Padding(
+                                    padding: const EdgeInsets.only(
+                                        right: 5.0, left: 5),
+                                    child: ClipRRect(
+                                      borderRadius:
+                                          BorderRadius.circular(200.0),
+                                      child: Image.network(
+                                        widget.userData.profilePictureURL!,
+                                        fit: BoxFit.fitWidth,
+                                        width:
+                                            MediaQuery.of(context).size.width -
+                                                60,
+                                        errorBuilder: (context, object, st) {
+                                          return const SizedBox();
+                                        },
+                                      ),
+                                    ),
+                                  ),
                             const SizedBox(height: 20),
                             // Text(
                             //   textAlign: TextAlign.center,
@@ -228,7 +235,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 if (kDebugMode) {
                   print("Chat id not found.");
                 }
-  
+
                 aiResponse = await InZoneDatabase.sendMessageToAI(
                     userMessage, widget.userData.email!, null);
               }
@@ -272,10 +279,12 @@ class _ChatScreenState extends State<ChatScreen> {
                 borderRadius: BorderRadius.only(
                   topLeft: const Radius.circular(18),
                   topRight: const Radius.circular(18),
-                  bottomRight:
-                      isMe ? const Radius.circular(18) : const Radius.circular(0),
-                  bottomLeft:
-                      isMe ? const Radius.circular(0) : const Radius.circular(18),
+                  bottomRight: isMe
+                      ? const Radius.circular(18)
+                      : const Radius.circular(0),
+                  bottomLeft: isMe
+                      ? const Radius.circular(0)
+                      : const Radius.circular(18),
                 ),
               ),
               child: Text(

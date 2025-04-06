@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:inzone/components/post_card.dart';
 import 'package:inzone/data/inzone_post.dart';
-import 'package:inzone/inzone_database.dart';
+import 'package:inzone/services/inzone_database.dart';
 
 class UserPostsTab extends StatefulWidget {
   final String userId;
   final bool ai;
-  
+
   const UserPostsTab({super.key, required this.userId, required this.ai});
 
   @override
@@ -25,24 +25,22 @@ class _UserPostsTabState extends State<UserPostsTab> {
 
   Future<void> fetchUserPosts() async {
     if (!mounted) return; // Check if widget is still mounted before proceeding
-    
+
     setState(() {
       isLoading = true;
     });
 
     try {
       List? posts = [];
-      if (widget.ai){
-         posts = await InZoneDatabase.getAIUserPosts(widget.userId);
+      if (widget.ai) {
+        posts = await InZoneDatabase.getAIUserPosts(widget.userId);
       } else {
-         posts = await InZoneDatabase.getUserPosts(widget.userId);
+        posts = await InZoneDatabase.getUserPosts(widget.userId);
       }
 
-      
       if (!mounted) return; // Check again after the async operation
-      
-      if (posts != null && posts.isNotEmpty) {
 
+      if (posts != null && posts.isNotEmpty) {
         setState(() {
           // Convert each post JSON to a PostCard widget
           postWidgets = [];
@@ -53,28 +51,23 @@ class _UserPostsTabState extends State<UserPostsTab> {
               if (postJson == null) {
                 continue;
               }
-              
+
               // Create an InZonePost from the JSON
               final post = InZonePost.fromJson(postJson);
-              
+
               // Return a PostCard widget
-              postWidgets.add(
-                PostCard(
-                  post: post,
-                  showHue: false,
-                  onTap: (postId) {
-                  },
-                )
-              );
-            } catch (e) {
-            }
+              postWidgets.add(PostCard(
+                post: post,
+                showHue: false,
+                onTap: (postId) {},
+              ));
+            } catch (e) {}
           }
         });
-      } else {
-      }
-    } catch (e) {
+      } else {}
     } finally {
-      if (mounted) { // Check if still mounted before final setState
+      if (mounted) {
+        // Check if still mounted before final setState
         setState(() {
           isLoading = false;
         });
@@ -113,4 +106,4 @@ class _UserPostsTabState extends State<UserPostsTab> {
       ),
     );
   }
-} 
+}

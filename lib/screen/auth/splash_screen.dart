@@ -1,11 +1,11 @@
 import 'package:animated_splash_screen/animated_splash_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:inzone/introduction_screen.dart';
+import 'package:inzone/screen/auth/introduction_screen.dart';
 import 'package:inzone/root_app.dart';
 
 class SplashScreen extends StatelessWidget {
-    bool loggedIn;
+  bool loggedIn;
   SplashScreen({super.key, required this.loggedIn});
 
   @override
@@ -21,7 +21,7 @@ class SplashScreen extends StatelessWidget {
         ],
       ),
       backgroundColor: Theme.of(context).canvasColor,
-     nextScreen: loggedIn ? const RootApp() : const IntroductionScreen(),
+      nextScreen: loggedIn ? const RootApp() : const IntroductionScreen(),
     );
   }
 }

@@ -2,14 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:inzone/components/avatar_card.dart';
 import 'package:inzone/components/post_card.dart';
 import 'package:inzone/data/inzone_avatar.dart';
-import 'package:inzone/inzone_database.dart';
+import 'package:inzone/services/inzone_database.dart';
 import 'package:flutter/services.dart';
 import 'package:inzone/components/base_profile_screen.dart';
 import 'package:inzone/components/user_posts_tab.dart';
 import 'package:inzone/components/followers_following_tab.dart';
-import 'package:inzone/edit_profile_screen.dart';
+import 'package:inzone/screen/profile/edit_profile_screen.dart';
 
-import 'data/inzone_post.dart';
+import 'package:inzone/data/inzone_post.dart';
 
 class UserProfileScreen extends BaseProfileScreen {
   const UserProfileScreen({super.key});
@@ -18,7 +18,8 @@ class UserProfileScreen extends BaseProfileScreen {
   State<UserProfileScreen> createState() => _UserProfileScreenState();
 }
 
-class _UserProfileScreenState extends BaseProfileScreenState<UserProfileScreen> {
+class _UserProfileScreenState
+    extends BaseProfileScreenState<UserProfileScreen> {
   String? currentUserId;
   // Store the community tab data
   Map<String, List<Map<String, dynamic>>> _communityTabData = {
@@ -68,7 +69,10 @@ class _UserProfileScreenState extends BaseProfileScreenState<UserProfileScreen> 
       ];
     }
     return [
-      UserPostsTab(userId: currentUserId!, ai: false,),
+      UserPostsTab(
+        userId: currentUserId!,
+        ai: false,
+      ),
       FollowersFollowingTab(
         userList: _communityTabData,
         userId: currentUserId!,
@@ -137,17 +141,18 @@ class _UserProfileScreenState extends BaseProfileScreenState<UserProfileScreen> 
   Future<void> fetchUserProfile() async {
     // Do nothing, we're handling this in _getCurrentUserId
     if (currentUserId == null) return;
-    
-    Map<String, dynamic>? userProfile = await InZoneDatabase.getUserProfile(currentUserId!);
+
+    Map<String, dynamic>? userProfile =
+        await InZoneDatabase.getUserProfile(currentUserId!);
     if (userProfile != null) {
       // Process followers and following data for the community tab
       List<dynamic> followers = userProfile["followers"] ?? [];
       List<dynamic> following = userProfile["following"] ?? [];
-      
+
       // Convert to the expected format for FollowersFollowingTab
       List<Map<String, dynamic>> formattedFollowers = [];
       List<Map<String, dynamic>> formattedFollowing = [];
-      
+
       // Process followers
       for (var follower in followers) {
         if (follower is Map<String, dynamic>) {
@@ -161,7 +166,8 @@ class _UserProfileScreenState extends BaseProfileScreenState<UserProfileScreen> 
         } else if (follower is String) {
           // Legacy format - just an ID, try to get the user's profile
           try {
-            Map<String, dynamic>? followerProfile = await InZoneDatabase.getUserProfile(follower);
+            Map<String, dynamic>? followerProfile =
+                await InZoneDatabase.getUserProfile(follower);
             if (followerProfile != null) {
               formattedFollowers.add({
                 'id': follower,
@@ -169,11 +175,10 @@ class _UserProfileScreenState extends BaseProfileScreenState<UserProfileScreen> 
                 'type': 'human'
               });
             }
-          } catch (e) {
-          }
+          } catch (e) {}
         }
       }
-      
+
       // Process following
       for (var follow in following) {
         if (follow is Map<String, dynamic>) {
@@ -187,7 +192,8 @@ class _UserProfileScreenState extends BaseProfileScreenState<UserProfileScreen> 
         } else if (follow is String) {
           // Legacy format - just an ID, try to get the user's profile
           try {
-            Map<String, dynamic>? followProfile = await InZoneDatabase.getUserProfile(follow);
+            Map<String, dynamic>? followProfile =
+                await InZoneDatabase.getUserProfile(follow);
             if (followProfile != null) {
               formattedFollowing.add({
                 'id': follow,
@@ -195,28 +201,26 @@ class _UserProfileScreenState extends BaseProfileScreenState<UserProfileScreen> 
                 'type': 'human'
               });
             }
-          } catch (e) {
-          }
+          } catch (e) {}
         }
       }
-      
+
       setState(() {
         // Access the fields directly from the user data object
         name = userProfile["Name"] ?? userProfile["name"] ?? "Unknown";
         bio = userProfile["Bio"] ?? userProfile["bio"] ?? "";
-        
+
         // Get followers and following counts from the profile data
         followersCount = userProfile["followers_count"] ?? followers.length;
         followingCount = userProfile["following_count"] ?? following.length;
-        
+
         // Update the community tab data
         _communityTabData = {
           "followers": formattedFollowers,
           "following": formattedFollowing
         };
       });
-    } else {
-    }
+    } else {}
   }
 
   @override
@@ -262,7 +266,6 @@ class _PersonalFeedScreenState extends State<PersonalFeedScreen> {
       } else {
         throw Exception('Invalid response structure');
       }
-    } catch (e) {
     } finally {
       setState(() {
         isLoading = false; // End loading
@@ -276,8 +279,7 @@ class _PersonalFeedScreenState extends State<PersonalFeedScreen> {
       posts.add(PostCard(
         post: post,
         showHue: false,
-        onTap: (postId) {
-        },
+        onTap: (postId) {},
       ));
     }
     setState(() {
@@ -295,15 +297,15 @@ class _PersonalFeedScreenState extends State<PersonalFeedScreen> {
   Widget build(BuildContext context) {
     return isLoading
         ? const Center(
-      child: CircularProgressIndicator(), // Show loading indicator
-    )
+            child: CircularProgressIndicator(), // Show loading indicator
+          )
         : Expanded(
-      child: SingleChildScrollView(
-        child: Column(
-          children: posts, // Display posts once loaded
-        ),
-      ),
-    );
+            child: SingleChildScrollView(
+              child: Column(
+                children: posts, // Display posts once loaded
+              ),
+            ),
+          );
   }
 }
 
@@ -344,13 +346,13 @@ class _LikedScreenState extends State<LikedScreen> {
       } else {
         throw Exception('Invalid response structure');
       }
-    } catch (e) {
     } finally {
       setState(() {
         isLoading = false; // End loading
       });
     }
   }
+
   void _addPostsToScreen(List<dynamic> fetchedPosts) async {
     // Limit the posts to a maximum of 10
     final limitedPosts = fetchedPosts.take(10).toList();
@@ -359,10 +361,8 @@ class _LikedScreenState extends State<LikedScreen> {
       InZonePost post = InZonePost.fromJson(postJson);
       posts.add(PostCard(
         post: post,
-        showHue: false
-        ,
-        onTap: (postId) {
-        },
+        showHue: false,
+        onTap: (postId) {},
       ));
     }
 
@@ -381,19 +381,19 @@ class _LikedScreenState extends State<LikedScreen> {
   Widget build(BuildContext context) {
     return isLoading
         ? const Align(
-      alignment: Alignment.center,
-          child: Center(
-                child: CircularProgressIndicator(), // Show loading indicator
-              ),
-        )
+            alignment: Alignment.center,
+            child: Center(
+              child: CircularProgressIndicator(), // Show loading indicator
+            ),
+          )
         : Expanded(
-      child: SingleChildScrollView(
-        child: Wrap(
-          spacing: 10, // Horizontal space between items
-          runSpacing: 10, // Vertical space between rows
-          children: avatarCards, // Use your avatar cards list here
-        ),
-      ),
-    );
+            child: SingleChildScrollView(
+              child: Wrap(
+                spacing: 10, // Horizontal space between items
+                runSpacing: 10, // Vertical space between rows
+                children: avatarCards, // Use your avatar cards list here
+              ),
+            ),
+          );
   }
 }

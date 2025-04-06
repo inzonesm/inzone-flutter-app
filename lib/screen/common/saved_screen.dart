@@ -6,8 +6,8 @@ import 'package:inzone/components/avatar_card.dart';
 import 'package:inzone/components/post_card.dart';
 import 'package:shimmer/shimmer.dart';
 
-import 'data/inzone_post.dart';
-import 'inzone_database.dart';
+import 'package:inzone/data/inzone_post.dart';
+import 'package:inzone/services/inzone_database.dart';
 
 class SavedScreen extends StatefulWidget {
   const SavedScreen({super.key});
@@ -50,7 +50,6 @@ class _SavedScreenState extends State<SavedScreen> {
 
       // Process saved posts - add each one to the list
       for (var post in savedPosts) {
-
         // Add the post widget to the list with padding
         posts.add(
           Padding(
@@ -60,25 +59,23 @@ class _SavedScreenState extends State<SavedScreen> {
               child: PostCard(
                 post: post,
                 showHue: false,
-                onTap: (postId) {
-                },
+                onTap: (postId) {},
               ),
             ),
           ),
         );
 
         // Add unique categories
-        if (!categoriesList.contains(post.category) && post.category.isNotEmpty) {
+        if (!categoriesList.contains(post.category) &&
+            post.category.isNotEmpty) {
           categoriesList.add(post.category);
         }
       }
-
 
       // Stop loading and update UI sys
       setState(() {
         isLoading = false;
       });
-      
     } catch (e) {
       // Handle errors
       setState(() {
@@ -108,6 +105,7 @@ class _SavedScreenState extends State<SavedScreen> {
     super.initState();
     getSavedPosts();
   }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -125,9 +123,9 @@ class _SavedScreenState extends State<SavedScreen> {
           onRefresh: () async {
             await getSavedPosts(); // Refresh saved posts
           },
-          child: isLoading 
+          child: isLoading
               ? _buildLoadingState()
-              : posts.isEmpty 
+              : posts.isEmpty
                   ? _buildEmptyState()
                   : _buildPostsList(),
         ),
@@ -197,52 +195,57 @@ class _SavedScreenState extends State<SavedScreen> {
           children: [
             // Top spacing
             const SizedBox(height: 16),
-            
+
             // Display all posts
             ...posts,
-            
+
             // Add spacing
             const SizedBox(height: 20),
-            
+
             // Clear List button
             ElevatedButton(
               onPressed: () async {
                 // Show confirmation dialog
                 bool confirm = await showDialog(
-                  context: context,
-                  builder: (context) => AlertDialog(
-                    title: const Text("Clear All Saved Posts?"),
-                    content: const Text("This will remove all your saved posts. This action cannot be undone."),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.of(context).pop(false),
-                        child: const Text("Cancel"),
+                      context: context,
+                      builder: (context) => AlertDialog(
+                        title: const Text("Clear All Saved Posts?"),
+                        content: const Text(
+                            "This will remove all your saved posts. This action cannot be undone."),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.of(context).pop(false),
+                            child: const Text("Cancel"),
+                          ),
+                          TextButton(
+                            onPressed: () => Navigator.of(context).pop(true),
+                            child: const Text("Clear All",
+                                style: TextStyle(color: Colors.red)),
+                          ),
+                        ],
                       ),
-                      TextButton(
-                        onPressed: () => Navigator.of(context).pop(true),
-                        child: const Text("Clear All", style: TextStyle(color: Colors.red)),
-                      ),
-                    ],
-                  ),
-                ) ?? false;
-                
+                    ) ??
+                    false;
+
                 if (confirm) {
                   // Clear all saved posts
-                  SharedPreferences prefs = await SharedPreferences.getInstance();
+                  SharedPreferences prefs =
+                      await SharedPreferences.getInstance();
                   await prefs.setString('likedPostDetails', '{}');
-                  
+
                   // Show confirmation
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text("All saved posts cleared")),
                   );
-                  
+
                   // Refresh the screen
                   getSavedPosts();
                 }
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.blue,
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
               ),
               child: const Text(
                 "Clear List",
@@ -252,7 +255,7 @@ class _SavedScreenState extends State<SavedScreen> {
                 ),
               ),
             ),
-            
+
             // Bottom spacing
             const SizedBox(height: 20),
           ],

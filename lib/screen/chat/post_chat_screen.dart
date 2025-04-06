@@ -3,26 +3,27 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:inzone/config/custom_icons.dart';
 import 'package:inzone/data/comment_class.dart';
 import 'package:inzone/data/inzone_post.dart';
-import 'package:inzone/inzone_database.dart';
+import 'package:inzone/services/inzone_database.dart';
 import 'package:random_avatar/random_avatar.dart';
 
 class PostChatScreen extends StatefulWidget {
-String name;
-String? profileImageURL;
-String chat;
-String avatarID;
+  String name;
+  String? profileImageURL;
+  String chat;
+  String avatarID;
 
-
-   PostChatScreen({super.key, required this.name, required this.profileImageURL, required this.chat, required this.avatarID});
-
+  PostChatScreen(
+      {super.key,
+      required this.name,
+      required this.profileImageURL,
+      required this.chat,
+      required this.avatarID});
 
   @override
   State<PostChatScreen> createState() => _PostChatScreenState();
 }
 
-
 class _PostChatScreenState extends State<PostChatScreen> {
-
   late DateTime _startTime; // To store the start time
   int pageOpened = 0;
   String? postContent;
@@ -34,45 +35,49 @@ class _PostChatScreenState extends State<PostChatScreen> {
   double maxMovable = 0.928;
   bool doesNotWork = false;
 
-  void setPostContent(String postContentF){
-  postContent = postContentF;
-}
+  void setPostContent(String postContentF) {
+    postContent = postContentF;
+  }
+
   @override
   void initState() {
     // TODO: implement initState
     super.initState();
     _startTime = DateTime.now();
-    pageOpened+=1;
+    pageOpened += 1;
   }
 
   @override
   void dispose() {
-
     DateTime endTime = DateTime.now();
     Duration timeSpent = endTime.difference(_startTime);
-    InZoneDatabase.logEvent('post_chat_screen', {"timeSpent" : timeSpent.inSeconds, "pageOpenedCount" : pageOpened});
+    InZoneDatabase.logEvent('post_chat_screen',
+        {"timeSpent": timeSpent.inSeconds, "pageOpenedCount": pageOpened});
 
     super.dispose();
   }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-        resizeToAvoidBottomInset: true, // Allows the view to resize with keyboard
+        resizeToAvoidBottomInset:
+            true, // Allows the view to resize with keyboard
 
         appBar: AppBar(
           elevation: 0, // No shadow/elevation
           backgroundColor: Colors.transparent, // Blend with background
           leading: const BackButton(), // Default back button
-          title: const  Text("Share this chat"),
+          title: const Text("Share this chat"),
           actions: [
             TextButton(
               onPressed: () async {
-                if(postContent != null && postContent!.isNotEmpty) {
+                if (postContent != null && postContent!.isNotEmpty) {
                   try {
                     // First analyze sentiment
-                    final analysis = await InZoneDatabase.analyzeSentiment(postContent!);
+                    final analysis =
+                        await InZoneDatabase.analyzeSentiment(postContent!);
                     // Debug print
-                    
+
                     // Update state before proceeding with post creation
                     int sentiment = analysis["sentiment"] as int;
                     setState(() {
@@ -92,7 +97,8 @@ class _PostChatScreenState extends State<PostChatScreen> {
                     if (sentiment == -1) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
-                          content: Text('Your post contains inappropriate content. Please revise and try again.'),
+                          content: Text(
+                              'Your post contains inappropriate content. Please revise and try again.'),
                           backgroundColor: Colors.red,
                         ),
                       );
@@ -109,13 +115,14 @@ class _PostChatScreenState extends State<PostChatScreen> {
                       imageRefs: [],
                       videoRefs: [],
                     );
-                    
+
                     // Debug print
-                    
+
                     if (!result["success"]) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
-                          content: Text(result["error"] ?? 'Failed to create repost'),
+                          content: Text(
+                              result["error"] ?? 'Failed to create repost'),
                           backgroundColor: Colors.red,
                         ),
                       );
@@ -158,78 +165,77 @@ class _PostChatScreenState extends State<PostChatScreen> {
         body: SingleChildScrollView(
           child: Center(
               child: Column(
-          
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.only(left: 6.0, right: 6.0, top: 6.0,),
-                    child: Center(
-                      child: Text(
-          
-                        doesNotWork ? "Please rephrase. Your message violates our guideline.":"Your post works well with InZone guidelines",
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                            color: doesNotWork ? Colors.red : Colors.blue,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500),
-                      ),
-                    ),
+            children: [
+              Padding(
+                padding: const EdgeInsets.only(
+                  left: 6.0,
+                  right: 6.0,
+                  top: 6.0,
+                ),
+                child: Center(
+                  child: Text(
+                    doesNotWork
+                        ? "Please rephrase. Your message violates our guideline."
+                        : "Your post works well with InZone guidelines",
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                        color: doesNotWork ? Colors.red : Colors.blue,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500),
                   ),
-          
-                  SizedBox(
-                    width: MediaQuery.of(context).size.width - 50,
-                    height: 30,
-                    child: Stack(
-                      alignment: AlignmentDirectional.centerStart,
-                      children: [
-                        LayoutBuilder(builder:
-                            (BuildContext context,
-                            BoxConstraints constraints) {
-                          maxWidth = constraints.maxWidth;
-                          return Container(
-                            height: 14,
-                            width: double.infinity,
-                            margin: const EdgeInsets.all(8.0),
-                            decoration: BoxDecoration(
-                              borderRadius:
-                              BorderRadius.circular(30),
-                              gradient: const LinearGradient(
-                                colors: [
-                                  Color(0xffff8d6c),
-                                  Color(0xffe064f7),
-                                  Color(0xff00b2e7)
-                                ],
-                              ),
-                            ),
-                            // transform:  (Matrix4.identity() + Matrix4.rotationZ(math.pi / 4))
-                          );
-                        }),
-                        AnimatedContainer(
-                          height: 14,
-                          width: 16,
-                          margin: EdgeInsets.only(
-                              left: maxWidth * maxMovable * moveValue),
-                          decoration: BoxDecoration(
-                              border: Border.all(
-                                  color:  Theme.of(context).canvasColor),
-                              borderRadius:
-                              BorderRadius.circular(30),
-                              color: Colors.white),
-                          duration: const Duration(seconds: 1),
-                          // transform:  (Matrix4.identity() + Matrix4.rotationZ(math.pi / 4))
+                ),
+              ),
+              SizedBox(
+                width: MediaQuery.of(context).size.width - 50,
+                height: 30,
+                child: Stack(
+                  alignment: AlignmentDirectional.centerStart,
+                  children: [
+                    LayoutBuilder(builder:
+                        (BuildContext context, BoxConstraints constraints) {
+                      maxWidth = constraints.maxWidth;
+                      return Container(
+                        height: 14,
+                        width: double.infinity,
+                        margin: const EdgeInsets.all(8.0),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(30),
+                          gradient: const LinearGradient(
+                            colors: [
+                              Color(0xffff8d6c),
+                              Color(0xffe064f7),
+                              Color(0xff00b2e7)
+                            ],
+                          ),
                         ),
-                      ],
+                        // transform:  (Matrix4.identity() + Matrix4.rotationZ(math.pi / 4))
+                      );
+                    }),
+                    AnimatedContainer(
+                      height: 14,
+                      width: 16,
+                      margin: EdgeInsets.only(
+                          left: maxWidth * maxMovable * moveValue),
+                      decoration: BoxDecoration(
+                          border:
+                              Border.all(color: Theme.of(context).canvasColor),
+                          borderRadius: BorderRadius.circular(30),
+                          color: Colors.white),
+                      duration: const Duration(seconds: 1),
+                      // transform:  (Matrix4.identity() + Matrix4.rotationZ(math.pi / 4))
                     ),
-                  ),
-                  RepostPostCard(
-                    name: widget.name,
-                    profileImageURL: widget.profileImageURL,
-                    chat: widget.chat,
-                    avatarID: widget.avatarID,
-                  callback: setPostContent,
-          
-                  ),
-                ],
-              )),
+                  ],
+                ),
+              ),
+              RepostPostCard(
+                name: widget.name,
+                profileImageURL: widget.profileImageURL,
+                chat: widget.chat,
+                avatarID: widget.avatarID,
+                callback: setPostContent,
+              ),
+            ],
+          )),
         ));
   }
 }
@@ -241,9 +247,14 @@ class RepostPostCard extends StatefulWidget {
   String chat;
   String avatarID;
   void Function(String) callback;
-  RepostPostCard({super.key, required this.name, required this.profileImageURL, required this.chat, required this.avatarID, this.onTap, required this.callback});
-
-
+  RepostPostCard(
+      {super.key,
+      required this.name,
+      required this.profileImageURL,
+      required this.chat,
+      required this.avatarID,
+      this.onTap,
+      required this.callback});
 
   @override
   State<RepostPostCard> createState() => _RepostPostCardState();
@@ -300,13 +311,12 @@ class _RepostPostCardState extends State<RepostPostCard> {
                     child: TextField(
                       maxLines: null,
                       textInputAction: TextInputAction.done,
-            autofocus: true,
+                      autofocus: true,
                       textAlign: TextAlign.start,
-                      style:  const TextStyle(height: 1.5, color: Colors.black),
-                      decoration:  const InputDecoration(
-                        border: InputBorder.none, // No underline/border
-                        hintText: "What do you think about this chat?"
-                      ),
+                      style: const TextStyle(height: 1.5, color: Colors.black),
+                      decoration: const InputDecoration(
+                          border: InputBorder.none, // No underline/border
+                          hintText: "What do you think about this chat?"),
                       onChanged: (text) {
                         widget.callback(text);
                       },
@@ -323,29 +333,28 @@ class _RepostPostCardState extends State<RepostPostCard> {
                   child: SizedBox(
                     width: MediaQuery.of(context).size.width - 30,
                     child: Center(
-                      child: widget.profileImageURL == null ? Align(
-                          alignment: Alignment.center,
-                          child: RandomAvatar(widget.name)) :ClipRRect(
-                        borderRadius: BorderRadius.circular(8.0),
-                        child: Image.network(
-                          widget.profileImageURL!,
-                          fit: BoxFit.fitWidth,
-                          width: MediaQuery.of(context).size.width - 60,
-                          errorBuilder: (context, object, st) {
-                            return const SizedBox();
-                          },
-                        ),
-                      ),
+                      child: widget.profileImageURL == null
+                          ? Align(
+                              alignment: Alignment.center,
+                              child: RandomAvatar(widget.name))
+                          : ClipRRect(
+                              borderRadius: BorderRadius.circular(8.0),
+                              child: Image.network(
+                                widget.profileImageURL!,
+                                fit: BoxFit.fitWidth,
+                                width: MediaQuery.of(context).size.width - 60,
+                                errorBuilder: (context, object, st) {
+                                  return const SizedBox();
+                                },
+                              ),
+                            ),
                     ),
                   ),
                 ),
-                messageCard(
-                  widget.chat,
-                   false),
+                messageCard(widget.chat, false),
                 const SizedBox(
                   height: 10,
                 ),
-            
               ],
             ),
           ),
@@ -391,7 +400,6 @@ class _RepostPostCardState extends State<RepostPostCard> {
   //     ]),
   //   );
   // }
-
 
   Widget messageCard(String text, bool isMe) {
     return Padding(

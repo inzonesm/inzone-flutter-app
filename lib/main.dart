@@ -3,8 +3,8 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:inzone/default_firebase_options.dart';
-import 'package:inzone/splash_screen.dart';
+import 'package:inzone/config/default_firebase_options.dart';
+import 'package:inzone/screen/auth/splash_screen.dart';
 import 'package:appsflyer_sdk/appsflyer_sdk.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -32,12 +32,11 @@ void main() async {
   await appsflyerSdk.initSdk(
       registerConversionDataCallback: true,
       registerOnAppOpenAttributionCallback: true,
-      registerOnDeepLinkingCallback: true
-  );
-  
+      registerOnDeepLinkingCallback: true);
+
   String? advertisingId = await appsflyerSdk.getAppsFlyerUID();
   print("The advertising ID is $advertisingId");
-  
+
   SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
@@ -58,29 +57,21 @@ class MyApp extends StatelessWidget {
         scaffoldBackgroundColor: const Color(0xffdaf5ff),
         primaryColor: Colors.blue,
         textTheme: TextTheme(
-            titleLarge: GoogleFonts.afacad(
-                fontSize: 25,
-                fontWeight: FontWeight.bold
-            ),
-          titleMedium: GoogleFonts.afacad(
-              fontSize: 22,
-            fontWeight: FontWeight.bold
-          ),
-          bodyMedium: GoogleFonts.afacad(
-            fontSize: 18
-          ),
-          bodySmall: GoogleFonts.afacad(
-            fontSize: 16,
-          )
-        ),
+            titleLarge:
+                GoogleFonts.afacad(fontSize: 25, fontWeight: FontWeight.bold),
+            titleMedium:
+                GoogleFonts.afacad(fontSize: 22, fontWeight: FontWeight.bold),
+            bodyMedium: GoogleFonts.afacad(fontSize: 18),
+            bodySmall: GoogleFonts.afacad(
+              fontSize: 16,
+            )),
         colorScheme: const ColorScheme.light(
-          primary: Colors.blue,
-          onPrimary: Colors.black,
-          secondary: Colors.white,
-          onSecondary: Colors.black
-        ),
+            primary: Colors.blue,
+            onPrimary: Colors.black,
+            secondary: Colors.white,
+            onSecondary: Colors.black),
         appBarTheme: const AppBarTheme(
-          backgroundColor:  Color(0xffdaf5ff),
+          backgroundColor: Color(0xffdaf5ff),
           elevation: 0,
           iconTheme: IconThemeData(color: Colors.black),
         ),
@@ -92,8 +83,9 @@ class MyApp extends StatelessWidget {
         ),
         iconButtonTheme: IconButtonThemeData(
           style: ButtonStyle(
-           // backgroundColor: MaterialStateProperty.all(Colors.blue), // Default icon button color
-            foregroundColor: WidgetStateProperty.all(Colors.white), // Icon color
+            // backgroundColor: MaterialStateProperty.all(Colors.blue), // Default icon button color
+            foregroundColor:
+                WidgetStateProperty.all(Colors.white), // Icon color
           ),
         ),
         useMaterial3: true,
@@ -104,7 +96,7 @@ class MyApp extends StatelessWidget {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
-          
+
           if (snapshot.hasData && snapshot.data != null) {
             // User is logged in, check if they have a document in humanUsers collection
             return FutureBuilder<DocumentSnapshot>(
@@ -113,10 +105,11 @@ class MyApp extends StatelessWidget {
                   .doc(snapshot.data!.uid)
                   .get(),
               builder: (context, userDocSnapshot) {
-                if (userDocSnapshot.connectionState == ConnectionState.waiting) {
+                if (userDocSnapshot.connectionState ==
+                    ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
                 }
-                
+
                 if (userDocSnapshot.hasData && userDocSnapshot.data!.exists) {
                   // User has a document in humanUsers collection
                   return SplashScreen(loggedIn: true);

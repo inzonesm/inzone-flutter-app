@@ -1,12 +1,12 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:inzone/components/settings_tile.dart';
-import 'package:inzone/introduction_screen.dart';
+import 'package:inzone/screen/auth/introduction_screen.dart';
 // ignore: unused_import
 import 'package:sliding_sheet2/sliding_sheet2.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import 'components/topic_selector_widget.dart';
+import 'package:inzone/components/topic_selector_widget.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -22,6 +22,7 @@ class SettingsScreen extends StatelessWidget {
       throw "Could not launch $url";
     }
   }
+
   Future<void> _deleteAccount(BuildContext context) async {
     try {
       // Sign out of Firebase
@@ -34,7 +35,7 @@ class SettingsScreen extends StatelessWidget {
       Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(builder: (context) => const IntroductionScreen()),
-            (Route<dynamic> route) => false, // This removes all previous routes
+        (Route<dynamic> route) => false, // This removes all previous routes
       );
     } catch (e) {
       // Handle any errors (e.g., re-authentication required)
@@ -66,6 +67,7 @@ class SettingsScreen extends StatelessWidget {
       }
     }
   }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -90,135 +92,142 @@ class SettingsScreen extends StatelessWidget {
 
       body: SafeArea(
           child: Padding(
-            padding: const EdgeInsets.all(10.0),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.start,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  "Main Settings",
-                  style:
+        padding: const EdgeInsets.all(10.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              "Main Settings",
+              style:
                   TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(
-                  height: 10,
-                ),
-                Container(
-                  width: MediaQuery.of(context).size.width - 20,
-                  decoration: BoxDecoration(
-                      color: Colors.white, borderRadius: BorderRadius.circular(15)),
-                  child: Column(children: [
-                    // SettingsTile(
-                    //     title: "InZone Schedule",
-                    //     imagePath: "icons/settings/content_scheduling.svg",
-                    //     onPressed: () {
-                    //       // Navigator.of(context)
-                    //       //     .push(MaterialPageRoute(builder: (context) {
-                    //       //   return const InZoneSchedule();
-                    //       // }));
-                    //     }),
-                    SettingsTile(
-                        title: "Content Selection",
-                        imagePath: "icons/settings/content_selection.svg",
-                        onPressed: () {
-                          Navigator.of(context)
-                              .push(MaterialPageRoute(builder: (context) {
-                            return const ContentSelectionSettingsScreen();
-                          }));
-                        }),
-
-
-                  ]),
-                ),
-                const SizedBox(
-                  height: 10,
-                ),
-                const Text(
-                  "Other Settings",
-                  style:
+            ),
+            const SizedBox(
+              height: 10,
+            ),
+            Container(
+              width: MediaQuery.of(context).size.width - 20,
+              decoration: BoxDecoration(
+                  color: Colors.white, borderRadius: BorderRadius.circular(15)),
+              child: Column(children: [
+                // SettingsTile(
+                //     title: "InZone Schedule",
+                //     imagePath: "icons/settings/content_scheduling.svg",
+                //     onPressed: () {
+                //       // Navigator.of(context)
+                //       //     .push(MaterialPageRoute(builder: (context) {
+                //       //   return const InZoneSchedule();
+                //       // }));
+                //     }),
+                SettingsTile(
+                    title: "Content Selection",
+                    imagePath: "icons/settings/content_selection.svg",
+                    onPressed: () {
+                      Navigator.of(context)
+                          .push(MaterialPageRoute(builder: (context) {
+                        return const ContentSelectionSettingsScreen();
+                      }));
+                    }),
+              ]),
+            ),
+            const SizedBox(
+              height: 10,
+            ),
+            const Text(
+              "Other Settings",
+              style:
                   TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(
-                  height: 10,
-                ),
-                Container(
-                  width: MediaQuery.of(context).size.width - 20,
-                  decoration: BoxDecoration(
-                      color: Colors.white, borderRadius: BorderRadius.circular(30)),
-                  child: Column(children: [
-
-                    SettingsTile(
-                        title: "Privacy Policy",
-                        imagePath: "icons/settings/privacy_policy.svg",
-                        onPressed: () {_launchInBrowser("https://www.inzone.ai/privacypolicy");}),
-                    SettingsTile(
-                        title: "Terms & Conditions",
-                        imagePath: "icons/settings/terms_and_conditions.svg",
-                        onPressed: () {_launchInBrowser(
-                            "https://www.inzone.ai/terms-condition");}),
-                    SettingsTile(
-                      title: "Delete Account",
-                      imagePath: "icons/settings/delete_account.svg",
-                      onPressed: () {
-                        showDialog(
-                          context: context,
-                          builder: (BuildContext context) {
-                            return AlertDialog(
-                              title: const Text('Delete Account'),
-                              content: const Text(
-                                  'Are you sure you want to delete your account? This cannot be undone.'),
-                              actions: <Widget>[
-                                TextButton(
-                                  child: const Text('Cancel'),
-                                  onPressed: () {
-                                    Navigator.of(context).pop();
-                                  },
-                                ),
-                                TextButton(
-                                  child: const Text('Delete'),
-                                  onPressed: () {
-                                    // Close the dialog, then call the delete account method
-                                    Navigator.of(context).pop();
-                                    _deleteAccount(context);
-                                  },
-                                ),
-                              ],
-                            );
-                          },
+            ),
+            const SizedBox(
+              height: 10,
+            ),
+            Container(
+              width: MediaQuery.of(context).size.width - 20,
+              decoration: BoxDecoration(
+                  color: Colors.white, borderRadius: BorderRadius.circular(30)),
+              child: Column(children: [
+                SettingsTile(
+                    title: "Privacy Policy",
+                    imagePath: "icons/settings/privacy_policy.svg",
+                    onPressed: () {
+                      _launchInBrowser("https://www.inzone.ai/privacypolicy");
+                    }),
+                SettingsTile(
+                    title: "Terms & Conditions",
+                    imagePath: "icons/settings/terms_and_conditions.svg",
+                    onPressed: () {
+                      _launchInBrowser("https://www.inzone.ai/terms-condition");
+                    }),
+                SettingsTile(
+                  title: "Delete Account",
+                  imagePath: "icons/settings/delete_account.svg",
+                  onPressed: () {
+                    showDialog(
+                      context: context,
+                      builder: (BuildContext context) {
+                        return AlertDialog(
+                          title: const Text('Delete Account'),
+                          content: const Text(
+                              'Are you sure you want to delete your account? This cannot be undone.'),
+                          actions: <Widget>[
+                            TextButton(
+                              child: const Text('Cancel'),
+                              onPressed: () {
+                                Navigator.of(context).pop();
+                              },
+                            ),
+                            TextButton(
+                              child: const Text('Delete'),
+                              onPressed: () {
+                                // Close the dialog, then call the delete account method
+                                Navigator.of(context).pop();
+                                _deleteAccount(context);
+                              },
+                            ),
+                          ],
                         );
                       },
-                    ),
-                    SettingsTile(
-                        title: "Logout",
-                        imagePath: "icons/settings/logout.svg",
-                        onPressed: () {
-                          FirebaseAuth.instance.signOut().then((value) {
-                            Navigator.pushReplacement(context, MaterialPageRoute(builder: (context)=>const IntroductionScreen()));
-                          });
-                        }),
-                  ]),
+                    );
+                  },
                 ),
-              ],
+                SettingsTile(
+                    title: "Logout",
+                    imagePath: "icons/settings/logout.svg",
+                    onPressed: () {
+                      FirebaseAuth.instance.signOut().then((value) {
+                        Navigator.pushReplacement(
+                            context,
+                            MaterialPageRoute(
+                                builder: (context) =>
+                                    const IntroductionScreen()));
+                      });
+                    }),
+              ]),
             ),
-          )),
+          ],
+        ),
+      )),
     );
   }
 }
-
 
 class ContentSelectionSettingsScreen extends StatefulWidget {
   const ContentSelectionSettingsScreen({super.key});
 
   @override
-  _ContentSelectionSettingsScreenState createState() => _ContentSelectionSettingsScreenState();
+  _ContentSelectionSettingsScreenState createState() =>
+      _ContentSelectionSettingsScreenState();
 }
 
-class _ContentSelectionSettingsScreenState extends State<ContentSelectionSettingsScreen> {
+class _ContentSelectionSettingsScreenState
+    extends State<ContentSelectionSettingsScreen> {
   final List<String> selectedTopics = [];
 
   void addToList(String topic) {
     setState(() {
-      selectedTopics.contains(topic) ? selectedTopics.remove(topic) : selectedTopics.add(topic);
+      selectedTopics.contains(topic)
+          ? selectedTopics.remove(topic)
+          : selectedTopics.add(topic);
     });
   }
 
@@ -272,7 +281,7 @@ class _ContentSelectionSettingsScreenState extends State<ContentSelectionSetting
             runSpacing: 10,
             children: List.generate(
               topicList.length,
-                  (index) {
+              (index) {
                 String currentTopic = topicList[index];
                 return TopicSelectorWidget(
                   topic: currentTopic,
