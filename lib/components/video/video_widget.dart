@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:video_player/video_player.dart';
@@ -6,7 +7,7 @@ import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 import 'package:youtube_player_flutter/youtube_player_flutter.dart';
-import 'package:ffmpeg_kit_flutter_full/ffprobe_kit.dart';
+//import 'package:ffmpeg_kit_flutter_full/ffprobe_kit.dart';
 
 bool _isYoutubeFullscreenActive = false;
 
@@ -91,41 +92,34 @@ class _VideoWidgetState extends State<VideoWidget> {
   }
 
   Future<void> _analyzeAndInitializeVideo() async {
-    final codec = await analyzeVideo(widget.videoUrl);
+    // 간단한 URL 확장자 분석을 기반으로 코덱 판단
+    String fileExtension = widget.videoUrl.split('.').last.toLowerCase();
 
-    if (codec == null) {
-      setState(() {
-        _isPlayable = false;
-        _isLoading = false;
-      });
-      return;
-    }
-
-    if (codec == 'vp9') {
+    // VP9 코덱과 연관된 확장자인 경우 MediaKit 사용
+    if (fileExtension == 'webm') {
       _useMediaKit = true;
       await _initializeMediaKitPlayer(widget.videoUrl);
     } else {
+      // 기본 VideoPlayer 사용
       await _initializeVideoPlayer(widget.videoUrl);
     }
   }
 
-  Future<String?> analyzeVideo(String videoPath) async {
-    try {
-      final session = await FFprobeKit.getMediaInformation(videoPath);
-      final info = session.getMediaInformation();
-
-      if (info != null) {
-        final streams = info.getStreams();
-        for (var stream in streams) {
-          if (stream.getType() == 'video') {
-            return stream.getCodec();
-          }
-        }
-      }
-    } catch (e) {
-      print('FFprobe error: $e');
+  // FFprobeKit 사용하지 않고 간단한 미디어 타입 확인 함수로 대체
+  String getMediaType(String url) {
+    final extension = url.split('.').last.toLowerCase();
+    switch (extension) {
+      case 'mp4':
+        return 'video/mp4';
+      case 'webm':
+        return 'video/webm';
+      case 'mkv':
+        return 'video/x-matroska';
+      case 'mov':
+        return 'video/quicktime';
+      default:
+        return 'video/mp4'; // 기본값
     }
-    return null;
   }
 
   Future<void> _initializeVideoPlayer(String videoPath) async {

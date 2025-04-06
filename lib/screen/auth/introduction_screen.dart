@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:inzone/screen/auth/signup_screens.dart';
 import 'package:inzone/screen/auth/email_login_screen.dart';
+import 'package:inzone/components/ui/button.dart';
 
 class IntroductionScreen extends StatelessWidget {
   const IntroductionScreen({super.key});
@@ -101,139 +102,176 @@ For any questions or concerns regarding this Privacy Policy, please contact us: 
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
                   Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 30,
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Button(
+                      text: "Register",
+                      onPressed: () {
+                        Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: ((context) => const SignUpScreens())));
+                      },
+                      isLoginPage: true,
                     ),
-                    child: Container(
-                      height: MediaQuery.of(context).size.height * 0.07,
-                      width: MediaQuery.of(context).size.width,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(15),
-                        color: Theme.of(context).canvasColor.withOpacity(0.9),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black12.withOpacity(0.05),
-                            spreadRadius: 1,
-                            blurRadius: 7,
-                            offset: const Offset(0, -1),
+                  ),
+                  const SizedBox(
+                    height: 10,
+                  ),
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: ((context) => const EmailLogInPage())));
+                    },
+                    child: RichText(
+                      text: const TextSpan(
+                        children: [
+                          TextSpan(text: "Already have an account?  "),
+                          TextSpan(
+                            text: "Log in",
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              decoration: TextDecoration.underline,
+                            ),
                           ),
                         ],
                       ),
-                      child: Padding(
-                        padding: const EdgeInsets.only(right: 5),
-                        child: Row(
-                          children: [
-                            GestureDetector(
-                              onTap: () {
-                                Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                        builder: ((context) =>
-                                            const SignUpScreens())));
-                              },
-                              child: Container(
-                                height:
-                                    MediaQuery.of(context).size.height * 0.08,
-                                width: MediaQuery.of(context).size.width / 2.2,
-                                decoration: BoxDecoration(
-                                  color: Theme.of(context).colorScheme.primary,
-                                  borderRadius: BorderRadius.circular(15),
-                                ),
-                                child: Center(
-                                  child: Text(
-                                    "Register",
-                                    style:
-                                        Theme.of(context).textTheme.titleMedium,
-                                  ),
-                                ),
-                              ),
-                            ),
-                            const Spacer(),
-                            GestureDetector(
-                              onTap: () {
-                                Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                        builder: ((context) =>
-                                            const EmailLogInPage())));
-                              },
-                              child: Text(
-                                "Sign In",
-                                style: Theme.of(context).textTheme.titleMedium,
-                              ),
-                            ),
-                            const Spacer(),
-                          ],
-                        ),
-                      ),
                     ),
                   ),
-                  Flexible(
-                      child: Padding(
-                    padding: const EdgeInsets.only(top: 10.0, bottom: 30),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        TextButton(
-                            onPressed: () {
-                              showDialog(
-                                context: context,
-                                builder: (context) {
-                                  return AlertDialog(
-                                      actions: [
-                                        TextButton(
-                                            onPressed: () {
-                                              Navigator.pop(context);
-                                            },
-                                            child: const Text("Close"))
-                                      ],
-                                      content: SingleChildScrollView(
-                                        child: Text(licenseAgreement),
-                                      ));
-                                },
-                              );
-                            },
-                            child: Text(
-                              "Terms",
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .bodySmall!
-                                  .copyWith(
-                                    color: Colors.white,
-                                  ),
-                            )),
-                        TextButton(
-                            onPressed: () {
-                              showDialog(
-                                context: context,
-                                builder: (context) {
-                                  return AlertDialog(
-                                      actions: [
-                                        TextButton(
-                                            onPressed: () {
-                                              Navigator.pop(context);
-                                            },
-                                            child: const Text("Close"))
-                                      ],
-                                      content: SingleChildScrollView(
-                                        child: Text(privacyPolicy),
-                                      ));
-                                },
-                              );
-                            },
-                            child: Text(
-                              "Privacy",
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .bodySmall!
-                                  .copyWith(
-                                    color: Colors.white,
-                                  ),
-                            )),
-                      ],
-                    ),
-                  ))
+                  SizedBox(
+                    height: MediaQuery.of(context).size.height * 0.05,
+                  ),
+                  // Padding(
+                  //   padding: const EdgeInsets.symmetric(
+                  //     horizontal: 30,
+                  //   ),
+                  //   child: Container(
+                  //     height: MediaQuery.of(context).size.height * 0.07,
+                  //     width: MediaQuery.of(context).size.width,
+                  //     decoration: BoxDecoration(
+                  //       borderRadius: BorderRadius.circular(15),
+                  //       color: Theme.of(context).canvasColor.withOpacity(0.9),
+                  //       boxShadow: [
+                  //         BoxShadow(
+                  //           color: Colors.black12.withOpacity(0.05),
+                  //           spreadRadius: 1,
+                  //           blurRadius: 7,
+                  //           offset: const Offset(0, -1),
+                  //         ),
+                  //       ],
+                  //     ),
+                  //     child: Padding(
+                  //       padding: const EdgeInsets.only(right: 5),
+                  //       child: Row(
+                  //         children: [
+                  //           GestureDetector(
+                  //             onTap: () {},
+                  //             child: Container(
+                  //               height:
+                  //                   MediaQuery.of(context).size.height * 0.08,
+                  //               width: MediaQuery.of(context).size.width / 2.2,
+                  //               decoration: BoxDecoration(
+                  //                 color: Theme.of(context).colorScheme.primary,
+                  //                 borderRadius: BorderRadius.circular(15),
+                  //               ),
+                  //               child: Center(
+                  //                 child: Text(
+                  //                   "Register",
+                  //                   style:
+                  //                       Theme.of(context).textTheme.titleMedium,
+                  //                 ),
+                  //               ),
+                  //             ),
+                  //           ),
+                  //           const Spacer(),
+                  //           GestureDetector(
+                  //             onTap: () {
+                  //               Navigator.push(
+                  //                   context,
+                  //                   MaterialPageRoute(
+                  //                       builder: ((context) =>
+                  //                           const EmailLogInPage())));
+                  //             },
+                  //             child: Text(
+                  //               "Sign In",
+                  //               style: Theme.of(context).textTheme.titleMedium,
+                  //             ),
+                  //           ),
+                  //           const Spacer(),
+                  //         ],
+                  //       ),
+                  //     ),
+                  //   ),
+                  // ),
+                  // Flexible(
+                  //   child: Padding(
+                  //     padding: const EdgeInsets.only(top: 10.0, bottom: 30),
+                  //     child: Row(
+                  //       crossAxisAlignment: CrossAxisAlignment.start,
+                  //       mainAxisAlignment: MainAxisAlignment.center,
+                  //       children: [
+                  //         TextButton(
+                  //             onPressed: () {
+                  //               showDialog(
+                  //                 context: context,
+                  //                 builder: (context) {
+                  //                   return AlertDialog(
+                  //                       actions: [
+                  //                         TextButton(
+                  //                             onPressed: () {
+                  //                               Navigator.pop(context);
+                  //                             },
+                  //                             child: const Text("Close"))
+                  //                       ],
+                  //                       content: SingleChildScrollView(
+                  //                         child: Text(licenseAgreement),
+                  //                       ));
+                  //                 },
+                  //               );
+                  //             },
+                  //             child: Text(
+                  //               "Terms",
+                  //               style: Theme.of(context)
+                  //                   .textTheme
+                  //                   .bodySmall!
+                  //                   .copyWith(
+                  //                     color: Colors.white,
+                  //                   ),
+                  //             )),
+                  //         TextButton(
+                  //             onPressed: () {
+                  //               showDialog(
+                  //                 context: context,
+                  //                 builder: (context) {
+                  //                   return AlertDialog(
+                  //                       actions: [
+                  //                         TextButton(
+                  //                             onPressed: () {
+                  //                               Navigator.pop(context);
+                  //                             },
+                  //                             child: const Text("Close"))
+                  //                       ],
+                  //                       content: SingleChildScrollView(
+                  //                         child: Text(privacyPolicy),
+                  //                       ));
+                  //                 },
+                  //               );
+                  //             },
+                  //             child: Text(
+                  //               "Privacy",
+                  //               style: Theme.of(context)
+                  //                   .textTheme
+                  //                   .bodySmall!
+                  //                   .copyWith(
+                  //                     color: Colors.white,
+                  //                   ),
+                  //             )),
+                  //       ],
+                  //     ),
+                  //   ),
+                  // ),
                 ],
               ),
             ),

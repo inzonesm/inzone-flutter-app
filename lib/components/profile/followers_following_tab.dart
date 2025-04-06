@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:inzone/components/inzone_searchbar.dart';
+import 'package:inzone/components/ui/inzone_searchbar.dart';
 import 'package:random_avatar/random_avatar.dart';
 import 'package:inzone/services/inzone_database.dart';
 import 'package:inzone/screen/profile/profile_screen.dart';

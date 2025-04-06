@@ -22,7 +22,7 @@ class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
 
   final _key = GlobalKey<ExpandableFabState>();
 
-  final List<String> titleList = [
+  final List<String> _bottomNavBarTitles = [
     'Home',
     'Groups',
     'Chats',
@@ -78,22 +78,14 @@ class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
     if (page == 1) {
       return 'Explore Groups';
     }
-    return titleList[page];
+    return _bottomNavBarTitles[page];
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       key: _key,
-      appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(0),
-        child: AppBar(
-          elevation: 0,
-          automaticallyImplyLeading: false,
-          surfaceTintColor: Colors.transparent,
-          backgroundColor: Theme.of(context).canvasColor,
-        ),
-      ),
+      backgroundColor: Theme.of(context).canvasColor,
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       floatingActionButton: FloatingActionButton(
         heroTag: null,
@@ -130,7 +122,6 @@ class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
           child: const Icon(Icons.add, size: 28),
         ),
       ),
-      backgroundColor: Theme.of(context).canvasColor,
       body: NotificationListener<ScrollNotification>(
         onNotification: (ScrollNotification notification) {
           if (notification is ScrollStartNotification) {
@@ -144,72 +135,20 @@ class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
           }
           return false;
         },
-        child: NestedScrollView(
-            headerSliverBuilder: (context, innerBoxIsScrolled) {
-              return [
-                SliverAppBar(
-                    // toolbarHeight: 30,
-                    // collapsedHeight: 30,
-                    elevation: 0,
-                    automaticallyImplyLeading: false,
-                    surfaceTintColor: Colors.transparent,
-                    backgroundColor: Theme.of(context).canvasColor,
-                    title: Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          _getPageTitle(_currentPage),
-                          style: Theme.of(context)
-                              .textTheme
-                              .titleLarge!
-                              .copyWith(fontSize: 30),
-                        ),
-                        const Spacer(),
-                        // _currentPage == 0
-                        //     ? GestureDetector(
-                        //         onTap: () {
-                        //           Navigator.push(
-                        //               context,
-                        //               MaterialPageRoute(
-                        //                   builder: (context) =>
-                        //                       const ExploreScreen()));
-                        //         },
-                        //         child: const Icon(
-                        //           Icons.search,
-                        //           color: Colors.black,
-                        //           size: 22,
-                        //         ))
-                        //     : SizedBox(),
-                        const SizedBox(
-                          width: 10,
-                        ),
-                        _currentPage == 0
-                            ? GestureDetector(
-                                onTap: () {
-                                  Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                          builder: (context) =>
-                                              const AllChatsScreen()));
-                                },
-                                child: const SizedBox(
-                                    height: 16,
-                                    width: 16,
-                                    child: Icon(
-                                      Icons.chat_bubble_outline_rounded,
-                                      color: Colors.black,
-                                      size: 21,
-                                    )))
-                            : const SizedBox(),
-                      ],
-                    ))
-              ];
-            },
-            body: _pages[_currentPage]),
+        child: Column(
+          children: <Widget>[
+            Expanded(
+              child: IndexedStack(
+                index: _currentPage,
+                children:
+                    _pages, // Assuming _pages contains the content for each tab
+              ),
+            ),
+          ],
+        ),
       ),
       bottomNavigationBar: AnimatedBottomNavigationBar.builder(
-        itemCount: titleList.length,
+        itemCount: _bottomNavBarTitles.length,
         tabBuilder: (int index, bool isActive) {
           return Column(
             mainAxisSize: MainAxisSize.min,
@@ -217,14 +156,14 @@ class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
             children: [
               Image.asset(
                 isActive
-                    ? 'icons/nav_bar_icons/${titleList[index].toLowerCase()}_selected.png'
-                    : 'icons/nav_bar_icons/${titleList[index].toLowerCase()}_unselected.png',
+                    ? 'icons/nav_bar_icons/${_bottomNavBarTitles[index].toLowerCase()}_selected.png'
+                    : 'icons/nav_bar_icons/${_bottomNavBarTitles[index].toLowerCase()}_unselected.png',
                 width: 24,
                 height: 24,
               ),
               const SizedBox(height: 4),
               Text(
-                titleList[index],
+                _bottomNavBarTitles[index],
                 style: TextStyle(
                   fontSize: 12,
                   color: isActive ? Colors.blue : Colors.grey,

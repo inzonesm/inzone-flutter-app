@@ -1,12 +1,12 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:inzone/components/settings_tile.dart';
+import 'package:inzone/components/settings/settings_tile.dart';
 import 'package:inzone/screen/auth/introduction_screen.dart';
 // ignore: unused_import
 import 'package:sliding_sheet2/sliding_sheet2.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import 'package:inzone/components/topic_selector_widget.dart';
+import 'package:inzone/components/settings/topic_selector_widget.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});

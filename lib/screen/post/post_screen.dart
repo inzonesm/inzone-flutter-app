@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:io';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:inzone/components/video_player_widget_post_screen.dart';
+import 'package:inzone/components/video/video_player_widget_post_screen.dart';
 import 'package:inzone/services/inzone_database.dart';
 import 'package:inzone/services/shared_preferences_helper_class.dart';
 import 'package:action_slider/action_slider.dart';

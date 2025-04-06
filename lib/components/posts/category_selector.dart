@@ -1,8 +1,6 @@
-
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:inzone/data/inzone_category.dart';
-
 
 class CategorySelector extends StatefulWidget {
   final InZoneCategory category;

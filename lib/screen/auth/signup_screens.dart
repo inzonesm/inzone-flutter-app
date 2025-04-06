@@ -2,7 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'dart:io' show Platform;
 
-import 'package:inzone/components/topic_selector_widget.dart';
+import 'package:inzone/components/settings/topic_selector_widget.dart';
 import 'package:inzone/screen/auth/introduction_screen.dart';
 import 'package:inzone/services/inzone_database.dart';
 import 'package:inzone/screen/auth/loading_screen.dart';

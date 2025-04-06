@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:inzone/components/category_selector.dart';
+import 'package:inzone/components/posts/category_selector.dart';
 import 'package:inzone/config/string_extension.dart';
 import 'package:inzone/data/inzone_category.dart';
-
 
 class CategorySelectorBar extends StatefulWidget {
   List<String> categories = [];
@@ -13,6 +12,7 @@ class CategorySelectorBar extends StatefulWidget {
   @override
   State<CategorySelectorBar> createState() => _CategorySelectorBarState();
 }
+
 class _CategorySelectorBarState extends State<CategorySelectorBar> {
   String replaceAndCapitalize(String text) {
     // Split the text into words based on underscores.
@@ -28,7 +28,8 @@ class _CategorySelectorBarState extends State<CategorySelectorBar> {
       return words.join(' ');
     }
 
-    return text.capitalize(); // Assuming you have a capitalize() extension on String
+    return text
+        .capitalize(); // Assuming you have a capitalize() extension on String
   }
 
   int? selectedCategoryIndex;
@@ -54,42 +55,92 @@ class _CategorySelectorBarState extends State<CategorySelectorBar> {
   //   const Color(0xffFFB26A),
   // ];
   final List<Color> startColorList = [
-    const Color(0xffFF6B6B),  // Light Red
-    const Color(0xff4ECDC4),  // Turquoise
-    const Color(0xffFFD93D),  // Yellow
-    const Color(0xffFF9F1C),  // Orange
-    const Color(0xff2EC4B6),  // Mint Green
-    const Color(0xff8338EC),  // Purple
-    const Color(0xff06D6A0),  // Bright Green
-    const Color(0xff3A86FF),  // Sky Blue
-    const Color(0xffFF006E),  // Pink
-    const Color(0xffEF476F),  // Bright Pinkish Red
-    const Color(0xff118AB2),  // Blue
-    const Color(0xff073B4C),  // Dark Teal
-    const Color(0xffFFD166),  // Soft Yellow
-    const Color(0xff06BA63),  // Emerald Green
-    const Color(0xffF77F00),  // Bright Orange
+    const Color(0xffFF6B6B), // Light Red
+    const Color(0xff4ECDC4), // Turquoise
+    const Color(0xffFFD93D), // Yellow
+    const Color(0xffFF9F1C), // Orange
+    const Color(0xff2EC4B6), // Mint Green
+    const Color(0xff8338EC), // Purple
+    const Color(0xff06D6A0), // Bright Green
+    const Color(0xff3A86FF), // Sky Blue
+    const Color(0xffFF006E), // Pink
+    const Color(0xffEF476F), // Bright Pinkish Red
+    const Color(0xff118AB2), // Blue
+    const Color(0xff073B4C), // Dark Teal
+    const Color(0xffFFD166), // Soft Yellow
+    const Color(0xff06BA63), // Emerald Green
+    const Color(0xffF77F00), // Bright Orange
   ];
 
   final List<Color> endColorList = [
-    const Color(0xffF06543),  // Darker Red
-    const Color(0xff11999E),  // Teal
-    const Color(0xffFEC260),  // Golden Yellow
-    const Color(0xffF46036),  // Dark Orange
-    const Color(0xff197278),  // Dark Teal
-    const Color(0xff3A0CA3),  // Deep Purple
-    const Color(0xff40916C),  // Darker Green
-    const Color(0xff005F99),  // Deep Blue
-    const Color(0xffFB5607),  // Bright Orange
-    const Color(0xffD62828),  // Dark Red
-    const Color(0xff073B4C),  // Darker Blue
-    const Color(0xff0A9396),  // Aquatic Blue
-    const Color(0xffBC6C25),  // Burnt Orange
-    const Color(0xff0C7489),  // Dark Emerald
-    const Color(0xffB86200),  // Deep Orange
+    const Color(0xffF06543), // Darker Red
+    const Color(0xff11999E), // Teal
+    const Color(0xffFEC260), // Golden Yellow
+    const Color(0xffF46036), // Dark Orange
+    const Color(0xff197278), // Dark Teal
+    const Color(0xff3A0CA3), // Deep Purple
+    const Color(0xff40916C), // Darker Green
+    const Color(0xff005F99), // Deep Blue
+    const Color(0xffFB5607), // Bright Orange
+    const Color(0xffD62828), // Dark Red
+    const Color(0xff073B4C), // Darker Blue
+    const Color(0xff0A9396), // Aquatic Blue
+    const Color(0xffBC6C25), // Burnt Orange
+    const Color(0xff0C7489), // Dark Emerald
+    const Color(0xffB86200), // Deep Orange
   ];
 
+  String _getCategoryIcon(String category) {
+    // 모든 카테고리명을 소문자로 변환하여 일관성 유지
+    String lowerCategory = category.toLowerCase();
 
+    // 기본 아이콘 경로
+    const String defaultIcon = "icons/category_icons/creativity.svg";
+
+    // 사용 가능한 아이콘 목록 (실제 존재하는 파일명과 일치)
+    final availableIcons = [
+      "animals",
+      "art",
+      "board_games",
+      "books",
+      "bullying_prevention",
+      "challenge_videos",
+      "community_service",
+      "cooking",
+      "creativity",
+      "dance",
+      "diy",
+      "environmental_conservation",
+      "fashion",
+      "funny_memes",
+      "gaming",
+      "healthy_habits",
+      "inclusivity",
+      "magic_tricks",
+      "mental_health",
+      "music",
+      "outdoor_adventures",
+      "science",
+      "sports",
+      "tech",
+      "travel",
+      "video_game_reviews"
+    ];
+
+    // 요청된 카테고리가 사용 가능한 아이콘 목록에 있는지 확인
+    if (availableIcons.contains(lowerCategory)) {
+      return "icons/category_icons/$lowerCategory.svg";
+    }
+
+    // 공백이 있는 카테고리명 처리 (예: "social media" -> "social_media")
+    final underscoreCategory = lowerCategory.replaceAll(' ', '_');
+    if (availableIcons.contains(underscoreCategory)) {
+      return "icons/category_icons/$underscoreCategory.svg";
+    }
+
+    // 기본 아이콘 반환
+    return defaultIcon;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -108,24 +159,22 @@ class _CategorySelectorBarState extends State<CategorySelectorBar> {
 
             // Use modulo to loop through the color lists
             int colorIndex = index % startColorList.length;
-            
+
             // Construct the icon path and log it for debugging
-            String categoryIconPath = category.length > 2
-                ? "icons/category_icons/$category.svg"
-                : "icons/category_icons/creativity.svg";
-            
+            String categoryIconPath = _getCategoryIcon(category);
 
             return GestureDetector(
               onTap: () {
-
                 setState(() {
                   // If the same category is tapped again, deselect it
                   if (selectedCategoryIndex == index) {
                     selectedCategoryIndex = null;
-                    widget.onTap(null); // Pass null to indicate no category is selected
+                    widget.onTap(
+                        null); // Pass null to indicate no category is selected
                   } else {
                     selectedCategoryIndex = index;
-                    widget.onTap(category); // Pass the original category for filtering
+                    widget.onTap(
+                        category); // Pass the original category for filtering
                   }
                 });
               },
