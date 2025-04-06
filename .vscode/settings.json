@@ -3,4 +3,5 @@
     "editor.codeActionsOnSave": {
         "source.fixAll": "explicit"
     },
+    "java.compile.nullAnalysis.mode": "automatic",
 }

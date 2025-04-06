@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:inzone/components/avatar_card.dart';
+import 'package:inzone/components/profile/avatar_card.dart';
 import 'package:inzone/data/inzone_avatar.dart';
 
 class PopularCharactersCarousel extends StatelessWidget {
@@ -23,8 +23,8 @@ class PopularCharactersCarousel extends StatelessWidget {
             child: Text(
               "Popular Characters",
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
+                    fontWeight: FontWeight.bold,
+                  ),
             ),
           ),
           Expanded(

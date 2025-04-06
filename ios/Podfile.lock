@@ -1161,13 +1161,6 @@ PODS:
     - Firebase/Firestore (= 11.4.0)
     - firebase_core
     - Flutter
-  - ffmpeg-kit-ios-https (6.0)
-  - ffmpeg_kit_flutter (6.0.3):
-    - ffmpeg_kit_flutter/https (= 6.0.3)
-    - Flutter
-  - ffmpeg_kit_flutter/https (6.0.3):
-    - ffmpeg-kit-ios-https (= 6.0)
-    - Flutter
   - Firebase/Auth (11.4.0):
     - Firebase/CoreOnly
     - FirebaseAuth (~> 11.4.0)
@@ -1399,7 +1392,6 @@ PODS:
 DEPENDENCIES:
   - appsflyer_sdk (from `.symlinks/plugins/appsflyer_sdk/ios`)
   - cloud_firestore (from `.symlinks/plugins/cloud_firestore/ios`)
-  - ffmpeg_kit_flutter (from `.symlinks/plugins/ffmpeg_kit_flutter/ios`)
   - firebase_auth (from `.symlinks/plugins/firebase_auth/ios`)
   - firebase_core (from `.symlinks/plugins/firebase_core/ios`)
   - firebase_storage (from `.symlinks/plugins/firebase_storage/ios`)
@@ -1424,7 +1416,6 @@ SPEC REPOS:
     - abseil
     - AppsFlyerFramework
     - BoringSSL-GRPC
-    - ffmpeg-kit-ios-https
     - Firebase
     - FirebaseAppCheckInterop
     - FirebaseAuth
@@ -1450,8 +1441,6 @@ EXTERNAL SOURCES:
     :path: ".symlinks/plugins/appsflyer_sdk/ios"
   cloud_firestore:
     :path: ".symlinks/plugins/cloud_firestore/ios"
-  ffmpeg_kit_flutter:
-    :path: ".symlinks/plugins/ffmpeg_kit_flutter/ios"
   firebase_auth:
     :path: ".symlinks/plugins/firebase_auth/ios"
   firebase_core:
@@ -1495,8 +1484,6 @@ SPEC CHECKSUMS:
   AppsFlyerFramework: ad7ff0d22aa36c7f8cc4f71a5424e19b89ccb8ae
   BoringSSL-GRPC: ca6a8e5d04812fce8ffd6437810c2d46f925eaeb
   cloud_firestore: 6b4b5ca28a1f929b0c253ed55de76976310709a7
-  ffmpeg-kit-ios-https: f9c838aa5400a6c5ba12324c6b798f52197ba354
-  ffmpeg_kit_flutter: 66a088989cd7aa07aa8cde7c93a2e4611753fea5
   Firebase: cf1b19f21410b029b6786a54e9764a0cacad3c99
   firebase_auth: d92584a0edc1e7719081bd1620b7ac7bb405a39d
   firebase_core: 059a3a579c00e241fcdcd66d17190878f4f6ed53
@@ -1535,6 +1522,6 @@ SPEC CHECKSUMS:
   volume_controller: ca1cde542ee70fad77d388f82e9616488110942b
   wakelock_plus: fd58c82b1388f4afe3fe8aa2c856503a262a5b03
 
-PODFILE CHECKSUM: 83f6a08c58d4b249cda5d50acce1e33fac59623c
+PODFILE CHECKSUM: cb0df3d3b5e9acd2bc2ddf3c622a6f9ffc6f5ec5
 
 COCOAPODS: 1.16.2

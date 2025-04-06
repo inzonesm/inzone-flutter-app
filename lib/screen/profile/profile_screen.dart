@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:inzone/components/base_profile_screen.dart';
-import 'package:inzone/components/user_posts_tab.dart';
-import 'package:inzone/components/followers_following_tab.dart';
+import 'package:inzone/components/profile/base_profile_screen.dart';
+import 'package:inzone/components/profile/user_posts_tab.dart';
+import 'package:inzone/components/profile/followers_following_tab.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:inzone/screen/chat/chat_screen.dart';
 import 'package:inzone/screen/chat/human_chat_screen.dart';

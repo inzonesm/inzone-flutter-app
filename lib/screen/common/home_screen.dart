@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:inzone/components/avatar_card.dart';
-import 'package:inzone/components/category_selector_bar.dart';
-import 'package:inzone/components/post_card.dart';
-import 'package:inzone/components/repost_card.dart';
+import 'package:inzone/components/profile/avatar_card.dart';
+import 'package:inzone/components/posts/category_selector_bar.dart';
+import 'package:inzone/components/posts/post_card.dart';
+import 'package:inzone/components/posts/repost_card.dart';
+import 'package:inzone/components/ui/appbar.dart';
 import 'package:inzone/data/inzone_avatar.dart';
 import 'package:inzone/data/inzone_post.dart';
 import 'package:inzone/services/inzone_database.dart';
@@ -397,64 +398,75 @@ class HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: SafeArea(
-        left: false,
-        right: false,
-        top: false,
-        child: RefreshIndicator(
-          onRefresh: () async {
-            setState(() {
-              reloadCount++; // Increment reload count on manual refresh
-            });
-            await loadFeed(isRefresh: true);
-            return;
-          },
-          child: ListView.builder(
-            controller: widget.controller,
-            itemCount: isLoading
-                ? 2
-                : 1 +
-                    posts.length +
-                    (isLoadingMore ? 1 : 0), // +1 for category bar
-            itemBuilder: (context, index) {
-              if (isLoading) {
-                return index == 0
-                    ? Padding(
-                        padding: const EdgeInsets.symmetric(
-                            vertical: 10.0, horizontal: 10),
-                        child: buildShimmerCategoryBar(),
-                      )
-                    : Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        child: Column(
-                          children: List.generate(
-                              10, (index) => buildShimmerPostCard()),
-                        ),
-                      );
-              } else if (index == 0) {
-                // Category bar when not loading
-                return categoriesList.isNotEmpty
-                    ? Padding(
-                        padding: const EdgeInsets.only(bottom: 10.0),
-                        child: CategorySelectorBar(
-                          categories: categoriesList,
-                          onTap: (selectedCat) {
-                            _filterPostsByCategory(selectedCat);
-                          },
-                        ),
-                      )
-                    : const Text("No categories available");
-              } else if (index == posts.length + 1 && isLoadingMore) {
-                return const Center(child: CircularProgressIndicator());
-              } else {
-                // Render the post directly from the posts list
-                return Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16.0, vertical: 0),
-                  child: _buildPostWidget(posts[index - 1], index - 1),
-                );
-              }
+      appBar: CustomAppBar(
+        userName: "John Doe",
+        userPoints: "100",
+        profileImageUrl: "https://via.placeholder.com/150",
+        onSearchTap: () {},
+        onProfileTap: () {},
+        onPointsTap: () {},
+      ),
+      body: Padding(
+        padding: const EdgeInsets.only(top: 10.0),
+        child: SafeArea(
+          left: false,
+          right: false,
+          top: false,
+          child: RefreshIndicator(
+            onRefresh: () async {
+              setState(() {
+                reloadCount++; // Increment reload count on manual refresh
+              });
+              await loadFeed(isRefresh: true);
+              return;
             },
+            child: ListView.builder(
+              controller: widget.controller,
+              itemCount: isLoading
+                  ? 2
+                  : 1 +
+                      posts.length +
+                      (isLoadingMore ? 1 : 0), // +1 for category bar
+              itemBuilder: (context, index) {
+                if (isLoading) {
+                  return index == 0
+                      ? Padding(
+                          padding: const EdgeInsets.symmetric(
+                              vertical: 10.0, horizontal: 10),
+                          child: buildShimmerCategoryBar(),
+                        )
+                      : Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: Column(
+                            children: List.generate(
+                                10, (index) => buildShimmerPostCard()),
+                          ),
+                        );
+                } else if (index == 0) {
+                  // Category bar when not loading
+                  return categoriesList.isNotEmpty
+                      ? Padding(
+                          padding: const EdgeInsets.only(bottom: 10.0),
+                          child: CategorySelectorBar(
+                            categories: categoriesList,
+                            onTap: (selectedCat) {
+                              _filterPostsByCategory(selectedCat);
+                            },
+                          ),
+                        )
+                      : const Text("No categories available");
+                } else if (index == posts.length + 1 && isLoadingMore) {
+                  return const Center(child: CircularProgressIndicator());
+                } else {
+                  // Render the post directly from the posts list
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16.0, vertical: 0),
+                    child: _buildPostWidget(posts[index - 1], index - 1),
+                  );
+                }
+              },
+            ),
           ),
         ),
       ),

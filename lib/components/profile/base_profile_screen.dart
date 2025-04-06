@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:inzone/components/profile_header.dart';
-import 'package:inzone/components/profile_tabs.dart';
+import 'package:inzone/components/profile/profile_header.dart';
+import 'package:inzone/components/profile/profile_tabs.dart';
 import 'package:inzone/services/inzone_database.dart';
 
 abstract class BaseProfileScreen extends StatefulWidget {
