@@ -1,4 +1,7 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:inzone/screen/chat/all_chats_screen.dart';
+import 'package:inzone/screen/chat/chat_screen.dart';
 
 class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
   final String? greeting;
@@ -8,6 +11,9 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
   final VoidCallback? onSearchTap;
   final VoidCallback? onProfileTap;
   final VoidCallback? onPointsTap;
+  final bool isHome;
+  final bool isProfile;
+  final bool isOthers;
 
   const CustomAppBar({
     super.key,
@@ -18,138 +24,261 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
     this.onSearchTap,
     this.onProfileTap,
     this.onPointsTap,
+    this.isHome = false,
+    this.isProfile = false,
+    this.isOthers = false,
   });
 
   @override
   Widget build(BuildContext context) {
+    GestureDetector(
+      onTap: onProfileTap,
+      child: Container(
+        width: 48,
+        height: 48,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: Colors.blue,
+          image: profileImageUrl != null
+              ? DecorationImage(
+                  image: NetworkImage(profileImageUrl!),
+                  fit: BoxFit.cover,
+                )
+              : null,
+        ),
+        child: profileImageUrl == null
+            ? const Icon(
+                Icons.person,
+                color: Colors.white,
+                size: 24,
+              )
+            : null,
+      ),
+    );
+
     return Container(
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         color: Colors.white,
-        borderRadius: const BorderRadius.only(
+        borderRadius: BorderRadius.only(
           bottomLeft: Radius.circular(30),
           bottomRight: Radius.circular(30),
         ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
       ),
       child: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 16.0),
-          child: Row(
-            children: [
-              // profile image
-              GestureDetector(
-                onTap: onProfileTap,
-                child: Container(
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: Colors.blue,
-                    image: profileImageUrl != null
-                        ? DecorationImage(
-                            image: NetworkImage(profileImageUrl!),
-                            fit: BoxFit.cover,
-                          )
-                        : null,
-                  ),
-                  child: profileImageUrl == null
-                      ? const Icon(
-                          Icons.person,
-                          color: Colors.white,
-                          size: 24,
-                        )
-                      : null,
-                ),
-              ),
-              const SizedBox(width: 12),
-              // brand name and greeting
-              const Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
+          child: isHome
+              ? Row(
                   children: [
-                    Text(
-                      'InZone',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black,
+                    // profile image
+                    GestureDetector(
+                      onTap: onProfileTap,
+                      child: Container(
+                        width: 48,
+                        height: 48,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Colors.blue,
+                          image: profileImageUrl != null
+                              ? DecorationImage(
+                                  image: NetworkImage(profileImageUrl!),
+                                  fit: BoxFit.cover,
+                                )
+                              : null,
+                        ),
+                        child: profileImageUrl == null
+                            ? const Icon(
+                                Icons.person,
+                                color: Colors.white,
+                                size: 24,
+                              )
+                            : null,
                       ),
                     ),
-                    Text(
-                      "Hello",
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w500,
-                        color: Colors.blue,
+                    const SizedBox(width: 12),
+                    // brand name and greeting
+                    const Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            'InZone',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black,
+                            ),
+                          ),
+                          Text(
+                            "Hello",
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w500,
+                              color: Colors.blue,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                  ],
-                ),
-              ),
 
-              // search button
-              GestureDetector(
-                onTap: onSearchTap,
-                child: Container(
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: Colors.grey.shade100,
-                  ),
-                  child: const Icon(
-                    Icons.search,
-                    color: Colors.black54,
-                    size: 24,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-
-              // points display
-              GestureDetector(
-                onTap: onPointsTap,
-                child: Container(
-                  height: 48,
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(24),
-                    color: Colors.grey.shade100,
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      CircleAvatar(
-                        radius: 14,
-                        backgroundColor: Colors.blue.shade400,
+                    // search button
+                    GestureDetector(
+                      onTap: onSearchTap,
+                      child: Container(
+                        width: 48,
+                        height: 48,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Colors.grey.shade100,
+                        ),
                         child: const Icon(
-                          Icons.local_police,
-                          color: Colors.white,
-                          size: 16,
+                          Icons.search,
+                          color: Colors.black54,
+                          size: 24,
                         ),
                       ),
-                      const SizedBox(width: 8),
-                      Text(
-                        userPoints ?? '0',
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black,
+                    ),
+                    const SizedBox(width: 12),
+
+                    // points display
+                    GestureDetector(
+                      onTap: onPointsTap,
+                      child: Container(
+                        height: 48,
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(24),
+                          color: Colors.grey.shade100,
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            CircleAvatar(
+                              radius: 14,
+                              backgroundColor: Colors.blue.shade400,
+                              child: const Icon(
+                                Icons.local_police,
+                                color: Colors.white,
+                                size: 16,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              userPoints ?? '0',
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.black,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
+                    ),
+                    // const SizedBox(width: 12),
+                    // GestureDetector(
+                    //   onTap: () {
+                    //     Navigator.push(
+                    //       context,
+                    //       MaterialPageRoute(
+                    //         builder: (context) => ChatScreen(
+                    //           userData: userName ?? 'Guest',
+                    //         ),
+                    //       ),
+                    //     );
+                    //   },
+                    //   child: const SizedBox(
+                    //     height: 16,
+                    //     width: 16,
+                    //     child: Icon(
+                    //       Icons.chat_bubble_outline_rounded,
+                    //       color: Colors.black,
+                    //       size: 21,
+                    //     ),
+                    //   ),
+                    // ),
+                  ],
+                )
+              : isProfile
+                  ? Row(
+                      children: [
+                        IconButton(
+                          icon: const Icon(
+                            CupertinoIcons.back,
+                            color: Colors.black,
+                          ),
+                          onPressed: () {
+                            Navigator.of(context).pop();
+                          },
+                        ),
+                        GestureDetector(
+                          onTap: onProfileTap,
+                          child: Container(
+                            width: 48,
+                            height: 48,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: Colors.blue,
+                              image: profileImageUrl != null
+                                  ? DecorationImage(
+                                      image: NetworkImage(profileImageUrl!),
+                                      fit: BoxFit.cover,
+                                    )
+                                  : null,
+                            ),
+                            child: profileImageUrl == null
+                                ? const Icon(
+                                    Icons.person,
+                                    color: Colors.white,
+                                    size: 24,
+                                  )
+                                : null,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Text(
+                          userName ?? 'Guest',
+                          style: const TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    )
+                  : Column(
+                      children: [
+                        Row(
+                          children: [
+                            GestureDetector(
+                              onTap: onProfileTap,
+                              child: Container(
+                                width: 48,
+                                height: 48,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: Colors.blue,
+                                  image: profileImageUrl != null
+                                      ? DecorationImage(
+                                          image: NetworkImage(profileImageUrl!),
+                                          fit: BoxFit.cover,
+                                        )
+                                      : null,
+                                ),
+                                child: profileImageUrl == null
+                                    ? const Icon(
+                                        Icons.person,
+                                        color: Colors.white,
+                                        size: 24,
+                                      )
+                                    : null,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                          ],
+                        ),
+                      ],
+                    ),
         ),
       ),
     );
