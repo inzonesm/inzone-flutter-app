@@ -1,9 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:inzone/inzone_database.dart';
-import 'package:inzone/shared_preferences_helper_class.dart';
+import 'package:inzone/services/inzone_database.dart';
+import 'package:inzone/services/shared_preferences_helper_class.dart';
 import 'package:lottie/lottie.dart';
-
 
 class CharacterCreationScreen extends StatefulWidget {
   const CharacterCreationScreen({super.key});
@@ -14,7 +13,7 @@ class CharacterCreationScreen extends StatefulWidget {
 }
 
 class _CharacterCreationScreenState extends State<CharacterCreationScreen> {
-  List<String> _savedList = []; 
+  List<String> _savedList = [];
   String? url;
   late DateTime _startTime; // To store the start time
   int pageOpened = 0;
@@ -31,15 +30,17 @@ class _CharacterCreationScreenState extends State<CharacterCreationScreen> {
   void dispose() {
     DateTime endTime = DateTime.now();
     Duration timeSpent = endTime.difference(_startTime);
-    InZoneDatabase.logEvent('character_creation_screen', {"timeSpent" : timeSpent.inSeconds, "pageOpenedCount" : pageOpened});
+    InZoneDatabase.logEvent('character_creation_screen',
+        {"timeSpent": timeSpent.inSeconds, "pageOpenedCount": pageOpened});
     super.dispose();
   }
+
   @override
   void initState() {
     super.initState();
-    _loadPreferences();    _startTime = DateTime.now();
-    pageOpened+=1;
-
+    _loadPreferences();
+    _startTime = DateTime.now();
+    pageOpened += 1;
   }
 
   Future<void> _loadPreferences() async {
@@ -55,8 +56,6 @@ class _CharacterCreationScreenState extends State<CharacterCreationScreen> {
       _savedList = list;
     });
   }
-
-
 
   @override
   Widget build(BuildContext context) {
@@ -269,9 +268,9 @@ class _CharacterCreationScreenState extends State<CharacterCreationScreen> {
                         ),
                         !showFields
                             ? Row(
-                          mainAxisSize: MainAxisSize.max,
-                                mainAxisAlignment: MainAxisAlignment.spaceAround,
-
+                                mainAxisSize: MainAxisSize.max,
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceAround,
                                 children: [
                                   Flexible(
                                     child: ElevatedButton(
@@ -287,8 +286,7 @@ class _CharacterCreationScreenState extends State<CharacterCreationScreen> {
                                             showLoading = false;
                                           });
                                         },
-
-                                        child:  const Text(
+                                        child: const Text(
                                           "Regenerate",
                                           style: TextStyle(
                                               fontSize: 18,
@@ -368,7 +366,6 @@ class _CharacterCreationScreenState extends State<CharacterCreationScreen> {
 
                                               timerOver = true;
                                               showLoading = false;
-
                                             });
                                           });
                                         }

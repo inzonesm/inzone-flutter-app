@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:random_avatar/random_avatar.dart';
-import 'package:inzone/inzone_database.dart';
+import 'package:inzone/services/inzone_database.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 class EditProfileScreen extends StatefulWidget {
@@ -62,7 +62,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
     try {
       // Update Firebase Auth display name
-      await FirebaseAuth.instance.currentUser?.updateDisplayName(_nameController.text);
+      await FirebaseAuth.instance.currentUser
+          ?.updateDisplayName(_nameController.text);
 
       // Create profile data map
       Map<String, dynamic> profileData = {
@@ -78,7 +79,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Profile updated successfully')),
         );
-        
+
         // Return true to indicate successful update and trigger profile refresh
         Navigator.pop(context, true);
       }
@@ -155,7 +156,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 ),
               ),
               const SizedBox(height: 30),
-              
+
               // Name field
               Container(
                 decoration: BoxDecoration(
@@ -166,13 +167,14 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   controller: _nameController,
                   decoration: const InputDecoration(
                     labelText: 'Name',
-                    contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                    contentPadding:
+                        EdgeInsets.symmetric(horizontal: 16, vertical: 16),
                     border: InputBorder.none,
                   ),
                 ),
               ),
               const SizedBox(height: 20),
-              
+
               // Username field
               Container(
                 decoration: BoxDecoration(
@@ -183,7 +185,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   controller: _usernameController,
                   decoration: const InputDecoration(
                     labelText: 'Username',
-                    contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                    contentPadding:
+                        EdgeInsets.symmetric(horizontal: 16, vertical: 16),
                     border: InputBorder.none,
                   ),
                   onChanged: (value) {
@@ -195,7 +198,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 ),
               ),
               const SizedBox(height: 20),
-              
+
               // Bio field
               Container(
                 decoration: BoxDecoration(
@@ -206,7 +209,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   controller: _bioController,
                   decoration: const InputDecoration(
                     labelText: 'Bio',
-                    contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                    contentPadding:
+                        EdgeInsets.symmetric(horizontal: 16, vertical: 16),
                     border: InputBorder.none,
                     alignLabelWithHint: true,
                   ),
@@ -214,7 +218,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 ),
               ),
               const SizedBox(height: 40),
-              
+
               // Save button
               SizedBox(
                 width: double.infinity,
@@ -245,4 +249,4 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       ),
     );
   }
-} 
+}

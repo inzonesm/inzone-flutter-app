@@ -5,7 +5,7 @@ import 'package:inzone/components/post_card.dart';
 import 'package:inzone/components/repost_card.dart';
 import 'package:inzone/data/inzone_avatar.dart';
 import 'package:inzone/data/inzone_post.dart';
-import 'package:inzone/inzone_database.dart';
+import 'package:inzone/services/inzone_database.dart';
 import 'package:shimmer/shimmer.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -30,7 +30,7 @@ class HomeScreenState extends State<HomeScreen> {
   bool hasMorePosts = true;
   String? selectedCategory; // Track the currently selected category
   int reloadCount = 0; // Track number of reloads
-  
+
   // Store the actual posts data from API
   List<dynamic> posts = [];
   List<dynamic> originalPosts = []; // For category filtering
@@ -71,13 +71,12 @@ class HomeScreenState extends State<HomeScreen> {
       if (mounted && characters != null) {
         _processAvatars(characters);
       }
-    } catch (e) {
-    }
+    } catch (e) {}
   }
 
   Future<void> loadFeed({bool isRefresh = false}) async {
     if (!mounted) return;
-    
+
     if (isRefresh) {
       setState(() {
         _currentPage = 0;
@@ -99,17 +98,18 @@ class HomeScreenState extends State<HomeScreen> {
     try {
       // Fetch data from InZoneDatabase with reload count parameter
       final response = await InZoneDatabase.getFeed(page: reloadCount);
-      
+
       if (!mounted) return;
-      
+
       if (response != null) {
         if (response.containsKey('posts')) {
           List<dynamic> newPosts = response['posts'] ?? [];
 
           setState(() {
             posts.addAll(newPosts);
-            originalPosts = List.from(posts); // Store original posts for filtering
-            
+            originalPosts =
+                List.from(posts); // Store original posts for filtering
+
             // Extract categories from posts
             for (var post in newPosts) {
               String category = _extractCategoryFromPost(post);
@@ -117,15 +117,12 @@ class HomeScreenState extends State<HomeScreen> {
                 categoriesList.add(category);
               }
             }
-            
+
             _currentPage++;
             hasMorePosts = newPosts.isNotEmpty;
           });
-        } else {
-        }
-      } else {
-      }
-    } catch (e) {
+        } else {}
+      } else {}
     } finally {
       if (mounted) {
         setState(() {
@@ -137,17 +134,17 @@ class HomeScreenState extends State<HomeScreen> {
 
   Future<void> _loadMorePosts() async {
     if (isLoadingMore || !mounted) return;
-    
+
     setState(() {
       isLoadingMore = true;
       reloadCount++; // Increment reload count when loading more posts
     });
-    
+
     try {
       final response = await InZoneDatabase.getFeed(page: reloadCount);
-      
+
       if (!mounted) return;
-      
+
       if (response != null) {
         if (response.containsKey('posts')) {
           List<dynamic> newPosts = response['posts'] ?? [];
@@ -155,7 +152,7 @@ class HomeScreenState extends State<HomeScreen> {
           setState(() {
             posts.addAll(newPosts);
             originalPosts = List.from(posts); // Update original posts
-            
+
             // Extract additional categories
             for (var post in newPosts) {
               String category = _extractCategoryFromPost(post);
@@ -163,12 +160,12 @@ class HomeScreenState extends State<HomeScreen> {
                 categoriesList.add(category);
               }
             }
-            
+
             // If a category is selected, reapply the filter
             if (selectedCategory != null) {
               _filterPostsByCategory(selectedCategory!);
             }
-            
+
             _currentPage++;
             hasMorePosts = newPosts.isNotEmpty;
           });
@@ -182,7 +179,6 @@ class HomeScreenState extends State<HomeScreen> {
           hasMorePosts = false;
         });
       }
-    } catch (e) {
     } finally {
       if (mounted) {
         setState(() {
@@ -196,14 +192,12 @@ class HomeScreenState extends State<HomeScreen> {
     avatarCards.clear();
     try {
       for (var characterData in fetchedCharacters) {
-
         // Use the new factory method
         InZoneAvatar avatar = InZoneAvatar.fromDirectJson(characterData);
         avatarCards.add(AvatarCard(avatar: avatar));
       }
       avatarCards.shuffle();
-    } catch (e) {
-    }
+    } catch (e) {}
   }
 
   // Extract the first category from a post
@@ -224,38 +218,36 @@ class HomeScreenState extends State<HomeScreen> {
 
   // Filter posts by category
   void _filterPostsByCategory(String? category) {
-
     setState(() {
       selectedCategory = category;
-      
+
       if (category == null) {
         // If no category is selected, restore original order
         posts = List.from(originalPosts);
         return;
       }
-      
+
       // Filter posts by the selected category
       List<dynamic> filteredPosts = originalPosts.where((post) {
         String postCategory = _extractCategoryFromPost(post).toLowerCase();
         String searchCategory = category.toLowerCase();
-        
-        return postCategory == searchCategory || 
-               postCategory.contains(searchCategory) ||
-               searchCategory.contains(postCategory);
+
+        return postCategory == searchCategory ||
+            postCategory.contains(searchCategory) ||
+            searchCategory.contains(postCategory);
       }).toList();
-      
+
       List<dynamic> otherPosts = originalPosts.where((post) {
         String postCategory = _extractCategoryFromPost(post).toLowerCase();
         String searchCategory = category.toLowerCase();
-        
-        return !(postCategory == searchCategory || 
-                postCategory.contains(searchCategory) ||
-                searchCategory.contains(postCategory));
+
+        return !(postCategory == searchCategory ||
+            postCategory.contains(searchCategory) ||
+            searchCategory.contains(postCategory));
       }).toList();
-      
+
       // Combine filtered posts with other posts
       posts = [...filteredPosts, ...otherPosts];
-      
     });
   }
 
@@ -270,8 +262,8 @@ class HomeScreenState extends State<HomeScreen> {
             child: Text(
               "Most Popular",
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
+                    fontWeight: FontWeight.bold,
+                  ),
             ),
           ),
           Expanded(
@@ -294,16 +286,16 @@ class HomeScreenState extends State<HomeScreen> {
 
   Widget _buildPostWidget(dynamic post, int index) {
     String postType = post['post_type'] ?? 'unknown';
-    
+
     // Insert avatar carousel after certain number of posts
     if (index > 0 && index % 20 == 0 && avatarCards.isNotEmpty) {
       return _buildAvatarCarousel();
     }
-    
+
     try {
       // Extract the category for the post
       String category = _extractCategoryFromPost(post);
-      
+
       switch (postType) {
         case 'repost':
           // Build repost card
@@ -329,7 +321,7 @@ class HomeScreenState extends State<HomeScreen> {
             repost: avatar,
             aiChat: post["ai_chat_content"] ?? "",
           );
-          
+
         case 'ai_post':
           // Build AI post card
           InZonePost postObj = InZonePost.fromJsonForHumans(post);
@@ -349,10 +341,9 @@ class HomeScreenState extends State<HomeScreen> {
           );
           return PostCard(
             post: postObj,
-            onTap: (postId) {
-            },
+            onTap: (postId) {},
           );
-          
+
         case 'human_post':
           // Build human post card
           InZonePost postObj = InZonePost.fromJsonForHumans(post);
@@ -372,10 +363,9 @@ class HomeScreenState extends State<HomeScreen> {
           );
           return PostCard(
             post: postObj,
-            onTap: (postId) {
-            },
+            onTap: (postId) {},
           );
-          
+
         default:
           // For unknown post types, try to render as a regular post
           InZonePost postObj = InZonePost.fromJsonForHumans(post);
@@ -395,12 +385,12 @@ class HomeScreenState extends State<HomeScreen> {
           );
           return PostCard(
             post: postObj,
-            onTap: (postId) {
-            },
+            onTap: (postId) {},
           );
       }
     } catch (e) {
-      return const SizedBox.shrink(); // Return empty widget for problematic posts
+      return const SizedBox
+          .shrink(); // Return empty widget for problematic posts
     }
   }
 
@@ -423,7 +413,9 @@ class HomeScreenState extends State<HomeScreen> {
             controller: widget.controller,
             itemCount: isLoading
                 ? 2
-                : 1 + posts.length + (isLoadingMore ? 1 : 0), // +1 for category bar
+                : 1 +
+                    posts.length +
+                    (isLoadingMore ? 1 : 0), // +1 for category bar
             itemBuilder: (context, index) {
               if (isLoading) {
                 return index == 0
@@ -453,12 +445,12 @@ class HomeScreenState extends State<HomeScreen> {
                       )
                     : const Text("No categories available");
               } else if (index == posts.length + 1 && isLoadingMore) {
-                return const Center(
-                    child: CircularProgressIndicator());
+                return const Center(child: CircularProgressIndicator());
               } else {
                 // Render the post directly from the posts list
                 return Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 0),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16.0, vertical: 0),
                   child: _buildPostWidget(posts[index - 1], index - 1),
                 );
               }

@@ -6,10 +6,10 @@ import 'package:inzone/components/category_selector_bar.dart';
 import 'package:inzone/components/post_card.dart';
 
 import 'package:inzone/data/inzone_avatar.dart';
-import 'package:inzone/inzone_database.dart';
+import 'package:inzone/services/inzone_database.dart';
 import 'package:shimmer/shimmer.dart';
 
-import '../data/inzone_post.dart';
+import 'package:inzone/data/inzone_post.dart';
 
 class ExploreScreen extends StatefulWidget {
   const ExploreScreen({super.key});
@@ -37,7 +37,8 @@ class _ExploreScreenState extends State<ExploreScreen> {
     super.initState();
     _startTime = DateTime.now();
     getFeed(); // Initial data fetch
-    _scrollController.addListener(_onScroll); // Attach scroll listener for lazy loading
+    _scrollController
+        .addListener(_onScroll); // Attach scroll listener for lazy loading
   }
 
   @override
@@ -55,12 +56,11 @@ class _ExploreScreenState extends State<ExploreScreen> {
   void _onScroll() {
     // Load more posts when scrolled to the bottom
     if (_scrollController.position.pixels ==
-        _scrollController.position.maxScrollExtent &&
+            _scrollController.position.maxScrollExtent &&
         !isLoadingMore) {
       _loadMorePosts();
     }
   }
-
 
   Future<void> getFeed({bool isRefresh = false}) async {
     if (isRefresh) {
@@ -79,7 +79,6 @@ class _ExploreScreenState extends State<ExploreScreen> {
     // Fetch data from InZoneDatabase
     final response = await InZoneDatabase.getFeed();
 
-
     // Ensure the response contains the expected structure
     if (response != null &&
         response.containsKey('posts') &&
@@ -94,9 +93,6 @@ class _ExploreScreenState extends State<ExploreScreen> {
       }
 
       _addPostsToScreen(fetchedPosts);
-
-
-
     } else {
       throw Exception('Invalid response structure');
     }
@@ -120,8 +116,8 @@ class _ExploreScreenState extends State<ExploreScreen> {
   }
 
   void _addPostsToScreen(List<dynamic> fetchedPosts) async {
-    for (var postJson in fetchedPosts.skip(_currentPage * _pageSize).take(_pageSize)) {
-
+    for (var postJson
+        in fetchedPosts.skip(_currentPage * _pageSize).take(_pageSize)) {
       InZonePost post = InZonePost.fromJson(postJson);
       posts.add(PostCard(
         post: post,
@@ -133,11 +129,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
         categoriesList.add(post.category);
       }
 
-
-
-
       // Add unique categories to the list
-
     }
     // final responseHuman = await InZoneDatabase.getHumanFeed();
     // // Ensure the response contains the expected structure
@@ -172,7 +164,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
     //   finalHomeScreen.shuffle();
     // }
     setState(() {
-      isLoading =false;
+      isLoading = false;
     });
     posts.shuffle();
 
@@ -184,7 +176,8 @@ class _ExploreScreenState extends State<ExploreScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 10),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 5, vertical: 10),
                 child: Text(
                   "Most Popular",
                   style: Theme.of(context).textTheme.titleMedium,
@@ -214,7 +207,6 @@ class _ExploreScreenState extends State<ExploreScreen> {
 
   @override
   Widget build(BuildContext context) {
-
     return Scaffold(
       appBar: PreferredSize(
           preferredSize: const Size.fromHeight(30),
@@ -362,6 +354,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
       ),
     );
   }
+
   Widget buildShimmerPostCard() {
     return Shimmer.fromColors(
       baseColor: Colors.grey[300]!,

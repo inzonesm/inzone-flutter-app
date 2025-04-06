@@ -3,9 +3,9 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:inzone/chat_screen.dart';
-import 'package:inzone/human_chat_screen.dart';
-import 'package:inzone/inzone_database.dart';
+import 'package:inzone/screen/chat/chat_screen.dart';
+import 'package:inzone/screen/chat/human_chat_screen.dart';
+import 'package:inzone/services/inzone_database.dart';
 import 'package:random_avatar/random_avatar.dart';
 
 class AllChatsScreen extends StatefulWidget {
@@ -15,7 +15,8 @@ class AllChatsScreen extends StatefulWidget {
   State<AllChatsScreen> createState() => _AllChatsScreenState();
 }
 
-class _AllChatsScreenState extends State<AllChatsScreen> with SingleTickerProviderStateMixin {
+class _AllChatsScreenState extends State<AllChatsScreen>
+    with SingleTickerProviderStateMixin {
   final List<ChatUser> _chatUsers = [];
   List<ChatUser> _groupChats = [];
   bool _isLoading = false;
@@ -38,7 +39,8 @@ class _AllChatsScreenState extends State<AllChatsScreen> with SingleTickerProvid
     _tabController.dispose();
     DateTime endTime = DateTime.now();
     Duration timeSpent = endTime.difference(_startTime);
-    InZoneDatabase.logEvent('all_chats_screen', {"timeSpent" : timeSpent.inSeconds,  "pageOpenedCount" : pageOpened});
+    InZoneDatabase.logEvent('all_chats_screen',
+        {"timeSpent": timeSpent.inSeconds, "pageOpenedCount": pageOpened});
     super.dispose();
   }
 
@@ -84,10 +86,10 @@ class _AllChatsScreenState extends State<AllChatsScreen> with SingleTickerProvid
 
       for (var doc in conversationsSnapshot.docs) {
         var data = doc.data() as Map<String, dynamic>;
-        
+
         // Check if this is a group chat
         bool isGroupChat = data['isGroupChat'] ?? false;
-        
+
         if (isGroupChat) {
           // Handle group chat
           String groupName = data['groupName'] ?? 'Group Chat';
@@ -103,31 +105,31 @@ class _AllChatsScreenState extends State<AllChatsScreen> with SingleTickerProvid
         } else {
           // Handle individual chat
           List<dynamic> participants = data['participants'] ?? [];
-          String? otherUserId = participants.firstWhere(
-            (id) => id != currentUserId, 
-            orElse: () => null
-          );
-          
+          String? otherUserId = participants
+              .firstWhere((id) => id != currentUserId, orElse: () => null);
+
           if (otherUserId != null) {
-            Map<String, dynamic> participantNames = data['participantNames'] ?? {};
+            Map<String, dynamic> participantNames =
+                data['participantNames'] ?? {};
             String otherUserName = participantNames[otherUserId] ?? 'User';
-            
+
             if (otherUserName == 'User') {
               try {
                 DocumentSnapshot userDoc = await _firestore
                     .collection('humanUsers')
                     .doc(otherUserId)
                     .get();
-                
+
                 if (userDoc.exists && userDoc.data() != null) {
                   var userData = userDoc.data() as Map<String, dynamic>;
-                  otherUserName = userData['name'] ?? userData['Name'] ?? 'User';
+                  otherUserName =
+                      userData['name'] ?? userData['Name'] ?? 'User';
                 }
               } catch (e) {
                 print('Error getting user name: $e');
               }
             }
-            
+
             allChats.add(ChatUser(
               name: otherUserName,
               email: otherUserId,
@@ -166,10 +168,9 @@ class _AllChatsScreenState extends State<AllChatsScreen> with SingleTickerProvid
       setState(() {
         _isLoading = false;
       });
-      
+
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error loading conversations: $e'))
-      );
+          SnackBar(content: Text('Error loading conversations: $e')));
     }
   }
 
@@ -266,7 +267,9 @@ class ChatUser {
 
   static ChatUser? fromJson(Map<String, dynamic> map) {
     try {
-      if (map.containsKey('aiProfile') && map['aiProfile'] != null && map.containsKey('conversationId')) {
+      if (map.containsKey('aiProfile') &&
+          map['aiProfile'] != null &&
+          map.containsKey('conversationId')) {
         return ChatUser(
           email: map['aiProfile']['username'] ?? '',
           name: map['aiProfile']["name"] ?? '',
@@ -288,7 +291,7 @@ class ChatUserCard extends StatefulWidget {
   final String currentUserId;
 
   const ChatUserCard({
-    super.key, 
+    super.key,
     required this.userData,
     required this.currentUserId,
   });
@@ -304,16 +307,18 @@ class _ChatUserCardState extends State<ChatUserCard> {
     if (widget.userData.lastMessageTime != null) {
       DateTime messageTime = widget.userData.lastMessageTime!.toDate();
       DateTime now = DateTime.now();
-      
+
       if (now.difference(messageTime).inDays == 0) {
         // Today - show time
-        formattedTime = '${messageTime.hour.toString().padLeft(2, '0')}:${messageTime.minute.toString().padLeft(2, '0')}';
+        formattedTime =
+            '${messageTime.hour.toString().padLeft(2, '0')}:${messageTime.minute.toString().padLeft(2, '0')}';
       } else if (now.difference(messageTime).inDays == 1) {
         // Yesterday
         formattedTime = 'Yesterday';
       } else {
         // Other days - show date
-        formattedTime = '${messageTime.day}/${messageTime.month}/${messageTime.year}';
+        formattedTime =
+            '${messageTime.day}/${messageTime.month}/${messageTime.year}';
       }
     }
 
@@ -333,7 +338,8 @@ class _ChatUserCardState extends State<ChatUserCard> {
           ).then((_) {
             // Refresh the conversation list when returning from chat
             if (mounted) {
-              (context.findAncestorStateOfType<_AllChatsScreenState>())?._fetchConversations();
+              (context.findAncestorStateOfType<_AllChatsScreenState>())
+                  ?._fetchConversations();
             }
           });
         } else {
@@ -359,18 +365,21 @@ class _ChatUserCardState extends State<ChatUserCard> {
             ),
             shape: BoxShape.circle,
           ),
-          child: widget.userData.profilePictureURL != null && widget.userData.profilePictureURL!.isNotEmpty
+          child: widget.userData.profilePictureURL != null &&
+                  widget.userData.profilePictureURL!.isNotEmpty
               ? ClipOval(
-                child: Image.network(
-                  widget.userData.profilePictureURL!,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) {
-                    // Fallback to RandomAvatar if the image fails to load
-                    return RandomAvatar(widget.userData.name.toString(), height: 30, width: 30);
-                  },
-                ),
-              )
-              : RandomAvatar(widget.userData.name.toString(), height: 30, width: 30),
+                  child: Image.network(
+                    widget.userData.profilePictureURL!,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) {
+                      // Fallback to RandomAvatar if the image fails to load
+                      return RandomAvatar(widget.userData.name.toString(),
+                          height: 30, width: 30);
+                    },
+                  ),
+                )
+              : RandomAvatar(widget.userData.name.toString(),
+                  height: 30, width: 30),
         ),
         title: Text(
           widget.userData.name ?? 'Unknown',

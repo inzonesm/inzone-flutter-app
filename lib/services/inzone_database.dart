@@ -4,7 +4,7 @@ import 'package:http/http.dart' as http;
 import 'package:inzone/data/inzone_post.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'main.dart';
+import '../main.dart';
 
 class InZoneDatabase {
   static Future<dynamic> getFeed({int? page}) async {
@@ -12,11 +12,13 @@ class InZoneDatabase {
         'https://inzoneapi-912424781531.us-central1.run.app/feed/posts-flow';
 
     // If page parameter is provided, add it to the URL
-    if (page != null ) {
-      if (page!=0){
-        url = 'https://inzoneapi-912424781531.us-central1.run.app/feed/posts-flow?user_id=${FirebaseAuth.instance.currentUser!.uid}&page=$page';
+    if (page != null) {
+      if (page != 0) {
+        url =
+            'https://inzoneapi-912424781531.us-central1.run.app/feed/posts-flow?user_id=${FirebaseAuth.instance.currentUser!.uid}&page=$page';
       } else {
-        url = 'https://inzoneapi-912424781531.us-central1.run.app/feed/posts-flow?user_id=${FirebaseAuth.instance.currentUser!.uid}&page=1';
+        url =
+            'https://inzoneapi-912424781531.us-central1.run.app/feed/posts-flow?user_id=${FirebaseAuth.instance.currentUser!.uid}&page=1';
       }
     }
 
@@ -80,7 +82,6 @@ class InZoneDatabase {
 //     }
 //   }
 
-
   static Future<String?> getCurrentUserUid() async {
     User? user = FirebaseAuth.instance.currentUser;
 
@@ -96,9 +97,8 @@ class InZoneDatabase {
   static Future<String?> sendMessageToAI(
       String userMessage, String aiUsername, String? chatID) async {
     String url;
-    if (aiUsername.contains('.')){
-       url =
-          'https://ai-apis-912424781531.us-east1.run.app/chat/aiUser';
+    if (aiUsername.contains('.')) {
+      url = 'https://ai-apis-912424781531.us-east1.run.app/chat/aiUser';
     } else {
       url =
           'https://ai-apis-912424781531.us-east1.run.app/chat/popularCharacter';
@@ -111,14 +111,14 @@ class InZoneDatabase {
         currentUserUID = value;
       }
     });
-    
+
     if (currentUserUID != null) {
       try {
         Map<String, String> requestBody = {
           'message': userMessage,
           'ai_id': aiUsername,
         };
-        
+
         // Add conversation ID if it exists
         if (chatID != null) {
           requestBody['ConversationId'] = chatID;
@@ -140,8 +140,7 @@ class InZoneDatabase {
 
           // Check if the response has the expected structure
           if (jsonResponse.containsKey('data')) {
-              return jsonResponse['data']['message'];
-
+            return jsonResponse['data']['message'];
           }
           return 'Unexpected response format from server';
         } else {
@@ -154,7 +153,6 @@ class InZoneDatabase {
     }
     return null;
   }
-
 
   static Future<String?> startConversation(String aiUsername) async {
     // String url =
@@ -216,16 +214,15 @@ class InZoneDatabase {
         currentUserUID = value;
       }
     });
-    
+
     if (currentUserUID == null) {
       return null;
     }
-    
 
     try {
       // Create URL with query parameter
       final Uri uri = Uri.parse('$url?uid=$currentUserUID');
-      
+
       // Make the GET request
       final http.Response response = await http.get(
         uri,
@@ -235,9 +232,10 @@ class InZoneDatabase {
       // Check if the request was successful (status code 200-299)
       if (response.statusCode == 200) {
         final Map<String, dynamic> responseData = jsonDecode(response.body);
-        
+
         // Check if the response has the expected structure
-        if (responseData.containsKey("success") && responseData["success"] == true) {
+        if (responseData.containsKey("success") &&
+            responseData["success"] == true) {
           // Return the user data from the "data" field
           return responseData["data"] as Map<String, dynamic>;
         } else {
@@ -260,7 +258,7 @@ class InZoneDatabase {
     try {
       // Create URL with query parameter
       final Uri uri = Uri.parse('$baseUrl?uid=$userID');
-      
+
       // Make the GET request
       final http.Response response = await http.get(
         uri,
@@ -271,9 +269,10 @@ class InZoneDatabase {
       if (response.statusCode == 200) {
         // Parse the response body
         final Map<String, dynamic> responseData = jsonDecode(response.body);
-        
+
         // Check if the response has the expected structure
-        if (responseData.containsKey("success") && responseData["success"] == true) {
+        if (responseData.containsKey("success") &&
+            responseData["success"] == true) {
           // Return the user data from the "data" field
           return responseData["data"] as Map<String, dynamic>;
         } else {
@@ -289,7 +288,8 @@ class InZoneDatabase {
     }
   }
 
-  static Future<List<Map<String, dynamic>>?> getFollowers(String userUid) async {
+  static Future<List<Map<String, dynamic>>?> getFollowers(
+      String userUid) async {
     final url = Uri.parse(
         'https://inzoneapi-912424781531.us-central1.run.app/user/get-followers');
 
@@ -310,7 +310,7 @@ class InZoneDatabase {
 
         // Extract the followers list
         final List<dynamic> followers = responseData['followers'] ?? [];
-        
+
         // Convert each follower to a Map<String, dynamic>
         return followers.map<Map<String, dynamic>>((follower) {
           if (follower is Map<String, dynamic>) {
@@ -329,7 +329,8 @@ class InZoneDatabase {
     }
   }
 
-  static Future<void> followUser(String followedUid, String followedUserName) async {
+  static Future<void> followUser(
+      String followedUid, String followedUserName) async {
     final url = Uri.parse(
         'https://inzoneapi-912424781531.us-central1.run.app/user/follow');
 
@@ -341,10 +342,10 @@ class InZoneDatabase {
         currentUserUID = value;
       }
     });
-    
+
     // Get current user's name from Firebase Auth
     currentUserName = FirebaseAuth.instance.currentUser?.displayName;
-    
+
     // Updated to match the new API parameter names and include types
     final body = jsonEncode({
       "FollowerId": currentUserUID,
@@ -352,16 +353,14 @@ class InZoneDatabase {
       "FollowerType": "human",
       "FollowingType": "human",
       "FollowerUserName": currentUserName,
-      "FollowingUserName" : followedUserName
+      "FollowingUserName": followedUserName
     });
 
     try {
       final response = await http.post(url, headers: headers, body: body);
 
-      if (response.statusCode != 200) {
-      }
-    } catch (e) {
-    }
+      if (response.statusCode != 200) {}
+    } catch (e) {}
   }
 
   static Future<void> unfollowUser(String followedUid) async {
@@ -376,10 +375,10 @@ class InZoneDatabase {
         currentUserUID = value;
       }
     });
-    
+
     // Get current user's name from Firebase Auth
     currentUserName = FirebaseAuth.instance.currentUser?.displayName;
-    
+
     // Using the same parameter names as the follow function
     final body = jsonEncode({
       "FollowerId": currentUserUID,
@@ -392,10 +391,8 @@ class InZoneDatabase {
     try {
       final response = await http.post(url, headers: headers, body: body);
 
-      if (response.statusCode != 200) {
-      }
-    } catch (e) {
-    }
+      if (response.statusCode != 200) {}
+    } catch (e) {}
   }
 
   static Future<List<dynamic>?> getConversations() async {
@@ -439,18 +436,20 @@ class InZoneDatabase {
       if (sentimentResponse != null) {
         int sentiment = sentimentResponse["sentiment"] as int;
         String rawCategory = sentimentResponse["category"] as String;
-        
+
         // Format category
         if (rawCategory.contains("-")) {
           List<String> parts = rawCategory.split('-');
-          rawCategory = parts.map((part) => part[0].toUpperCase() + part.substring(1)).join(" ");
+          rawCategory = parts
+              .map((part) => part[0].toUpperCase() + part.substring(1))
+              .join(" ");
         }
-        
+
         // Capitalize first letter
-        String category = rawCategory.isNotEmpty ? 
-                         rawCategory[0].toUpperCase() + rawCategory.substring(1) : 
-                         "Entertainment";
-        
+        String category = rawCategory.isNotEmpty
+            ? rawCategory[0].toUpperCase() + rawCategory.substring(1)
+            : "Entertainment";
+
         return {
           "sentiment": sentiment,
           "category": category,
@@ -471,9 +470,10 @@ class InZoneDatabase {
     try {
       // First analyze sentiment
       var analysis = await analyzeSentiment(content);
-      
-      String url = 'https://inzoneapi-912424781531.us-central1.run.app/feed/create-human-post';
-      
+
+      String url =
+          'https://inzoneapi-912424781531.us-central1.run.app/feed/create-human-post';
+
       Map<String, dynamic> postData = {
         "UserName": FirebaseAuth.instance.currentUser!.displayName,
         "UserDocumentId": FirebaseAuth.instance.currentUser!.uid,
@@ -527,9 +527,10 @@ class InZoneDatabase {
     try {
       // First analyze sentiment
       var analysis = await analyzeSentiment(content);
-      
-      String url = 'https://inzoneapi-912424781531.us-central1.run.app/feed/create-ai-post';
-      
+
+      String url =
+          'https://inzoneapi-912424781531.us-central1.run.app/feed/create-ai-post';
+
       Map<String, dynamic> postData = {
         "UserName": aiUsername,
         "Category": analysis["category"],
@@ -585,12 +586,13 @@ class InZoneDatabase {
     try {
       // First analyze sentiment
       var analysis = await analyzeSentiment(content);
-      
-      String url = 'https://inzoneapi-912424781531.us-central1.run.app/feed/create-repost';
-      
+
+      String url =
+          'https://inzoneapi-912424781531.us-central1.run.app/feed/create-repost';
+
       Map<String, dynamic> postData = {
         "UserDocumentId": FirebaseAuth.instance.currentUser!.uid,
-        "UserName" : FirebaseAuth.instance.currentUser!.displayName,
+        "UserName": FirebaseAuth.instance.currentUser!.displayName,
         "Post": {
           "TextContent": content,
           "ImageContent": imageRefs,
@@ -650,19 +652,29 @@ class InZoneDatabase {
       if (response.statusCode == 200) {
         // Decode the JSON response
         Map<String, dynamic> responseData = json.decode(response.body);
-        
+
         // Check if the response has the expected structure
-        if (responseData.containsKey('success') && responseData['success'] == true && responseData.containsKey('data')) {
+        if (responseData.containsKey('success') &&
+            responseData['success'] == true &&
+            responseData.containsKey('data')) {
           // Extract the sentiment data
           Map<String, dynamic> sentimentData = responseData['data'];
-          
+
           // Validate required keys
-          final requiredKeys = ["PositiveScore", "NegativeScore", "NeutralScore", "OverallSentiment", "Categories", "Keywords"];
+          final requiredKeys = [
+            "PositiveScore",
+            "NegativeScore",
+            "NeutralScore",
+            "OverallSentiment",
+            "Categories",
+            "Keywords"
+          ];
           if (requiredKeys.every((key) => sentimentData.containsKey(key))) {
             // Get the OverallSentiment value as string
-            String overallSentiment = sentimentData['OverallSentiment'].toString();
+            String overallSentiment =
+                sentimentData['OverallSentiment'].toString();
             // Debug print
-            
+
             // Convert string sentiment to our three categories
             int sentimentCategory;
             switch (overallSentiment.trim().toLowerCase()) {
@@ -678,11 +690,12 @@ class InZoneDatabase {
               default:
                 sentimentCategory = 0; // Default to neutral for unknown values
             }
-            
+
             return {
               "sentiment": sentimentCategory,
-              "category": sentimentData['Categories'].isNotEmpty ? 
-                         sentimentData['Categories'][0] : "Entertainment"
+              "category": sentimentData['Categories'].isNotEmpty
+                  ? sentimentData['Categories'][0]
+                  : "Entertainment"
             };
           } else {
             return null;
@@ -699,20 +712,19 @@ class InZoneDatabase {
     }
   }
 
+  static Future<Map<String, dynamic>?> createUserProfile(
+      {required String name,
+      required String email,
+      required int age,
+      required String userUid,
+      required String gender,
+      required List<String> userInterests,
+      String? bio,
+      String? profilePicture,
+      String? userName}) async {
+    String url =
+        "https://inzoneapi-912424781531.us-central1.run.app/user/create-profile";
 
-  static Future<Map<String, dynamic>?> createUserProfile({
-    required String name,
-    required String email,
-    required int age,
-    required String userUid,
-    required String gender,
-    required List<String> userInterests,
-    String? bio,
-    String? profilePicture,
-    String? userName
-  }) async {
-    String url = "https://inzoneapi-912424781531.us-central1.run.app/user/create-profile";
-    
     // Construct the JSON body with the new parameter names
     final Map<String, dynamic> requestBody = {
       "Name": name,
@@ -736,14 +748,14 @@ class InZoneDatabase {
         },
         body: json.encode(requestBody),
       );
-      
 
       if (response.statusCode == 200) {
         try {
           final Map<String, dynamic> responseData = json.decode(response.body);
 
           // Check if the response has the expected structure
-          if (responseData.containsKey("success") && responseData["success"] == true) {
+          if (responseData.containsKey("success") &&
+              responseData["success"] == true) {
             return responseData;
           } else {
             return null;
@@ -780,10 +792,8 @@ class InZoneDatabase {
 
       if (response.statusCode == 200) {
         // Handle response here
-      } else {
-      }
-    } catch (e) {
-    }
+      } else {}
+    } catch (e) {}
   }
 
   static Future<String?> generateImage(String imagePrompt) async {
@@ -803,17 +813,18 @@ class InZoneDatabase {
       if (response.statusCode == 200) {
         // Parse the response according to the expected structure
         Map<String, dynamic> jsonResponse = jsonDecode(response.body);
-        
+
         // Check if the response has the success field and it's true
-        if (jsonResponse.containsKey("success") && jsonResponse["success"] == true) {
+        if (jsonResponse.containsKey("success") &&
+            jsonResponse["success"] == true) {
           // Check if the data field exists and contains the image URL
-          if (jsonResponse.containsKey("data") && 
+          if (jsonResponse.containsKey("data") &&
               jsonResponse["data"] is Map<String, dynamic> &&
               jsonResponse["data"].containsKey("imageUrl")) {
             return jsonResponse["data"]["imageUrl"];
           }
         }
-        
+
         return null;
       } else {
         // Handle failure and return null
@@ -832,7 +843,6 @@ class InZoneDatabase {
     return null;
   }
 
-
   static Future<bool> updateUserProfile({
     required String userId,
     String? username,
@@ -846,7 +856,7 @@ class InZoneDatabase {
     Map<String, dynamic> requestBody = {
       "UserId": userId,
     };
-    
+
     // Add optional fields if they are provided
     if (username != null) requestBody["Username"] = username;
     if (bio != null) requestBody["Bio"] = bio;
@@ -863,9 +873,10 @@ class InZoneDatabase {
 
       if (response.statusCode == 200) {
         final Map<String, dynamic> responseData = jsonDecode(response.body);
-        
+
         // Check if the update was successful
-        if (responseData.containsKey("success") && responseData["success"] == true) {
+        if (responseData.containsKey("success") &&
+            responseData["success"] == true) {
           return true;
         } else {
           return false;
@@ -890,7 +901,7 @@ class InZoneDatabase {
     Map<String, dynamic> requestBody = {
       "PostId": postId,
     };
-    
+
     // Add optional fields if they are provided
     if (content != null) requestBody["Content"] = content;
     if (imageUrl != null) requestBody["ImageUrl"] = imageUrl;
@@ -906,9 +917,10 @@ class InZoneDatabase {
 
       if (response.statusCode == 200) {
         final Map<String, dynamic> responseData = jsonDecode(response.body);
-        
+
         // Check if the update was successful
-        if (responseData.containsKey("success") && responseData["success"] == true) {
+        if (responseData.containsKey("success") &&
+            responseData["success"] == true) {
           return true;
         } else {
           return false;
@@ -959,7 +971,7 @@ class InZoneDatabase {
 
       if (response.statusCode == 200) {
         final Map<String, dynamic> responseData = jsonDecode(response.body);
-        
+
         // Check if the response contains the comment ID
         if (responseData.containsKey("commentId")) {
           return responseData["commentId"];
@@ -1006,9 +1018,10 @@ class InZoneDatabase {
 
       if (response.statusCode == 200) {
         final Map<String, dynamic> responseData = jsonDecode(response.body);
-        
+
         // Check if the operation was successful
-        if (responseData.containsKey("success") && responseData["success"] == true) {
+        if (responseData.containsKey("success") &&
+            responseData["success"] == true) {
           return true;
         } else {
           return false;
@@ -1053,9 +1066,10 @@ class InZoneDatabase {
 
       if (response.statusCode == 200) {
         final Map<String, dynamic> responseData = jsonDecode(response.body);
-        
+
         // Check if the operation was successful
-        if (responseData.containsKey("success") && responseData["success"] == true) {
+        if (responseData.containsKey("success") &&
+            responseData["success"] == true) {
           return true;
         } else {
           return false;
@@ -1086,7 +1100,7 @@ class InZoneDatabase {
     // Build the request body
     Map<String, dynamic> requestBody = {
       "FollowerId": currentUserUID, // Current user (who is following)
-      "FollowingId": followingId,   // User to unfollow
+      "FollowingId": followingId, // User to unfollow
     };
 
     try {
@@ -1126,7 +1140,7 @@ class InZoneDatabase {
     // Build the request body
     Map<String, dynamic> requestBody = {
       "FollowerId": currentUserUID, // Current user (who is being followed)
-      "FollowingId": followerId,    // User to remove as follower
+      "FollowingId": followerId, // User to remove as follower
     };
 
     try {
@@ -1165,9 +1179,9 @@ class InZoneDatabase {
         final List<dynamic> responseData = jsonDecode(response.body);
 
         // Convert the dynamic list to a list of maps
-        return responseData.map((character) =>
-          character as Map<String, dynamic>
-        ).toList();
+        return responseData
+            .map((character) => character as Map<String, dynamic>)
+            .toList();
       } else {
         return null;
       }
@@ -1199,9 +1213,8 @@ class InZoneDatabase {
         final List<dynamic> rawPosts = jsonDecode(response.body);
 
         // Print the raw structure of the first post for debugging
-        if (rawPosts.isNotEmpty) {
-        }
-        
+        if (rawPosts.isNotEmpty) {}
+
         return rawPosts; // Return the raw posts directly without transformation
       } else {
         // Handle unsuccessful requests
@@ -1212,6 +1225,7 @@ class InZoneDatabase {
       return null;
     }
   }
+
   static Future<List<dynamic>?> getAIUserPosts(String userId) async {
     const String url =
         'https://inzoneapi-912424781531.us-central1.run.app/feed/get-ai-posts';
@@ -1235,8 +1249,7 @@ class InZoneDatabase {
         final List<dynamic> rawPosts = jsonDecode(response.body);
 
         // Print the raw structure of the first post for debugging
-        if (rawPosts.isNotEmpty) {
-        }
+        if (rawPosts.isNotEmpty) {}
 
         return rawPosts; // Return the raw posts directly without transformation
       } else {
@@ -1248,6 +1261,7 @@ class InZoneDatabase {
       return null;
     }
   }
+
   // Method to fetch AI user profile
   static Future<Map<String, dynamic>?> getAIUserProfile(String username) async {
     const String url =
@@ -1256,7 +1270,7 @@ class InZoneDatabase {
     try {
       // Create the URL with query parameter
       final Uri uri = Uri.parse('$url?username=$username');
-      
+
       // Make the GET request
       final http.Response response = await http.get(
         uri,
@@ -1266,9 +1280,10 @@ class InZoneDatabase {
       // Check if the request was successful (status code 200)
       if (response.statusCode == 200) {
         final Map<String, dynamic> responseData = jsonDecode(response.body);
-        
+
         // Check if the response has the expected structure
-        if (responseData.containsKey("success") && responseData["success"] == true) {
+        if (responseData.containsKey("success") &&
+            responseData["success"] == true) {
           // Return the user data from the "data" field
           return responseData["data"] as Map<String, dynamic>;
         } else {
@@ -1285,7 +1300,8 @@ class InZoneDatabase {
   }
 
   // Add this method to update user profile
-  static Future<void> updateUserProfileData(String userId, Map<String, dynamic> profileData) async {
+  static Future<void> updateUserProfileData(
+      String userId, Map<String, dynamic> profileData) async {
     try {
       // Convert the profile data to match the API's expected format
       Map<String, dynamic> requestBody = {
@@ -1298,7 +1314,8 @@ class InZoneDatabase {
       // Remove null values from the request body
       requestBody.removeWhere((key, value) => value == null);
 
-      const String url = 'https://inzoneapi-912424781531.us-central1.run.app/user/update-profile';
+      const String url =
+          'https://inzoneapi-912424781531.us-central1.run.app/user/update-profile';
 
       final http.Response response = await http.post(
         Uri.parse(url),
@@ -1310,13 +1327,16 @@ class InZoneDatabase {
 
       if (response.statusCode == 200) {
         final Map<String, dynamic> responseData = jsonDecode(response.body);
-        
-        if (responseData.containsKey("success") && responseData["success"] == true) {
+
+        if (responseData.containsKey("success") &&
+            responseData["success"] == true) {
         } else {
-          throw Exception('API returned success: false - ${responseData["error"] ?? "Unknown error"}');
+          throw Exception(
+              'API returned success: false - ${responseData["error"] ?? "Unknown error"}');
         }
       } else {
-        throw Exception('Failed to update profile. Status code: ${response.statusCode}');
+        throw Exception(
+            'Failed to update profile. Status code: ${response.statusCode}');
       }
     } catch (e) {
       rethrow; // Rethrow to handle in UI
@@ -1325,11 +1345,12 @@ class InZoneDatabase {
 
   // AI User Follow/Unfollow Functions
   static Future<bool> followAIUser(String aiUserId) async {
-    const String url = 'https://inzoneapi-912424781531.us-central1.run.app/user/follow';
+    const String url =
+        'https://inzoneapi-912424781531.us-central1.run.app/user/follow';
 
     String? currentUserUID = await getCurrentUserUid();
     String? currentUserName = FirebaseAuth.instance.currentUser?.displayName;
-    
+
     if (currentUserUID == null) {
       return false;
     }
@@ -1344,7 +1365,7 @@ class InZoneDatabase {
           'FollowerType': 'human',
           'FollowingType': 'ai',
           'FollowerUserName': currentUserName,
-          'FollowingUserName' : aiUserId
+          'FollowingUserName': aiUserId
         }),
       );
 
@@ -1360,11 +1381,12 @@ class InZoneDatabase {
   }
 
   static Future<bool> unfollowAIUser(String aiUserId) async {
-    const String url = 'https://inzoneapi-912424781531.us-central1.run.app/user/unfollow';
+    const String url =
+        'https://inzoneapi-912424781531.us-central1.run.app/user/unfollow';
 
     String? currentUserUID = await getCurrentUserUid();
     String? currentUserName = FirebaseAuth.instance.currentUser?.displayName;
-    
+
     if (currentUserUID == null) {
       return false;
     }
@@ -1379,7 +1401,7 @@ class InZoneDatabase {
           'FollowerType': 'human',
           'FollowingType': 'ai',
           'FollowerUserName': currentUserName,
-          'FollowingUserName':aiUserId
+          'FollowingUserName': aiUserId
         }),
       );
 
@@ -1395,7 +1417,8 @@ class InZoneDatabase {
   }
 
   static Future<List<String>> getAIFollowers(String userId) async {
-    const String url = 'https://inzoneapi-912424781531.us-central1.run.app/api/ai/get-followers';
+    const String url =
+        'https://inzoneapi-912424781531.us-central1.run.app/api/ai/get-followers';
 
     try {
       final response = await http.post(
@@ -1419,7 +1442,8 @@ class InZoneDatabase {
   }
 
   static Future<List<String>> getAIFollowing(String userId) async {
-    const String url = 'https://inzoneapi-912424781531.us-central1.run.app/api/ai/get-following';
+    const String url =
+        'https://inzoneapi-912424781531.us-central1.run.app/api/ai/get-following';
 
     try {
       final response = await http.post(
@@ -1443,7 +1467,8 @@ class InZoneDatabase {
   }
 
   static Future<bool> removeFromAIFollowers(String followerId) async {
-    const String url = 'https://inzoneapi-912424781531.us-central1.run.app/api/ai/remove-from-followers';
+    const String url =
+        'https://inzoneapi-912424781531.us-central1.run.app/api/ai/remove-from-followers';
 
     String? currentUserUID = await getCurrentUserUid();
     if (currentUserUID == null) {
@@ -1472,7 +1497,8 @@ class InZoneDatabase {
   }
 
   static Future<bool> removeFromAIFollowing(String followingId) async {
-    const String url = 'https://inzoneapi-912424781531.us-central1.run.app/api/ai/remove-from-following';
+    const String url =
+        'https://inzoneapi-912424781531.us-central1.run.app/api/ai/remove-from-following';
 
     String? currentUserUID = await getCurrentUserUid();
     if (currentUserUID == null) {
@@ -1510,7 +1536,7 @@ class LikedPostsPreferences {
     if (post.id == "unknown" || post.id.isEmpty) {
       return;
     }
-    
+
     SharedPreferences prefs = await SharedPreferences.getInstance();
 
     // Retrieve the current liked posts as a map of postId -> post details (as JSON strings)
@@ -1524,11 +1550,10 @@ class LikedPostsPreferences {
 
       // Add or update the post details in the map using the post ID as the key
       likedPosts[post.id] = postJson;
-      
+
       // Save the updated liked posts back to SharedPreferences
       await prefs.setString(likedPostsKey, jsonEncode(likedPosts));
-    } catch (e) {
-    }
+    } catch (e) {}
   }
 
   // Remove a post ID from the liked posts
@@ -1537,7 +1562,7 @@ class LikedPostsPreferences {
     if (postId == "unknown" || postId.isEmpty) {
       return;
     }
-    
+
     SharedPreferences prefs = await SharedPreferences.getInstance();
 
     // Retrieve the current liked posts
@@ -1557,14 +1582,14 @@ class LikedPostsPreferences {
 
     // Retrieve the liked posts as a map
     String? rawData = prefs.getString(likedPostsKey);
-    
+
     if (rawData == null || rawData == '{}') {
       return [];
     }
-    
+
     try {
       Map<String, dynamic> rawMap = jsonDecode(rawData);
-      
+
       // Convert the raw map to the expected format
       Map<String, String> likedPosts = {};
       rawMap.forEach((key, value) {
@@ -1578,16 +1603,15 @@ class LikedPostsPreferences {
 
       // Convert the map back into a list of InZonePost objects
       List<InZonePost> posts = [];
-      
+
       likedPosts.forEach((postId, postJson) {
         try {
           Map<String, dynamic> postMap = jsonDecode(postJson);
           InZonePost post = InZonePost.fromJsonLocal(postMap);
           posts.add(post);
-        } catch (e) {
-        }
+        } catch (e) {}
       });
-      
+
       return posts;
     } catch (e) {
       return [];
@@ -1600,23 +1624,23 @@ class LikedPostsPreferences {
     if (postId == "unknown" || postId.isEmpty) {
       return false;
     }
-    
+
     SharedPreferences prefs = await SharedPreferences.getInstance();
 
     // Retrieve the liked posts
     String? rawData = prefs.getString(likedPostsKey);
-    
-    Map<String, String> likedPosts = Map<String, String>.from(
-        jsonDecode(rawData ?? '{}'));
-    
+
+    Map<String, String> likedPosts =
+        Map<String, String>.from(jsonDecode(rawData ?? '{}'));
+
     bool isLiked = likedPosts.containsKey(postId);
     return isLiked;
   }
-  
+
   // Clear all liked posts (for debugging)
   static Future<void> clearAllLikedPosts() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
-    
+
     // Clear the liked posts by setting an empty map
     await prefs.setString(likedPostsKey, '{}');
   }

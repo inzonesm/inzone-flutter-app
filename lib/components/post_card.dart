@@ -8,24 +8,23 @@ import 'package:inzone/components/video_widget.dart';
 import 'package:inzone/config/custom_icons.dart';
 import 'package:inzone/data/comment_class.dart';
 import 'package:inzone/data/inzone_post.dart';
-import 'package:inzone/inzone_database.dart';
-import 'package:inzone/profile_screen.dart';
+import 'package:inzone/services/inzone_database.dart';
+import 'package:inzone/screen/profile/profile_screen.dart';
 import 'package:random_avatar/random_avatar.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
 
 class PostCard extends StatefulWidget {
   InZonePost post;
   final Function(String)? onTap;
   final bool showHue;
-  
-  InZonePost getPost () {
+
+  InZonePost getPost() {
     return post;
   }
-  
+
   PostCard({
-    super.key, 
-    required this.post, 
+    super.key,
+    required this.post,
     this.onTap,
     this.showHue = true,
   });
@@ -37,13 +36,13 @@ class PostCard extends StatefulWidget {
 class _PostCardState extends State<PostCard> {
   bool imageSuccess = false;
 
-
   String username = '';
   CommentClass? comment;
 
   bool isLiked = false;
   Future<bool> isCommentPresent() async {
-    DocumentReference postDocumentReference = _firestore.collection('postComments').doc(widget.post.id.toString());
+    DocumentReference postDocumentReference =
+        _firestore.collection('postComments').doc(widget.post.id.toString());
 
     // Get the document snapshot
     DocumentSnapshot postSnapshot = await postDocumentReference.get();
@@ -59,6 +58,7 @@ class _PostCardState extends State<PostCard> {
 
     return false;
   }
+
   @override
   void initState() {
     super.initState();
@@ -82,7 +82,7 @@ class _PostCardState extends State<PostCard> {
       });
       return;
     }
-    
+
     bool liked = await LikedPostsPreferences.isPostLiked(widget.post.id);
     if (mounted) {
       setState(() {
@@ -96,25 +96,27 @@ class _PostCardState extends State<PostCard> {
     if (widget.post.id == "unknown" || widget.post.id.isEmpty) {
       return;
     }
-    
+
     // Check current like status
     bool currentLikeStatus = isLiked;
-    
+
     if (currentLikeStatus) {
       await LikedPostsPreferences.removeLikedPost(widget.post.id);
     } else {
       await LikedPostsPreferences.addLikedPost(widget.post);
     }
-    
+
     if (mounted) {
       setState(() {
         isLiked = !currentLikeStatus; // Toggle the like state
       });
     }
   }
+
   checkComment() async {
     isCommentPresent().then((value) {
-      if (mounted) { // Check if the widget is still in the tree
+      if (mounted) {
+        // Check if the widget is still in the tree
         setState(() {
           isCommentPresentbool = value;
         });
@@ -122,15 +124,13 @@ class _PostCardState extends State<PostCard> {
     });
   }
 
-bool isCommentPresentbool = false;
+  bool isCommentPresentbool = false;
   @override
-  Widget build(BuildContext context)  {
-
-checkComment();
+  Widget build(BuildContext context) {
+    checkComment();
 
     return GestureDetector(
       onDoubleTap: handleLike, // Handle like on double tap
-
 
       child: Padding(
         padding: const EdgeInsets.only(bottom: 20.0),
@@ -140,27 +140,28 @@ checkComment();
           ),
           width: MediaQuery.of(context).size.width - 30,
           padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 10),
-
           decoration: BoxDecoration(
               boxShadow: [
-            BoxShadow(
-              color: const Color(0xff959595).withOpacity(0.3),
-              spreadRadius: 0,
-              blurRadius: 15,
-              offset: const Offset(0, 4), // changes position of shadow
+                BoxShadow(
+                  color: const Color(0xff959595).withOpacity(0.3),
+                  spreadRadius: 0,
+                  blurRadius: 15,
+                  offset: const Offset(0, 4), // changes position of shadow
+                ),
 
-            ),
-            
                 // Only add blue hue for human posts (not AI)
-                if (!widget.post.isAi && widget.showHue) 
+                if (!widget.post.isAi && widget.showHue)
                   BoxShadow(
-                    color: Colors.lightBlueAccent.withOpacity(0.5), // Blue hue color
+                    color: Colors.lightBlueAccent
+                        .withOpacity(0.5), // Blue hue color
                     spreadRadius: 5, // Spread of the hue
                     blurRadius: 12, // Soft edges for blending
-                    offset: const Offset(0, 0), // Center the glow around the container
+                    offset: const Offset(
+                        0, 0), // Center the glow around the container
                   ),
-
-          ], color: Colors.white.withOpacity(0.97), borderRadius: BorderRadius.circular(15)),
+              ],
+              color: Colors.white.withOpacity(0.97),
+              borderRadius: BorderRadius.circular(15)),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
@@ -171,37 +172,43 @@ checkComment();
                   const SizedBox(
                     width: 10,
                   ),
-                  Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    GestureDetector(
-                      onTap: (){
-                        if (widget.post.isAi) {
-                          print(widget.post.userName);
-                          Navigator.push(context, MaterialPageRoute(builder: (context)=>ProfileScreen(
-                            uid: widget.post.userName,
-                            isAI: true, // AI user
-                          )));
-
-                        } else {
-                          Navigator.push(context, MaterialPageRoute(builder: (context)=>ProfileScreen(
-                            uid: widget.post.userReference,
-                            isAI: widget.post.isAi, // Use the post's isAi field
-                          )));
-
-                        }
-                      },
-                      child: SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        child: Text(
-                          widget.post.userName,
-                          style: const TextStyle(
-                              color: Colors.black,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 20),
+                  Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        GestureDetector(
+                          onTap: () {
+                            if (widget.post.isAi) {
+                              print(widget.post.userName);
+                              Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                      builder: (context) => ProfileScreen(
+                                            uid: widget.post.userName,
+                                            isAI: true, // AI user
+                                          )));
+                            } else {
+                              Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                      builder: (context) => ProfileScreen(
+                                            uid: widget.post.userReference,
+                                            isAI: widget.post
+                                                .isAi, // Use the post's isAi field
+                                          )));
+                            }
+                          },
+                          child: SingleChildScrollView(
+                            scrollDirection: Axis.horizontal,
+                            child: Text(
+                              widget.post.userName,
+                              style: const TextStyle(
+                                  color: Colors.black,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 20),
+                            ),
+                          ),
                         ),
-                      ),
-                    ),
-
-                  ]),
+                      ]),
                   const Spacer(),
                   PopupMenuButton(
                     shape: RoundedRectangleBorder(
@@ -242,96 +249,112 @@ checkComment();
               widget.post.textContent == null
                   ? const SizedBox()
                   : Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  widget.post.textContent,
-                  textAlign: TextAlign.start,
-                  style: const TextStyle(height: 1, color: Colors.black),
-                ),
-              ),
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        widget.post.textContent,
+                        textAlign: TextAlign.start,
+                        style: const TextStyle(height: 1, color: Colors.black),
+                      ),
+                    ),
               const SizedBox(
                 height: 10,
               ),
               (widget.post.imageContent.isNotEmpty) ||
-                  (widget.post.videoContent.isNotEmpty ?? false)
-               ?SizedBox(
-                width: MediaQuery.of(context).size.width - 30,
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    children: [
-                      // Display all images first
-                      if (widget.post.imageContent.isNotEmpty)
-                        ...widget.post.imageContent.map((imageUrl) {
-                          return imageUrl.isNotEmpty
-                              ? Padding(
-                            padding: const EdgeInsets.only(right: 5.0),
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(8.0),
-                              child: Image.network(
-                                imageUrl,
-                                fit: BoxFit.fitWidth,
-                                loadingBuilder: (context, child, loadingProgress) {
-                                  if (loadingProgress == null) {
-                                    return child; // The image has loaded
-                                  } else {
-                                    return Container(
-                                      width: MediaQuery.of(context).size.width - 60,
-                                      height: 200, // Adjust to the approximate expected height
-                                      color: Colors.grey[300], // Placeholder color
-                                      child: const Center(
-                                        child: CircularProgressIndicator(),
-                                      ),
-                                    );
-                                  }
-                                },
+                      (widget.post.videoContent.isNotEmpty ?? false)
+                  ? SizedBox(
+                      width: MediaQuery.of(context).size.width - 30,
+                      child: SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          children: [
+                            // Display all images first
+                            if (widget.post.imageContent.isNotEmpty)
+                              ...widget.post.imageContent.map((imageUrl) {
+                                return imageUrl.isNotEmpty
+                                    ? Padding(
+                                        padding:
+                                            const EdgeInsets.only(right: 5.0),
+                                        child: ClipRRect(
+                                          borderRadius:
+                                              BorderRadius.circular(8.0),
+                                          child: Image.network(
+                                            imageUrl,
+                                            fit: BoxFit.fitWidth,
+                                            loadingBuilder: (context, child,
+                                                loadingProgress) {
+                                              if (loadingProgress == null) {
+                                                return child; // The image has loaded
+                                              } else {
+                                                return Container(
+                                                  width: MediaQuery.of(context)
+                                                          .size
+                                                          .width -
+                                                      60,
+                                                  height:
+                                                      200, // Adjust to the approximate expected height
+                                                  color: Colors.grey[
+                                                      300], // Placeholder color
+                                                  child: const Center(
+                                                    child:
+                                                        CircularProgressIndicator(),
+                                                  ),
+                                                );
+                                              }
+                                            },
+                                            width: MediaQuery.of(context)
+                                                    .size
+                                                    .width -
+                                                60,
+                                            errorBuilder:
+                                                (context, object, st) {
+                                              return const SizedBox();
+                                            },
+                                          ),
+                                        ),
+                                      )
+                                    : const SizedBox();
+                              }),
 
-                                width: MediaQuery.of(context).size.width - 60,
-                                errorBuilder: (context, object, st) {
-                                  return const SizedBox();
-                                },
-                              ),
-                            ),
-                          )
-                              : const SizedBox();
-                        }),
-
-                      // Display all videos after images
-                      if (widget.post.videoContent.isNotEmpty && widget.post.videoContent.first.length > 3)
-                        ...widget.post.videoContent.map((videoUrl) {
-                          return Padding(
-                            padding: const EdgeInsets.only(right: 5.0),
-                            child: SizedBox(
-                              width: MediaQuery.of(context).size.width - 60,
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(8.0),
-                                child:  VideoWidget(videoUrl: videoUrl),
-                              ),
-                            ),
-                          );
-                        }),
-                    ],
-                  ),
-                ),
-              )
+                            // Display all videos after images
+                            if (widget.post.videoContent.isNotEmpty &&
+                                widget.post.videoContent.first.length > 3)
+                              ...widget.post.videoContent.map((videoUrl) {
+                                return Padding(
+                                  padding: const EdgeInsets.only(right: 5.0),
+                                  child: SizedBox(
+                                    width:
+                                        MediaQuery.of(context).size.width - 60,
+                                    child: ClipRRect(
+                                      borderRadius: BorderRadius.circular(8.0),
+                                      child: VideoWidget(videoUrl: videoUrl),
+                                    ),
+                                  ),
+                                );
+                              }),
+                          ],
+                        ),
+                      ),
+                    )
                   : const SizedBox(),
-
               const SizedBox(
                 height: 10,
               ),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
-                GestureDetector(
-                onTap: handleLike, // Toggle like/unlike when tapped
-                child: SizedBox(
-                  height: 30,
-                  width: 30,
-                  child: SvgPicture.asset(
-                    isLiked ? CustomIcons.like : CustomIcons.notlike, // Show correct icon based on state
+                  GestureDetector(
+                    onTap: handleLike, // Toggle like/unlike when tapped
+                    child: SizedBox(
+                      height: 30,
+                      width: 30,
+                      child: SvgPicture.asset(
+                        isLiked
+                            ? CustomIcons.like
+                            : CustomIcons
+                                .notlike, // Show correct icon based on state
+                      ),
+                    ),
                   ),
-                ),
-              ),
                   const SizedBox(
                     width: 10,
                   ),
@@ -345,13 +368,19 @@ checkComment();
                         onTap: () {
                           filterSheetModel();
                         },
-                        child: SizedBox(height: 35, width: 35, child: SvgPicture.asset(CustomIcons.comment
-                        ))),
-                  if (isCommentPresentbool == false)  InkWell(
-                      onTap: () {
-                        filterSheetModel();
-                      },
-                      child: SizedBox(height: 35, width: 35, child: Image.asset(CustomIcons.uncomment))),
+                        child: SizedBox(
+                            height: 35,
+                            width: 35,
+                            child: SvgPicture.asset(CustomIcons.comment))),
+                  if (isCommentPresentbool == false)
+                    InkWell(
+                        onTap: () {
+                          filterSheetModel();
+                        },
+                        child: SizedBox(
+                            height: 35,
+                            width: 35,
+                            child: Image.asset(CustomIcons.uncomment))),
                   const SizedBox(
                     width: 10,
                   ),
@@ -384,21 +413,21 @@ checkComment();
     );
   }
 
-
   PopupMenuItem menuOption(String iconPath, String title, String value,
       BuildContext context, String userEmail, String userName) {
     return PopupMenuItem(
       value: value,
       onTap: () async {
-        if(value == "not_interested"){
+        if (value == "not_interested") {
           const snackBar = SnackBar(
             content: Text("This post has been flagged for review."),
             backgroundColor: Colors.red,
           );
           ScaffoldMessenger.of(context).showSnackBar(snackBar);
-        } else if(value == "dont_show"){
+        } else if (value == "dont_show") {
           final snackBar = SnackBar(
-            content: Text("Posts from ${widget.post.userName} will not be shown."),
+            content:
+                Text("Posts from ${widget.post.userName} will not be shown."),
             backgroundColor: Colors.red,
           );
           ScaffoldMessenger.of(context).showSnackBar(snackBar);
@@ -441,7 +470,7 @@ checkComment();
                     fontWeight: FontWeight.w500,
                   ),
                   controller:
-                  type == 'Reply' ? _replyController : mySearchController,
+                      type == 'Reply' ? _replyController : mySearchController,
                   onTap: () {},
                   maxLines: null,
                   keyboardType: TextInputType.multiline,
@@ -449,7 +478,7 @@ checkComment();
                   decoration: InputDecoration(
                     suffixIconColor: Colors.grey.withOpacity(0.4),
                     contentPadding:
-                    const EdgeInsets.only(top: 10, left: 16, right: 16),
+                        const EdgeInsets.only(top: 10, left: 16, right: 16),
                     border: InputBorder.none,
                     hintText: type == 'Reply' ? 'Add Reply' : 'Add Comment',
                     hintStyle: const TextStyle(
@@ -490,7 +519,7 @@ checkComment();
                   setState(() {
                     type = '';
                     selectedCommentId =
-                    null; // Clear selected comment ID after replying
+                        null; // Clear selected comment ID after replying
                   });
                 }
               } else {
@@ -515,7 +544,8 @@ checkComment();
     print(widget.post.id);
     String commentText = mySearchController.text.trim();
     // Reference to the document where comments are stored
-    DocumentReference postDocumentReference = _firestore.collection('postComments').doc(widget.post.id.toString());
+    DocumentReference postDocumentReference =
+        _firestore.collection('postComments').doc(widget.post.id.toString());
 
     // Get the document snapshot
     DocumentSnapshot postSnapshot = await postDocumentReference.get();
@@ -551,8 +581,6 @@ checkComment();
     });
   }
 
-
-
   // void _addReply(String commentId) async {
   //   String replyText = _replyController.text.trim();
   //   if (replyText.isNotEmpty) {
@@ -570,7 +598,6 @@ checkComment();
   //     _replyController.clear();
   //   }
   // }
-
 
 // Function to toggle like status and store it in SharedPreferences
   toggleLikeComment(String commentId) async {
@@ -666,10 +693,9 @@ checkComment();
     return !isDisliked;
   }
 
-
   Future<CommentClass> getComment(String commentId) async {
     DocumentSnapshot snapshot =
-    await _firestore.collection('comments').doc(commentId).get();
+        await _firestore.collection('comments').doc(commentId).get();
     return CommentClass.fromJson(snapshot.data() as Map<String, dynamic>);
   }
 
@@ -685,14 +711,13 @@ checkComment();
     });
 
     showModalBottomSheet(
-      isScrollControlled: true
-      ,
+      isScrollControlled: true,
       backgroundColor: Colors.transparent,
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (BuildContext context, StateSetter setState) {
           return GestureDetector(
-            onTap: (){
+            onTap: () {
               FocusScope.of(context).unfocus();
             },
             child: Padding(
@@ -720,22 +745,21 @@ checkComment();
                       height: 15,
                     ),
                     Expanded(
-                      child:StreamBuilder<DocumentSnapshot>(
+                      child: StreamBuilder<DocumentSnapshot>(
                         stream: _firestore
                             .collection('postComments')
                             .doc(widget.post.id)
                             .snapshots(),
                         builder: (context, snapshot) {
-                          if (snapshot.hasData)  {
-                            if ( snapshot.data!.exists){
-
-                            } else {
-
-                            }
-                            dynamic data = snapshot.data!.data() as Map<String, dynamic>?;
+                          if (snapshot.hasData) {
+                            if (snapshot.data!.exists) {
+                            } else {}
+                            dynamic data =
+                                snapshot.data!.data() as Map<String, dynamic>?;
                             data ??= {};
                             final commentsList = data['comments'] ?? [];
-                            final comments = commentsList.map<CommentClass>((comment) {
+                            final comments =
+                                commentsList.map<CommentClass>((comment) {
                               return CommentClass(
                                 author: comment['author'],
                                 text: comment['text'],
@@ -751,12 +775,14 @@ checkComment();
                               return const Center(
                                 child: Text(
                                   'No Comments Available',
-                                  style: TextStyle(color: Colors.black, fontSize: 20),
+                                  style: TextStyle(
+                                      color: Colors.black, fontSize: 20),
                                 ),
                               );
                             }
                             return ListView.builder(
-                              padding: const EdgeInsets.fromLTRB(20, 5, 20, 100),
+                              padding:
+                                  const EdgeInsets.fromLTRB(20, 5, 20, 100),
                               itemCount: comments.length,
                               itemBuilder: (BuildContext context, int index) {
                                 comment = comments[index];
@@ -768,46 +794,52 @@ checkComment();
                                     child: CommentTreeWidget<CommentClass,
                                         CommentClass>(
                                       CommentClass(
-                                          author:  comment==null ? "john!" : comment!.author,
-                                          text:  comment==null ? "Great!" : comment!.text,
+                                          author: comment == null
+                                              ? "john!"
+                                              : comment!.author,
+                                          text: comment == null
+                                              ? "Great!"
+                                              : comment!.text,
                                           timestamp: "",
-                                          replies: [], id: "",
+                                          replies: [],
+                                          id: "",
                                           postId: "",
                                           userId: ""),
-                                      const [
-
-                                      ],
+                                      const [],
                                       treeThemeData: const TreeThemeData(
                                           lineColor: Colors.blue, lineWidth: 3),
                                       avatarRoot: (context, data) =>
                                           PreferredSize(
-                                            preferredSize: const Size.fromRadius(12),
-                                            child: RandomAvatar(comment!.author,
-                                                height: 40, width: 40),
-                                          ),
+                                        preferredSize:
+                                            const Size.fromRadius(12),
+                                        child: RandomAvatar(comment!.author,
+                                            height: 40, width: 40),
+                                      ),
                                       avatarChild: (context, data) =>
                                           PreferredSize(
-                                            preferredSize: const Size.fromRadius(12),
-                                            child: RandomAvatar(
-                                                comment!.author,
-                                                height: 40,
-                                                width: 40),
-                                          ),
+                                        preferredSize:
+                                            const Size.fromRadius(12),
+                                        child: RandomAvatar(comment!.author,
+                                            height: 40, width: 40),
+                                      ),
                                       contentChild: (context, data) {
                                         return Column(
                                           crossAxisAlignment:
-                                          CrossAxisAlignment.start,
+                                              CrossAxisAlignment.start,
                                           children: [
                                             Container(
-                                              padding: const EdgeInsets.symmetric(
-                                                  vertical: 8, horizontal: 8),
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                      vertical: 8,
+                                                      horizontal: 8),
                                               decoration: BoxDecoration(
                                                   color: Colors.grey[100],
                                                   borderRadius:
-                                                  BorderRadius.circular(12)),
+                                                      BorderRadius.circular(
+                                                          12)),
                                               child: Column(
                                                 crossAxisAlignment:
-                                                CrossAxisAlignment.start,
+                                                    CrossAxisAlignment.start,
                                                 children: [
                                                   Text(
                                                     "aadesh18",
@@ -815,9 +847,10 @@ checkComment();
                                                         .textTheme
                                                         .bodySmall
                                                         ?.copyWith(
-                                                        fontWeight:
-                                                        FontWeight.w600,
-                                                        color: Colors.black),
+                                                            fontWeight:
+                                                                FontWeight.w600,
+                                                            color:
+                                                                Colors.black),
                                                   ),
                                                   const SizedBox(
                                                     height: 4,
@@ -828,9 +861,10 @@ checkComment();
                                                         .textTheme
                                                         .bodySmall
                                                         ?.copyWith(
-                                                        fontWeight:
-                                                        FontWeight.w300,
-                                                        color: Colors.black),
+                                                            fontWeight:
+                                                                FontWeight.w300,
+                                                            color:
+                                                                Colors.black),
                                                   ),
                                                 ],
                                               ),
@@ -841,23 +875,24 @@ checkComment();
                                       contentRoot: (context, data) {
                                         return Column(
                                           crossAxisAlignment:
-                                          CrossAxisAlignment.start,
+                                              CrossAxisAlignment.start,
                                           children: [
                                             Container(
-                                              padding: const EdgeInsets.symmetric(
-                                                  vertical: 8, horizontal: 8),
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                      vertical: 8,
+                                                      horizontal: 8),
                                               decoration: BoxDecoration(
                                                   color: Colors.grey[100],
                                                   borderRadius:
-                                                  BorderRadius.circular(12)),
+                                                      BorderRadius.circular(
+                                                          12)),
                                               child: Column(
                                                 crossAxisAlignment:
-                                                CrossAxisAlignment.start,
+                                                    CrossAxisAlignment.start,
                                                 children: [
-
                                                   Text(
                                                     '${data.content}',
-
                                                   ),
                                                 ],
                                               ),
@@ -885,11 +920,9 @@ checkComment();
                                     ),
                                   ),
                                 );
-
                               },
                             );
                           } else if (snapshot.hasError) {
-
                             return Center(
                               child: Text(
                                 'Error: ${snapshot.error}',
@@ -904,7 +937,8 @@ checkComment();
                         },
                       ),
                     ),
-                    chatInput(comment?.id.toString(), comment?.author.toString())
+                    chatInput(
+                        comment?.id.toString(), comment?.author.toString())
                   ],
                 ),
               ),
@@ -914,9 +948,4 @@ checkComment();
       ),
     );
   }
-
-
-
-
-
 }

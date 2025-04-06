@@ -3,9 +3,9 @@ import 'package:flutter/material.dart';
 import 'dart:io' show Platform;
 
 import 'package:inzone/components/topic_selector_widget.dart';
-import 'package:inzone/introduction_screen.dart';
-import 'package:inzone/inzone_database.dart';
-import 'package:inzone/loading_screen.dart';
+import 'package:inzone/screen/auth/introduction_screen.dart';
+import 'package:inzone/services/inzone_database.dart';
+import 'package:inzone/screen/auth/loading_screen.dart';
 import 'package:inzone/root_app.dart'; // Import this to detect the platform
 
 class SignUpScreens extends StatefulWidget {
@@ -36,7 +36,7 @@ We, not Apple, are responsible for addressing any claims you or any third party 
 In the event of a third-party claim that the Licensed Application infringes intellectual property rights, we, not Apple, will be solely responsible for the investigation, defense, settlement, and discharge of any such claim.
 
 7. Legal Compliance:
-You represent and warrant that you are not located in a U.S. Government embargoed country or designated as a “terrorist supporting” country and that you are not listed on any U.S. Government list of prohibited or restricted parties.
+You represent and warrant that you are not located in a U.S. Government embargoed country or designated as a "terrorist supporting" country and that you are not listed on any U.S. Government list of prohibited or restricted parties.
 
 8. Developer Name and Address:
 For any questions, complaints, or claims concerning the Licensed Application, please contact InZone, INC. at 6505 59th Ave Riverdale, MD, +1 (240) 681-4298, contact@inzone.ai.
@@ -45,7 +45,7 @@ For any questions, complaints, or claims concerning the Licensed Application, pl
 You must comply with applicable third-party terms when using the Licensed Application. For example, if the Licensed Application is a VoIP app, you must not violate your wireless data service agreement.
 
 10. Third Party Beneficiary:
-Apple and Apple’s subsidiaries are third-party beneficiaries of this EULA. Upon your acceptance of the terms and conditions, Apple will have the right to enforce this EULA against you as a third-party beneficiary.
+Apple and Apple's subsidiaries are third-party beneficiaries of this EULA. Upon your acceptance of the terms and conditions, Apple will have the right to enforce this EULA against you as a third-party beneficiary.
 
 11. Content and Conduct:
 We are dedicated to fostering healthier relationships with social media. There is zero tolerance for objectionable content or abusive behavior on the platform. Users are encouraged to report any such content for immediate review and action.
@@ -68,7 +68,6 @@ By using the Licensed Application, you agree to abide by these terms and conditi
   String? username;
   String? password;
 
-
   // Function to navigate between pages
   void _navigateToPage(int page) async {
     if (_currentPage == 1) {
@@ -87,23 +86,24 @@ By using the Licensed Application, you agree to abide by these terms and conditi
       try {
         // Firebase Authentication (replace with actual email and password fields)
 
-        if (  email != null && password !=null  && username != null){
-          if (email!.isNotEmpty && password!.isNotEmpty && username!.isNotEmpty){
+        if (email != null && password != null && username != null) {
+          if (email!.isNotEmpty &&
+              password!.isNotEmpty &&
+              username!.isNotEmpty) {
             final credential =
-            await FirebaseAuth.instance.createUserWithEmailAndPassword(
+                await FirebaseAuth.instance.createUserWithEmailAndPassword(
               email: email!,
               password: password!,
             );
-            if (interests != null){
-              if(interests!.length < 2){
+            if (interests != null) {
+              if (interests!.length < 2) {
                 interests = [];
               }
             } else {
               interests = [];
             }
 
-
-            FirebaseAuth.instance.currentUser!.updateDisplayName(username!) ;
+            FirebaseAuth.instance.currentUser!.updateDisplayName(username!);
             await InZoneDatabase.createUserProfile(
               name: username!,
               email: email!,
@@ -116,7 +116,7 @@ By using the Licensed Application, you agree to abide by these terms and conditi
             Navigator.pushAndRemoveUntil(
               context,
               MaterialPageRoute(builder: (context) => const RootApp()),
-                  (route) => false, // removes all previous routes
+              (route) => false, // removes all previous routes
             );
           }
         } else {
@@ -132,9 +132,7 @@ By using the Licensed Application, you agree to abide by these terms and conditi
             backgroundColor: Colors.red,
           );
           ScaffoldMessenger.of(context).showSnackBar(snackBar);
-
         }
-
       } on FirebaseAuthException catch (e) {
         // Show an error message if something went wrong
         final snackBar = SnackBar(
@@ -187,7 +185,6 @@ By using the Licensed Application, you agree to abide by these terms and conditi
           ],
         ),
       ),
-
     );
   }
 
@@ -196,7 +193,6 @@ By using the Licensed Application, you agree to abide by these terms and conditi
     return SingleChildScrollView(
       child: Container(
         height: MediaQuery.of(context).size.height,
-      
         decoration: const BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.only(
@@ -215,13 +211,9 @@ By using the Licensed Application, you agree to abide by these terms and conditi
                 height: 10,
               ),
               ConstrainedBox(
-      
-                constraints: const BoxConstraints(
-                  minHeight: 50
-              ),
+                constraints: const BoxConstraints(minHeight: 50),
                 child: Container(
                   height: 50,
-      
                   padding: const EdgeInsets.only(left: 10),
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(10.0),
@@ -256,9 +248,7 @@ By using the Licensed Application, you agree to abide by these terms and conditi
                 height: 10,
               ),
               ConstrainedBox(
-                constraints: const BoxConstraints(
-                    minHeight: 50
-                ),
+                constraints: const BoxConstraints(minHeight: 50),
                 child: Container(
                   height: 50,
                   padding: const EdgeInsets.only(left: 10),
@@ -295,10 +285,7 @@ By using the Licensed Application, you agree to abide by these terms and conditi
                 height: 10,
               ),
               ConstrainedBox(
-      
-                constraints: const BoxConstraints(
-                    minHeight: 50
-                ),
+                constraints: const BoxConstraints(minHeight: 50),
                 child: Container(
                   height: 50,
                   padding: const EdgeInsets.only(left: 10),
@@ -336,9 +323,7 @@ By using the Licensed Application, you agree to abide by these terms and conditi
                 height: 10,
               ),
               ConstrainedBox(
-                constraints: const BoxConstraints(
-                    minHeight: 50
-                ),
+                constraints: const BoxConstraints(minHeight: 50),
                 child: Container(
                   width: MediaQuery.of(context).size.width,
                   height: 48,
@@ -395,7 +380,7 @@ By using the Licensed Application, you agree to abide by these terms and conditi
                                 )
                               : GestureDetector(
                                   onTap: () {
-                                    age = index +1;
+                                    age = index + 1;
                                     setState(() {
                                       tempAge = index + 1;
                                     });
@@ -450,7 +435,8 @@ By using the Licensed Application, you agree to abide by these terms and conditi
 
               Flexible(
                 child: Padding(
-                  padding: const EdgeInsets.only(left: 8.0, right: 8.0, top: 20),
+                  padding:
+                      const EdgeInsets.only(left: 8.0, right: 8.0, top: 20),
                   child: Row(
                     children: [
                       const SizedBox(
@@ -500,7 +486,7 @@ By using the Licensed Application, you agree to abide by these terms and conditi
 
   // Content Selection Page
   Widget _buildContentSelectionPage() {
-    void addToList(String topic){
+    void addToList(String topic) {
       interests ??= [];
       interests!.add(topic);
     }
@@ -550,7 +536,11 @@ By using the Licensed Application, you agree to abide by these terms and conditi
           scrollDirection: Axis.vertical,
           child: Column(
             children: [
-              const Center(child: Text("Select your favorite categories (Optional)", style: TextStyle(color: Colors.blue),)),
+              const Center(
+                  child: Text(
+                "Select your favorite categories (Optional)",
+                style: TextStyle(color: Colors.blue),
+              )),
               Padding(
                 padding: const EdgeInsets.only(bottom: 80.0),
                 child: Wrap(
@@ -558,7 +548,8 @@ By using the Licensed Application, you agree to abide by these terms and conditi
                     topicList.length,
                     (index) {
                       String currentTopic = topicList[index];
-                      return TopicSelectorWidget(topic: currentTopic, callBack: addToList);
+                      return TopicSelectorWidget(
+                          topic: currentTopic, callBack: addToList);
                     },
                   ),
                 ),

@@ -1,10 +1,10 @@
 import 'package:firebase_storage/firebase_storage.dart';
 import 'dart:io';
-import 'package:ffmpeg_kit_flutter/ffmpeg_kit.dart';
+import 'package:ffmpeg_kit_flutter_full/ffmpeg_kit.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:inzone/all_chats_screen.dart';
+import 'package:inzone/screen/chat/all_chats_screen.dart';
 
 class AuthWork {
   static FirebaseAuth auth = FirebaseAuth.instance;
@@ -14,9 +14,7 @@ class AuthWork {
   static User get user => auth.currentUser!;
   // static FirebaseStorage storage = FirebaseStorage.instance;
 
-
   //for gmail user
-
 
   // for checking if user exists or not?
 
@@ -29,7 +27,8 @@ class AuthWork {
   //       .limit(1)
   //       .snapshots();
   // }
-  static Future<Map<String, String>> sendPostVideo(String chatUserID, File videoFile) async {
+  static Future<Map<String, String>> sendPostVideo(
+      String chatUserID, File videoFile) async {
     try {
       // Getting video file extension
       final ext = videoFile.path.split('.').last;
@@ -41,8 +40,7 @@ class AuthWork {
       // Uploading video
       await ref
           .putFile(videoFile, SettableMetadata(contentType: 'video/$ext'))
-          .then((p0) {
-      });
+          .then((p0) {});
 
       // Getting video URL
       final videoUrl = await ref.getDownloadURL();
@@ -59,24 +57,16 @@ class AuthWork {
       final thumbnailSnapshot = await thumbnailTask.whenComplete(() {});
       final thumbnailUrl = await thumbnailSnapshot.ref.getDownloadURL();
 
-      return {"videoUrl": videoUrl, "thumbnailUrl":thumbnailUrl};
+      return {"videoUrl": videoUrl, "thumbnailUrl": thumbnailUrl};
     } catch (e) {
       throw Exception('Error uploading video: throwing an error');
     }
   }
 
-
-
-
-
   static Stream<DocumentSnapshot<Map<String, dynamic>>> getAllMessages(
       ChatUser user) {
-    return firestore
-        .collection('messages')
-        .doc(user.chatId)
-        .snapshots();
+    return firestore.collection('messages').doc(user.chatId).snapshots();
   }
-
 
   static Future<String> sendPostImage(String chatUserID, File file) async {
     //getting image file extension
@@ -89,21 +79,23 @@ class AuthWork {
     //uploading image
     await ref
         .putFile(file, SettableMetadata(contentType: 'image/$ext'))
-        .then((p0) {
-    });
+        .then((p0) {});
 
     //updating image in firestore database
     final imageUrl = await ref.getDownloadURL();
 
     return imageUrl;
   }
+
   static Future<File> generateThumbnail(File videoFile) async {
     // Define the path for the thumbnail
     final tempDir = await getTemporaryDirectory();
-    final thumbnailPath = '${tempDir.path}/${DateTime.now().millisecondsSinceEpoch}_thumbnail.jpg';
+    final thumbnailPath =
+        '${tempDir.path}/${DateTime.now().millisecondsSinceEpoch}_thumbnail.jpg';
 
     // Generate the thumbnail using ffmpeg command
-    final command = '-i ${videoFile.path} -ss 00:00:01 -vframes 1 -q:v 2 $thumbnailPath';
+    final command =
+        '-i ${videoFile.path} -ss 00:00:01 -vframes 1 -q:v 2 $thumbnailPath';
     await FFmpegKit.execute(command);
 
     final thumbnailFile = File(thumbnailPath);
@@ -113,8 +105,6 @@ class AuthWork {
       throw Exception('Failed to generate thumbnail.');
     }
   }
-
-
 
   // // for getting specific user info
   // static Stream<QuerySnapshot<Map<String, dynamic>>> getUserInfo(
@@ -202,8 +192,6 @@ class AuthWork {
   //       .update({'read': DateTime.now().millisecondsSinceEpoch.toString()});
   // }
 
-
-
   // //delete message
   // static Future<void> deleteMessage(Messges message) async {
   //   await firestore
@@ -213,7 +201,6 @@ class AuthWork {
   //
   //
   // }
-
 
 //send first msg
 
@@ -226,7 +213,6 @@ class AuthWork {
   //       .doc(user.uid)
   //       .set({}).then((value) => sendMessage(chatUser, msg, type));
   // }
-
 
 //   //send chat image
   static Future<void> sendChatImage(ChatUser chatUser, File file) async {
@@ -362,7 +348,8 @@ class AuthWork {
 //
 //
 // // for sending message
-  static Future<void> sendMessage(ChatUser chatUser, String msg, {String? thumbnailUrl}) async {
+  static Future<void> sendMessage(ChatUser chatUser, String msg,
+      {String? thumbnailUrl}) async {
 //
 //     // message sending time (also used as id)
 //     print("IN SEND MESSAGE");
@@ -395,7 +382,6 @@ class AuthWork {
   }
 //
 
-
 // for sending push notification
 // static Future<void> sendPushNotification(
 //     AcceptedDateData chatUser, String msg) async {
@@ -417,8 +403,6 @@ class AuthWork {
 //   }
 // }
 
-
-
 // chats (collection) --> conversation_id (doc) --> messages (collection) --> message (doc)
 
 // useful for getting conversation id
@@ -436,7 +420,8 @@ class AuthWork {
     }
   }
 
-  static Future<void> deletePostVideo(String videoUrl, String thumbnailUrl) async {
+  static Future<void> deletePostVideo(
+      String videoUrl, String thumbnailUrl) async {
     try {
       // Delete video file
       final videoRef = storage.refFromURL(videoUrl);
@@ -445,7 +430,6 @@ class AuthWork {
       // Delete thumbnail file
       final thumbnailRef = storage.refFromURL(thumbnailUrl);
       await thumbnailRef.delete();
-      
     } catch (e) {
       throw Exception('Failed to delete video');
     }

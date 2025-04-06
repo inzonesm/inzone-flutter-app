@@ -4,13 +4,13 @@ import 'package:comment_tree/widgets/tree_theme_data.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:inzone/all_chats_screen.dart';
-import 'package:inzone/chat_screen.dart';
+import 'package:inzone/screen/chat/all_chats_screen.dart';
+import 'package:inzone/screen/chat/chat_screen.dart';
 import 'package:inzone/config/custom_icons.dart';
 import 'package:inzone/data/comment_class.dart';
 import 'package:inzone/data/inzone_avatar.dart';
 import 'package:inzone/data/inzone_post.dart';
-import 'package:inzone/inzone_database.dart';
+import 'package:inzone/services/inzone_database.dart';
 import 'package:random_avatar/random_avatar.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -20,7 +20,12 @@ class RepostCard extends StatefulWidget {
   final Function(String)? onTap;
   final String aiChat;
 
-  RepostCard({super.key, required this.post, this.onTap, required this.repost, required this.aiChat});
+  RepostCard(
+      {super.key,
+      required this.post,
+      this.onTap,
+      required this.repost,
+      required this.aiChat});
 
   @override
   State<RepostCard> createState() => _RepostCardState();
@@ -35,28 +40,27 @@ class _RepostCardState extends State<RepostCard> {
   String username = '';
   CommentClass? comment;
 
-
   @override
   void initState() {
     super.initState();
-    _checkIfLiked();  // Check if the current post is liked when the widget is initialized
+    _checkIfLiked(); // Check if the current post is liked when the widget is initialized
   }
 
 // Function to check if the current post is liked
   Future<void> _checkIfLiked() async {
-    bool liked = await LikedPostsPreferences.isPostLiked(widget.post.id);  // Check if postId is in SharedPreferences
+    bool liked = await LikedPostsPreferences.isPostLiked(
+        widget.post.id); // Check if postId is in SharedPreferences
     setState(() {
       isLiked = liked;
     });
   }
 
-
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: (){
+      onTap: () {
         // Navigator.push(context, MaterialPageRoute(builder: (context)=>MeScreen()));
-      } ,
+      },
       child: Padding(
         padding: const EdgeInsets.only(bottom: 20.0),
         child: Container(
@@ -83,16 +87,17 @@ class _RepostCardState extends State<RepostCard> {
                   const SizedBox(
                     width: 10,
                   ),
-                  Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text(
-                      widget.post.userName,
-                      style: const TextStyle(
-                          color: Colors.black,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 20),
-                    ),
-
-                  ]),
+                  Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          widget.post.userName,
+                          style: const TextStyle(
+                              color: Colors.black,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 20),
+                        ),
+                      ]),
                   const Spacer(),
                   PopupMenuButton(
                     shape: RoundedRectangleBorder(
@@ -108,7 +113,6 @@ class _RepostCardState extends State<RepostCard> {
                     },
                     itemBuilder: (BuildContext bc) {
                       return [
-
                         menuOption(
                             CustomIcons.notInterested,
                             "Flag this post",
@@ -141,20 +145,20 @@ class _RepostCardState extends State<RepostCard> {
               widget.post.textContent == null
                   ? const SizedBox()
                   : Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  widget.post.textContent,
-                  textAlign: TextAlign.start,
-                  style: const TextStyle(height: 1.5, color: Colors.black),
-                ),
-              ),
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        widget.post.textContent,
+                        textAlign: TextAlign.start,
+                        style:
+                            const TextStyle(height: 1.5, color: Colors.black),
+                      ),
+                    ),
               const SizedBox(
                 height: 10,
               ),
-const Divider(
-  color: Colors.blue,
-
-),
+              const Divider(
+                color: Colors.blue,
+              ),
               Center(
                 child: SizedBox(
                   width: MediaQuery.of(context).size.width - 30,
@@ -176,15 +180,12 @@ const Divider(
                             ),
                           ),
                         )
-
-
                       ],
                     ),
                   ),
                 ),
               ),
               messageCard(widget.aiChat, false),
-
               const SizedBox(
                 height: 10,
               ),
@@ -230,17 +231,18 @@ const Divider(
                       // TODO Check this
                       Navigator.push(context,
                           MaterialPageRoute(builder: (context) {
-                            return ChatScreen(userData: ChatUser(
+                        return ChatScreen(
+                            userData: ChatUser(
                                 name: widget.repost.username,
                                 email: widget.repost.id,
                                 profilePictureURL: widget.repost.profilePicture,
-                                chatId: null
-                            ));
-                          }));
+                                chatId: null));
+                      }));
                     },
                     style: ElevatedButton.styleFrom(
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16), // Adjust the value to make it less round
+                        borderRadius: BorderRadius.circular(
+                            16), // Adjust the value to make it less round
                       ),
                     ),
                     child: const Text("Chat"),
@@ -254,30 +256,31 @@ const Divider(
     );
   }
 
-
   PopupMenuItem menuOption(String iconPath, String title, String value,
       BuildContext context, String userEmail, String userName) {
     return PopupMenuItem(
       value: value,
       onTap: () async {
         if (value == "chat") {
-          String? chatID = await InZoneDatabase.startConversation(widget.post.id);
-
-        } else if(value == "not_interested"){
+          String? chatID =
+              await InZoneDatabase.startConversation(widget.post.id);
+        } else if (value == "not_interested") {
           const snackBar = SnackBar(
             content: Text("This post has been flagged for review."),
             backgroundColor: Colors.red,
           );
           ScaffoldMessenger.of(context).showSnackBar(snackBar);
-        }else if(value == "dont_show"){
+        } else if (value == "dont_show") {
           final snackBar = SnackBar(
-            content: Text("Posts from ${widget.post.userName} will not be shown."),
+            content:
+                Text("Posts from ${widget.post.userName} will not be shown."),
             backgroundColor: Colors.red,
           );
           ScaffoldMessenger.of(context).showSnackBar(snackBar);
-        }else if(value == "dont_show"){
+        } else if (value == "dont_show") {
           final snackBar = SnackBar(
-            content: Text("Posts from ${widget.post.userName} will not be shown."),
+            content:
+                Text("Posts from ${widget.post.userName} will not be shown."),
             backgroundColor: Colors.red,
           );
           ScaffoldMessenger.of(context).showSnackBar(snackBar);
@@ -320,7 +323,7 @@ const Divider(
                     fontWeight: FontWeight.w500,
                   ),
                   controller:
-                  type == 'Reply' ? _replyController : mySearchController,
+                      type == 'Reply' ? _replyController : mySearchController,
                   onTap: () {},
                   maxLines: null,
                   keyboardType: TextInputType.multiline,
@@ -328,7 +331,7 @@ const Divider(
                   decoration: InputDecoration(
                     suffixIconColor: Colors.grey.withOpacity(0.4),
                     contentPadding:
-                    const EdgeInsets.only(top: 10, left: 16, right: 16),
+                        const EdgeInsets.only(top: 10, left: 16, right: 16),
                     border: InputBorder.none,
                     hintText: type == 'Reply' ? 'Add Reply' : 'Add Comment',
                     hintStyle: const TextStyle(
@@ -369,7 +372,7 @@ const Divider(
                   setState(() {
                     type = '';
                     selectedCommentId =
-                    null; // Clear selected comment ID after replying
+                        null; // Clear selected comment ID after replying
                   });
                 }
               } else {
@@ -393,7 +396,8 @@ const Divider(
   void _addComment() async {
     String commentText = mySearchController.text.trim();
     // Reference to the document where comments are stored
-    DocumentReference postDocumentReference = _firestore.collection('postComments').doc(widget.post.id.toString());
+    DocumentReference postDocumentReference =
+        _firestore.collection('postComments').doc(widget.post.id.toString());
 
     // Get the document snapshot
     DocumentSnapshot postSnapshot = await postDocumentReference.get();
@@ -429,8 +433,6 @@ const Divider(
     });
   }
 
-
-
   // void _addReply(String commentId) async {
   //   String replyText = _replyController.text.trim();
   //   if (replyText.isNotEmpty) {
@@ -448,7 +450,6 @@ const Divider(
   //     _replyController.clear();
   //   }
   // }
-
 
 // Function to toggle like status and store it in SharedPreferences
   toggleLikeComment(String commentId) async {
@@ -568,7 +569,7 @@ const Divider(
 
   Future<CommentClass> getComment(String commentId) async {
     DocumentSnapshot snapshot =
-    await _firestore.collection('comments').doc(commentId).get();
+        await _firestore.collection('comments').doc(commentId).get();
     return CommentClass.fromJson(snapshot.data() as Map<String, dynamic>);
   }
 
@@ -584,15 +585,14 @@ const Divider(
     });
 
     showModalBottomSheet(
-      isScrollControlled: true
-      ,
+      isScrollControlled: true,
       backgroundColor: Colors.transparent,
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (BuildContext context, StateSetter setState) {
           var width = MediaQuery.of(context).size.width;
           return GestureDetector(
-            onTap: (){
+            onTap: () {
               FocusScope.of(context).unfocus();
             },
             child: Padding(
@@ -620,22 +620,21 @@ const Divider(
                       height: 15,
                     ),
                     Expanded(
-                      child:StreamBuilder<DocumentSnapshot>(
+                      child: StreamBuilder<DocumentSnapshot>(
                         stream: _firestore
                             .collection('postComments')
                             .doc(widget.post.id)
                             .snapshots(),
                         builder: (context, snapshot) {
-                          if (snapshot.hasData)  {
-                            if ( snapshot.data!.exists){
-
-                            } else {
-
-                            }
-                            dynamic data = snapshot.data!.data() as Map<String, dynamic>?;
+                          if (snapshot.hasData) {
+                            if (snapshot.data!.exists) {
+                            } else {}
+                            dynamic data =
+                                snapshot.data!.data() as Map<String, dynamic>?;
                             data ??= {};
                             final commentsList = data['comments'] ?? [];
-                            final comments = commentsList.map<CommentClass>((comment) {
+                            final comments =
+                                commentsList.map<CommentClass>((comment) {
                               return CommentClass(
                                 author: comment['author'],
                                 text: comment['text'],
@@ -651,12 +650,14 @@ const Divider(
                               return const Center(
                                 child: Text(
                                   'No Comments Available',
-                                  style: TextStyle(color: Colors.black, fontSize: 20),
+                                  style: TextStyle(
+                                      color: Colors.black, fontSize: 20),
                                 ),
                               );
                             }
                             return ListView.builder(
-                              padding: const EdgeInsets.fromLTRB(20, 5, 20, 100),
+                              padding:
+                                  const EdgeInsets.fromLTRB(20, 5, 20, 100),
                               itemCount: comments.length,
                               itemBuilder: (BuildContext context, int index) {
                                 comment = comments[index];
@@ -668,46 +669,52 @@ const Divider(
                                     child: CommentTreeWidget<CommentClass,
                                         CommentClass>(
                                       CommentClass(
-                                          author:  comment==null ? "john!" : comment!.author,
-                                          text:  comment==null ? "Great!" : comment!.text,
+                                          author: comment == null
+                                              ? "john!"
+                                              : comment!.author,
+                                          text: comment == null
+                                              ? "Great!"
+                                              : comment!.text,
                                           timestamp: "",
-                                          replies: [], id: "",
+                                          replies: [],
+                                          id: "",
                                           postId: "",
                                           userId: ""),
-                                      const [
-
-                                      ],
+                                      const [],
                                       treeThemeData: const TreeThemeData(
                                           lineColor: Colors.blue, lineWidth: 3),
                                       avatarRoot: (context, data) =>
                                           PreferredSize(
-                                            preferredSize: const Size.fromRadius(12),
-                                            child: RandomAvatar(comment!.author,
-                                                height: 40, width: 40),
-                                          ),
+                                        preferredSize:
+                                            const Size.fromRadius(12),
+                                        child: RandomAvatar(comment!.author,
+                                            height: 40, width: 40),
+                                      ),
                                       avatarChild: (context, data) =>
                                           PreferredSize(
-                                            preferredSize: const Size.fromRadius(12),
-                                            child: RandomAvatar(
-                                                comment!.author,
-                                                height: 40,
-                                                width: 40),
-                                          ),
+                                        preferredSize:
+                                            const Size.fromRadius(12),
+                                        child: RandomAvatar(comment!.author,
+                                            height: 40, width: 40),
+                                      ),
                                       contentChild: (context, data) {
                                         return Column(
                                           crossAxisAlignment:
-                                          CrossAxisAlignment.start,
+                                              CrossAxisAlignment.start,
                                           children: [
                                             Container(
-                                              padding: const EdgeInsets.symmetric(
-                                                  vertical: 8, horizontal: 8),
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                      vertical: 8,
+                                                      horizontal: 8),
                                               decoration: BoxDecoration(
                                                   color: Colors.grey[100],
                                                   borderRadius:
-                                                  BorderRadius.circular(12)),
+                                                      BorderRadius.circular(
+                                                          12)),
                                               child: Column(
                                                 crossAxisAlignment:
-                                                CrossAxisAlignment.start,
+                                                    CrossAxisAlignment.start,
                                                 children: [
                                                   Text(
                                                     "aadesh18",
@@ -715,9 +722,10 @@ const Divider(
                                                         .textTheme
                                                         .bodySmall
                                                         ?.copyWith(
-                                                        fontWeight:
-                                                        FontWeight.w600,
-                                                        color: Colors.black),
+                                                            fontWeight:
+                                                                FontWeight.w600,
+                                                            color:
+                                                                Colors.black),
                                                   ),
                                                   const SizedBox(
                                                     height: 4,
@@ -728,9 +736,10 @@ const Divider(
                                                         .textTheme
                                                         .bodySmall
                                                         ?.copyWith(
-                                                        fontWeight:
-                                                        FontWeight.w300,
-                                                        color: Colors.black),
+                                                            fontWeight:
+                                                                FontWeight.w300,
+                                                            color:
+                                                                Colors.black),
                                                   ),
                                                 ],
                                               ),
@@ -741,23 +750,24 @@ const Divider(
                                       contentRoot: (context, data) {
                                         return Column(
                                           crossAxisAlignment:
-                                          CrossAxisAlignment.start,
+                                              CrossAxisAlignment.start,
                                           children: [
                                             Container(
-                                              padding: const EdgeInsets.symmetric(
-                                                  vertical: 8, horizontal: 8),
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                      vertical: 8,
+                                                      horizontal: 8),
                                               decoration: BoxDecoration(
                                                   color: Colors.grey[100],
                                                   borderRadius:
-                                                  BorderRadius.circular(12)),
+                                                      BorderRadius.circular(
+                                                          12)),
                                               child: Column(
                                                 crossAxisAlignment:
-                                                CrossAxisAlignment.start,
+                                                    CrossAxisAlignment.start,
                                                 children: [
-
                                                   Text(
                                                     '${data.content}',
-
                                                   ),
                                                 ],
                                               ),
@@ -785,11 +795,9 @@ const Divider(
                                     ),
                                   ),
                                 );
-
                               },
                             );
                           } else if (snapshot.hasError) {
-
                             return Center(
                               child: Text(
                                 'Error: ${snapshot.error}',
@@ -804,7 +812,8 @@ const Divider(
                         },
                       ),
                     ),
-                    chatInput(comment?.id.toString(), comment?.author.toString())
+                    chatInput(
+                        comment?.id.toString(), comment?.author.toString())
                   ],
                 ),
               ),
@@ -815,17 +824,18 @@ const Divider(
     );
   }
 
-
   Widget messageCard(String text, bool isMe) {
     return Padding(
       padding: const EdgeInsets.all(8.0),
       child: Align(
         alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
         child: Column(
-          crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start, // Align properly for different users
+          crossAxisAlignment: isMe
+              ? CrossAxisAlignment.end
+              : CrossAxisAlignment.start, // Align properly for different users
           mainAxisSize: MainAxisSize.min,
           children: [
-             Padding(
+            Padding(
               padding: const EdgeInsets.symmetric(horizontal: 15.0),
               child: Text(
                 widget.repost.name,
@@ -833,9 +843,11 @@ const Divider(
               ),
             ),
             Row(
-              mainAxisAlignment: isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
+              mainAxisAlignment:
+                  isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
               children: [
-                Flexible( // Flexible allows the text to take up available space and wrap when needed
+                Flexible(
+                  // Flexible allows the text to take up available space and wrap when needed
                   child: Container(
                     padding: const EdgeInsets.all(15),
                     margin: const EdgeInsets.symmetric(
@@ -847,15 +859,21 @@ const Divider(
                       borderRadius: BorderRadius.only(
                         topLeft: const Radius.circular(18),
                         topRight: const Radius.circular(18),
-                        bottomRight: isMe ? const Radius.circular(18) : const Radius.circular(0),
-                        bottomLeft: isMe ? const Radius.circular(0) : const Radius.circular(18),
+                        bottomRight: isMe
+                            ? const Radius.circular(18)
+                            : const Radius.circular(0),
+                        bottomLeft: isMe
+                            ? const Radius.circular(0)
+                            : const Radius.circular(18),
                       ),
                     ),
                     child: Text(
                       text,
-                      overflow: TextOverflow.visible, // Ensures the text wraps when necessary
+                      overflow: TextOverflow
+                          .visible, // Ensures the text wraps when necessary
                       softWrap: true, // Allows the text to wrap naturally
-                      style: TextStyle(color: isMe ? Colors.white : Colors.black),
+                      style:
+                          TextStyle(color: isMe ? Colors.white : Colors.black),
                     ),
                   ),
                 ),
@@ -866,14 +884,10 @@ const Divider(
       ),
     );
   }
-
-
-
 }
 
-
 class LikeButtonWidget extends StatefulWidget {
-  final InZonePost post;// Unique ID for the post
+  final InZonePost post; // Unique ID for the post
   bool liked;
   LikeButtonWidget({super.key, required this.post, required this.liked});
 
@@ -919,7 +933,9 @@ class _LikeButtonWidgetState extends State<LikeButtonWidget> {
         height: 30,
         width: 30,
         child: SvgPicture.asset(
-          isLiked ? CustomIcons.like : CustomIcons.notlike, // Show correct icon based on state
+          isLiked
+              ? CustomIcons.like
+              : CustomIcons.notlike, // Show correct icon based on state
         ),
       ),
     );

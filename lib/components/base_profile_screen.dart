@@ -2,14 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:inzone/components/profile_header.dart';
 import 'package:inzone/components/profile_tabs.dart';
-import 'package:inzone/inzone_database.dart';
+import 'package:inzone/services/inzone_database.dart';
 
 abstract class BaseProfileScreen extends StatefulWidget {
   const BaseProfileScreen({super.key});
 }
 
-abstract class BaseProfileScreenState<T extends BaseProfileScreen> extends State<T>
-    with SingleTickerProviderStateMixin {
+abstract class BaseProfileScreenState<T extends BaseProfileScreen>
+    extends State<T> with SingleTickerProviderStateMixin {
   // Common state variables
   int currentPage = 0;
   String name = "Loading";
@@ -26,7 +26,7 @@ abstract class BaseProfileScreenState<T extends BaseProfileScreen> extends State
   List<Widget> getTabViews();
   Widget buildActionButtons();
   PreferredSizeWidget? buildAppBar();
-  
+
   @override
   void initState() {
     super.initState();
@@ -55,23 +55,25 @@ abstract class BaseProfileScreenState<T extends BaseProfileScreen> extends State
       });
       return;
     }
-    
-    Map<String, dynamic>? userProfile = await InZoneDatabase.getUserProfile(userId);
+
+    Map<String, dynamic>? userProfile =
+        await InZoneDatabase.getUserProfile(userId);
     if (userProfile != null) {
       setState(() {
         // Access the fields directly from the user data object
         name = userProfile["Name"] ?? userProfile["name"] ?? "Unknown";
         bio = userProfile["Bio"] ?? userProfile["bio"] ?? "";
-        
+
         // Get followers and following counts from the profile data
         List<dynamic> followers = userProfile["followers"] ?? [];
         List<dynamic> following = userProfile["following"] ?? [];
-        
-        followersCount = userProfile["followers_count"] ?? followers.length ?? 0;
-        followingCount = userProfile["following_count"] ?? following.length ?? 0;
+
+        followersCount =
+            userProfile["followers_count"] ?? followers.length ?? 0;
+        followingCount =
+            userProfile["following_count"] ?? following.length ?? 0;
       });
-    } else {
-    }
+    } else {}
   }
 
   Future<void> fetchUserStats([bool isAi = false]) async {
@@ -82,20 +84,20 @@ abstract class BaseProfileScreenState<T extends BaseProfileScreen> extends State
       });
       return;
     }
-    
+
     // Fetch post count from user posts
     List? posts = [];
-    if (isAi){
-       posts = await InZoneDatabase.getAIUserPosts(userId);
+    if (isAi) {
+      posts = await InZoneDatabase.getAIUserPosts(userId);
     } else {
-       posts = await InZoneDatabase.getUserPosts(userId);
+      posts = await InZoneDatabase.getUserPosts(userId);
     }
     if (posts != null) {
       setState(() {
         postCount = posts!.length;
       });
     }
-    
+
     setState(() {
       isLoading = false;
     });
@@ -105,14 +107,14 @@ abstract class BaseProfileScreenState<T extends BaseProfileScreen> extends State
   Widget build(BuildContext context) {
     // Get the app's background color from the theme
     final backgroundColor = Theme.of(context).canvasColor;
-    
+
     // Set status bar color
     SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
       statusBarIconBrightness: Brightness.dark,
       systemNavigationBarColor: backgroundColor,
     ));
-    
+
     return Scaffold(
       backgroundColor: backgroundColor,
       extendBodyBehindAppBar: true,
@@ -140,7 +142,7 @@ abstract class BaseProfileScreenState<T extends BaseProfileScreen> extends State
                     followersCount: followersCount,
                     actionButtons: buildActionButtons(),
                   ),
-                  
+
                   // Tab bar
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 8.0),
@@ -152,22 +154,22 @@ abstract class BaseProfileScreenState<T extends BaseProfileScreen> extends State
                 ],
               ),
             ),
-            
+
             // Add some space between the header and tab content
             const SizedBox(height: 5),
-            
+
             // Tab content
             Expanded(
               child: isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : TabBarView(
-                    controller: _tabController,
-                    children: getTabViews(),
-                  ),
+                  ? const Center(child: CircularProgressIndicator())
+                  : TabBarView(
+                      controller: _tabController,
+                      children: getTabViews(),
+                    ),
             ),
           ],
         ),
       ),
     );
   }
-} 
+}

@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_expandable_fab/flutter_expandable_fab.dart';
-import 'package:inzone/all_chats_screen.dart';
-import 'package:inzone/groups_explore_screen.dart';
-import 'package:inzone/home_screen.dart';
-import 'package:inzone/post_screen.dart';
-import 'package:inzone/settings_screen.dart';
+import 'package:inzone/screen/chat/all_chats_screen.dart';
+import 'package:inzone/screen/explore/groups_explore_screen.dart';
+import 'package:inzone/screen/common/home_screen.dart';
+import 'package:inzone/screen/post/post_screen.dart';
+import 'package:inzone/screen/common/settings_screen.dart';
 import 'package:sliding_sheet2/sliding_sheet2.dart';
 import 'package:animated_bottom_navigation_bar/animated_bottom_navigation_bar.dart';
+
 class RootApp extends StatefulWidget {
   const RootApp({super.key});
 
@@ -31,7 +32,9 @@ class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
   @override
   void initState() {
     _pages = [
-      HomeScreen( controller: _homeScrollController), // Assign the GlobalKey to HomeScreen
+      HomeScreen(
+          controller:
+              _homeScrollController), // Assign the GlobalKey to HomeScreen
       const GroupsExploreScreen(),
       const AllChatsScreen(),
       const SettingsScreen(),
@@ -39,9 +42,8 @@ class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
     super.initState();
   }
 
-  late List<Widget>_pages ;
+  late List<Widget> _pages;
   void _onItemTapped(int index) {
-
     if (_currentPage == index) {
       // Reload the HomeScreen when it's already active
       if (index == 0) {
@@ -59,10 +61,8 @@ class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
     } else {
       setState(() {
         _currentPage = index;
-
       });
     }
-
   }
 
   @override
@@ -89,14 +89,12 @@ class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
         preferredSize: const Size.fromHeight(0),
         child: AppBar(
           elevation: 0,
-
           automaticallyImplyLeading: false,
           surfaceTintColor: Colors.transparent,
           backgroundColor: Theme.of(context).canvasColor,
         ),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-
       floatingActionButton: FloatingActionButton(
         heroTag: null,
         foregroundColor: Colors.white,
@@ -105,15 +103,15 @@ class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
         onPressed: () {
           showSlidingBottomSheet(context,
               builder: (context) => SlidingSheetDialog(
-                cornerRadius: 30,
-                backdropColor:
-                Theme.of(context).canvasColor.withOpacity(0.6),
-                duration: const Duration(seconds: 1),
-                snapSpec: const SnapSpec(snappings: [0.9]),
-                builder: (context, state) {
-                  return const PostScreen();
-                },
-              ));
+                    cornerRadius: 30,
+                    backdropColor:
+                        Theme.of(context).canvasColor.withOpacity(0.6),
+                    duration: const Duration(seconds: 1),
+                    snapSpec: const SnapSpec(snappings: [0.9]),
+                    builder: (context, state) {
+                      return const PostScreen();
+                    },
+                  ));
         },
         child: Container(
           width: 56,
@@ -133,8 +131,7 @@ class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
         ),
       ),
       backgroundColor: Theme.of(context).canvasColor,
-      body:
-      NotificationListener<ScrollNotification>(
+      body: NotificationListener<ScrollNotification>(
         onNotification: (ScrollNotification notification) {
           if (notification is ScrollStartNotification) {
             setState(() {
@@ -147,18 +144,16 @@ class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
           }
           return false;
         },
-
-
         child: NestedScrollView(
             headerSliverBuilder: (context, innerBoxIsScrolled) {
               return [
                 SliverAppBar(
-                  // toolbarHeight: 30,
-                  // collapsedHeight: 30,
+                    // toolbarHeight: 30,
+                    // collapsedHeight: 30,
                     elevation: 0,
                     automaticallyImplyLeading: false,
                     surfaceTintColor: Colors.transparent,
-                    backgroundColor:  Theme.of(context).canvasColor,
+                    backgroundColor: Theme.of(context).canvasColor,
                     title: Row(
                       crossAxisAlignment: CrossAxisAlignment.center,
                       mainAxisSize: MainAxisSize.min,
@@ -191,31 +186,28 @@ class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
                         ),
                         _currentPage == 0
                             ? GestureDetector(
-                            onTap: () {
-                              Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                      builder: (context) =>
-                                      const AllChatsScreen()));
-                            },
-                            child: const SizedBox(
-                                height: 16,
-                                width: 16,
-                                child: Icon(
-                                  Icons.chat_bubble_outline_rounded,
-                                  color: Colors.black,
-                                  size: 21,
-                                )))
+                                onTap: () {
+                                  Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                          builder: (context) =>
+                                              const AllChatsScreen()));
+                                },
+                                child: const SizedBox(
+                                    height: 16,
+                                    width: 16,
+                                    child: Icon(
+                                      Icons.chat_bubble_outline_rounded,
+                                      color: Colors.black,
+                                      size: 21,
+                                    )))
                             : const SizedBox(),
                       ],
                     ))
               ];
             },
-            body: _pages[_currentPage]
-
-        ),
+            body: _pages[_currentPage]),
       ),
-
       bottomNavigationBar: AnimatedBottomNavigationBar.builder(
         itemCount: titleList.length,
         tabBuilder: (int index, bool isActive) {
@@ -253,4 +245,3 @@ class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
     );
   }
 }
-

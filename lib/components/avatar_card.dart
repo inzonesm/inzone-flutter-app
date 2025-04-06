@@ -1,8 +1,8 @@
 import 'dart:math';
 
 import 'package:flutter/material.dart';
-import 'package:inzone/all_chats_screen.dart';
-import 'package:inzone/chat_screen.dart';
+import 'package:inzone/screen/chat/all_chats_screen.dart';
+import 'package:inzone/screen/chat/chat_screen.dart';
 import 'package:inzone/data/inzone_avatar.dart';
 
 class AvatarCard extends StatefulWidget {
@@ -117,8 +117,10 @@ class _AvatarCardState extends State<AvatarCard> {
                           color: Colors.grey[300],
                           child: Center(
                             child: Text(
-                              widget.avatar.name.isNotEmpty 
-                                  ? widget.avatar.name.substring(0, 1).toUpperCase()
+                              widget.avatar.name.isNotEmpty
+                                  ? widget.avatar.name
+                                      .substring(0, 1)
+                                      .toUpperCase()
                                   : "?",
                               style: const TextStyle(
                                 fontSize: 40,
@@ -139,9 +141,10 @@ class _AvatarCardState extends State<AvatarCard> {
                       children: [
                         Text(
                           widget.avatar.name,
-                          style: Theme.of(context).textTheme.titleMedium!.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
+                          style:
+                              Theme.of(context).textTheme.titleMedium!.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                  ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -155,14 +158,16 @@ class _AvatarCardState extends State<AvatarCard> {
                         //   overflow: TextOverflow.ellipsis,
                         // ),
                         const SizedBox(height: 10),
-                        if (widget.avatar.greeting != null && widget.avatar.greeting!.isNotEmpty)
+                        if (widget.avatar.greeting != null &&
+                            widget.avatar.greeting!.isNotEmpty)
                           Container(
                             width: double.infinity,
                             decoration: BoxDecoration(
                               color: Colors.grey[100],
                               borderRadius: BorderRadius.circular(8),
                             ),
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 8),
                             margin: const EdgeInsets.only(bottom: 12),
                             child: Text(
                               '"${widget.avatar.greeting!}"',
@@ -181,7 +186,6 @@ class _AvatarCardState extends State<AvatarCard> {
                               width: double.infinity,
                               child: Text(
                                 widget.avatar.bio,
-
                                 style: TextStyle(
                                   fontSize: 14,
                                   color: Colors.grey[800],
@@ -204,7 +208,8 @@ class _AvatarCardState extends State<AvatarCard> {
                                   onTap: handleUpvote,
                                   child: Icon(
                                     Icons.keyboard_arrow_up_rounded,
-                                    color: isUpvoted ? Colors.green : Colors.black,
+                                    color:
+                                        isUpvoted ? Colors.green : Colors.black,
                                     size: 28,
                                   ),
                                 ),
@@ -215,8 +220,8 @@ class _AvatarCardState extends State<AvatarCard> {
                                     color: isUpvoted
                                         ? Colors.green
                                         : isDownvoted
-                                        ? Colors.red
-                                        : Colors.black,
+                                            ? Colors.red
+                                            : Colors.black,
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
@@ -225,7 +230,8 @@ class _AvatarCardState extends State<AvatarCard> {
                                   onTap: handleDownvote,
                                   child: Icon(
                                     Icons.keyboard_arrow_down_rounded,
-                                    color: isDownvoted ? Colors.red : Colors.black,
+                                    color:
+                                        isDownvoted ? Colors.red : Colors.black,
                                     size: 28,
                                   ),
                                 ),
@@ -252,19 +258,21 @@ class _AvatarCardState extends State<AvatarCard> {
                                 print(widget.avatar.profilePicture);
                                 Navigator.push(context,
                                     MaterialPageRoute(builder: (context) {
-                                      return ChatScreen(userData: ChatUser(
+                                  return ChatScreen(
+                                      userData: ChatUser(
                                           name: widget.avatar.name,
                                           email: widget.avatar.id,
                                           chatId: null,
-                                        profilePictureURL: widget.avatar.profilePicture
-                                      ));
-                                    }));
+                                          profilePictureURL:
+                                              widget.avatar.profilePicture));
+                                }));
                               },
                               style: ElevatedButton.styleFrom(
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(16),
                                 ),
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 12, vertical: 6),
                               ),
                               child: const Text(
                                 "Chat",
