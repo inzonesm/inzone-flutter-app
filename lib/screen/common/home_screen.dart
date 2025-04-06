@@ -399,6 +399,7 @@ class HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: CustomAppBar(
+        isHome: true,
         userName: "John Doe",
         userPoints: "100",
         profileImageUrl: "https://via.placeholder.com/150",
