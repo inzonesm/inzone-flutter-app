@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:inzone/components/cards/post_card.dart';
 import 'dart:async';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:inzone/components/profile/avatar_card.dart';
-import 'package:inzone/components/posts/post_card.dart';
 import 'package:shimmer/shimmer.dart';
 
 import 'package:inzone/data/inzone_post.dart';

@@ -1,10 +1,9 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:inzone/components/cards/post_card.dart';
 import 'package:inzone/components/profile/avatar_card.dart';
 import 'package:inzone/components/posts/category_selector_bar.dart';
-import 'package:inzone/components/posts/post_card.dart';
-
 import 'package:inzone/data/inzone_avatar.dart';
 import 'package:inzone/services/inzone_database.dart';
 import 'package:shimmer/shimmer.dart';
