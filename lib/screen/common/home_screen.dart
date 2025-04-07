@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:inzone/components/cards/post_card.dart';
+import 'package:inzone/components/cards/repost_card.dart';
 import 'package:inzone/components/profile/avatar_card.dart';
 import 'package:inzone/components/posts/category_selector_bar.dart';
-import 'package:inzone/components/posts/post_card.dart';
-import 'package:inzone/components/posts/repost_card.dart';
 import 'package:inzone/components/ui/appbar.dart';
 import 'package:inzone/data/inzone_avatar.dart';
 import 'package:inzone/data/inzone_post.dart';
@@ -402,7 +402,7 @@ class HomeScreenState extends State<HomeScreen> {
         isHome: true,
         userName: "John Doe",
         userPoints: "100",
-        profileImageUrl: "https://via.placeholder.com/150",
+        profileImageUrl: "https://images.pexels.com/photos/1239291/pexels-photo-1239291.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1",
         onSearchTap: () {},
         onProfileTap: () {},
         onPointsTap: () {},
