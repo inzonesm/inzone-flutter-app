@@ -62,9 +62,7 @@ class MyApp extends StatelessWidget {
             titleMedium:
                 GoogleFonts.afacad(fontSize: 22, fontWeight: FontWeight.bold),
             bodyMedium: GoogleFonts.afacad(fontSize: 18),
-            bodySmall: GoogleFonts.afacad(
-              fontSize: 16,
-            )),
+            bodySmall: GoogleFonts.afacad(fontSize: 16)),
         colorScheme: const ColorScheme.light(
             primary: Colors.blue,
             onPrimary: Colors.black,
