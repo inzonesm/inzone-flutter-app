@@ -63,6 +63,9 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
           bottomLeft: Radius.circular(30),
           bottomRight: Radius.circular(30),
         ),
+        boxShadow: [
+          BoxShadow(color: Colors.black12, blurRadius: 10, spreadRadius: 0.5)
+        ],
       ),
       child: SafeArea(
         child: Padding(
@@ -200,7 +203,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                     // ),
                   ],
                 )
-              : isProfile
+              : isOthers
                   ? Row(
                       children: [
                         IconButton(
