@@ -117,12 +117,12 @@ class _PostScreenState extends State<PostScreen> {
         padding: const EdgeInsets.only(left: 10, right: 10, top: 10),
         height: MediaQuery.of(context).size.height,
         width: MediaQuery.of(context).size.width,
-        decoration: BoxDecoration(
-            color: Theme.of(context).canvasColor,
-            borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(20), topRight: Radius.circular(20))),
+        decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.only(
+                topLeft: Radius.circular(30), topRight: Radius.circular(30))),
         child: Scaffold(
-          backgroundColor: Theme.of(context).canvasColor,
+          backgroundColor: Colors.white,
           body: Padding(
             padding: const EdgeInsets.only(bottom: 8.0, left: 8.0, right: 8.0),
             child: Column(
@@ -130,6 +130,19 @@ class _PostScreenState extends State<PostScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               mainAxisSize: MainAxisSize.max,
               children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 5),
+                  child: Center(
+                    child: Container(
+                      width: 50,
+                      height: 5,
+                      decoration: BoxDecoration(
+                        color: Colors.grey[300],
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                  ),
+                ),
                 Padding(
                   padding: const EdgeInsets.only(
                     left: 6.0,
