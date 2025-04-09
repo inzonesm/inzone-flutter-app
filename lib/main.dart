@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:inzone/config/default_firebase_options.dart';
+import 'package:inzone/screen/auth/introduction_screen.dart';
 import 'package:inzone/screen/auth/splash_screen.dart';
 import 'package:appsflyer_sdk/appsflyer_sdk.dart';
 import 'package:media_kit/media_kit.dart';
@@ -88,40 +89,7 @@ class MyApp extends StatelessWidget {
         ),
         useMaterial3: true,
       ),
-      home: StreamBuilder<User?>(
-        stream: FirebaseAuth.instance.authStateChanges(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-
-          if (snapshot.hasData && snapshot.data != null) {
-            // User is logged in, check if they have a document in humanUsers collection
-            return FutureBuilder<DocumentSnapshot>(
-              future: FirebaseFirestore.instance
-                  .collection('humanUsers')
-                  .doc(snapshot.data!.uid)
-                  .get(),
-              builder: (context, userDocSnapshot) {
-                if (userDocSnapshot.connectionState ==
-                    ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-
-                if (userDocSnapshot.hasData && userDocSnapshot.data!.exists) {
-                  // User has a document in humanUsers collection
-                  return SplashScreen(loggedIn: true);
-                } else {
-                  FirebaseAuth.instance.signOut();
-                  return SplashScreen(loggedIn: false);
-                }
-              },
-            );
-          } else {
-            return SplashScreen(loggedIn: false);
-          }
-        },
-      ),
+      home: const IntroductionScreen(),
     );
   }
 }
