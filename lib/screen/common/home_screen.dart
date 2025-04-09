@@ -398,55 +398,42 @@ class HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: CustomAppBar(
-        isHome: true,
-        userName: "John Doe",
-        userPoints: "100",
-        profileImageUrl:
-            "https://images.pexels.com/photos/1239291/pexels-photo-1239291.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1",
-        onSearchTap: () {},
-        onProfileTap: () {},
-        onPointsTap: () {},
-      ),
-      body: Padding(
-        padding: const EdgeInsets.only(top: 10.0),
-        child: SafeArea(
-          left: false,
-          right: false,
-          top: false,
-          child: RefreshIndicator(
-            onRefresh: () async {
-              setState(() {
-                reloadCount++; // Increment reload count on manual refresh
-              });
-              await loadFeed(isRefresh: true);
-              return;
-            },
-            child: ListView.builder(
-              controller: widget.controller,
-              itemCount: isLoading
-                  ? 2
-                  : 1 +
-                      posts.length +
-                      (isLoadingMore ? 1 : 0), // +1 for category bar
-              itemBuilder: (context, index) {
-                if (isLoading) {
-                  return index == 0
-                      ? Padding(
-                          padding: const EdgeInsets.symmetric(
-                              vertical: 10.0, horizontal: 10),
-                          child: buildShimmerCategoryBar(),
-                        )
-                      : Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          child: Column(
-                            children: List.generate(
-                                10, (index) => buildShimmerPostCard()),
-                          ),
-                        );
-                } else if (index == 0) {
-                  // Category bar when not loading
-                  return categoriesList.isNotEmpty
+      body: SafeArea(
+        left: false,
+        right: false,
+        top: false,
+        child: RefreshIndicator(
+          onRefresh: () async {
+            setState(() {
+              reloadCount++;
+            });
+            await loadFeed(isRefresh: true);
+            return;
+          },
+          child: CustomScrollView(
+            controller: widget.controller,
+            slivers: [
+              SliverPersistentHeader(
+                floating: true,
+                pinned: false,
+                delegate: CustomAppBarDelegate(
+                  height: 150,
+                  child: CustomAppBar(
+                    isHome: true,
+                    title: "John Doe",
+                    userPoints: "100",
+                    profileImageUrl:
+                        "https://images.pexels.com/photos/1239291/pexels-photo-1239291.jpeg",
+                    onSearchTap: () {},
+                    onProfileTap: () {},
+                    onPointsTap: () {},
+                  ),
+                ),
+              ),
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 10.0),
+                  child: categoriesList.isNotEmpty
                       ? Padding(
                           padding: const EdgeInsets.only(bottom: 10.0),
                           child: CategorySelectorBar(
@@ -456,19 +443,36 @@ class HomeScreenState extends State<HomeScreen> {
                             },
                           ),
                         )
-                      : const Text("No categories available");
-                } else if (index == posts.length + 1 && isLoadingMore) {
-                  return const Center(child: CircularProgressIndicator());
-                } else {
-                  // Render the post directly from the posts list
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 16.0, vertical: 0),
-                    child: _buildPostWidget(posts[index - 1], index - 1),
-                  );
-                }
-              },
-            ),
+                      : const Text("No categories available"),
+                ),
+              ),
+              if (isLoading)
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Column(
+                      children:
+                          List.generate(10, (index) => buildShimmerPostCard()),
+                    ),
+                  ),
+                )
+              else
+                SliverList(
+                  delegate: SliverChildBuilderDelegate(
+                    (context, index) {
+                      if (index == posts.length && isLoadingMore) {
+                        return const Center(child: CircularProgressIndicator());
+                      }
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16.0, vertical: 0),
+                        child: _buildPostWidget(posts[index], index),
+                      );
+                    },
+                    childCount: posts.length + (isLoadingMore ? 1 : 0),
+                  ),
+                ),
+            ],
           ),
         ),
       ),

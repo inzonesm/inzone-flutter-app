@@ -5,7 +5,7 @@ import 'package:inzone/screen/chat/chat_screen.dart';
 
 class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
   final String? greeting;
-  final String? userName;
+  final String? title;
   final String? userPoints;
   final String? profileImageUrl;
   final VoidCallback? onSearchTap;
@@ -14,11 +14,12 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
   final bool isHome;
   final bool isProfile;
   final bool isOthers;
+  final bool isImage;
 
   const CustomAppBar({
     super.key,
     this.greeting,
-    this.userName,
+    this.title,
     this.userPoints,
     this.profileImageUrl,
     this.onSearchTap,
@@ -27,6 +28,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
     this.isHome = false,
     this.isProfile = false,
     this.isOthers = false,
+    this.isImage = true,
   });
 
   @override
@@ -215,33 +217,36 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                             Navigator.of(context).pop();
                           },
                         ),
-                        GestureDetector(
-                          onTap: onProfileTap,
-                          child: Container(
-                            width: 48,
-                            height: 48,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: Colors.blue,
-                              image: profileImageUrl != null
-                                  ? DecorationImage(
-                                      image: NetworkImage(profileImageUrl!),
-                                      fit: BoxFit.cover,
-                                    )
-                                  : null,
-                            ),
-                            child: profileImageUrl == null
-                                ? const Icon(
-                                    Icons.person,
-                                    color: Colors.white,
-                                    size: 24,
-                                  )
-                                : null,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
+                        isImage
+                            ? GestureDetector(
+                                onTap: onProfileTap,
+                                child: Container(
+                                  width: 48,
+                                  height: 48,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: Colors.blue,
+                                    image: profileImageUrl != null
+                                        ? DecorationImage(
+                                            image:
+                                                NetworkImage(profileImageUrl!),
+                                            fit: BoxFit.cover,
+                                          )
+                                        : null,
+                                  ),
+                                  child: profileImageUrl == null
+                                      ? const Icon(
+                                          Icons.person,
+                                          color: Colors.white,
+                                          size: 24,
+                                        )
+                                      : null,
+                                ),
+                              )
+                            : const SizedBox(),
+                        isImage ? const SizedBox(width: 12) : const SizedBox(),
                         Text(
-                          userName ?? 'Guest',
+                          title ?? 'Guest',
                           style: const TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.bold,
@@ -288,5 +293,32 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
   }
 
   @override
-  Size get preferredSize => const Size.fromHeight(100);
+  Size get preferredSize => const Size.fromHeight(150);
+}
+
+class CustomAppBarDelegate extends SliverPersistentHeaderDelegate {
+  final Widget child;
+  final double height;
+
+  CustomAppBarDelegate({required this.child, this.height = 100});
+
+  @override
+  Widget build(
+      BuildContext context, double shrinkOffset, bool overlapsContent) {
+    return SizedBox(
+      height: height,
+      child: child,
+    );
+  }
+
+  @override
+  double get maxExtent => height;
+
+  @override
+  double get minExtent => height;
+
+  @override
+  bool shouldRebuild(covariant SliverPersistentHeaderDelegate oldDelegate) {
+    return false;
+  }
 }

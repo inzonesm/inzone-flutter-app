@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:inzone/components/ui/appbar.dart';
 import 'package:inzone/screen/chat/chat_screen.dart';
 import 'package:inzone/screen/chat/human_chat_screen.dart';
 import 'package:inzone/services/inzone_database.dart';
@@ -177,7 +178,23 @@ class _AllChatsScreenState extends State<AllChatsScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Theme.of(context).canvasColor,
+      backgroundColor: Colors.white,
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(100),
+        child: Padding(
+          padding: const EdgeInsets.only(top: 2),
+          child: CustomAppBar(
+            isHome: true,
+            title: "John Doe",
+            userPoints: "100",
+            profileImageUrl:
+                "https://images.pexels.com/photos/1239291/pexels-photo-1239291.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1",
+            onSearchTap: () {},
+            onProfileTap: () {},
+            onPointsTap: () {},
+          ),
+        ),
+      ),
       body: SafeArea(
         bottom: false,
         child: Column(

@@ -1,0 +1,118 @@
+import 'package:flutter/material.dart';
+import 'package:inzone/components/settings/topic_selector_widget.dart';
+
+class ContentSelectionSettingsScreen extends StatefulWidget {
+  const ContentSelectionSettingsScreen({super.key});
+
+  @override
+  _ContentSelectionSettingsScreenState createState() =>
+      _ContentSelectionSettingsScreenState();
+}
+
+class _ContentSelectionSettingsScreenState
+    extends State<ContentSelectionSettingsScreen> {
+  final List<String> selectedTopics = [];
+
+  void addToList(String topic) {
+    setState(() {
+      selectedTopics.contains(topic)
+          ? selectedTopics.remove(topic)
+          : selectedTopics.add(topic);
+    });
+  }
+
+  void _saveSelection() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text("Saved"),
+        backgroundColor: Colors.blue,
+      ),
+    );
+    Navigator.pop(context);
+  }
+
+  final List<String> topicList = [
+    'environmental_conservation',
+    'bullying_prevention',
+    'mental_health',
+    'inclusivity',
+    'anti_discrimination',
+    'healthy_habits',
+    'community_service',
+    'creativity',
+    'science',
+    'funny_memes',
+    'diy',
+    'video_game_reviews',
+    'animated_movies',
+    'challenge_videos',
+    'cooking',
+    'animals',
+    'magic_tricks',
+    'board_games',
+    'art',
+    'dance',
+    'outdoor_adventures',
+    'music',
+    'books',
+    'travel',
+    'lego',
+    'fashion',
+    'financial_literacy',
+    'empowerment',
+    'friendship',
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text("Select Topics"),
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black,
+        elevation: 1,
+      ),
+      body: Column(
+        children: [
+          Expanded(
+            child: CustomScrollView(
+              slivers: [
+                SliverPadding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  sliver: SliverToBoxAdapter(
+                    child: Wrap(
+                      spacing: 10,
+                      runSpacing: 10,
+                      children: List.generate(
+                        topicList.length,
+                        (index) {
+                          String currentTopic = topicList[index];
+                          return TopicSelectorWidget(
+                            topic: currentTopic,
+                            callBack: addToList,
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            color: Colors.white,
+            child: ElevatedButton(
+              onPressed: _saveSelection,
+              style: ElevatedButton.styleFrom(
+                minimumSize: const Size.fromHeight(48),
+              ),
+              child: const Text("Save"),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}

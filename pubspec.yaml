@@ -39,7 +39,6 @@ dependencies:
   cached_network_image:
   action_slider: ^0.7.0
   flutter_expandable_fab: ^2.2.0
-  sliding_sheet2: ^2.0.1
   flutter_floating_bottom_bar: ^1.2.0
   intl: ^0.20.2
   random_avatar: ^0.0.8

@@ -3,11 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:inzone/components/settings/settings_tile.dart';
 import 'package:inzone/components/ui/appbar.dart';
 import 'package:inzone/screen/auth/introduction_screen.dart';
+import 'package:inzone/screen/settings/contact_screen.dart';
+import 'package:inzone/screen/settings/content_select_screen';
 // ignore: unused_import
-import 'package:sliding_sheet2/sliding_sheet2.dart';
 import 'package:url_launcher/url_launcher.dart';
-
-import 'package:inzone/components/settings/topic_selector_widget.dart';
 
 class SettingsScreen extends StatelessWidget {
   SettingsScreen({super.key});
@@ -82,14 +81,19 @@ class SettingsScreen extends StatelessWidget {
   List<VoidCallback> personalOnPressedList(BuildContext context) {
     return [
       () {
-        Navigator.of(context).push(MaterialPageRoute(builder: (context) {
-          return const ContentSelectionSettingsScreen();
-        }));
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => const ContentSelectionSettingsScreen(),
+          ),
+        );
       },
       () {
-        Navigator.of(context).push(MaterialPageRoute(builder: (context) {
-          return const ContentSelectionSettingsScreen();
-        }));
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => const ContentSelectionSettingsScreen(),
+          ),
+        );
       },
     ];
   }
@@ -111,10 +115,14 @@ class SettingsScreen extends StatelessWidget {
   List<VoidCallback> otherOnPressedList(BuildContext context) {
     return [
       () {
-        // Navigate to Contact Us screen (if implemented)
-        // Navigator.of(context).push(MaterialPageRoute(builder: (context) {
-        //   return const ContactUsScreen();
-        // }));
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => ContactScreen(),
+          ),
+        );
+      },
+      () {
+        _launchInBrowser("https://www.inzone.ai/contact");
       },
       () {
         _launchInBrowser("https://www.inzone.ai/privacypolicy");
@@ -167,8 +175,21 @@ class SettingsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Theme.of(context).canvasColor,
-      appBar: const CustomAppBar(
-        isHome: true,
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(100),
+        child: Padding(
+          padding: const EdgeInsets.only(top: 2),
+          child: CustomAppBar(
+            isHome: true,
+            title: "John Doe",
+            userPoints: "100",
+            profileImageUrl:
+                "https://images.pexels.com/photos/1239291/pexels-photo-1239291.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1",
+            onSearchTap: () {},
+            onProfileTap: () {},
+            onPointsTap: () {},
+          ),
+        ),
       ),
       body: SafeArea(
           child: Padding(
@@ -345,125 +366,6 @@ class SettingsScreen extends StatelessWidget {
           ],
         ),
       )),
-    );
-  }
-}
-
-class ContentSelectionSettingsScreen extends StatefulWidget {
-  const ContentSelectionSettingsScreen({super.key});
-
-  @override
-  _ContentSelectionSettingsScreenState createState() =>
-      _ContentSelectionSettingsScreenState();
-}
-
-class _ContentSelectionSettingsScreenState
-    extends State<ContentSelectionSettingsScreen> {
-  final List<String> selectedTopics = [];
-
-  void addToList(String topic) {
-    setState(() {
-      selectedTopics.contains(topic)
-          ? selectedTopics.remove(topic)
-          : selectedTopics.add(topic);
-    });
-  }
-
-  Widget _buildContentSelectionPage() {
-    List<String> topicList = [
-      'environmental_conservation',
-      'bullying_prevention',
-      'mental_health',
-      'inclusivity',
-      'anti_discrimination',
-      'healthy_habits',
-      'community_service',
-      'creativity',
-      'science',
-      'funny_memes',
-      'diy',
-      'video_game_reviews',
-      'animated_movies',
-      'challenge_videos',
-      'cooking',
-      'animals',
-      'magic_tricks',
-      'board_games',
-      'art',
-      'dance',
-      'outdoor_adventures',
-      'music',
-      'books',
-      'travel',
-      'lego',
-      'fashion',
-      'financial_literacy',
-      'empowerment',
-      'friendship',
-    ];
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 10),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.only(
-          topLeft: Radius.circular(20),
-          topRight: Radius.circular(20),
-        ),
-      ),
-      child: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.only(bottom: 80.0),
-          child: Wrap(
-            spacing: 10,
-            runSpacing: 10,
-            children: List.generate(
-              topicList.length,
-              (index) {
-                String currentTopic = topicList[index];
-                return TopicSelectorWidget(
-                  topic: currentTopic,
-                  callBack: addToList,
-                );
-              },
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  void _saveSelection() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text("Saved"),
-        backgroundColor: Colors.blue,
-      ),
-    );
-    Navigator.pop(context);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text("Select Topics"),
-      ),
-      body: Column(
-        children: [
-          Expanded(child: _buildContentSelectionPage()),
-          Padding(
-            padding: const EdgeInsets.all(10.0),
-            child: SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: _saveSelection,
-                child: const Text("Save"),
-              ),
-            ),
-          ),
-        ],
-      ),
     );
   }
 }
