@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:inzone/components/settings/settings_tile.dart';
+import 'package:inzone/components/ui/appbar.dart';
 import 'package:inzone/screen/auth/introduction_screen.dart';
 // ignore: unused_import
 import 'package:sliding_sheet2/sliding_sheet2.dart';
@@ -9,7 +10,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:inzone/components/settings/topic_selector_widget.dart';
 
 class SettingsScreen extends StatelessWidget {
-  const SettingsScreen({super.key});
+  SettingsScreen({super.key});
   Future<void> _launchInBrowser(String url) async {
     if (await canLaunch(url)) {
       await launch(
@@ -68,142 +69,279 @@ class SettingsScreen extends StatelessWidget {
     }
   }
 
+  List<String> category = ["Personal", "Others"];
+
+  List<String> personalTitleList = [
+    "Personal Information",
+    "Content Selection"
+  ];
+  List<String> personalSubtitleList = [
+    "Detailed your personal data",
+    "You can select different content"
+  ];
+  List<VoidCallback> personalOnPressedList(BuildContext context) {
+    return [
+      () {
+        Navigator.of(context).push(MaterialPageRoute(builder: (context) {
+          return const ContentSelectionSettingsScreen();
+        }));
+      },
+      () {
+        Navigator.of(context).push(MaterialPageRoute(builder: (context) {
+          return const ContentSelectionSettingsScreen();
+        }));
+      },
+    ];
+  }
+
+  List<String> otherTitleList = [
+    "Contact Us",
+    "Privacy Policy",
+    "Terms & Conditions",
+    "Delete Account",
+    "LogOut"
+  ];
+  List<String> otherSubtitleList = [
+    "If you have any query you can contact us",
+    "Language settings according to your region",
+    "Set any type of notification message",
+    "Share refferal code and get bonus",
+    "",
+  ];
+  List<VoidCallback> otherOnPressedList(BuildContext context) {
+    return [
+      () {
+        // Navigate to Contact Us screen (if implemented)
+        // Navigator.of(context).push(MaterialPageRoute(builder: (context) {
+        //   return const ContactUsScreen();
+        // }));
+      },
+      () {
+        _launchInBrowser("https://www.inzone.ai/privacypolicy");
+      },
+      () {
+        _launchInBrowser("https://www.inzone.ai/terms-condition");
+      },
+      () {
+        showDialog(
+          context: context,
+          builder: (BuildContext context) {
+            return AlertDialog(
+              title: const Text('Delete Account'),
+              content: const Text(
+                  'Are you sure you want to delete your account? This action cannot be undone.'),
+              actions: <Widget>[
+                TextButton(
+                  child: const Text('Cancel'),
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                  },
+                ),
+                TextButton(
+                  child: const Text('Delete'),
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                    _deleteAccount(context);
+                  },
+                ),
+              ],
+            );
+          },
+        );
+      },
+      () {
+        // Log out the user and navigate to the introduction screen
+        FirebaseAuth.instance.signOut().then((value) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const IntroductionScreen(),
+            ),
+          );
+        });
+      },
+    ];
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Theme.of(context).canvasColor,
-
-      // appBar: PreferredSize(
-      //   preferredSize: const Size.fromHeight(60),
-      //   child: AppBar(
-      //     elevation: 0,
-      //     backgroundColor:  Theme.of(context).canvasColor,
-      //     iconTheme: const IconThemeData(color: Colors.black),
-      //     title: const Text(
-      //       "Settings",
-      //       textAlign: TextAlign.center,
-      //       style: TextStyle(
-      //         fontWeight: FontWeight.bold,
-      //         color: Colors.black,
-      //       ),
-      //     ),
-      //   ),
-      // ),
-
+      appBar: const CustomAppBar(
+        isHome: true,
+      ),
       body: SafeArea(
           child: Padding(
-        padding: const EdgeInsets.all(10.0),
+        padding: const EdgeInsets.all(15.0),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.start,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              "Main Settings",
-              style:
-                  TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(
-              height: 10,
-            ),
             Container(
-              width: MediaQuery.of(context).size.width - 20,
               decoration: BoxDecoration(
-                  color: Colors.white, borderRadius: BorderRadius.circular(15)),
-              child: Column(children: [
-                // SettingsTile(
-                //     title: "InZone Schedule",
-                //     imagePath: "icons/settings/content_scheduling.svg",
-                //     onPressed: () {
-                //       // Navigator.of(context)
-                //       //     .push(MaterialPageRoute(builder: (context) {
-                //       //   return const InZoneSchedule();
-                //       // }));
-                //     }),
-                SettingsTile(
-                    title: "Content Selection",
-                    imagePath: "icons/settings/content_selection.svg",
-                    onPressed: () {
-                      Navigator.of(context)
-                          .push(MaterialPageRoute(builder: (context) {
-                        return const ContentSelectionSettingsScreen();
-                      }));
-                    }),
-              ]),
-            ),
-            const SizedBox(
-              height: 10,
-            ),
-            const Text(
-              "Other Settings",
-              style:
-                  TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(
-              height: 10,
-            ),
-            Container(
-              width: MediaQuery.of(context).size.width - 20,
-              decoration: BoxDecoration(
-                  color: Colors.white, borderRadius: BorderRadius.circular(30)),
-              child: Column(children: [
-                SettingsTile(
-                    title: "Privacy Policy",
-                    imagePath: "icons/settings/privacy_policy.svg",
-                    onPressed: () {
-                      _launchInBrowser("https://www.inzone.ai/privacypolicy");
-                    }),
-                SettingsTile(
-                    title: "Terms & Conditions",
-                    imagePath: "icons/settings/terms_and_conditions.svg",
-                    onPressed: () {
-                      _launchInBrowser("https://www.inzone.ai/terms-condition");
-                    }),
-                SettingsTile(
-                  title: "Delete Account",
-                  imagePath: "icons/settings/delete_account.svg",
-                  onPressed: () {
-                    showDialog(
-                      context: context,
-                      builder: (BuildContext context) {
-                        return AlertDialog(
-                          title: const Text('Delete Account'),
-                          content: const Text(
-                              'Are you sure you want to delete your account? This cannot be undone.'),
-                          actions: <Widget>[
-                            TextButton(
-                              child: const Text('Cancel'),
-                              onPressed: () {
-                                Navigator.of(context).pop();
-                              },
-                            ),
-                            TextButton(
-                              child: const Text('Delete'),
-                              onPressed: () {
-                                // Close the dialog, then call the delete account method
-                                Navigator.of(context).pop();
-                                _deleteAccount(context);
-                              },
-                            ),
-                          ],
-                        );
-                      },
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              padding: const EdgeInsets.all(10),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                    child: Text(
+                      category[0],
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                  ),
+                  ...List.generate(personalTitleList.length, (index) {
+                    return Column(
+                      children: [
+                        SettingsTile(
+                          title: personalTitleList[index],
+                          subtitle: personalSubtitleList[index],
+                          onPressed: personalOnPressedList(context)[index],
+                        ),
+                        if (index != personalTitleList.length - 1)
+                          Divider(
+                            color: Colors.grey.shade200,
+                            thickness: 1,
+                          ),
+                      ],
                     );
-                  },
-                ),
-                SettingsTile(
-                    title: "Logout",
-                    imagePath: "icons/settings/logout.svg",
-                    onPressed: () {
-                      FirebaseAuth.instance.signOut().then((value) {
-                        Navigator.pushReplacement(
-                            context,
-                            MaterialPageRoute(
-                                builder: (context) =>
-                                    const IntroductionScreen()));
-                      });
-                    }),
-              ]),
+                  }),
+                ],
+              ),
             ),
+            const SizedBox(height: 15),
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              padding: const EdgeInsets.all(10),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                    child: Text(
+                      category[1],
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                  ),
+                  ...List.generate(otherTitleList.length, (index) {
+                    return Column(
+                      children: [
+                        SettingsTile(
+                          title: otherTitleList[index],
+                          subtitle: otherSubtitleList[index],
+                          onPressed: otherOnPressedList(context)[index],
+                          isLogout: index == otherTitleList.length - 1,
+                        ),
+                        if (index != otherTitleList.length - 1)
+                          Divider(
+                            color: Colors.grey.shade200,
+                            thickness: 1,
+                          ),
+                      ],
+                    );
+                  }),
+                ],
+              ),
+            )
+
+            // Container(
+            //   width: MediaQuery.of(context).size.width - 20,
+            //   decoration: BoxDecoration(
+            //       color: Colors.white, borderRadius: BorderRadius.circular(15)),
+            //   child: Column(children: [
+            //     // SettingsTile(
+            //     //     title: "InZone Schedule",
+            //     //     imagePath: "icons/settings/content_scheduling.svg",
+            //     //     onPressed: () {
+            //     //       // Navigator.of(context)
+            //     //       //     .push(MaterialPageRoute(builder: (context) {
+            //     //       //   return const InZoneSchedule();
+            //     //       // }));
+            //     //     }),
+
+            //     SettingsTile(
+            //         title: "Content Selection",
+            //         // imagePath: "icons/settings/content_selection.svg",
+            //         onPressed: () {
+            //           Navigator.of(context)
+            //               .push(MaterialPageRoute(builder: (context) {
+            //             return const ContentSelectionSettingsScreen();
+            //           }));
+            //         }),
+            //   ]),
+            // ),
+
+            // Container(
+            //   width: MediaQuery.of(context).size.width - 20,
+            //   decoration: BoxDecoration(
+            //       color: Colors.white, borderRadius: BorderRadius.circular(30)),
+            //   child: Column(children: [
+            //     SettingsTile(
+            //         title: "Privacy Policy",
+            //         // imagePath: "icons/settings/privacy_policy.svg",
+            //         onPressed: () {
+            //           _launchInBrowser("https://www.inzone.ai/privacypolicy");
+            //         }),
+            //     SettingsTile(
+            //         title: "Terms & Conditions",
+            //         // imagePath: "icons/settings/terms_and_conditions.svg",
+            //         onPressed: () {
+            //           _launchInBrowser("https://www.inzone.ai/terms-condition");
+            //         }),
+            //     SettingsTile(
+            //       title: "Delete Account",
+            //       // imagePath: "icons/settings/delete_account.svg",
+            //       onPressed: () {
+            //         showDialog(
+            //           context: context,
+            //           builder: (BuildContext context) {
+            //             return AlertDialog(
+            //               title: const Text('Delete Account'),
+            //               content: const Text(
+            //                   'Are you sure you want to delete your account? This cannot be undone.'),
+            //               actions: <Widget>[
+            //                 TextButton(
+            //                   child: const Text('Cancel'),
+            //                   onPressed: () {
+            //                     Navigator.of(context).pop();
+            //                   },
+            //                 ),
+            //                 TextButton(
+            //                   child: const Text('Delete'),
+            //                   onPressed: () {
+            //                     // Close the dialog, then call the delete account method
+            //                     Navigator.of(context).pop();
+            //                     _deleteAccount(context);
+            //                   },
+            //                 ),
+            //               ],
+            //             );
+            //           },
+            //         );
+            //       },
+            //     ),
+            //     SettingsTile(
+            //         title: "Logout",
+            //         // imagePath: "icons/settings/logout.svg",
+            //         onPressed: () {
+            //           FirebaseAuth.instance.signOut().then((value) {
+            //             Navigator.pushReplacement(
+            //                 context,
+            //                 MaterialPageRoute(
+            //                     builder: (context) =>
+            //                         const IntroductionScreen()));
+            //           });
+            //         }),
+            //   ]),
+            // ),
           ],
         ),
       )),
