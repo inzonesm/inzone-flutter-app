@@ -1,27 +1,46 @@
-import 'package:animated_splash_screen/animated_splash_screen.dart';
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:inzone/screen/auth/introduction_screen.dart';
 import 'package:inzone/root_app.dart';
 
-class SplashScreen extends StatelessWidget {
-  bool loggedIn;
-  SplashScreen({super.key, required this.loggedIn});
+class SplashScreen extends StatefulWidget {
+  final bool? loggedIn;
+  const SplashScreen({super.key, required this.loggedIn});
+
+  @override
+  State<SplashScreen> createState() => _SplashScreenState();
+}
+
+class _SplashScreenState extends State<SplashScreen> {
+  @override
+  void initState() {
+    super.initState();
+
+    Future.delayed(const Duration(seconds: 2), () {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => widget.loggedIn == null
+              ? const Scaffold(
+                  body: Center(child: CircularProgressIndicator()),
+                )
+              : widget.loggedIn!
+                  ? const RootApp()
+                  : const IntroductionScreen(),
+        ),
+      );
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedSplashScreen(
-      duration: 2000,
-      splash: Column(
-        children: [
-          //TODO Change this
-          Text("InZone",
-              style: GoogleFonts.poppins(
-                  fontWeight: FontWeight.bold, fontSize: 35, height: 1.2)),
-        ],
+    return Scaffold(
+      body: Center(
+        child: Image.asset(
+          'assets/images/logo.png',
+          width: 150,
+          height: 150,
+        ),
       ),
-      backgroundColor: Theme.of(context).canvasColor,
-      nextScreen: loggedIn ? const RootApp() : const IntroductionScreen(),
     );
   }
 }

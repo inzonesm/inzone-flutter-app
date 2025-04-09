@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:inzone/components/ui/appbar.dart';
 import 'package:random_avatar/random_avatar.dart';
 import 'package:inzone/data/group_data.dart';
 import 'package:intl/intl.dart';
@@ -147,80 +148,20 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Theme.of(context).canvasColor,
-      appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(50),
-        child: AppBar(
-          elevation: 0,
-          automaticallyImplyLeading: false,
-          backgroundColor: Theme.of(context).canvasColor,
-          scrolledUnderElevation: 0,
-          leading: IconButton(
-            icon: const Icon(
-              Icons.arrow_back_ios_new,
-              size: 20,
-            ),
-            color: Colors.black,
-            onPressed: () {
-              Navigator.pop(context);
-            },
-          ),
-          title: Row(
-            children: [
-              Container(
-                height: 35,
-                width: 35,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Colors.blue.shade200,
-                ),
-                child: Icon(
-                  Icons.group,
-                  color: Colors.blue.shade700,
-                  size: 20,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                widget.group.name,
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ],
-          ),
-        ),
+      backgroundColor: Colors.white,
+      appBar: const CustomAppBar(
+        isOthers: true,
       ),
       body: SafeArea(
         bottom: false,
         child: Column(
           children: [
             Expanded(
-              child: Container(
-                width: MediaQuery.of(context).size.width,
-                decoration: BoxDecoration(
-                  border: Border.all(
-                    color: Colors.white,
-                    style: BorderStyle.solid,
-                    width: 10.0,
-                  ),
-                  color: Colors.white,
-                  borderRadius: const BorderRadius.only(
-                    topRight: Radius.circular(30),
-                    topLeft: Radius.circular(30),
-                  ),
-                ),
-                child: _isLoading
-                    ? const Center(child: CircularProgressIndicator())
-                    : _buildMessageList(),
-              ),
+              child: _isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : _buildMessageList(),
             ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10),
-              color: Colors.white,
-              child: _buildChatInput(),
-            ),
+            _buildChatInput(),
           ],
         ),
       ),

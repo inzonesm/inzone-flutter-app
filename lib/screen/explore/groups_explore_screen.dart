@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:inzone/components/ui/appbar.dart';
 import 'package:inzone/data/group_data.dart';
 import 'package:inzone/components/cards/group_card.dart';
 
@@ -71,15 +72,16 @@ class _GroupsExploreScreenState extends State<GroupsExploreScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Theme.of(context).canvasColor,
-      appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(0), // Minimize the app bar height
-        child: AppBar(
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          systemOverlayStyle: SystemUiOverlayStyle.dark,
-          automaticallyImplyLeading: false,
-        ),
+      backgroundColor: Colors.white,
+      appBar: CustomAppBar(
+        isHome: true,
+        userName: "John Doe",
+        userPoints: "100",
+        profileImageUrl:
+            "https://images.pexels.com/photos/1239291/pexels-photo-1239291.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1",
+        onSearchTap: () {},
+        onProfileTap: () {},
+        onPointsTap: () {},
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -87,46 +89,31 @@ class _GroupsExploreScreenState extends State<GroupsExploreScreen> {
               bottom: false,
               child: LayoutBuilder(
                 builder: (context, constraints) {
-                  return Container(
-                    width: MediaQuery.of(context).size.width,
-                    decoration: BoxDecoration(
-                      border: Border.all(
-                        color: Colors.white,
-                        style: BorderStyle.solid,
-                        width: 10.0,
+                  return SingleChildScrollView(
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(
+                        minHeight: constraints.maxHeight,
+                        minWidth: constraints.maxWidth,
                       ),
-                      color: Colors.white,
-                      borderRadius: const BorderRadius.only(
-                        topRight: Radius.circular(30),
-                        topLeft: Radius.circular(30),
-                      ),
-                    ),
-                    child: SingleChildScrollView(
-                      child: ConstrainedBox(
-                        constraints: BoxConstraints(
-                          minHeight: constraints.maxHeight,
-                          minWidth: constraints.maxWidth,
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisSize: MainAxisSize.min,
-                          children: _groups.isEmpty
-                              ? [
-                                  SizedBox(
-                                    width: constraints.maxWidth,
-                                    height: constraints.maxHeight,
-                                    child: const Center(
-                                      child: Text('No groups available'),
-                                    ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: _groups.isEmpty
+                            ? [
+                                SizedBox(
+                                  width: constraints.maxWidth,
+                                  height: constraints.maxHeight,
+                                  child: const Center(
+                                    child: Text('No groups available'),
                                   ),
-                                ]
-                              : [
-                                  const SizedBox(height: 12),
-                                  ..._groups
-                                      .map((group) => GroupCard(group: group)),
-                                  const SizedBox(height: 16),
-                                ],
-                        ),
+                                ),
+                              ]
+                            : [
+                                const SizedBox(height: 12),
+                                ..._groups
+                                    .map((group) => GroupCard(group: group)),
+                                const SizedBox(height: 16),
+                              ],
                       ),
                     ),
                   );

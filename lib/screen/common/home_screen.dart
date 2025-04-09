@@ -402,7 +402,8 @@ class HomeScreenState extends State<HomeScreen> {
         isHome: true,
         userName: "John Doe",
         userPoints: "100",
-        profileImageUrl: "https://images.pexels.com/photos/1239291/pexels-photo-1239291.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1",
+        profileImageUrl:
+            "https://images.pexels.com/photos/1239291/pexels-photo-1239291.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1",
         onSearchTap: () {},
         onProfileTap: () {},
         onPointsTap: () {},
