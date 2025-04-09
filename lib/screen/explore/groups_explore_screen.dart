@@ -73,19 +73,26 @@ class _GroupsExploreScreenState extends State<GroupsExploreScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: CustomAppBar(
-        isHome: true,
-        userName: "John Doe",
-        userPoints: "100",
-        profileImageUrl:
-            "https://images.pexels.com/photos/1239291/pexels-photo-1239291.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1",
-        onSearchTap: () {},
-        onProfileTap: () {},
-        onPointsTap: () {},
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(100),
+        child: Padding(
+          padding: const EdgeInsets.only(top: 2),
+          child: CustomAppBar(
+            isHome: true,
+            title: "John Doe",
+            userPoints: "100",
+            profileImageUrl:
+                "https://images.pexels.com/photos/1239291/pexels-photo-1239291.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1",
+            onSearchTap: () {},
+            onProfileTap: () {},
+            onPointsTap: () {},
+          ),
+        ),
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : SafeArea(
+              top: false,
               bottom: false,
               child: LayoutBuilder(
                 builder: (context, constraints) {

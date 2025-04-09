@@ -4,8 +4,7 @@ import 'package:inzone/screen/chat/all_chats_screen.dart';
 import 'package:inzone/screen/explore/groups_explore_screen.dart';
 import 'package:inzone/screen/common/home_screen.dart';
 import 'package:inzone/screen/post/post_screen.dart';
-import 'package:inzone/screen/common/settings_screen.dart';
-import 'package:sliding_sheet2/sliding_sheet2.dart';
+import 'package:inzone/screen/settings/settings_screen.dart';
 import 'package:animated_bottom_navigation_bar/animated_bottom_navigation_bar.dart';
 
 class RootApp extends StatefulWidget {
@@ -140,11 +139,7 @@ class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
         child: Column(
           children: <Widget>[
             Expanded(
-              child: IndexedStack(
-                index: _currentPage,
-                children:
-                    _pages, // Assuming _pages contains the content for each tab
-              ),
+              child: IndexedStack(index: _currentPage, children: _pages),
             ),
           ],
         ),
