@@ -83,6 +83,18 @@ class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
+    void showPostScreen(BuildContext context,
+        {Curve curve = Curves.easeInOut}) {
+      showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent, // 외곽 투명하게
+        builder: (context) {
+          return _AnimatedBottomSheetContent(curve: curve);
+        },
+      );
+    }
+
     return Scaffold(
       key: _key,
       backgroundColor: Theme.of(context).canvasColor,
@@ -93,17 +105,7 @@ class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
         elevation: 8,
         backgroundColor: Colors.transparent,
         onPressed: () {
-          showSlidingBottomSheet(context,
-              builder: (context) => SlidingSheetDialog(
-                    cornerRadius: 30,
-                    backdropColor:
-                        Theme.of(context).canvasColor.withOpacity(0.6),
-                    duration: const Duration(seconds: 1),
-                    snapSpec: const SnapSpec(snappings: [0.9]),
-                    builder: (context, state) {
-                      return const PostScreen();
-                    },
-                  ));
+          showPostScreen(context, curve: Curves.fastEaseInToSlowEaseOut);
         },
         child: Container(
           width: 56,
@@ -180,6 +182,63 @@ class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
         leftCornerRadius: 0,
         rightCornerRadius: 0,
         elevation: 8,
+      ),
+    );
+  }
+}
+
+class _AnimatedBottomSheetContent extends StatefulWidget {
+  final Curve curve;
+  const _AnimatedBottomSheetContent({required this.curve});
+
+  @override
+  State<_AnimatedBottomSheetContent> createState() =>
+      _AnimatedBottomSheetContentState();
+}
+
+class _AnimatedBottomSheetContentState
+    extends State<_AnimatedBottomSheetContent>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<Offset> _offsetAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 500),
+      vsync: this,
+    );
+
+    _offsetAnimation = Tween<Offset>(
+      begin: const Offset(0, 1),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: _controller,
+      curve: widget.curve,
+    ));
+
+    _controller.forward();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SlideTransition(
+      position: _offsetAnimation,
+      child: Container(
+        height: MediaQuery.of(context).size.height * 0.9,
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
+        ),
+        child: const PostScreen(),
       ),
     );
   }
