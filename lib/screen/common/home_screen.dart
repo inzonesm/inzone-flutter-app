@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:inzone/components/cards/post_card.dart';
 import 'package:inzone/components/cards/repost_card.dart';
+import 'package:inzone/components/posts/shimmering.dart';
 import 'package:inzone/components/profile/avatar_card.dart';
 import 'package:inzone/components/posts/category_selector_bar.dart';
 import 'package:inzone/components/ui/appbar.dart';
@@ -433,7 +434,7 @@ class HomeScreenState extends State<HomeScreen> {
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.only(top: 10.0),
-                  child: categoriesList.isNotEmpty
+                  child: categoriesList.isEmpty
                       ? Padding(
                           padding: const EdgeInsets.only(bottom: 10.0),
                           child: CategorySelectorBar(
@@ -443,19 +444,19 @@ class HomeScreenState extends State<HomeScreen> {
                             },
                           ),
                         )
-                      : const Text("No categories available"),
+                      : CategoryLoading(context),
                 ),
               ),
-              if (isLoading)
+              if (!isLoading)
                 SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Center(
+                  child: SingleChildScrollView(
                     child: Column(
-                      children:
-                          List.generate(10, (index) => buildShimmerPostCard()),
+                      children: List<Widget>.generate(
+                          5, (index) => PostLoading(context)),
                     ),
                   ),
-                )
+                ))
               else
                 SliverList(
                   delegate: SliverChildBuilderDelegate(
@@ -474,36 +475,6 @@ class HomeScreenState extends State<HomeScreen> {
                 ),
             ],
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget buildShimmerPostCard() {
-    return Shimmer.fromColors(
-      baseColor: Colors.grey[300]!,
-      highlightColor: Colors.grey[100]!,
-      child: Container(
-        height: 100,
-        margin: const EdgeInsets.symmetric(vertical: 8.0),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(8.0),
-        ),
-      ),
-    );
-  }
-
-  Widget buildShimmerCategoryBar() {
-    return Shimmer.fromColors(
-      baseColor: Colors.grey[300]!,
-      highlightColor: Colors.grey[100]!,
-      child: Container(
-        height: 50,
-        margin: const EdgeInsets.symmetric(vertical: 8.0),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(8.0),
         ),
       ),
     );
