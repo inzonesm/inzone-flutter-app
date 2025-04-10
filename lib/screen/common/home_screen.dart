@@ -434,7 +434,7 @@ class HomeScreenState extends State<HomeScreen> {
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.only(top: 10.0),
-                  child: categoriesList.isEmpty
+                  child: categoriesList.isNotEmpty
                       ? Padding(
                           padding: const EdgeInsets.only(bottom: 10.0),
                           child: CategorySelectorBar(
@@ -447,7 +447,7 @@ class HomeScreenState extends State<HomeScreen> {
                       : CategoryLoading(context),
                 ),
               ),
-              if (!isLoading)
+              if (isLoading)
                 SliverToBoxAdapter(
                     child: Center(
                   child: SingleChildScrollView(
