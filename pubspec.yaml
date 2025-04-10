@@ -94,15 +94,16 @@ flutter:
   # the material Icons class.
   uses-material-design: true
   assets:
-     - assets/images/
-     - assets/logo.png
-     - assets/animations/
-     - icons/
-     - icons/nav_bar_icons/
-     - icons/settings/
-     - icons/content_icons/
-     - icons/post_icons/
-     - icons/category_icons/
+    - assets/images/
+    - assets/splash.png
+    - assets/animations/
+    - icons/
+    - icons/nav_bar_icons/
+    - icons/settings/
+    - icons/content_icons/
+    - icons/post_icons/
+    - icons/category_icons/
+    - shorebird.yaml
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/assets-and-images/#resolution-aware
