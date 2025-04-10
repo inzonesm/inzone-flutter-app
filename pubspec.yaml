@@ -63,6 +63,7 @@ dependencies:
 
   path_provider: any
   flutter_native_splash: ^2.4.4
+  skeleton_text: ^3.0.1
 dev_dependencies:
   flutter_test:
     sdk: flutter
