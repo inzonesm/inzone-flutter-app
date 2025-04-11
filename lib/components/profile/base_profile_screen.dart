@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:inzone/components/profile/profile_header.dart';
+import 'package:inzone/components/ui/profile_appbar.dart';
 import 'package:inzone/components/profile/profile_tabs.dart';
 import 'package:inzone/services/inzone_database.dart';
 
@@ -120,6 +120,7 @@ abstract class BaseProfileScreenState<T extends BaseProfileScreen>
       extendBodyBehindAppBar: true,
       appBar: buildAppBar(),
       body: SafeArea(
+        top: false,
         child: Column(
           children: [
             // Profile header with curved bottom including tab bar
@@ -134,18 +135,26 @@ abstract class BaseProfileScreenState<T extends BaseProfileScreen>
               child: Column(
                 children: [
                   // Profile info section
-                  ProfileHeader(
+                  ProfileAppbar(
                     name: name,
                     bio: bio,
                     postCount: postCount,
                     followingCount: followingCount,
                     followersCount: followersCount,
                     actionButtons: buildActionButtons(),
+                    isProfilePage: true,
                   ),
 
                   // Tab bar
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                  // Tab bar
+                  Container(
+                    decoration: const BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.only(
+                        bottomLeft: Radius.circular(30),
+                        bottomRight: Radius.circular(30),
+                      ),
+                    ),
                     child: ProfileTabs(
                       tabController: _tabController,
                       tabLabels: getTabLabels(),

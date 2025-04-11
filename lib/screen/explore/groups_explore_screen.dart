@@ -79,7 +79,8 @@ class _GroupsExploreScreenState extends State<GroupsExploreScreen> {
           padding: const EdgeInsets.only(top: 2),
           child: CustomAppBar(
             isHome: true,
-            title: "John Doe",
+            title: "Groups",
+            subtitle: "5 groups",
             userPoints: "100",
             profileImageUrl:
                 "https://images.pexels.com/photos/1239291/pexels-photo-1239291.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1",
