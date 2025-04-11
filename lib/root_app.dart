@@ -37,7 +37,7 @@ class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
               _homeScrollController), // Assign the GlobalKey to HomeScreen
       const GroupsExploreScreen(),
       const AllChatsScreen(),
-      UserProfileScreen(),
+      const UserProfileScreen(),
     ];
     super.initState();
   }

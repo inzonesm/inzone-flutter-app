@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:inzone/components/cards/post_card.dart';
 import 'package:inzone/components/profile/avatar_card.dart';
 import 'package:inzone/data/inzone_avatar.dart';
+import 'package:inzone/screen/settings/settings_screen.dart';
 import 'package:inzone/services/inzone_database.dart';
 import 'package:flutter/services.dart';
 import 'package:inzone/components/profile/base_profile_screen.dart';
@@ -80,6 +81,7 @@ class _UserProfileScreenState
     ];
   }
 
+//edit profile button
   @override
   Widget buildActionButtons() {
     // For the current user, we could add an edit profile button here
@@ -108,14 +110,45 @@ class _UserProfileScreenState
               });
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.blue,
+              backgroundColor: Colors.blueAccent,
               foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(20),
               ),
               padding: const EdgeInsets.symmetric(vertical: 8),
             ),
-            child: const Text('Edit Profile'),
+            child: const Text('Edit profile',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                )),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: ElevatedButton(
+            onPressed: () {
+              // Navigate to the Settings screen
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => SettingsScreen(),
+                ),
+              );
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.grey,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
+              padding: const EdgeInsets.symmetric(vertical: 12),
+            ),
+            child: const Text('Setting',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                )),
           ),
         ),
       ],
