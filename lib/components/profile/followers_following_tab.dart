@@ -290,26 +290,9 @@ class _FollowersFollowingTabState extends State<FollowersFollowingTab> {
 
                     // Show remove follower option for followers tab
                     if (!isCurrentUser && followersSelected)
-                      PopupMenuButton<String>(
+                      IconButton(
                         icon: const Icon(Icons.more_vert),
-                        onSelected: (value) async {
-                          if (value == 'remove_follower') {
-                            await InZoneDatabase.removeFromFollowers(userId);
-                            // Refresh the list
-                            setState(() {
-                              displayUserList["followers"]!.removeWhere((u) =>
-                                  u['id'] == userId || u['uid'] == userId);
-                              updateMessageShown();
-                            });
-                          }
-                        },
-                        itemBuilder: (BuildContext context) =>
-                            <PopupMenuEntry<String>>[
-                          const PopupMenuItem<String>(
-                            value: 'remove_follower',
-                            child: Text('Remove follower'),
-                          ),
-                        ],
+                        onPressed: () => _showRemoveFollowerBottomSheet(context, userId),
                       ),
                   ],
                 ),
@@ -331,6 +314,65 @@ class _FollowersFollowingTabState extends State<FollowersFollowingTab> {
               );
             });
       },
+    );
+  }
+
+  void _showRemoveFollowerBottomSheet(BuildContext context, String userId) {
+    showModalBottomSheet(
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      context: context,
+      builder: (context) => Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.only(
+            topRight: Radius.circular(30),
+            topLeft: Radius.circular(30),
+          ),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 50,
+              height: 5,
+              margin: const EdgeInsets.only(bottom: 5),
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+            const SizedBox(height: 15),
+            InkWell(
+              onTap: () async {
+                Navigator.pop(context); // Close the bottom sheet
+                await InZoneDatabase.removeFromFollowers(userId);
+                // Refresh the list
+                setState(() {
+                  displayUserList["followers"]!.removeWhere((u) =>
+                      u['id'] == userId || u['uid'] == userId);
+                  updateMessageShown();
+                });
+              },
+              child: const Padding(
+                padding: EdgeInsets.symmetric(vertical: 15),
+                child: Row(
+                  children: [
+                    Icon(Icons.person_remove),
+                    SizedBox(width: 16),
+                    Text(
+                      'Remove follower',
+                      style: TextStyle(fontSize: 16),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 15),
+          ],
+        ),
+      ),
     );
   }
 }

@@ -526,36 +526,78 @@ class _ProfileScreenState extends BaseProfileScreenState<ProfileScreen> {
       actions: [
         // Only show the popup menu for human users
         if (!widget.isAI)
-          PopupMenuButton<String>(
+          IconButton(
             icon: const Icon(Icons.more_horiz, color: Colors.black),
-            onSelected: (value) async {
-              if (value == 'remove_follower') {
-                String? currentUserId =
-                    await InZoneDatabase.getCurrentUserUid();
-                if (currentUserId != null) {
-                  bool success =
-                      await InZoneDatabase.removeFromFollowers(getUserId());
-                  if (success) {
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                        content: Text('User removed from your followers')));
-                    // Refresh the profile data
-                    fetchUserProfile();
-                  }
-                }
-              }
-            },
-            itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
-              const PopupMenuItem<String>(
-                value: 'remove_follower',
-                child: Text('Remove from followers'),
-              ),
-            ],
+            onPressed: () => _showOptionsBottomSheet(context),
           ),
       ],
       systemOverlayStyle: SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
         statusBarIconBrightness: Brightness.dark,
         systemNavigationBarColor: Theme.of(context).canvasColor,
+      ),
+    );
+  }
+
+  void _showOptionsBottomSheet(BuildContext context) {
+    showModalBottomSheet(
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      context: context,
+      builder: (context) => Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.only(
+            topRight: Radius.circular(30),
+            topLeft: Radius.circular(30),
+          ),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 50,
+              height: 5,
+              margin: const EdgeInsets.only(bottom: 5),
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+            const SizedBox(height: 15),
+            InkWell(
+              onTap: () async {
+                Navigator.pop(context); // Close the bottom sheet
+                String? currentUserId = await InZoneDatabase.getCurrentUserUid();
+                if (currentUserId != null) {
+                  bool success = await InZoneDatabase.removeFromFollowers(getUserId());
+                  if (success) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('User removed from your followers'))
+                    );
+                    // Refresh the profile data
+                    fetchUserProfile();
+                  }
+                }
+              },
+              child: const Padding(
+                padding: EdgeInsets.symmetric(vertical: 15),
+                child: Row(
+                  children: [
+                    Icon(Icons.person_remove),
+                    SizedBox(width: 16),
+                    Text(
+                      'Remove from followers',
+                      style: TextStyle(fontSize: 16),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 15),
+          ],
+        ),
       ),
     );
   }
