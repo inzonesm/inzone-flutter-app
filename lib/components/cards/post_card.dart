@@ -214,13 +214,9 @@ class _PostCardState extends State<PostCard> {
                     onTap: () {
                       _showOptionsBottomSheet(context);
                     },
-                    child: Padding(
-                      padding: const EdgeInsets.all(15),
-                      child: SvgPicture.asset(
-                        CustomIcons.threeDots,
-                        height: 40,
-                        width: 40,
-                      ),
+                    child: const Padding(
+                      padding: EdgeInsets.all(15),
+                      child: Icon(Icons.more_horiz, color: Color(0xFFA4ACB9)),
                     ),
                   ),
                 ],
@@ -346,23 +342,27 @@ class _PostCardState extends State<PostCard> {
                   //     },
                   //     child: SizedBox(height: 35, width: 35, child: SvgPicture.asset(CustomIcons.comment))),
                   // if (isCommentPresentbool == true)
-                    GestureDetector(
-                        onTap: () {
-                          filterSheetModel();
-                        },
-                        child: isCommentPresentbool ?  SizedBox(
-                          height: 25,
-                          width: 25,
-                          child: SvgPicture.asset(
-                           CustomIcons.comment, // Show correct icon based on state
-                          ),
-                        ) : SizedBox(
-                          height: 25,
-                          width: 25,
-                          child: SvgPicture.asset(
-                            CustomIcons.uncomment, // Show correct icon based on state
-                          ),
-                        )),
+                  GestureDetector(
+                      onTap: () {
+                        filterSheetModel();
+                      },
+                      child: isCommentPresentbool
+                          ? SizedBox(
+                              height: 25,
+                              width: 25,
+                              child: SvgPicture.asset(
+                                CustomIcons
+                                    .comment, // Show correct icon based on state
+                              ),
+                            )
+                          : SizedBox(
+                              height: 25,
+                              width: 25,
+                              child: SvgPicture.asset(
+                                CustomIcons
+                                    .uncomment, // Show correct icon based on state
+                              ),
+                            )),
                   // if (isCommentPresentbool == false)
                   //   InkWell(
                   //       onTap: () {
@@ -461,7 +461,8 @@ class _PostCardState extends State<PostCard> {
           ScaffoldMessenger.of(context).showSnackBar(snackBar);
         } else if (value == "dont_show") {
           final snackBar = SnackBar(
-            content: Text("Posts from ${widget.post.userName} will not be shown."),
+            content:
+                Text("Posts from ${widget.post.userName} will not be shown."),
             backgroundColor: Colors.red,
           );
           ScaffoldMessenger.of(context).showSnackBar(snackBar);

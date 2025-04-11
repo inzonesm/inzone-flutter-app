@@ -127,60 +127,60 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                       ),
                     ),
 
-                    // search button
-                    GestureDetector(
-                      onTap: onSearchTap,
-                      child: Container(
-                        width: 48,
-                        height: 48,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: Colors.grey.shade100,
-                        ),
-                        child: const Icon(
-                          Icons.search,
-                          color: Colors.black54,
-                          size: 24,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
+                    // // search button
+                    // GestureDetector(
+                    //   onTap: onSearchTap,
+                    //   child: Container(
+                    //     width: 48,
+                    //     height: 48,
+                    //     decoration: BoxDecoration(
+                    //       shape: BoxShape.circle,
+                    //       color: Colors.grey.shade100,
+                    //     ),
+                    //     child: const Icon(
+                    //       Icons.search,
+                    //       color: Colors.black54,
+                    //       size: 24,
+                    //     ),
+                    //   ),
+                    // ),
+                    // const SizedBox(width: 12),
 
-                    // points display
-                    GestureDetector(
-                      onTap: onPointsTap,
-                      child: Container(
-                        height: 48,
-                        padding: const EdgeInsets.symmetric(horizontal: 12),
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(24),
-                          color: Colors.grey.shade100,
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            CircleAvatar(
-                              radius: 14,
-                              backgroundColor: Colors.blue.shade400,
-                              child: const Icon(
-                                Icons.local_police,
-                                color: Colors.white,
-                                size: 16,
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              userPoints ?? '0',
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.black,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
+                    // // points display
+                    // GestureDetector(
+                    //   onTap: onPointsTap,
+                    //   child: Container(
+                    //     height: 48,
+                    //     padding: const EdgeInsets.symmetric(horizontal: 12),
+                    //     decoration: BoxDecoration(
+                    //       borderRadius: BorderRadius.circular(24),
+                    //       color: Colors.grey.shade100,
+                    //     ),
+                    //     child: Row(
+                    //       mainAxisSize: MainAxisSize.min,
+                    //       children: [
+                    //         CircleAvatar(
+                    //           radius: 14,
+                    //           backgroundColor: Colors.blue.shade400,
+                    //           child: const Icon(
+                    //             Icons.local_police,
+                    //             color: Colors.white,
+                    //             size: 16,
+                    //           ),
+                    //         ),
+                    //         const SizedBox(width: 8),
+                    //         Text(
+                    //           userPoints ?? '0',
+                    //           style: const TextStyle(
+                    //             fontSize: 16,
+                    //             fontWeight: FontWeight.bold,
+                    //             color: Colors.black,
+                    //           ),
+                    //         ),
+                    //       ],
+                    //     ),
+                    //   ),
+                    // ),
                     // const SizedBox(width: 12),
                     // GestureDetector(
                     //   onTap: () {
