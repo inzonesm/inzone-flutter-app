@@ -211,7 +211,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 placeholder: "Enter your name",
                 controller: _nameController,
                 maxLines: 1,
-                maxLength: 1,
                 onChanged: (value) {
                   // Update avatar on every keystroke
                   setState(() {
@@ -225,7 +224,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 placeholder: "Enter your message",
                 controller: _usernameController,
                 maxLines: 1,
-                maxLength: 1,
                 onChanged: (value) {
                   // Update avatar on every keystroke
                   setState(() {
