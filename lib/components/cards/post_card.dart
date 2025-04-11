@@ -210,36 +210,18 @@ class _PostCardState extends State<PostCard> {
                         ),
                       ]),
                   const Spacer(),
-                  PopupMenuButton(
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(20)),
-                    padding: const EdgeInsets.all(15),
-                    child: SvgPicture.asset(
-                      CustomIcons.threeDots,
-                      height: 40,
-                      width: 40,
+                  GestureDetector(
+                    onTap: () {
+                      _showOptionsBottomSheet(context);
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.all(15),
+                      child: SvgPicture.asset(
+                        CustomIcons.threeDots,
+                        height: 40,
+                        width: 40,
+                      ),
                     ),
-                    onSelected: (value) {
-                      // your logic
-                    },
-                    itemBuilder: (BuildContext bc) {
-                      return [
-                        menuOption(
-                            CustomIcons.notInterested,
-                            "Flag this post",
-                            "not_interested",
-                            context,
-                            widget.post.userName,
-                            widget.post.userReference),
-                        menuOption(
-                            CustomIcons.dontShow,
-                            "Block ${widget.post.userName}",
-                            "dont_show",
-                            context,
-                            widget.post.userName,
-                            widget.post.userReference),
-                      ];
-                    },
                   ),
                 ],
               ),
@@ -345,8 +327,8 @@ class _PostCardState extends State<PostCard> {
                   GestureDetector(
                     onTap: handleLike, // Toggle like/unlike when tapped
                     child: SizedBox(
-                      height: 30,
-                      width: 30,
+                      height: 22,
+                      width: 22,
                       child: SvgPicture.asset(
                         isLiked
                             ? CustomIcons.like
@@ -363,24 +345,33 @@ class _PostCardState extends State<PostCard> {
                   //       filterSheetModel();
                   //     },
                   //     child: SizedBox(height: 35, width: 35, child: SvgPicture.asset(CustomIcons.comment))),
-                  if (isCommentPresentbool == true)
-                    InkWell(
+                  // if (isCommentPresentbool == true)
+                    GestureDetector(
                         onTap: () {
                           filterSheetModel();
                         },
-                        child: SizedBox(
-                            height: 35,
-                            width: 35,
-                            child: SvgPicture.asset(CustomIcons.comment))),
-                  if (isCommentPresentbool == false)
-                    InkWell(
-                        onTap: () {
-                          filterSheetModel();
-                        },
-                        child: SizedBox(
-                            height: 35,
-                            width: 35,
-                            child: Image.asset(CustomIcons.uncomment))),
+                        child: isCommentPresentbool ?  SizedBox(
+                          height: 25,
+                          width: 25,
+                          child: SvgPicture.asset(
+                           CustomIcons.comment, // Show correct icon based on state
+                          ),
+                        ) : SizedBox(
+                          height: 25,
+                          width: 25,
+                          child: SvgPicture.asset(
+                            CustomIcons.uncomment, // Show correct icon based on state
+                          ),
+                        )),
+                  // if (isCommentPresentbool == false)
+                  //   InkWell(
+                  //       onTap: () {
+                  //         filterSheetModel();
+                  //       },
+                  //       child: SizedBox(
+                  //           height: 35,
+                  //           width: 35,
+                  //           child: Image.asset(CustomIcons.uncomment))),
                   const SizedBox(
                     width: 10,
                   ),
@@ -413,11 +404,55 @@ class _PostCardState extends State<PostCard> {
     );
   }
 
-  PopupMenuItem menuOption(String iconPath, String title, String value,
-      BuildContext context, String userEmail, String userName) {
-    return PopupMenuItem(
-      value: value,
+  void _showOptionsBottomSheet(BuildContext context) {
+    showModalBottomSheet(
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      context: context,
+      builder: (context) => Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.only(
+            topRight: Radius.circular(30),
+            topLeft: Radius.circular(30),
+          ),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 50,
+              height: 5,
+              margin: const EdgeInsets.symmetric(vertical: 5),
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+            const SizedBox(height: 15),
+            _optionItem(
+              CustomIcons.notInterested,
+              "Flag this post",
+              "not_interested",
+            ),
+            Divider(height: 1, thickness: 0.5, color: Colors.grey.shade300),
+            _optionItem(
+              CustomIcons.dontShow,
+              "Block ${widget.post.userName}",
+              "dont_show",
+            ),
+            const SizedBox(height: 15),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _optionItem(String iconPath, String title, String value) {
+    return InkWell(
       onTap: () async {
+        Navigator.pop(context); // Close the bottom sheet
         if (value == "not_interested") {
           const snackBar = SnackBar(
             content: Text("This post has been flagged for review."),
@@ -426,20 +461,25 @@ class _PostCardState extends State<PostCard> {
           ScaffoldMessenger.of(context).showSnackBar(snackBar);
         } else if (value == "dont_show") {
           final snackBar = SnackBar(
-            content:
-                Text("Posts from ${widget.post.userName} will not be shown."),
+            content: Text("Posts from ${widget.post.userName} will not be shown."),
             backgroundColor: Colors.red,
           );
           ScaffoldMessenger.of(context).showSnackBar(snackBar);
         }
       },
-      child: Row(children: [
-        SvgPicture.asset(iconPath),
-        const SizedBox(
-          width: 6,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 15),
+        child: Row(
+          children: [
+            SvgPicture.asset(iconPath),
+            const SizedBox(width: 16),
+            Text(
+              title,
+              style: const TextStyle(fontSize: 16),
+            ),
+          ],
         ),
-        Text(title)
-      ]),
+      ),
     );
   }
 
@@ -735,11 +775,16 @@ class _PostCardState extends State<PostCard> {
                 child: Column(
                   children: [
                     const SizedBox(
-                      height: 20,
+                      height: 10,
                     ),
-                    const Text(
-                      'Comments',
-                      style: TextStyle(fontSize: 20),
+                    Container(
+                      width: 50,
+                      height: 5,
+                      margin: const EdgeInsets.symmetric(vertical: 5),
+                      decoration: BoxDecoration(
+                        color: Colors.grey[300],
+                        borderRadius: BorderRadius.circular(10),
+                      ),
                     ),
                     const SizedBox(
                       height: 15,
