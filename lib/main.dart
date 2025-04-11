@@ -112,7 +112,7 @@ class AuthenticationWrapper extends StatelessWidget {
         if (snapshot.hasData && snapshot.data != null) {
           return const SplashScreen(loggedIn: true);
         }
-        
+
         // User is not logged in
         return const SplashScreen(loggedIn: false);
       },
