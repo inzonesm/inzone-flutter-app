@@ -81,12 +81,29 @@ class SettingsScreen extends StatelessWidget {
   List<VoidCallback> personalOnPressedList(BuildContext context) {
     return [
       () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => const ContentSelectionSettingsScreen(),
-          ),
+        showDialog(
+          context: context,
+          builder: (BuildContext context) {
+            return AlertDialog(
+              title: const Text('Feature Coming Soon'),
+              content: const Text('This feature is under development.'),
+              actions: <Widget>[
+                TextButton(
+                  child: const Text('OK'),
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                  },
+                ),
+              ],
+            );
+          },
         );
+        // Navigator.push(
+        //   context,
+        //   MaterialPageRoute(
+        //     builder: (_) => const ContentSelectionSettingsScreen(),
+        //   ),
+        // );
       },
       () {
         Navigator.of(context).push(

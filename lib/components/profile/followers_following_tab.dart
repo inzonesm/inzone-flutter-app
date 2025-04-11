@@ -88,10 +88,15 @@ class _FollowersFollowingTabState extends State<FollowersFollowingTab> {
 
     return Column(
       children: [
+        const SizedBox(
+          height: 10,
+        ),
         Flexible(
           flex: 1,
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10),
+            padding: const EdgeInsets.symmetric(
+              horizontal: 10,
+            ),
             width: MediaQuery.of(context).size.width - 10,
             decoration: BoxDecoration(
                 color: backgroundColor,
@@ -292,7 +297,8 @@ class _FollowersFollowingTabState extends State<FollowersFollowingTab> {
                     if (!isCurrentUser && followersSelected)
                       IconButton(
                         icon: const Icon(Icons.more_vert),
-                        onPressed: () => _showRemoveFollowerBottomSheet(context, userId),
+                        onPressed: () =>
+                            _showRemoveFollowerBottomSheet(context, userId),
                       ),
                   ],
                 ),
@@ -350,8 +356,8 @@ class _FollowersFollowingTabState extends State<FollowersFollowingTab> {
                 await InZoneDatabase.removeFromFollowers(userId);
                 // Refresh the list
                 setState(() {
-                  displayUserList["followers"]!.removeWhere((u) =>
-                      u['id'] == userId || u['uid'] == userId);
+                  displayUserList["followers"]!.removeWhere(
+                      (u) => u['id'] == userId || u['uid'] == userId);
                   updateMessageShown();
                 });
               },

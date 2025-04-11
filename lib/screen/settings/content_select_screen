@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:inzone/components/settings/topic_selector_widget.dart';
+import 'package:inzone/components/ui/appbar.dart';
 
 class ContentSelectionSettingsScreen extends StatefulWidget {
   const ContentSelectionSettingsScreen({super.key});
@@ -66,11 +67,20 @@ class _ContentSelectionSettingsScreenState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("Select Topics"),
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
-        elevation: 1,
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(100),
+        child: Padding(
+          padding: const EdgeInsets.only(top: 2),
+          child: CustomAppBar(
+            isOthers: true,
+            isImage: false,
+            title: "Select Topics",
+            userPoints: "100",
+            onSearchTap: () {},
+            onProfileTap: () {},
+            onPointsTap: () {},
+          ),
+        ),
       ),
       body: Column(
         children: [
@@ -99,20 +109,38 @@ class _ContentSelectionSettingsScreenState
               ],
             ),
           ),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(12),
-            color: Colors.white,
-            child: ElevatedButton(
-              onPressed: _saveSelection,
-              style: ElevatedButton.styleFrom(
-                minimumSize: const Size.fromHeight(48),
-              ),
-              child: const Text("Save"),
-            ),
-          ),
         ],
       ),
+ bottomNavigationBar: Padding(
+        padding:const EdgeInsets.only(left: 15, right: 15, bottom: 30, top: 15),
+        child: GestureDetector(
+          onTap: () async {
+          _saveSelection();
+          },
+          child: Container(
+            padding: EdgeInsets.symmetric(horizontal: 20),
+            height: 60,
+            width: MediaQuery.of(context).size.width - 80,
+            decoration: BoxDecoration(
+                color: Colors.blueAccent,
+                borderRadius: BorderRadius.circular(20)),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  'DONE',
+                  style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    
     );
   }
 }
