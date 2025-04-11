@@ -39,8 +39,8 @@ class _SplashScreenState extends State<SplashScreen> {
           'assets/splash.png',
           // width: 150,
           // height: 150,
-          width: 250,
-          height: 250,
+          width: 255,
+          height: 255,
         ),
       ),
     );
