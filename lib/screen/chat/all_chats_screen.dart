@@ -185,7 +185,8 @@ class _AllChatsScreenState extends State<AllChatsScreen>
           padding: const EdgeInsets.only(top: 2),
           child: CustomAppBar(
             isHome: true,
-            title: "John Doe",
+            title: "Chats",
+            subtitle: "5 chats",
             userPoints: "100",
             profileImageUrl:
                 "https://images.pexels.com/photos/1239291/pexels-photo-1239291.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1",

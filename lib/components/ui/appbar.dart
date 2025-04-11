@@ -6,13 +6,13 @@ import 'package:inzone/screen/chat/chat_screen.dart';
 class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
   final String? greeting;
   final String? title;
+  final String? subtitle;
   final String? userPoints;
   final String? profileImageUrl;
   final VoidCallback? onSearchTap;
   final VoidCallback? onProfileTap;
   final VoidCallback? onPointsTap;
   final bool isHome;
-  final bool isProfile;
   final bool isOthers;
   final bool isImage;
 
@@ -20,13 +20,13 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
     super.key,
     this.greeting,
     this.title,
+    this.subtitle,
     this.userPoints,
     this.profileImageUrl,
     this.onSearchTap,
     this.onProfileTap,
     this.onPointsTap,
     this.isHome = false,
-    this.isProfile = false,
     this.isOthers = false,
     this.isImage = true,
   });
@@ -102,22 +102,22 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                     ),
                     const SizedBox(width: 12),
                     // brand name and greeting
-                    const Expanded(
+                    Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Text(
-                            'InZone',
-                            style: TextStyle(
+                            title ?? 'InZone',
+                            style: const TextStyle(
                               fontSize: 20,
                               fontWeight: FontWeight.bold,
                               color: Colors.black,
                             ),
                           ),
                           Text(
-                            "Hello",
-                            style: TextStyle(
+                            subtitle ?? 'Welcome back',
+                            style: const TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w500,
                               color: Colors.blue,
@@ -254,39 +254,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                         ),
                       ],
                     )
-                  : Column(
-                      children: [
-                        Row(
-                          children: [
-                            GestureDetector(
-                              onTap: onProfileTap,
-                              child: Container(
-                                width: 48,
-                                height: 48,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: Colors.blue,
-                                  image: profileImageUrl != null
-                                      ? DecorationImage(
-                                          image: NetworkImage(profileImageUrl!),
-                                          fit: BoxFit.cover,
-                                        )
-                                      : null,
-                                ),
-                                child: profileImageUrl == null
-                                    ? const Icon(
-                                        Icons.person,
-                                        color: Colors.white,
-                                        size: 24,
-                                      )
-                                    : null,
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                          ],
-                        ),
-                      ],
-                    ),
+                  : const SizedBox(),
         ),
       ),
     );
