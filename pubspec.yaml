@@ -47,7 +47,7 @@ dependencies:
   cloud_firestore: ^5.4.5
   firebase_core: ^3.7.0
   firebase_auth: ^5.3.2
-  url_launcher:
+  url_launcher: ^6.3.1
   change_app_package_name: ^1.4.0
   appsflyer_sdk: ^6.15.1
   video_player: ^2.9.0
