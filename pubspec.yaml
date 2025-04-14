@@ -75,14 +75,7 @@ dev_dependencies:
   # rules and activating additional ones.
   flutter_lints: ^3.0.0
   
-flutter_native_splash:
-  color: "#DAF5FF"
-  color_dark: "#DAF5FF"
-  
-  image: assets/splash.png
-  image_dark: assets/splash.png
-  android: true
-  ios: true
+
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
 #  min_sdk_android: 23 # android min sdk min:16, default 21
