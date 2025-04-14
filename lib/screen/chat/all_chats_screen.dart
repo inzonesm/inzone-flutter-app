@@ -25,6 +25,7 @@ class _AllChatsScreenState extends State<AllChatsScreen>
   late DateTime _startTime;
   int pageOpened = 0;
   late TabController _tabController;
+  int _currentTabIndex = 0;
 
   @override
   void initState() {
@@ -32,11 +33,21 @@ class _AllChatsScreenState extends State<AllChatsScreen>
     _isLoading = true;
     _startTime = DateTime.now();
     _tabController = TabController(length: 2, vsync: this);
+    _tabController.addListener(_handleTabChange);
     _loadCurrentUser();
+  }
+
+  void _handleTabChange() {
+    if (_tabController.index != _currentTabIndex) {
+      setState(() {
+        _currentTabIndex = _tabController.index;
+      });
+    }
   }
 
   @override
   void dispose() {
+    _tabController.removeListener(_handleTabChange);
     _tabController.dispose();
     DateTime endTime = DateTime.now();
     Duration timeSpent = endTime.difference(_startTime);
@@ -104,7 +115,6 @@ class _AllChatsScreenState extends State<AllChatsScreen>
             isGroupChat: true,
           ));
         } else {
-          // Handle individual chat
           List<dynamic> participants = data['participants'] ?? [];
           String? otherUserId = participants
               .firstWhere((id) => id != currentUserId, orElse: () => null);
@@ -143,8 +153,6 @@ class _AllChatsScreenState extends State<AllChatsScreen>
           }
         }
       }
-
-      // Sort conversations by lastMessageTime
       allChats.sort((a, b) {
         if (a.lastMessageTime == null) return 1;
         if (b.lastMessageTime == null) return -1;
@@ -177,22 +185,32 @@ class _AllChatsScreenState extends State<AllChatsScreen>
 
   @override
   Widget build(BuildContext context) {
+    // Get the count based on current tab
+    int chatCount = _currentTabIndex == 0 ? _chatUsers.length : _groupChats.length;
+    String subtitle = '$chatCount ${chatCount == 1 ? 'chat' : 'chats'}';
+    
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: PreferredSize(
         preferredSize: const Size.fromHeight(100),
         child: Padding(
           padding: const EdgeInsets.only(top: 2),
-          child: CustomAppBar(
-            isHome: true,
-            title: "Chats",
-            subtitle: "5 chats",
-            userPoints: "100",
-            profileImageUrl:
-                "https://images.pexels.com/photos/1239291/pexels-photo-1239291.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1",
-            onSearchTap: () {},
-            onProfileTap: () {},
-            onPointsTap: () {},
+          child: FutureBuilder<String>(
+            future: _getUserName(),
+            builder: (context, snapshot) {
+              String username = snapshot.data ?? "User";
+              return CustomAppBar(
+                isHome: true,
+                title: "Chats",
+                userName: username,
+                subtitle: subtitle,
+                userPoints: "100",
+                profileImageUrl: null,
+                onSearchTap: () {},
+                onProfileTap: () {},
+                onPointsTap: () {},
+              );
+            }
           ),
         ),
       ),
@@ -259,6 +277,19 @@ class _AllChatsScreenState extends State<AllChatsScreen>
                   },
                 ),
     );
+  }
+
+  // Helper method to get the current user's name
+  Future<String> _getUserName() async {
+    try {
+      Map<String, dynamic>? userProfile = await InZoneDatabase.getCurrentUserProfile();
+      if (userProfile != null) {
+        return userProfile["Name"] ?? userProfile["name"] ?? "User";
+      }
+    } catch (e) {
+      print('Error getting user name: $e');
+    }
+    return "User";
   }
 }
 

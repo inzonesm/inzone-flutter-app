@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:inzone/components/ui/appbar.dart';
 import 'package:inzone/data/group_data.dart';
 import 'package:inzone/components/cards/group_card.dart';
+import 'package:inzone/services/inzone_database.dart';
 
 class GroupsExploreScreen extends StatefulWidget {
   const GroupsExploreScreen({super.key});
@@ -36,7 +37,7 @@ class _GroupsExploreScreenState extends State<GroupsExploreScreen> {
                 'Hogwarts. Enchanted halls, secret passages, and a slight risk of death—but totally worth it.',
             memberCount: 3490,
             messageCount: 760,
-            avatars: [], // Empty list since we're using placeholder icons
+            avatars: ['Harry', 'Hermione', 'Ron', 'Dumbledore'], // Harry Potter themed avatars
             isMember: false),
         GroupData(
             id: '2',
@@ -45,7 +46,7 @@ class _GroupsExploreScreenState extends State<GroupsExploreScreen> {
                 'The Avengers. Earth\'s mightiest heroes, assembling chaos into victory.',
             memberCount: 5900,
             messageCount: 1760,
-            avatars: [], // Empty list since we're using placeholder icons
+            avatars: ['Tony', 'Steve', 'Thor', 'Natasha'], // Avengers themed avatars
             isMember: false),
         GroupData(
             id: '3',
@@ -54,7 +55,7 @@ class _GroupsExploreScreenState extends State<GroupsExploreScreen> {
                 'Athletes. Limits shattered, legends, greatness chased.',
             memberCount: 4560,
             messageCount: 460,
-            avatars: [], // Empty list since we're using placeholder icons
+            avatars: ['Lebron', 'Messi', 'Serena', 'Ronaldo'], // Sports themed avatars
             isMember: false),
         GroupData(
             id: '4',
@@ -62,7 +63,7 @@ class _GroupsExploreScreenState extends State<GroupsExploreScreen> {
             description: 'Anime. Emotions unleashed, worlds explored.',
             memberCount: 5160,
             messageCount: 960,
-            avatars: [], // Empty list since we're using placeholder icons
+            avatars: ['Naruto', 'Goku', 'Luffy', 'Eren'], // Anime themed avatars
             isMember: false),
       ];
       _isLoading = false;
@@ -77,16 +78,22 @@ class _GroupsExploreScreenState extends State<GroupsExploreScreen> {
         preferredSize: const Size.fromHeight(100),
         child: Padding(
           padding: const EdgeInsets.only(top: 2),
-          child: CustomAppBar(
-            isHome: true,
-            title: "Groups",
-            subtitle: "5 groups",
-            userPoints: "100",
-            profileImageUrl:
-                "https://images.pexels.com/photos/1239291/pexels-photo-1239291.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1",
-            onSearchTap: () {},
-            onProfileTap: () {},
-            onPointsTap: () {},
+          child: FutureBuilder<String>(
+            future: _getUserName(),
+            builder: (context, snapshot) {
+              String username = snapshot.data ?? "User";
+              return CustomAppBar(
+                isHome: true,
+                title: "Groups",
+                userName: username,
+                subtitle: "${_groups.length} ${_groups.length == 1 ? 'group' : 'groups'}",
+                userPoints: "100",
+                profileImageUrl: null,
+                onSearchTap: () {},
+                onProfileTap: () {},
+                onPointsTap: () {},
+              );
+            }
           ),
         ),
       ),
@@ -129,5 +136,18 @@ class _GroupsExploreScreenState extends State<GroupsExploreScreen> {
               ),
             ),
     );
+  }
+
+  // Helper method to get the current user's name
+  Future<String> _getUserName() async {
+    try {
+      Map<String, dynamic>? userProfile = await InZoneDatabase.getCurrentUserProfile();
+      if (userProfile != null) {
+        return userProfile["Name"] ?? userProfile["name"] ?? "User";
+      }
+    } catch (e) {
+      print('Error getting user name: $e');
+    }
+    return "User";
   }
 }

@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:inzone/screen/chat/all_chats_screen.dart';
 import 'package:inzone/screen/chat/chat_screen.dart';
+import 'package:random_avatar/random_avatar.dart';
 
 class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
   final String? greeting;
@@ -15,6 +16,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
   final bool isHome;
   final bool isOthers;
   final bool isImage;
+  final String userName;
 
   const CustomAppBar({
     super.key,
@@ -29,6 +31,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
     this.isHome = false,
     this.isOthers = false,
     this.isImage = true,
+    this.userName = "Loading"
   });
 
   @override
@@ -83,21 +86,12 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                         height: 48,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: Colors.blue,
-                          image: profileImageUrl != null
-                              ? DecorationImage(
-                                  image: NetworkImage(profileImageUrl!),
-                                  fit: BoxFit.cover,
-                                )
-                              : null,
+                          border: Border.all(
+                            color: const Color(0xffFFE2A9),
+                            width: 1.5,
+                          ),
                         ),
-                        child: profileImageUrl == null
-                            ? const Icon(
-                                Icons.person,
-                                color: Colors.white,
-                                size: 24,
-                              )
-                            : null,
+                        child: RandomAvatar(userName ?? 'User', height: 48, width: 48),
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -225,22 +219,23 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                                   height: 48,
                                   decoration: BoxDecoration(
                                     shape: BoxShape.circle,
-                                    color: Colors.blue,
-                                    image: profileImageUrl != null
-                                        ? DecorationImage(
-                                            image:
-                                                NetworkImage(profileImageUrl!),
-                                            fit: BoxFit.cover,
-                                          )
-                                        : null,
+                                    border: Border.all(
+                                      color: const Color(0xffFFE2A9),
+                                      width: 1.5,
+                                    ),
                                   ),
-                                  child: profileImageUrl == null
-                                      ? const Icon(
-                                          Icons.person,
-                                          color: Colors.white,
-                                          size: 24,
+                                  child: profileImageUrl != null
+                                      ? ClipOval(
+                                          child: Image.network(
+                                            profileImageUrl!,
+                                            fit: BoxFit.cover,
+                                            errorBuilder: (context, error, stackTrace) {
+                                              // Fallback to RandomAvatar if the image fails to load
+                                              return RandomAvatar(title ?? 'User', height: 48, width: 48);
+                                            },
+                                          ),
                                         )
-                                      : null,
+                                      : RandomAvatar(title ?? 'User', height: 48, width: 48),
                                 ),
                               )
                             : const SizedBox(),
