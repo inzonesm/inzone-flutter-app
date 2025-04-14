@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:inzone/components/ui/appbar.dart';
 import 'package:inzone/components/ui/button.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class ContactScreen extends StatefulWidget {
   const ContactScreen({super.key});
@@ -17,7 +18,7 @@ class _ContactScreenState extends State<ContactScreen> {
   List<Map<String, dynamic>> items = [
     {"title": "Call Us", "icon": Icons.phone},
     {"title": "Email Us", "icon": Icons.email},
-    {"title": "Chat", "icon": Icons.chat},
+    // {"title": "Chat", "icon": Icons.chat},
   ];
 
   Widget buildCupertinoInput({
@@ -107,8 +108,16 @@ class _ContactScreenState extends State<ContactScreen> {
                   title: item['title'],
                   icon: item['icon'],
                   onPressed: () {
-                    // Handle the onPressed event here
-                    print("${item['title']} Tile Pressed");
+                    final title = item['title'];
+                    if (title == "Call Us") {
+                      launchUrl(Uri.parse("tel:+12272057616")); // 전화번호 바꿔도 돼
+                    } else if (title == "Email Us") {
+                      launchUrl(Uri.parse("mailto:inzonesm@gmail.com"),
+                          mode: LaunchMode.externalApplication);
+                      // } else if (title == "Chat") {
+                      //   // TODO: Chat 연결 기능 넣기
+                      //   print("Chat clicked");
+                    }
                   },
                 );
               }).toList(),
@@ -160,7 +169,21 @@ class _ContactScreenState extends State<ContactScreen> {
                   const SizedBox(height: 30),
                   Button(
                     text: "Send",
-                    onPressed: () {},
+                    onPressed: () async {
+                      final message = _controller.text.trim();
+                      if (message.isEmpty) return;
+
+                      final email = Uri.parse(
+                          "mailto:inzonesm@gmail.com?subject=Quick%20Contact&body=${Uri.encodeComponent(message)}");
+                      if (await canLaunchUrl(email)) {
+                        await launchUrl(email);
+                      } else {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                              content: Text("Could not launch email")),
+                        );
+                      }
+                    },
                   ),
                   const SizedBox(height: 30),
                 ],
