@@ -9,6 +9,7 @@ import 'package:inzone/data/inzone_avatar.dart';
 import 'package:inzone/data/inzone_post.dart';
 import 'package:inzone/services/inzone_database.dart';
 import 'package:shimmer/shimmer.dart';
+import 'package:random_avatar/random_avatar.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key, required this.controller});
@@ -419,15 +420,21 @@ class HomeScreenState extends State<HomeScreen> {
                 pinned: false,
                 delegate: CustomAppBarDelegate(
                   height: 150,
-                  child: CustomAppBar(
-                    isHome: true,
-                    title: "John Doe",
-                    userPoints: "100",
-                    profileImageUrl:
-                        "https://images.pexels.com/photos/1239291/pexels-photo-1239291.jpeg",
-                    onSearchTap: () {},
-                    onProfileTap: () {},
-                    onPointsTap: () {},
+                  child: FutureBuilder<String>(
+                    future: _getUserName(),
+                    builder: (context, snapshot) {
+                      String username = snapshot.data ?? "User";
+                      return CustomAppBar(
+                        isHome: true,
+                        title: username,
+                        userName: username,
+                        userPoints: "100",
+                        profileImageUrl: null,
+                        onSearchTap: () {},
+                        onProfileTap: () {},
+                        onPointsTap: () {},
+                      );
+                    }
                   ),
                 ),
               ),
@@ -478,5 +485,18 @@ class HomeScreenState extends State<HomeScreen> {
         ),
       ),
     );
+  }
+
+  // Helper method to get the current user's name
+  Future<String> _getUserName() async {
+    try {
+      Map<String, dynamic>? userProfile = await InZoneDatabase.getCurrentUserProfile();
+      if (userProfile != null) {
+        return userProfile["Name"] ?? userProfile["name"] ?? "User";
+      }
+    } catch (e) {
+      print('Error getting user name: $e');
+    }
+    return "User";
   }
 }

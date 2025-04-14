@@ -34,77 +34,138 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   }
 
   void _loadSampleMessages() {
-    // Create sample users
-    final List<GroupChatUser> sampleUsers = [
-      GroupChatUser(
-        id: '1',
-        name: 'Emma Watson',
-        avatar: 'emma',
-      ),
-      GroupChatUser(
-        id: '2',
-        name: 'Daniel Radcliffe',
-        avatar: 'daniel',
-      ),
-      GroupChatUser(
-        id: '3',
-        name: 'Rupert Grint',
-        avatar: 'rupert',
-      ),
-      GroupChatUser(
-        id: 'current',
-        name: 'Me',
-        avatar: 'current',
-      ),
-    ];
+    // Create sample users based on the group theme
+    List<GroupChatUser> sampleUsers = [];
+    
+    // Generate themed users and messages based on group name
+    if (widget.group.name == 'Hogwarts') {
+      sampleUsers = [
+        GroupChatUser(id: '1', name: 'Harry Potter', avatar: 'Harry'),
+        GroupChatUser(id: '2', name: 'Hermione Granger', avatar: 'Hermione'),
+        GroupChatUser(id: '3', name: 'Ron Weasley', avatar: 'Ron'),
+      ];
+    } else if (widget.group.name == 'Assemble') {
+      sampleUsers = [
+        GroupChatUser(id: '1', name: 'Tony Stark', avatar: 'Tony'),
+        GroupChatUser(id: '2', name: 'Steve Rogers', avatar: 'Steve'),
+        GroupChatUser(id: '3', name: 'Thor', avatar: 'Thor'),
+      ];
+    } else if (widget.group.name == 'Superstars') {
+      sampleUsers = [
+        GroupChatUser(id: '1', name: 'LeBron James', avatar: 'Lebron'),
+        GroupChatUser(id: '2', name: 'Lionel Messi', avatar: 'Messi'),
+        GroupChatUser(id: '3', name: 'Serena Williams', avatar: 'Serena'),
+      ];
+    } else if (widget.group.name == 'Anime') {
+      sampleUsers = [
+        GroupChatUser(id: '1', name: 'Naruto Uzumaki', avatar: 'Naruto'),
+        GroupChatUser(id: '2', name: 'Goku', avatar: 'Goku'),
+        GroupChatUser(id: '3', name: 'Monkey D. Luffy', avatar: 'Luffy'),
+      ];
+    } else {
+      // Default users for any other group
+      sampleUsers = [
+        GroupChatUser(id: '1', name: 'Emma Watson', avatar: 'emma'),
+        GroupChatUser(id: '2', name: 'Daniel Radcliffe', avatar: 'daniel'),
+        GroupChatUser(id: '3', name: 'Rupert Grint', avatar: 'rupert'),
+      ];
+    }
+    
+    // Add current user to all groups
+    sampleUsers.add(GroupChatUser(id: 'current', name: 'Me', avatar: 'current'));
 
-    // Sample messages
-    final List<GroupMessage> sampleMessages = [
-      GroupMessage(
-        id: '1',
-        sender: sampleUsers[0],
-        text: 'Welcome to the ${widget.group.name} group!',
-        timestamp: DateTime.now().subtract(const Duration(days: 2, hours: 3)),
-      ),
-      GroupMessage(
-        id: '2',
-        sender: sampleUsers[1],
-        text: 'Hey everyone! Excited to join this group.',
-        timestamp: DateTime.now().subtract(const Duration(days: 2, hours: 2)),
-      ),
-      GroupMessage(
-        id: '3',
-        sender: sampleUsers[2],
-        text: 'Same here! What are we discussing today?',
-        timestamp: DateTime.now().subtract(const Duration(days: 2, hours: 1)),
-      ),
-      GroupMessage(
-        id: '4',
-        sender: sampleUsers[0],
-        text:
-            'I think we should talk about the latest developments in our community.',
-        timestamp: DateTime.now().subtract(const Duration(days: 1, hours: 5)),
-      ),
-      GroupMessage(
-        id: '5',
-        sender: sampleUsers[1],
-        text: 'Has anyone seen the new announcement?',
-        timestamp: DateTime.now().subtract(const Duration(hours: 12)),
-      ),
-      GroupMessage(
-        id: '6',
-        sender: sampleUsers[2],
-        text:
-            'Yes! It was really exciting. I think it will change how we interact with each other.',
-        timestamp: DateTime.now().subtract(const Duration(hours: 11)),
-      ),
-      GroupMessage(
-        id: '7',
-        sender: sampleUsers[0],
-        text: 'I agree. The new features look promising.',
-        timestamp: DateTime.now().subtract(const Duration(hours: 5)),
-      ),
-    ];
+    // Create themed messages based on the group
+    List<String> welcomeMessages = [];
+    List<String> discussionTopics = [];
+    
+    if (widget.group.name == 'Hogwarts') {
+      welcomeMessages = [
+        'Welcome to Hogwarts! Remember, the forbidden forest is strictly off-limits.',
+        'Hey everyone! Has anyone seen my wand?',
+        'Quidditch practice at 5pm today!'
+      ];
+      discussionTopics = [
+        'Did you see the latest announcement about the Triwizard Tournament?',
+        'Snape assigned way too much homework this week.',
+        'Anyone want to visit Hogsmeade this weekend?',
+        'The password to the common room has been changed to "Fizzing Whizbees".'
+      ];
+    } else if (widget.group.name == 'Assemble') {
+      welcomeMessages = [
+        'Avengers, assemble!',
+        'Hey team, who\'s got monitor duty tonight?',
+        'New mission briefing in 30 minutes.'
+      ];
+      discussionTopics = [
+        'Has anyone seen my shield?',
+        'Tony, can you upgrade my suit?',
+        'Thor, we need to talk about your hammer being left in the middle of the living room.',
+        'Anyone heard from Fury lately?'
+      ];
+    } else if (widget.group.name == 'Superstars') {
+      welcomeMessages = [
+        'Welcome to the Superstars group!',
+        'Who\'s watching the big game tonight?',
+        'Training schedule has been updated for next week.'
+      ];
+      discussionTopics = [
+        'That was an incredible match yesterday!',
+        'Any tips for improving my vertical jump?',
+        'New equipment arriving next week.',
+        'Who\'s your pick for rookie of the year?'
+      ];
+    } else if (widget.group.name == 'Anime') {
+      welcomeMessages = [
+        'Welcome to the Anime group!',
+        'What\'s everyone watching this season?',
+        'New episodes dropping today!'
+      ];
+      discussionTopics = [
+        'That plot twist in the latest episode was crazy!',
+        'Who\'s your favorite character and why?',
+        'Are you going to the convention next month?',
+        'Do you prefer sub or dub?'
+      ];
+    } else {
+      welcomeMessages = [
+        'Welcome to the ${widget.group.name} group!',
+        'Hey everyone! Excited to join this group.',
+        'Same here! What are we discussing today?'
+      ];
+      discussionTopics = [
+        'I think we should talk about the latest developments in our community.',
+        'Has anyone seen the new announcement?',
+        'Yes! It was really exciting. I think it will change how we interact with each other.',
+        'I agree. The new features look promising.'
+      ];
+    }
+
+    // Create the sample messages with the themed content
+    List<GroupMessage> sampleMessages = [];
+    
+    // Add welcome messages from 2-3 days ago
+    for (int i = 0; i < welcomeMessages.length && i < sampleUsers.length; i++) {
+      sampleMessages.add(
+        GroupMessage(
+          id: i.toString(),
+          sender: sampleUsers[i],
+          text: welcomeMessages[i],
+          timestamp: DateTime.now().subtract(Duration(days: 2, hours: 3 - i)),
+        ),
+      );
+    }
+    
+    // Add discussion topics from yesterday and today
+    for (int i = 0; i < discussionTopics.length && i < sampleUsers.length; i++) {
+      sampleMessages.add(
+        GroupMessage(
+          id: (i + welcomeMessages.length).toString(),
+          sender: sampleUsers[i % sampleUsers.length],
+          text: discussionTopics[i],
+          timestamp: DateTime.now().subtract(Duration(hours: 12 - (i * 3))),
+        ),
+      );
+    }
 
     setState(() {
       _messages.addAll(sampleMessages);
@@ -149,8 +210,64 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: const CustomAppBar(
-        isOthers: true,
+      appBar: AppBar(
+        elevation: 0,
+        backgroundColor: Colors.white,
+        leadingWidth: 30,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.black),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        title: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: const Color(0xffFFE2A9),
+                  width: 1.5,
+                ),
+              ),
+              child: ClipOval(
+                child: RandomAvatar(widget.group.name, height: 40, width: 40),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    widget.group.name,
+                    style: const TextStyle(
+                      color: Colors.black,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  Text(
+                    '${widget.group.memberCount} members',
+                    style: const TextStyle(
+                      color: Colors.grey,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.more_vert, color: Colors.black),
+            onPressed: () {
+              // Show group options
+            },
+          ),
+        ],
       ),
       body: SafeArea(
         bottom: false,

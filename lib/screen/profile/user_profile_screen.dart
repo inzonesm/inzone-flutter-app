@@ -58,7 +58,7 @@ class _UserProfileScreenState
 
   @override
   List<String> getTabLabels() {
-    return const ['Posts', 'Community'];
+    return const ['Posts'];
   }
 
   @override
@@ -74,10 +74,10 @@ class _UserProfileScreenState
         userId: currentUserId!,
         ai: false,
       ),
-      FollowersFollowingTab(
-        userList: _communityTabData,
-        userId: currentUserId!,
-      ),
+      // FollowersFollowingTab(
+      //   userList: _communityTabData,
+      //   userId: currentUserId!,
+      // ),
     ];
   }
 

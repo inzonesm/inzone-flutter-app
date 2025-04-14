@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:random_avatar/random_avatar.dart';
 
 import 'package:inzone/data/group_data.dart';
 import 'package:inzone/screen/chat/group_chat_screen.dart';
@@ -118,7 +119,7 @@ class GroupCard extends StatelessWidget {
                     width: 120,
                     child: Stack(
                       children: List.generate(
-                        4,
+                        group.avatars.isEmpty ? 4 : group.avatars.length,
                         (index) => Positioned(
                           left: index * 28.0,
                           child: Container(
@@ -128,19 +129,21 @@ class GroupCard extends StatelessWidget {
                               shape: BoxShape.circle,
                               border: Border.all(color: Colors.white, width: 2),
                             ),
-                            child: CircleAvatar(
-                              backgroundColor: Colors
-                                  .primaries[index % Colors.primaries.length],
-                              child: Icon(
-                                [
-                                  Icons.person,
-                                  Icons.face,
-                                  Icons.face_retouching_natural,
-                                  Icons.person_outline
-                                ][index % 4],
-                                color: Colors.white,
-                              ),
-                            ),
+                            child: group.avatars.isEmpty 
+                              ? CircleAvatar(
+                                  backgroundColor: Colors
+                                      .primaries[index % Colors.primaries.length],
+                                  child: Icon(
+                                    [
+                                      Icons.person,
+                                      Icons.face,
+                                      Icons.face_retouching_natural,
+                                      Icons.person_outline
+                                    ][index % 4],
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : RandomAvatar(group.avatars[index], height: 40, width: 40),
                           ),
                         ),
                       ),
