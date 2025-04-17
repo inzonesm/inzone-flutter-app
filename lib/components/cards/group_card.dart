@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:random_avatar/random_avatar.dart';
 
 import 'package:inzone/data/group_data.dart';
+import 'package:inzone/data/group_data_mapper.dart';
 import 'package:inzone/screen/chat/group_chat_screen.dart';
 
 class GroupCard extends StatelessWidget {
@@ -152,6 +153,10 @@ class GroupCard extends StatelessWidget {
                   // Join/Open button
                   ElevatedButton(
                     onPressed: () {
+                      // Use the actual group data for display but ensure the ID is set correctly
+                      // If this is a Firestore group, use its ID exactly as it is
+                      print('Opening group: ${group.name} with ID: ${group.id}');
+                      
                       Navigator.of(context).push(
                         MaterialPageRoute(
                           builder: (context) => GroupChatScreen(group: group),
