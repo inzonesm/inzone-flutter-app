@@ -126,26 +126,26 @@ class SettingsScreen extends StatelessWidget {
     "If you have any query you can contact us",
     "Language settings according to your region",
     "Set any type of notification message",
-    "Share refferal code and get bonus",
+    "Share referral code and get bonus",
     "",
   ];
   List<VoidCallback> otherOnPressedList(BuildContext context) {
     return [
+      // () {
+      //   Navigator.of(context).push(
+      //     MaterialPageRoute(
+      //       builder: (_) => const ContactScreen(),
+      //     ),
+      //   );
+      // },
       () {
-        Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (_) => const ContactScreen(),
-          ),
-        );
+        _launchInBrowser("https://inzone.ai/about");
       },
       () {
-        _launchInBrowser("https://www.inzone.ai/contact");
+        _launchInBrowser("https://inzone.ai/privacy-policy");
       },
       () {
-        _launchInBrowser("https://www.inzone.ai/privacypolicy");
-      },
-      () {
-        _launchInBrowser("https://www.inzone.ai/terms-condition");
+        _launchInBrowser("https://inzone.ai/terms-conditions");
       },
       () {
         showDialog(
