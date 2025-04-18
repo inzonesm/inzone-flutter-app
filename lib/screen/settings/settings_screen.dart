@@ -8,6 +8,8 @@ import 'package:inzone/screen/settings/contact_screen.dart';
 import 'package:inzone/screen/settings/content_select_screen.dart';
 import 'package:inzone/theme/theme_manager.dart';
 import 'package:provider/provider.dart';
+import 'package:inzone/screen/settings/subscription_purchase.dart';
+import 'package:inzone/screen/settings/referral_screen.dart';
 // ignore: unused_import
 import 'package:url_launcher/url_launcher.dart';
 
@@ -74,51 +76,49 @@ class SettingsScreen extends StatelessWidget {
   List<String> category = ["Personal", "Others"];
 
   List<String> personalTitleList = [
-    // "Personal Information",
     "Content Selection",
+    "Subscription",
   ];
   List<String> personalSubtitleList = [
-    // "Detailed your personal data",
+    "You can select different content",
     "You can select different content",
   ];
   List<VoidCallback> personalOnPressedList(BuildContext context) {
     return [
-      // () {
-      //   showDialog(
-      //     context: context,
-      //     builder: (BuildContext context) {
-      //       return AlertDialog(
-      //         title: const Text('Feature Coming Soon'),
-      //         content: const Text('This feature is under development.'),
-      //         actions: <Widget>[
-      //           TextButton(
-      //             child: const Text('OK'),
-      //             onPressed: () {
-      //               Navigator.of(context).pop();
-      //             },
-      //           ),
-      //         ],
-      //       );
-      //     },
-      //   );
-      //   // Navigator.push(
-      //   //   context,
-      //   //   MaterialPageRoute(
-      //   //     builder: (_) => const ContentSelectionSettingsScreen(),
-      //   //   ),
-      //   // );
-      // },
       () {
-        Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (_) => const ContentSelectionSettingsScreen(),
-          ),
-        );
+        try {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const ContentSelectionSettingsScreen(),
+            ),
+          );
+        } catch (e) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+                content: Text('Error navigating to content selection: $e')),
+          );
+        }
+      },
+      () {
+        try {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const SubscriptionScreen(),
+            ),
+          );
+        } catch (e) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error navigating to subscription: $e')),
+          );
+        }
       },
     ];
   }
 
   List<String> otherTitleList = [
+    "Referral Program",
     "Contact Us",
     "Privacy Policy",
     "Terms & Conditions",
@@ -126,29 +126,55 @@ class SettingsScreen extends StatelessWidget {
     "LogOut"
   ];
   List<String> otherSubtitleList = [
+    "Share referral code and get bonus",
     "If you have any query you can contact us",
     "Language settings according to your region",
     "Set any type of notification message",
-    "Share referral code and get bonus",
+    "",
     "",
   ];
   List<VoidCallback> otherOnPressedList(BuildContext context) {
     return [
-      // () {
-      //   Navigator.of(context).push(
-      //     MaterialPageRoute(
-      //       builder: (_) => const ContactScreen(),
-      //     ),
-      //   );
-      // },
       () {
-        _launchInBrowser("https://inzone.ai/about");
+        try {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const ReferralScreen(),
+            ),
+          );
+        } catch (e) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error navigating to referral: $e')),
+          );
+        }
       },
       () {
-        _launchInBrowser("https://inzone.ai/privacy-policy");
+        try {
+          _launchInBrowser("https://inzone.ai/about");
+        } catch (e) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error launching browser: $e')),
+          );
+        }
       },
       () {
-        _launchInBrowser("https://inzone.ai/terms-conditions");
+        try {
+          _launchInBrowser("https://inzone.ai/privacy-policy");
+        } catch (e) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error launching browser: $e')),
+          );
+        }
+      },
+      () {
+        try {
+          _launchInBrowser("https://inzone.ai/terms-conditions");
+        } catch (e) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error launching browser: $e')),
+          );
+        }
       },
       () {
         showDialog(
@@ -178,15 +204,20 @@ class SettingsScreen extends StatelessWidget {
         );
       },
       () {
-        // Log out the user and navigate to the introduction screen
-        FirebaseAuth.instance.signOut().then((value) {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(
-              builder: (context) => const IntroductionScreen(),
-            ),
+        try {
+          FirebaseAuth.instance.signOut().then((value) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const IntroductionScreen(),
+              ),
+            );
+          });
+        } catch (e) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error signing out: $e')),
           );
-        });
+        }
       },
     ];
   }
@@ -240,22 +271,29 @@ class SettingsScreen extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 10),
-                    ...List.generate(personalTitleList.length, (index) {
-                      return Column(
-                        children: [
-                          SettingsTile(
-                            title: personalTitleList[index],
-                            subtitle: personalSubtitleList[index],
-                            onPressed: personalOnPressedList(context)[index],
-                          ),
-                          if (index != personalTitleList.length - 1)
-                            Divider(
-                              color: Theme.of(context).dividerTheme.color,
-                              thickness: 1,
+                    ...List.generate(
+                      personalTitleList.length,
+                      (index) {
+                        return Column(
+                          children: [
+                            SettingsTile(
+                              title: personalTitleList[index],
+                              subtitle: personalSubtitleList[index],
+                              onPressed: personalOnPressedList(context)[index],
                             ),
-                        ],
-                      );
-                    }),
+                            if (index != personalTitleList.length - 1)
+                              Padding(
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 10),
+                                child: Divider(
+                                  color: Theme.of(context).dividerTheme.color,
+                                  thickness: 1,
+                                ),
+                              ),
+                          ],
+                        );
+                      },
+                    ),
                   ],
                 ),
               ),
