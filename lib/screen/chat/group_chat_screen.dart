@@ -3,7 +3,11 @@ import 'package:flutter/services.dart';
 import 'package:inzone/components/ui/appbar.dart';
 import 'package:random_avatar/random_avatar.dart';
 import 'package:inzone/data/group_data.dart';
+import 'package:inzone/data/group_chat_data.dart';
+import 'package:inzone/services/group_chat_service.dart';
 import 'package:intl/intl.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class GroupChatScreen extends StatefulWidget {
   final GroupData group;
@@ -17,179 +21,35 @@ class GroupChatScreen extends StatefulWidget {
 class _GroupChatScreenState extends State<GroupChatScreen> {
   final TextEditingController _msgController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
-  final bool _isLoading = false;
-
-  // Sample data for messages
-  final List<GroupMessage> _messages = [];
+  final bool _isLoading = true;
+  
+  GroupChatData? _groupChatData;
+  late String _groupId;
 
   @override
   void initState() {
     super.initState();
-    _loadSampleMessages();
-
+    
+    // Use the provided group ID if it's a valid Firestore group ID
+    // Otherwise, use the default one
+    _groupId = widget.group.id.contains('group_chat_') 
+        ? widget.group.id 
+        : GroupChatService.defaultGroupChatDocId;
+    
+    print('Opening group chat with ID: $_groupId');
+    
     // Update the group's isMember status if not already a member
     if (!widget.group.isMember) {
       widget.group.isMember = true;
     }
   }
 
-  void _loadSampleMessages() {
-    // Create sample users based on the group theme
-    List<GroupChatUser> sampleUsers = [];
-    
-    // Generate themed users and messages based on group name
-    if (widget.group.name == 'Hogwarts') {
-      sampleUsers = [
-        GroupChatUser(id: '1', name: 'Harry Potter', avatar: 'Harry'),
-        GroupChatUser(id: '2', name: 'Hermione Granger', avatar: 'Hermione'),
-        GroupChatUser(id: '3', name: 'Ron Weasley', avatar: 'Ron'),
-      ];
-    } else if (widget.group.name == 'Assemble') {
-      sampleUsers = [
-        GroupChatUser(id: '1', name: 'Tony Stark', avatar: 'Tony'),
-        GroupChatUser(id: '2', name: 'Steve Rogers', avatar: 'Steve'),
-        GroupChatUser(id: '3', name: 'Thor', avatar: 'Thor'),
-      ];
-    } else if (widget.group.name == 'Superstars') {
-      sampleUsers = [
-        GroupChatUser(id: '1', name: 'LeBron James', avatar: 'Lebron'),
-        GroupChatUser(id: '2', name: 'Lionel Messi', avatar: 'Messi'),
-        GroupChatUser(id: '3', name: 'Serena Williams', avatar: 'Serena'),
-      ];
-    } else if (widget.group.name == 'Anime') {
-      sampleUsers = [
-        GroupChatUser(id: '1', name: 'Naruto Uzumaki', avatar: 'Naruto'),
-        GroupChatUser(id: '2', name: 'Goku', avatar: 'Goku'),
-        GroupChatUser(id: '3', name: 'Monkey D. Luffy', avatar: 'Luffy'),
-      ];
-    } else {
-      // Default users for any other group
-      sampleUsers = [
-        GroupChatUser(id: '1', name: 'Emma Watson', avatar: 'emma'),
-        GroupChatUser(id: '2', name: 'Daniel Radcliffe', avatar: 'daniel'),
-        GroupChatUser(id: '3', name: 'Rupert Grint', avatar: 'rupert'),
-      ];
-    }
-    
-    // Add current user to all groups
-    sampleUsers.add(GroupChatUser(id: 'current', name: 'Me', avatar: 'current'));
-
-    // Create themed messages based on the group
-    List<String> welcomeMessages = [];
-    List<String> discussionTopics = [];
-    
-    if (widget.group.name == 'Hogwarts') {
-      welcomeMessages = [
-        'Welcome to Hogwarts! Remember, the forbidden forest is strictly off-limits.',
-        'Hey everyone! Has anyone seen my wand?',
-        'Quidditch practice at 5pm today!'
-      ];
-      discussionTopics = [
-        'Did you see the latest announcement about the Triwizard Tournament?',
-        'Snape assigned way too much homework this week.',
-        'Anyone want to visit Hogsmeade this weekend?',
-        'The password to the common room has been changed to "Fizzing Whizbees".'
-      ];
-    } else if (widget.group.name == 'Assemble') {
-      welcomeMessages = [
-        'Avengers, assemble!',
-        'Hey team, who\'s got monitor duty tonight?',
-        'New mission briefing in 30 minutes.'
-      ];
-      discussionTopics = [
-        'Has anyone seen my shield?',
-        'Tony, can you upgrade my suit?',
-        'Thor, we need to talk about your hammer being left in the middle of the living room.',
-        'Anyone heard from Fury lately?'
-      ];
-    } else if (widget.group.name == 'Superstars') {
-      welcomeMessages = [
-        'Welcome to the Superstars group!',
-        'Who\'s watching the big game tonight?',
-        'Training schedule has been updated for next week.'
-      ];
-      discussionTopics = [
-        'That was an incredible match yesterday!',
-        'Any tips for improving my vertical jump?',
-        'New equipment arriving next week.',
-        'Who\'s your pick for rookie of the year?'
-      ];
-    } else if (widget.group.name == 'Anime') {
-      welcomeMessages = [
-        'Welcome to the Anime group!',
-        'What\'s everyone watching this season?',
-        'New episodes dropping today!'
-      ];
-      discussionTopics = [
-        'That plot twist in the latest episode was crazy!',
-        'Who\'s your favorite character and why?',
-        'Are you going to the convention next month?',
-        'Do you prefer sub or dub?'
-      ];
-    } else {
-      welcomeMessages = [
-        'Welcome to the ${widget.group.name} group!',
-        'Hey everyone! Excited to join this group.',
-        'Same here! What are we discussing today?'
-      ];
-      discussionTopics = [
-        'I think we should talk about the latest developments in our community.',
-        'Has anyone seen the new announcement?',
-        'Yes! It was really exciting. I think it will change how we interact with each other.',
-        'I agree. The new features look promising.'
-      ];
-    }
-
-    // Create the sample messages with the themed content
-    List<GroupMessage> sampleMessages = [];
-    
-    // Add welcome messages from 2-3 days ago
-    for (int i = 0; i < welcomeMessages.length && i < sampleUsers.length; i++) {
-      sampleMessages.add(
-        GroupMessage(
-          id: i.toString(),
-          sender: sampleUsers[i],
-          text: welcomeMessages[i],
-          timestamp: DateTime.now().subtract(Duration(days: 2, hours: 3 - i)),
-        ),
-      );
-    }
-    
-    // Add discussion topics from yesterday and today
-    for (int i = 0; i < discussionTopics.length && i < sampleUsers.length; i++) {
-      sampleMessages.add(
-        GroupMessage(
-          id: (i + welcomeMessages.length).toString(),
-          sender: sampleUsers[i % sampleUsers.length],
-          text: discussionTopics[i],
-          timestamp: DateTime.now().subtract(Duration(hours: 12 - (i * 3))),
-        ),
-      );
-    }
-
-    setState(() {
-      _messages.addAll(sampleMessages);
-    });
-  }
-
   void _sendMessage() {
     if (_msgController.text.trim().isEmpty) return;
 
-    setState(() {
-      _messages.add(
-        GroupMessage(
-          id: DateTime.now().millisecondsSinceEpoch.toString(),
-          sender: GroupChatUser(
-            id: 'current',
-            name: 'Me',
-            avatar: 'current',
-          ),
-          text: _msgController.text.trim(),
-          timestamp: DateTime.now(),
-        ),
-      );
-    });
-
+    // Send message to Firestore, using the specific group ID
+    GroupChatService.sendMessageToGroup(_groupId, _msgController.text.trim());
+    
     _msgController.clear();
     _scrollToBottom();
   }
@@ -210,73 +70,194 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: AppBar(
-        elevation: 0,
-        backgroundColor: Colors.white,
-        leadingWidth: 30,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        title: Row(
-          children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: const Color(0xffFFE2A9),
-                  width: 1.5,
-                ),
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(kToolbarHeight),
+        child: StreamBuilder<DocumentSnapshot>(
+          stream: GroupChatService.getGroupChatStreamById(_groupId),
+          builder: (context, snapshot) {
+            // Default values from the group data passed to constructor
+            String groupName = widget.group.name;
+            String memberCount = '${widget.group.memberCount} members';
+            Widget groupAvatar = RandomAvatar(widget.group.name, height: 40, width: 40);
+            
+            // If we have Firebase data, use it instead
+            if (snapshot.hasData && snapshot.data!.exists) {
+              try {
+                final data = snapshot.data!.data() as Map<String, dynamic>?;
+                if (data != null) {
+                  print('Group data from Firebase: name=${data['name']}, imageUrl=${data['imageUrl']}');
+                  
+                  // Get participants info for debugging
+                  if (data.containsKey('participants') && data['participants'] is List) {
+                    final participantsList = data['participants'] as List;
+                    print('Group participants: ${participantsList.length}');
+                    for (var participant in participantsList) {
+                      if (participant is Map) {
+                        print(' - ${participant['name']} (${participant['type']})');
+                      }
+                    }
+                  }
+                  
+                  // Get name from Firebase
+                  if (data.containsKey('name') && data['name'] != null) {
+                    groupName = data['name'] as String;
+                  }
+                  
+                  // Get member count from Firebase participants
+                  if (data.containsKey('participants') && data['participants'] is List) {
+                    final participantsList = data['participants'] as List;
+                    memberCount = '${participantsList.length} members';
+                  }
+                  
+                  // Get image from Firebase
+                  if (data.containsKey('imageUrl') && 
+                      data['imageUrl'] != null && 
+                      data['imageUrl'].toString().isNotEmpty) {
+                    final imageUrl = data['imageUrl'] as String;
+                    groupAvatar = ClipOval(
+                      child: Image.network(
+                        imageUrl,
+                        height: 40,
+                        width: 40,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) {
+                          print('Error loading group image: $error');
+                          // Fallback to RandomAvatar if image fails to load
+                          return RandomAvatar(groupName, height: 40, width: 40);
+                        },
+                      ),
+                    );
+                  }
+                }
+              } catch (e) {
+                print('Error parsing group data in AppBar: $e');
+              }
+            }
+            
+            return AppBar(
+              elevation: 0,
+              backgroundColor: Colors.white,
+              leadingWidth: 30,
+              leading: IconButton(
+                icon: const Icon(Icons.arrow_back, color: Colors.black),
+                onPressed: () => Navigator.of(context).pop(),
               ),
-              child: ClipOval(
-                child: RandomAvatar(widget.group.name, height: 40, width: 40),
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              title: Row(
                 children: [
-                  Text(
-                    widget.group.name,
-                    style: const TextStyle(
-                      color: Colors.black,
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: const Color(0xffFFE2A9),
+                        width: 1.5,
+                      ),
                     ),
-                    overflow: TextOverflow.ellipsis,
+                    child: groupAvatar,
                   ),
-                  Text(
-                    '${widget.group.memberCount} members',
-                    style: const TextStyle(
-                      color: Colors.grey,
-                      fontSize: 12,
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          groupName,
+                          style: const TextStyle(
+                            color: Colors.black,
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        Text(
+                          memberCount,
+                          style: const TextStyle(
+                            color: Colors.grey,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
               ),
-            ),
-          ],
+              actions: [
+                IconButton(
+                  icon: const Icon(Icons.more_vert, color: Colors.black),
+                  onPressed: () {
+                    // Show group options
+                  },
+                ),
+              ],
+            );
+          },
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.more_vert, color: Colors.black),
-            onPressed: () {
-              // Show group options
-            },
-          ),
-        ],
       ),
       body: SafeArea(
         bottom: false,
         child: Column(
           children: [
             Expanded(
-              child: _isLoading
-                  ? const Center(child: CircularProgressIndicator())
-                  : _buildMessageList(),
+              child: StreamBuilder<DocumentSnapshot>(
+                stream: GroupChatService.getGroupChatStreamById(_groupId),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  
+                  if (snapshot.hasError) {
+                    return Center(
+                      child: Text('Error: ${snapshot.error}'),
+                    );
+                  }
+                  
+                  if (!snapshot.hasData || !snapshot.data!.exists) {
+                    return const Center(
+                      child: Text('No data available'),
+                    );
+                  }
+                  
+                  try {
+                    // Print raw data for debugging
+                    final rawData = snapshot.data!.data() as Map<String, dynamic>;
+                    print('Raw Firestore data: $rawData');
+                    
+                    // Check if messages exist in the data
+                    final List<dynamic>? messagesData = rawData['messages'] as List<dynamic>?;
+                    if (messagesData == null || messagesData.isEmpty) {
+                      print('No messages found in Firestore data');
+                      return const Center(
+                        child: Text('No messages yet. Start the conversation!'),
+                      );
+                    }
+                    
+                    print('Found ${messagesData.length} messages in Firestore');
+                    
+                    // Convert the data to GroupChatData
+                    _groupChatData = GroupChatData.fromSnapshot(snapshot.data!);
+                    
+                    if (_groupChatData!.messages.isEmpty) {
+                      print('Messages parsed but resulted in empty list');
+                      return const Center(
+                        child: Text('No messages parsed correctly. Check data format.'),
+                      );
+                    }
+                    
+                    print('Parsed ${_groupChatData!.messages.length} messages successfully');
+                    
+                    // Scroll to bottom when new messages come in
+                    WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
+                    
+                    return _buildMessageList(_groupChatData!.messages);
+                  } catch (e) {
+                    print('Error parsing Firestore data: $e');
+                    return Center(
+                      child: Text('Error parsing data: $e'),
+                    );
+                  }
+                },
+              ),
             ),
             _buildChatInput(),
           ],
@@ -285,12 +266,75 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     );
   }
 
-  Widget _buildMessageList() {
-    // Group messages by date
-    Map<String, List<GroupMessage>> messagesByDate = {};
+  Widget _buildMessageList(List<ChatMessage> messages) {
+    if (messages.isEmpty) {
+      return const Center(
+        child: Text('No messages yet. Start the conversation!'),
+      );
+    }
+    
+    print('Building message list with ${messages.length} messages');
+    
+    // Create a single list of widgets if there are no timestamps
+    bool hasTimestamps = messages.any((msg) => msg.timestamp != null);
+    
+    if (!hasTimestamps) {
+      print('No message timestamps found, showing messages without date grouping');
+      List<Widget> messageWidgets = [];
+      
+      // Add a "Today" header
+      messageWidgets.add(
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 16.0),
+          child: Center(
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              decoration: BoxDecoration(
+                color: Colors.grey[200],
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Text(
+                'Messages',
+                style: TextStyle(
+                  color: Colors.grey[600],
+                  fontSize: 12,
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      
+      // Add all messages
+      for (var message in messages) {
+        messageWidgets.add(_buildMessageBubble(message));
+      }
+      
+      return ListView.builder(
+        controller: _scrollController,
+        padding: const EdgeInsets.all(16),
+        itemCount: messageWidgets.length,
+        itemBuilder: (context, index) {
+          return messageWidgets[index];
+        },
+      );
+    }
+    
+    // Group messages by date (original implementation)
+    Map<String, List<ChatMessage>> messagesByDate = {};
 
-    for (var message in _messages) {
-      final String dateKey = _getDateKey(message.timestamp);
+    for (var message in messages) {
+      if (message.timestamp == null) {
+        // Skip messages without timestamp or add to a "No Date" group
+        const String dateKey = 'No Date';
+        if (!messagesByDate.containsKey(dateKey)) {
+          messagesByDate[dateKey] = [];
+        }
+        messagesByDate[dateKey]!.add(message);
+        continue;
+      }
+      
+      final String dateKey = _getDateKey(message.timestamp!);
 
       if (!messagesByDate.containsKey(dateKey)) {
         messagesByDate[dateKey] = [];
@@ -357,8 +401,8 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     }
   }
 
-  Widget _buildMessageBubble(GroupMessage message) {
-    final bool isMe = message.sender.id == 'current';
+  Widget _buildMessageBubble(ChatMessage message) {
+    final bool isMe = message.sender.uid == FirebaseAuth.instance.currentUser?.uid;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 8.0),
@@ -368,10 +412,13 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (!isMe) ...[
-            RandomAvatar(
-              message.sender.avatar,
-              height: 35,
-              width: 35,
+            ClipOval(
+              child: Container(
+                width: 35,
+                height: 35,
+                color: Colors.grey[300], // Background color while loading
+                child: _buildSenderAvatar(message.sender),
+              ),
             ),
             const SizedBox(width: 8),
           ],
@@ -394,32 +441,80 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                   ),
                 Container(
                   padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   decoration: BoxDecoration(
                     color: isMe ? Colors.blue : const Color(0xFFF0F0F0),
                     borderRadius: BorderRadius.circular(18),
                   ),
                   child: Text(
-                    message.text,
+                    message.content,
                     style: TextStyle(
                         color: isMe ? Colors.white : Colors.black87,
                         fontWeight: FontWeight.bold),
                   ),
                 ),
+                if (message.timestamp != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2, right: 4, left: 4),
+                    child: Text(
+                      _formatMessageTime(message.timestamp!),
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                  ),
               ],
             ),
           ),
-          // if (isMe) ...[
-          //   const SizedBox(width: 8),
-          //   RandomAvatar(
-          //     message.sender.avatar,
-          //     height: 35,
-          //     width: 35,
-          //   ),
-          // ],
         ],
       ),
     );
+  }
+
+  // Build sender avatar based on type
+  Widget _buildSenderAvatar(MessageSender sender) {
+    // For Messi (special AI user), use Barcelona crest
+    if (sender.type == 'ai' && sender.name == 'Lionel Messi') {
+      return Image.network(
+        "https://upload.wikimedia.org/wikipedia/sco/4/47/FC_Barcelona_%28crest%29.svg",
+        fit: BoxFit.cover,
+        height: 35,
+        width: 35,
+        errorBuilder: (context, error, stackTrace) {
+          print('Error loading Messi avatar: $error');
+          return RandomAvatar(sender.uid, height: 35, width: 35);
+        },
+      );
+    }
+    
+    // For other AI users, check if group has an image
+    if (sender.type == 'ai' && _groupChatData?.imageUrl.isNotEmpty == true) {
+      return Image.network(
+        _groupChatData!.imageUrl,
+        fit: BoxFit.cover,
+        height: 35,
+        width: 35,
+        errorBuilder: (context, error, stackTrace) {
+          return RandomAvatar(sender.uid, height: 35, width: 35);
+        },
+      );
+    }
+    
+    // For regular users, use a random avatar based on UID
+    return RandomAvatar(sender.uid, height: 35, width: 35);
+  }
+
+  String _formatMessageTime(DateTime dateTime) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final messageDate = DateTime(dateTime.year, dateTime.month, dateTime.day);
+    
+    if (messageDate == today) {
+      return DateFormat('h:mm a').format(dateTime);
+    } else {
+      return DateFormat('MMM d, h:mm a').format(dateTime);
+    }
   }
 
   Widget _buildChatInput() {
