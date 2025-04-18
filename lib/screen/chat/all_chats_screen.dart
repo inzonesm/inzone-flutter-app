@@ -1,12 +1,14 @@
 import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:colorful_safe_area/colorful_safe_area.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:inzone/components/ui/appbar.dart';
 import 'package:inzone/screen/chat/chat_screen.dart';
 import 'package:inzone/screen/chat/human_chat_screen.dart';
 import 'package:inzone/services/inzone_database.dart';
+import 'package:inzone/theme/app_colors.dart';
 import 'package:random_avatar/random_avatar.dart';
 
 class AllChatsScreen extends StatefulWidget {
@@ -186,44 +188,36 @@ class _AllChatsScreenState extends State<AllChatsScreen>
   @override
   Widget build(BuildContext context) {
     // Get the count based on current tab
-    int chatCount = _currentTabIndex == 0 ? _chatUsers.length : _groupChats.length;
+    int chatCount =
+        _currentTabIndex == 0 ? _chatUsers.length : _groupChats.length;
     String subtitle = '$chatCount ${chatCount == 1 ? 'chat' : 'chats'}';
-    
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(100),
-        child: Padding(
-          padding: const EdgeInsets.only(top: 2),
-          child: FutureBuilder<String>(
-            future: _getUserName(),
-            builder: (context, snapshot) {
-              String username = snapshot.data ?? "User";
-              return CustomAppBar(
-                isHome: true,
-                title: "Chats",
-                userName: username,
-                subtitle: subtitle,
-                userPoints: "100",
-                profileImageUrl: null,
-                onSearchTap: () {},
-                onProfileTap: () {},
-                onPointsTap: () {},
-              );
-            }
-          ),
+
+    return ColorfulSafeArea(
+      topColor: Theme.of(context).canvasColor,
+      left: false,
+      right: false,
+      top: true,
+      bottom: false,
+      child: Scaffold(
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        appBar: CustomAppBar(
+          isHome: true,
+          isChat: true,
+          userPoints: "100",
+          profileImageUrl: null,
+          onSearchTap: () {},
+          onProfileTap: () {},
+          onPointsTap: () {},
         ),
-      ),
-      body: SafeArea(
-        bottom: false,
-        child: Column(
+        body: Column(
           children: [
             // Tab Bar
             TabBar(
               controller: _tabController,
-              labelColor: Colors.blue,
-              unselectedLabelColor: Colors.grey,
-              indicatorColor: Colors.blue,
+              labelColor: Theme.of(context).colorScheme.primary,
+              unselectedLabelColor:
+                  Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+              indicatorColor: Theme.of(context).colorScheme.primary,
               dividerColor: Colors.transparent,
               tabs: const [
                 Tab(text: 'Individual Chats'),
@@ -252,24 +246,29 @@ class _AllChatsScreenState extends State<AllChatsScreen>
     return Container(
       width: MediaQuery.of(context).size.width,
       decoration: BoxDecoration(
-        border: Border.all(
-          color: Colors.white,
-          style: BorderStyle.solid,
-          width: 10.0,
-        ),
-        color: Colors.white,
+        color: Theme.of(context).dialogBackgroundColor,
         borderRadius: const BorderRadius.only(
           topRight: Radius.circular(30),
           topLeft: Radius.circular(30),
         ),
       ),
       child: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? Center(
+              child: CircularProgressIndicator(
+              color: Theme.of(context).colorScheme.primary,
+            ))
           : users.isEmpty
-              ? const Center(child: Text("No conversations yet"))
+              ? Center(
+                  child: Text(
+                  "No conversations yet",
+                  style: Theme.of(context).textTheme.bodyLarge,
+                ))
               : ListView.builder(
-                  itemCount: users.length,
+                  itemCount: users.length + 1,
                   itemBuilder: (context, index) {
+                    if (index == users.length) {
+                      return const SizedBox(height: 100);
+                    }
                     return ChatUserCard(
                       userData: users[index],
                       currentUserId: currentUserId ?? '',
@@ -282,7 +281,8 @@ class _AllChatsScreenState extends State<AllChatsScreen>
   // Helper method to get the current user's name
   Future<String> _getUserName() async {
     try {
-      Map<String, dynamic>? userProfile = await InZoneDatabase.getCurrentUserProfile();
+      Map<String, dynamic>? userProfile =
+          await InZoneDatabase.getCurrentUserProfile();
       if (userProfile != null) {
         return userProfile["Name"] ?? userProfile["name"] ?? "User";
       }
@@ -409,7 +409,9 @@ class _ChatUserCardState extends State<ChatUserCard> {
           width: 50,
           decoration: BoxDecoration(
             border: Border.all(
-              color: const Color(0xffFFE2A9),
+              color: Theme.of(context).brightness == Brightness.light
+                  ? const Color(0xffFFE2A9)
+                  : AppColors.primaryBlue.withOpacity(0.3),
               width: 1.5,
             ),
             shape: BoxShape.circle,
@@ -432,39 +434,24 @@ class _ChatUserCardState extends State<ChatUserCard> {
         ),
         title: Text(
           widget.userData.name ?? 'Unknown',
-          style: GoogleFonts.openSans(
-            color: Colors.black,
-            fontSize: 17,
-            fontWeight: FontWeight.w500,
-          ),
+          style: Theme.of(context).textTheme.titleMedium,
         ),
         subtitle: widget.userData.lastMessage != null
             ? Text(
                 widget.userData.lastMessage!,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: GoogleFonts.openSans(
-                  color: Colors.black45,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w400,
-                ),
+                style: Theme.of(context).textTheme.bodySmall,
               )
             : Text(
                 widget.userData.email ?? '',
                 maxLines: 1,
-                style: GoogleFonts.openSans(
-                  color: Colors.black45,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w400,
-                ),
+                style: Theme.of(context).textTheme.bodySmall,
               ),
         trailing: formattedTime.isNotEmpty
             ? Text(
                 formattedTime,
-                style: GoogleFonts.openSans(
-                  color: Colors.black45,
-                  fontSize: 12,
-                ),
+                style: Theme.of(context).textTheme.labelSmall,
               )
             : null,
       ),

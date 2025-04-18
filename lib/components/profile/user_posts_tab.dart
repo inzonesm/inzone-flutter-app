@@ -97,9 +97,12 @@ class _UserPostsTabState extends State<UserPostsTab> {
       child: Padding(
         padding: const EdgeInsets.all(15.0),
         child: ListView.separated(
-          itemCount: postWidgets.length,
+          itemCount: postWidgets.length + 1,
           separatorBuilder: (context, index) => const SizedBox(height: 15),
           itemBuilder: (context, index) {
+            if (index == postWidgets.length) {
+              return const SizedBox(height: 100);
+            }
             return postWidgets[index];
           },
         ),

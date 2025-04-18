@@ -65,7 +65,7 @@ class _PostChatScreenState extends State<PostChatScreen> {
 
         appBar: AppBar(
           elevation: 0, // No shadow/elevation
-          backgroundColor: Colors.transparent, // Blend with background
+          backgroundColor: Theme.of(context).canvasColor,
           leading: const BackButton(), // Default back button
           title: const Text("Share this chat"),
           actions: [

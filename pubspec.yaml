@@ -64,6 +64,8 @@ dependencies:
   path_provider: any
   flutter_native_splash: ^2.4.4
   skeleton_text: ^3.0.1
+  colorful_safe_area: ^1.0.0
+  image_stack: ^2.1.1
 dev_dependencies:
   flutter_test:
     sdk: flutter

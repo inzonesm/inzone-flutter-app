@@ -10,6 +10,8 @@ import 'package:inzone/screen/auth/splash_screen.dart';
 import 'package:appsflyer_sdk/appsflyer_sdk.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:inzone/theme/theme_manager.dart';
+import 'package:provider/provider.dart';
 
 AppsFlyerOptions appsFlyerOptions = AppsFlyerOptions(
   afDevKey: "GouQRMcXkXP2CMBgZfHdfB",
@@ -43,7 +45,12 @@ void main() async {
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
   ]).then((_) {
-    runApp(const MyApp());
+    runApp(
+      ChangeNotifierProvider(
+        create: (_) => ThemeManager(),
+        child: const MyApp(),
+      ),
+    );
   });
 }
 
@@ -52,44 +59,14 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Get the ThemeManager from the Provider
+    final themeManager = Provider.of<ThemeManager>(context);
+
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        canvasColor: const Color(0xffdaf5ff),
-        scaffoldBackgroundColor: const Color(0xffdaf5ff),
-        primaryColor: Colors.blue,
-        textTheme: TextTheme(
-            titleLarge:
-                GoogleFonts.afacad(fontSize: 25, fontWeight: FontWeight.bold),
-            titleMedium:
-                GoogleFonts.afacad(fontSize: 22, fontWeight: FontWeight.bold),
-            bodyMedium: GoogleFonts.afacad(fontSize: 18),
-            bodySmall: GoogleFonts.afacad(fontSize: 16)),
-        colorScheme: const ColorScheme.light(
-            primary: Colors.blue,
-            onPrimary: Colors.black,
-            secondary: Colors.white,
-            onSecondary: Colors.black),
-        appBarTheme: const AppBarTheme(
-          backgroundColor: Color(0xffdaf5ff),
-          elevation: 0,
-          iconTheme: IconThemeData(color: Colors.black),
-        ),
-        elevatedButtonTheme: ElevatedButtonThemeData(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.blue,
-            foregroundColor: Colors.white,
-          ),
-        ),
-        iconButtonTheme: IconButtonThemeData(
-          style: ButtonStyle(
-            // backgroundColor: MaterialStateProperty.all(Colors.blue), // Default icon button color
-            foregroundColor:
-                WidgetStateProperty.all(Colors.white), // Icon color
-          ),
-        ),
-        useMaterial3: true,
-      ),
+      theme: themeManager.getLightTheme(),
+      darkTheme: themeManager.getDarkTheme(),
+      themeMode: themeManager.themeMode,
       home: const AuthenticationWrapper(),
     );
   }

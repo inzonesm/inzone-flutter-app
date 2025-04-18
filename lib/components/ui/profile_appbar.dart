@@ -1,11 +1,12 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:inzone/screen/settings/settings_screen.dart';
 import 'package:random_avatar/random_avatar.dart';
 
 class ProfileAppbar extends StatelessWidget {
   final String name;
   final String bio;
-
+  final String username;
   final int postCount;
   final int followingCount;
   final int followersCount;
@@ -16,6 +17,7 @@ class ProfileAppbar extends StatelessWidget {
     super.key,
     required this.name,
     required this.bio,
+    required this.username,
     required this.postCount,
     required this.followingCount,
     required this.followersCount,
@@ -27,7 +29,7 @@ class ProfileAppbar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).canvasColor,
         borderRadius: isProfilePage
             ? null
             : const BorderRadius.only(
@@ -38,95 +40,102 @@ class ProfileAppbar extends StatelessWidget {
           BoxShadow(color: Colors.black12, blurRadius: 10, spreadRadius: 0.5)
         ],
       ),
-      child: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.only(left: 12.0, right: 12.0, top: 10.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Avatar and stats
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Profile picture
-                  CircleAvatar(
-                    radius: 40,
-                    child: RandomAvatar(name, height: 80, width: 80),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment:
-                          CrossAxisAlignment.start, // name을 왼쪽 정렬
-                      children: [
-                        Row(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 12.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Text(
+                  username,
+                  style: Theme.of(context).textTheme.headlineMedium,
+                ),
+                const Spacer(),
+                IconButton(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => SettingsScreen(),
+                      ),
+                    );
+                  },
+                  icon: const Icon(CupertinoIcons.ellipsis_vertical),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            // Avatar and stats
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Profile picture
+                CircleAvatar(
+                  radius: 40,
+                  child: RandomAvatar(name, height: 80, width: 80),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start, // name을 왼쪽 정렬
+                    children: [
+                      Row(
+                        children: [
+                          Text(
+                            name,
+                            style: Theme.of(context).textTheme.titleSmall,
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Padding(
+                        padding: const EdgeInsets.only(right: 20),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text(
-                              name,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                              ),
-                            ),
+                            _buildStatColumn(
+                                postCount.toString(), "posts", context),
+                            _buildStatColumn(followingCount.toString(),
+                                "following", context),
+                            _buildStatColumn(followersCount.toString(),
+                                "followers", context),
                           ],
                         ),
-                        const SizedBox(height: 8),
-                        Padding(
-                          padding: const EdgeInsets.only(right: 20),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              _buildStatColumn(postCount.toString(), "posts"),
-                              _buildStatColumn(
-                                  followingCount.toString(), "following"),
-                              _buildStatColumn(
-                                  followersCount.toString(), "followers"),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 10),
-                child: Text(
-                  bio.isEmpty ? "No bio set yet" : bio,
-                  style: const TextStyle(
-                    color: Colors.grey,
-                    fontSize: 13,
+                      ),
+                    ],
                   ),
                 ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+              child: Text(
+                bio.isEmpty ? "No bio set yet" : bio,
+                style: Theme.of(context).textTheme.titleMedium,
               ),
-              const SizedBox(height: 12),
+            ),
+            const SizedBox(height: 12),
 
-              actionButtons,
-            ],
-          ),
+            actionButtons,
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildStatColumn(String value, String label) {
+  Widget _buildStatColumn(String value, String label, BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           value,
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 18,
-          ),
+          style: Theme.of(context).textTheme.titleMedium,
         ),
         Text(
           label,
-          style: const TextStyle(
-            fontWeight: FontWeight.normal,
-            fontSize: 14,
-          ),
+          style: Theme.of(context).textTheme.bodySmall,
         ),
       ],
     );

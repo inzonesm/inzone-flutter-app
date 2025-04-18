@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'dart:math';
 import 'package:random_avatar/random_avatar.dart';
+import 'package:image_stack/image_stack.dart';
 
 import 'package:inzone/data/group_data.dart';
 import 'package:inzone/screen/chat/group_chat_screen.dart';
@@ -12,114 +14,199 @@ class GroupCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // 아바타 이미지 리스트 생성
+    final List<String> avatarImages = [];
+
+    // 아바타가 있으면 사용, 없으면 기본 아바타 생성
+    if (group.avatars.isNotEmpty) {
+      for (var avatar in group.avatars) {
+        // 아바타 이미지 URL 추가
+        avatarImages.add(avatar);
+      }
+    } else {
+      // 기본 아바타 추가
+      avatarImages.addAll([
+        'person1',
+        'person2',
+        'person3',
+      ]);
+    }
+
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Container(
-        width: double.infinity,
-        decoration: BoxDecoration(
-          color: group.isMember
-              ? const Color(0xFFEAF7FB)
-              : Theme.of(context).canvasColor,
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.1),
-              blurRadius: 8,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                mainAxisSize: MainAxisSize.max,
-                children: [
-                  Flexible(
-                    child: Text(
-                      group.name,
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Image.asset(
-                        'icons/nav_bar_icons/groups_selected.png',
-                        width: 18,
-                        height: 18,
-                        color: Colors.blue,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        '${(group.memberCount / 1000).toStringAsFixed(1)}k',
-                        style: const TextStyle(
-                          color: Colors.black,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Image.asset(
-                        'icons/incoin.png',
-                        width: 18,
-                        height: 18,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        '${group.messageCount}',
-                        style: const TextStyle(
-                          color: Colors.black,
-                        ),
-                      ),
-                    ],
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(24),
+        child: InkWell(
+          onTap: () {
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (context) => GroupChatScreen(group: group),
+              ),
+            );
+          },
+          borderRadius: BorderRadius.circular(24),
+          splashColor: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+          highlightColor:
+              Theme.of(context).colorScheme.primary.withOpacity(0.05),
+          child: AspectRatio(
+            aspectRatio: 1,
+            child: Container(
+              width: double.infinity,
+              decoration: BoxDecoration(
+                color: Theme.of(context).cardColor,
+                borderRadius: BorderRadius.circular(24),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 8,
+                    offset: const Offset(0, 4),
                   ),
                 ],
               ),
-              const SizedBox(height: 4),
-              Text(
-                group.description,
-                style: const TextStyle(
-                  fontSize: 14,
-                  color: Color(0xFF333333),
-                  fontWeight: FontWeight.w500,
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // 그룹 타이틀 - 항상 표시, 최대 2줄
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            group.name,
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color:
+                                  Theme.of(context).textTheme.titleLarge?.color,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        if (group.isMember)
+                          Icon(
+                            Icons.check_circle,
+                            color: Theme.of(context).colorScheme.primary,
+                            size: 18,
+                          ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 8),
+
+                    // 그룹 설명 - 1줄로 제한
+                    Text(
+                      group.description,
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Theme.of(context).textTheme.bodyMedium?.color,
+                        height: 1.4,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+
+                    const SizedBox(height: 12),
+
+                    // 하단 섹션 - 통계 및 아바타
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.start,
+                      children: [
+                        Icon(
+                          Icons.group,
+                          size: 16,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          '${(group.memberCount / 1000).toStringAsFixed(1)}k',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                            color:
+                                Theme.of(context).textTheme.titleMedium?.color,
+                          ),
+                        ),
+                        const Spacer(),
+                        Icon(
+                          Icons.chat_bubble_outline,
+                          size: 16,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          '${group.messageCount}',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                            color:
+                                Theme.of(context).textTheme.titleMedium?.color,
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    const Spacer(),
+
+                    // avatar
+                    ImageStack.widgets(
+                      totalCount: avatarImages.length,
+                      widgetCount: 3,
+                      widgetRadius: 40,
+                      widgetBorderWidth: 1,
+                      widgetBorderColor: Colors.white,
+                      backgroundColor: Colors.transparent,
+                      extraCountBorderColor: Colors.transparent,
+                      extraCountTextStyle:
+                          Theme.of(context).textTheme.bodyMedium ??
+                              const TextStyle(),
+                      children: List.generate(
+                        min(3, avatarImages.isEmpty ? 3 : avatarImages.length),
+                        (index) {
+                          if (avatarImages.isEmpty) {
+                            return CircleAvatar(
+                              backgroundColor: Colors
+                                  .primaries[index % Colors.primaries.length],
+                              child: Icon(
+                                [
+                                  Icons.person,
+                                  Icons.face,
+                                  Icons.face_retouching_natural
+                                ][index % 3],
+                                color: Colors.white,
+                                size: 18,
+                              ),
+                            );
+                          } else {
+                            return RandomAvatar(
+                              avatarImages[index],
+                              height: 40,
+                              width: 40,
+                            );
+                          }
+                        },
+                      ),
+                    ),
+                  ],
                 ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
               ),
-              // group.description.contains('—but totally worth it')
-              //     ? const Row(
-              //         mainAxisSize: MainAxisSize.min,
-              //         children: [
-              //           Text(
-              //             'More',
-              //             style: TextStyle(
-              //               fontSize: 14,
-              //               color: Color(0xFF333333),
-              //               decoration: TextDecoration.underline,
-              //             ),
-              //           ),
-              //         ],
-              //       )
-              //     : const SizedBox(),
-              const SizedBox(height: 12),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                mainAxisSize: MainAxisSize.max,
-                children: [
-                  // Avatar stack
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+/*
+ // Avatar stack
                   SizedBox(
                     height: 40,
                     width: 120,
                     child: Stack(
                       children: List.generate(
-                        group.avatars.isEmpty ? 4 : group.avatars.length,
+                        4,
                         (index) => Positioned(
                           left: index * 28.0,
                           child: Container(
@@ -129,73 +216,22 @@ class GroupCard extends StatelessWidget {
                               shape: BoxShape.circle,
                               border: Border.all(color: Colors.white, width: 2),
                             ),
-                            child: group.avatars.isEmpty 
-                              ? CircleAvatar(
-                                  backgroundColor: Colors
-                                      .primaries[index % Colors.primaries.length],
-                                  child: Icon(
-                                    [
-                                      Icons.person,
-                                      Icons.face,
-                                      Icons.face_retouching_natural,
-                                      Icons.person_outline
-                                    ][index % 4],
-                                    color: Colors.white,
-                                  ),
-                                )
-                              : RandomAvatar(group.avatars[index], height: 40, width: 40),
+                            child: CircleAvatar(
+                              backgroundColor: Colors
+                                  .primaries[index % Colors.primaries.length],
+                              child: Icon(
+                                [
+                                  Icons.person,
+                                  Icons.face,
+                                  Icons.face_retouching_natural,
+                                  Icons.person_outline
+                                ][index % 4],
+                                color: Colors.white,
+                              ),
+                            ),
                           ),
                         ),
                       ),
                     ),
                   ),
-                  // Join/Open button
-                  ElevatedButton(
-                    onPressed: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (context) => GroupChatScreen(group: group),
-                        ),
-                      );
-                    },
-                    style: ElevatedButton.styleFrom(
-                      padding: EdgeInsets.zero,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      elevation: 8,
-                    ),
-                    child: Ink(
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [
-                            Color(0xFF14CFEE),
-                            Color(0xFF2196F3),
-                          ],
-                        ),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 24, vertical: 12),
-                        child: Text(
-                          group.isMember ? 'Open' : 'Join',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
+*/

@@ -1,4 +1,7 @@
+import 'package:colorful_safe_area/colorful_safe_area.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
+import 'dart:math';
 import 'package:inzone/components/cards/post_card.dart';
 import 'package:inzone/components/cards/repost_card.dart';
 import 'package:inzone/components/posts/shimmering.dart';
@@ -8,8 +11,6 @@ import 'package:inzone/components/ui/appbar.dart';
 import 'package:inzone/data/inzone_avatar.dart';
 import 'package:inzone/data/inzone_post.dart';
 import 'package:inzone/services/inzone_database.dart';
-import 'package:shimmer/shimmer.dart';
-import 'package:random_avatar/random_avatar.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key, required this.controller});
@@ -400,88 +401,132 @@ class HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: SafeArea(
+      body: ColorfulSafeArea(
+        topColor: Theme.of(context).canvasColor,
         left: false,
         right: false,
-        top: false,
-        child: RefreshIndicator(
-          onRefresh: () async {
-            setState(() {
-              reloadCount++;
-            });
-            await loadFeed(isRefresh: true);
-            return;
-          },
-          child: CustomScrollView(
-            controller: widget.controller,
-            slivers: [
+        top: true,
+        bottom: false,
+        child: NestedScrollView(
+          controller: widget.controller,
+          headerSliverBuilder: (BuildContext context, bool innerBoxIsScrolled) {
+            return <Widget>[
               SliverPersistentHeader(
                 floating: true,
                 pinned: false,
                 delegate: CustomAppBarDelegate(
-                  height: 150,
-                  child: FutureBuilder<String>(
-                    future: _getUserName(),
-                    builder: (context, snapshot) {
-                      String username = snapshot.data ?? "User";
-                      return CustomAppBar(
-                        isHome: true,
-                        title: username,
-                        userName: username,
-                        userPoints: "100",
-                        profileImageUrl: null,
-                        onSearchTap: () {},
-                        onProfileTap: () {},
-                        onPointsTap: () {},
-                      );
-                    }
+                  child: CustomAppBar(
+                    isHome: true,
+                    userPoints: "100",
+                    profileImageUrl: null,
+                    onSearchTap: () {},
+                    onProfileTap: () {},
+                    onPointsTap: () {},
                   ),
                 ),
               ),
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.only(top: 10.0),
-                  child: categoriesList.isNotEmpty
-                      ? Padding(
-                          padding: const EdgeInsets.only(bottom: 10.0),
-                          child: CategorySelectorBar(
-                            categories: categoriesList,
-                            onTap: (selectedCat) {
-                              _filterPostsByCategory(selectedCat);
-                            },
-                          ),
-                        )
-                      : CategoryLoading(context),
-                ),
-              ),
-              if (isLoading)
-                SliverToBoxAdapter(
-                    child: Center(
-                  child: SingleChildScrollView(
-                    child: Column(
-                      children: List<Widget>.generate(
+            ];
+          },
+          body: isLoading
+              ? SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  child: Column(
+                    children: [
+                      // 카테고리 선택 UI (로딩 중)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 10.0, bottom: 10.0),
+                        child: CategoryLoading(context),
+                      ),
+                      ...List<Widget>.generate(
                           5, (index) => PostLoading(context)),
+                    ],
+                  ),
+                )
+              : CustomScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  slivers: [
+                    // iOS 스타일 리프레시 컨트롤
+                    CupertinoSliverRefreshControl(
+                      onRefresh: () async {
+                        setState(() {
+                          reloadCount++;
+                        });
+                        await loadFeed(isRefresh: true);
+                      },
+                      refreshTriggerPullDistance: 120.0,
+                      refreshIndicatorExtent: 60.0,
+                      builder: (
+                        BuildContext context,
+                        RefreshIndicatorMode refreshState,
+                        double pulledExtent,
+                        double refreshTriggerPullDistance,
+                        double refreshIndicatorExtent,
+                      ) {
+                        return Center(
+                          child: Stack(
+                            alignment: Alignment.center,
+                            children: [
+                              const CupertinoActivityIndicator(radius: 14.0),
+                              Positioned(
+                                left:
+                                    MediaQuery.of(context).size.width / 2 + 20,
+                                child: Container(
+                                  width: 100,
+                                  height: 20,
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(4),
+                                    color: Theme.of(context).cardColor,
+                                  ),
+                                  child: CategoryLoading(context),
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
                     ),
-                  ),
-                ))
-              else
-                SliverList(
-                  delegate: SliverChildBuilderDelegate(
-                    (context, index) {
-                      if (index == posts.length && isLoadingMore) {
-                        return const Center(child: CircularProgressIndicator());
-                      }
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 16.0, vertical: 0),
-                        child: _buildPostWidget(posts[index], index),
-                      );
-                    },
-                    childCount: posts.length + (isLoadingMore ? 1 : 0),
-                  ),
+                    // 카테고리 선택 UI
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.only(top: 10.0),
+                        child: categoriesList.isNotEmpty
+                            ? Padding(
+                                padding: const EdgeInsets.only(bottom: 10.0),
+                                child: CategorySelectorBar(
+                                  categories: categoriesList,
+                                  onTap: (selectedCat) {
+                                    _filterPostsByCategory(selectedCat);
+                                  },
+                                ),
+                              )
+                            : CategoryLoading(context),
+                      ),
+                    ),
+                    // 포스트 목록
+                    SliverList(
+                      delegate: SliverChildBuilderDelegate(
+                        (context, index) {
+                          if (index == posts.length && isLoadingMore) {
+                            return const Center(
+                                child: CupertinoActivityIndicator());
+                          } else if (index ==
+                              posts.length + (isLoadingMore ? 1 : 0)) {
+                            // Bottom padding for navigation bar
+                            return const SizedBox(height: 100);
+                          }
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16.0, vertical: 0),
+                            child: _buildPostWidget(posts[index], index),
+                          );
+                        },
+                        childCount: posts.length +
+                            (isLoadingMore ? 1 : 0) +
+                            1, // +1 for bottom padding
+                      ),
+                    ),
+                  ],
                 ),
-            ],
-          ),
         ),
       ),
     );
@@ -490,7 +535,8 @@ class HomeScreenState extends State<HomeScreen> {
   // Helper method to get the current user's name
   Future<String> _getUserName() async {
     try {
-      Map<String, dynamic>? userProfile = await InZoneDatabase.getCurrentUserProfile();
+      Map<String, dynamic>? userProfile =
+          await InZoneDatabase.getCurrentUserProfile();
       if (userProfile != null) {
         return userProfile["Name"] ?? userProfile["name"] ?? "User";
       }

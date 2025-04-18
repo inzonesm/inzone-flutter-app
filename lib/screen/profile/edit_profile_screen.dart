@@ -1,3 +1,4 @@
+import 'package:colorful_safe_area/colorful_safe_area.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -159,145 +160,155 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Theme.of(context).canvasColor,
-      appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(100),
-        child: Padding(
-          padding: const EdgeInsets.only(top: 2),
-          child: CustomAppBar(
-            isOthers: true,
-            isImage: false,
-            title: "Edit Profile",
-            userPoints: "100",
-            onSearchTap: () {},
-            onProfileTap: () {},
-            onPointsTap: () {},
+    return ColorfulSafeArea(
+      topColor: Theme.of(context).canvasColor,
+      left: false,
+      right: false,
+      top: true,
+      bottom: false,
+      child: Scaffold(
+        backgroundColor: Theme.of(context).canvasColor,
+        appBar: PreferredSize(
+          preferredSize: const Size.fromHeight(100),
+          child: Padding(
+            padding: const EdgeInsets.only(top: 2),
+            child: CustomAppBar(
+              isImage: false,
+              isSettings: true,
+              isHome: true,
+              title: "Edit Profile",
+              userPoints: "100",
+              onSearchTap: () {},
+              onProfileTap: () {},
+              onPointsTap: () {},
+            ),
           ),
         ),
-      ),
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(20.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              // Avatar that changes based on username
-              Center(
-                child: Column(
-                  children: [
-                    CircleAvatar(
-                      radius: 80,
-                      child: RandomAvatar(
-                        _currentUsername.isNotEmpty ? _currentUsername : 'user',
-                        height: 160,
-                        width: 160,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    const Text(
-                      "Avatar changes based on username",
-                      style: TextStyle(
-                        color: Colors.grey,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 20),
-              buildCupertinoInput(
-                label: "Name",
-                placeholder: "Enter your name",
-                controller: _nameController,
-                maxLines: 1,
-                onChanged: (value) {
-                  // Update avatar on every keystroke
-                  setState(() {
-                    _currentUsername = value;
-                  });
-                },
-              ),
-              const SizedBox(height: 20),
-              buildCupertinoInput(
-                label: "User Name",
-                placeholder: "Enter your message",
-                controller: _usernameController,
-                maxLines: 1,
-                onChanged: (value) {
-                  // Update avatar on every keystroke
-                  setState(() {
-                    _currentUsername = value;
-                  });
-                },
-              ),
-
-              const SizedBox(height: 20),
-              buildCupertinoInput(
-                label: "Bio",
-                placeholder: "Enter your bio",
-                controller: _bioController,
-                maxLines: 4,
-                onChanged: (value) {
-                  // Update avatar on every keystroke
-                  setState(() {
-                    _currentUsername = value;
-                  });
-                },
-              ),
-              const SizedBox(height: 40),
-              // // Save button
-              // SizedBox(
-              //   width: double.infinity,
-              //   height: 50,
-              //   child: ElevatedButton(
-              //     onPressed: _isSaving ? null : _saveProfile,
-              //     style: ElevatedButton.styleFrom(
-              //       backgroundColor: Colors.blue,
-              //       foregroundColor: Colors.white,
-              //       shape: RoundedRectangleBorder(
-              //         borderRadius: BorderRadius.circular(10),
-              //       ),
-              //     ),
-              //     child: _isSaving
-              //         ? const CircularProgressIndicator(color: Colors.white)
-              //         : const Text(
-              //             'Save Changes',
-              //             style: TextStyle(
-              //               fontSize: 16,
-              //               fontWeight: FontWeight.bold,
-              //             ),
-              //           ),
-              //   ),
-              // ),
-            ],
-          ),
-        ),
-      ),
-      bottomNavigationBar: Padding(
-        padding:
-            const EdgeInsets.only(left: 15, right: 15, bottom: 30, top: 15),
-        child: GestureDetector(
-          onTap: _isSaving ? null : _saveProfile,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            height: 60,
-            width: MediaQuery.of(context).size.width - 80,
-            decoration: BoxDecoration(
-                color: Colors.blueAccent,
-                borderRadius: BorderRadius.circular(20)),
-            child: const Row(
+        body: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.all(20.0),
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.center,
-              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Text(
-                  'DONE',
-                  style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white),
+                // Avatar that changes based on username
+                Center(
+                  child: Column(
+                    children: [
+                      CircleAvatar(
+                        radius: 80,
+                        child: RandomAvatar(
+                          _currentUsername.isNotEmpty
+                              ? _currentUsername
+                              : 'user',
+                          height: 160,
+                          width: 160,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      const Text(
+                        "Avatar changes based on username",
+                        style: TextStyle(
+                          color: Colors.grey,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
+                const SizedBox(height: 20),
+                buildCupertinoInput(
+                  label: "Name",
+                  placeholder: "Enter your name",
+                  controller: _nameController,
+                  maxLines: 1,
+                  onChanged: (value) {
+                    // Update avatar on every keystroke
+                    setState(() {
+                      _currentUsername = value;
+                    });
+                  },
+                ),
+                const SizedBox(height: 20),
+                buildCupertinoInput(
+                  label: "User Name",
+                  placeholder: "Enter your message",
+                  controller: _usernameController,
+                  maxLines: 1,
+                  onChanged: (value) {
+                    // Update avatar on every keystroke
+                    setState(() {
+                      _currentUsername = value;
+                    });
+                  },
+                ),
+
+                const SizedBox(height: 20),
+                buildCupertinoInput(
+                  label: "Bio",
+                  placeholder: "Enter your bio",
+                  controller: _bioController,
+                  maxLines: 4,
+                  onChanged: (value) {
+                    // Update avatar on every keystroke
+                    setState(() {
+                      _currentUsername = value;
+                    });
+                  },
+                ),
+                const SizedBox(height: 40),
+                // // Save button
+                // SizedBox(
+                //   width: double.infinity,
+                //   height: 50,
+                //   child: ElevatedButton(
+                //     onPressed: _isSaving ? null : _saveProfile,
+                //     style: ElevatedButton.styleFrom(
+                //       backgroundColor: Colors.blue,
+                //       foregroundColor: Colors.white,
+                //       shape: RoundedRectangleBorder(
+                //         borderRadius: BorderRadius.circular(10),
+                //       ),
+                //     ),
+                //     child: _isSaving
+                //         ? const CircularProgressIndicator(color: Colors.white)
+                //         : const Text(
+                //             'Save Changes',
+                //             style: TextStyle(
+                //               fontSize: 16,
+                //               fontWeight: FontWeight.bold,
+                //             ),
+                //           ),
+                //   ),
+                // ),
               ],
+            ),
+          ),
+        ),
+        bottomNavigationBar: Padding(
+          padding:
+              const EdgeInsets.only(left: 15, right: 15, bottom: 30, top: 15),
+          child: GestureDetector(
+            onTap: _isSaving ? null : _saveProfile,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              height: 60,
+              width: MediaQuery.of(context).size.width - 80,
+              decoration: BoxDecoration(
+                  color: Colors.blueAccent,
+                  borderRadius: BorderRadius.circular(20)),
+              child: const Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    'DONE',
+                    style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
