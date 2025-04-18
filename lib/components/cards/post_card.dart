@@ -206,7 +206,8 @@ class _PostCardState extends State<PostCard> {
                                       .titleLarge
                                       ?.color,
                                   fontWeight: FontWeight.bold,
-                                  fontSize: 20),
+                                  fontSize: 20,
+                                  overflow: TextOverflow.ellipsis),
                             ),
                           ),
                         ),
