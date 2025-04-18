@@ -14,25 +14,28 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
   final VoidCallback? onProfileTap;
   final VoidCallback? onPointsTap;
   final bool isHome;
-  final bool isOthers;
+  final bool isGroup;
+  final bool isChat;
   final bool isImage;
+  final bool isSettings;
   final String userName;
 
-  const CustomAppBar({
-    super.key,
-    this.greeting,
-    this.title,
-    this.subtitle,
-    this.userPoints,
-    this.profileImageUrl,
-    this.onSearchTap,
-    this.onProfileTap,
-    this.onPointsTap,
-    this.isHome = false,
-    this.isOthers = false,
-    this.isImage = true,
-    this.userName = "Loading"
-  });
+  const CustomAppBar(
+      {super.key,
+      this.greeting,
+      this.title,
+      this.subtitle,
+      this.userPoints,
+      this.profileImageUrl,
+      this.onSearchTap,
+      this.onProfileTap,
+      this.onPointsTap,
+      this.isHome = false,
+      this.isGroup = false,
+      this.isChat = false,
+      this.isImage = true,
+      this.isSettings = false,
+      this.userName = "Loading"});
 
   @override
   Widget build(BuildContext context) {
@@ -62,208 +65,197 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
     );
 
     return Container(
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.only(
-          bottomLeft: Radius.circular(30),
-          bottomRight: Radius.circular(30),
-        ),
-        boxShadow: [
-          BoxShadow(color: Colors.black12, blurRadius: 10, spreadRadius: 0.5)
-        ],
+      decoration: BoxDecoration(
+        color: Theme.of(context).canvasColor,
       ),
-      child: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 16.0),
-          child: isHome
-              ? Row(
-                  children: [
-                    // profile image
+      child: Padding(
+        padding: EdgeInsets.symmetric(
+            horizontal: isSettings ? 12 : 24.0, vertical: 12.0),
+        child: isHome
+            ? Row(
+                children: [
+                  if (isSettings)
+                    IconButton(
+                      onPressed: () {
+                        Navigator.of(context).pop();
+                      },
+                      icon: const Icon(CupertinoIcons.back),
+                    ),
+                  Text(
+                    isGroup
+                        ? 'Groups'
+                        : isChat
+                            ? 'Chats'
+                            : isSettings
+                                ? title ?? 'InZone'
+                                : 'InZone',
+                    style: Theme.of(context).textTheme.headlineMedium,
+                  ),
+                  const Spacer(),
+                  if (isGroup)
                     GestureDetector(
-                      onTap: onProfileTap,
+                      onTap: onSearchTap,
                       child: Container(
                         width: 48,
                         height: 48,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          border: Border.all(
-                            color: const Color(0xffFFE2A9),
-                            width: 1.5,
-                          ),
+                          color: Theme.of(context).cardColor,
                         ),
-                        child: RandomAvatar(userName ?? 'User', height: 48, width: 48),
+                        child: Icon(
+                          Icons.search,
+                          color: Theme.of(context).iconTheme.color,
+                          size: 24,
+                        ),
                       ),
                     ),
-                    const SizedBox(width: 12),
-                    // brand name and greeting
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            title ?? 'InZone',
-                            style: const TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.black,
+                  if (isGroup) const SizedBox(width: 12),
+                  // points display
+                  if (isGroup)
+                    GestureDetector(
+                      onTap: onPointsTap,
+                      child: Container(
+                        height: 48,
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(24),
+                          color: Theme.of(context).cardColor,
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            CircleAvatar(
+                              radius: 14,
+                              backgroundColor:
+                                  Theme.of(context).colorScheme.primary,
+                              child: const Icon(
+                                Icons.local_police,
+                                color: Colors.white,
+                                size: 16,
+                              ),
                             ),
-                          ),
-                          Text(
-                            subtitle ?? 'Welcome back',
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w500,
-                              color: Colors.blue,
+                            const SizedBox(width: 8),
+                            Text(
+                              userPoints ?? '0',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: Theme.of(context)
+                                    .textTheme
+                                    .bodyLarge
+                                    ?.color,
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
-
-                    // // search button
-                    // GestureDetector(
-                    //   onTap: onSearchTap,
-                    //   child: Container(
-                    //     width: 48,
-                    //     height: 48,
-                    //     decoration: BoxDecoration(
-                    //       shape: BoxShape.circle,
-                    //       color: Colors.grey.shade100,
-                    //     ),
-                    //     child: const Icon(
-                    //       Icons.search,
-                    //       color: Colors.black54,
-                    //       size: 24,
-                    //     ),
-                    //   ),
-                    // ),
-                    // const SizedBox(width: 12),
-
-                    // // points display
-                    // GestureDetector(
-                    //   onTap: onPointsTap,
-                    //   child: Container(
-                    //     height: 48,
-                    //     padding: const EdgeInsets.symmetric(horizontal: 12),
-                    //     decoration: BoxDecoration(
-                    //       borderRadius: BorderRadius.circular(24),
-                    //       color: Colors.grey.shade100,
-                    //     ),
-                    //     child: Row(
-                    //       mainAxisSize: MainAxisSize.min,
-                    //       children: [
-                    //         CircleAvatar(
-                    //           radius: 14,
-                    //           backgroundColor: Colors.blue.shade400,
-                    //           child: const Icon(
-                    //             Icons.local_police,
-                    //             color: Colors.white,
-                    //             size: 16,
-                    //           ),
-                    //         ),
-                    //         const SizedBox(width: 8),
-                    //         Text(
-                    //           userPoints ?? '0',
-                    //           style: const TextStyle(
-                    //             fontSize: 16,
-                    //             fontWeight: FontWeight.bold,
-                    //             color: Colors.black,
-                    //           ),
-                    //         ),
-                    //       ],
-                    //     ),
-                    //   ),
-                    // ),
-                    // const SizedBox(width: 12),
-                    // GestureDetector(
-                    //   onTap: () {
-                    //     Navigator.push(
-                    //       context,
-                    //       MaterialPageRoute(
-                    //         builder: (context) => ChatScreen(
-                    //           userData: userName ?? 'Guest',
-                    //         ),
-                    //       ),
-                    //     );
-                    //   },
-                    //   child: const SizedBox(
-                    //     height: 16,
-                    //     width: 16,
-                    //     child: Icon(
-                    //       Icons.chat_bubble_outline_rounded,
-                    //       color: Colors.black,
-                    //       size: 21,
-                    //     ),
-                    //   ),
-                    // ),
-                  ],
-                )
-              : isOthers
-                  ? Row(
-                      children: [
-                        IconButton(
-                          icon: const Icon(
-                            CupertinoIcons.back,
-                            color: Colors.black,
-                          ),
-                          onPressed: () {
-                            Navigator.of(context).pop();
-                          },
+                  if (isChat)
+                    GestureDetector(
+                      onTap: onPointsTap,
+                      child: Container(
+                        height: 48,
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(24),
+                          color: Theme.of(context).cardColor,
                         ),
-                        isImage
-                            ? GestureDetector(
-                                onTap: onProfileTap,
-                                child: Container(
-                                  width: 48,
-                                  height: 48,
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    border: Border.all(
-                                      color: const Color(0xffFFE2A9),
-                                      width: 1.5,
-                                    ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            CircleAvatar(
+                              radius: 14,
+                              backgroundColor:
+                                  Theme.of(context).colorScheme.primary,
+                              child: const Icon(
+                                CupertinoIcons.chat_bubble_2,
+                                color: Colors.white,
+                                size: 18,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              '0',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: Theme.of(context)
+                                    .textTheme
+                                    .bodyLarge
+                                    ?.color,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                ],
+              )
+            : isGroup
+                ? Row(
+                    children: [
+                      IconButton(
+                        icon: Icon(
+                          CupertinoIcons.back,
+                          color: Theme.of(context).iconTheme.color,
+                        ),
+                        onPressed: () {
+                          Navigator.of(context).pop();
+                        },
+                      ),
+                      isImage
+                          ? GestureDetector(
+                              onTap: onProfileTap,
+                              child: Container(
+                                width: 48,
+                                height: 48,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color:
+                                        Theme.of(context).colorScheme.secondary,
+                                    width: 1.5,
                                   ),
-                                  child: profileImageUrl != null
-                                      ? ClipOval(
-                                          child: Image.network(
-                                            profileImageUrl!,
-                                            fit: BoxFit.cover,
-                                            errorBuilder: (context, error, stackTrace) {
-                                              // Fallback to RandomAvatar if the image fails to load
-                                              return RandomAvatar(title ?? 'User', height: 48, width: 48);
-                                            },
-                                          ),
-                                        )
-                                      : RandomAvatar(title ?? 'User', height: 48, width: 48),
                                 ),
-                              )
-                            : const SizedBox(),
-                        isImage ? const SizedBox(width: 12) : const SizedBox(),
-                        Text(
-                          title ?? 'Guest',
-                          style: const TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    )
-                  : const SizedBox(),
-        ),
+                                child: profileImageUrl != null
+                                    ? ClipOval(
+                                        child: Image.network(
+                                          profileImageUrl!,
+                                          fit: BoxFit.cover,
+                                          errorBuilder:
+                                              (context, error, stackTrace) {
+                                            // Fallback to RandomAvatar if the image fails to load
+                                            return RandomAvatar(title ?? 'User',
+                                                height: 48, width: 48);
+                                          },
+                                        ),
+                                      )
+                                    : RandomAvatar(title ?? 'User',
+                                        height: 48, width: 48),
+                              ),
+                            )
+                          : const SizedBox(),
+                      isImage ? const SizedBox(width: 12) : const SizedBox(),
+                      Text(
+                        title ?? 'Guest',
+                        style: Theme.of(context).textTheme.titleLarge,
+                      ),
+                    ],
+                  )
+                : const SizedBox(),
       ),
     );
   }
 
   @override
-  Size get preferredSize => const Size.fromHeight(150);
+  Size get preferredSize => const Size.fromHeight(70);
 }
 
 class CustomAppBarDelegate extends SliverPersistentHeaderDelegate {
   final Widget child;
   final double height;
 
-  CustomAppBarDelegate({required this.child, this.height = 100});
+  CustomAppBarDelegate({required this.child, this.height = 70});
 
   @override
   Widget build(

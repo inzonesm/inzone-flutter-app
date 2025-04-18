@@ -85,7 +85,6 @@ class _ContactScreenState extends State<ContactScreen> {
         child: Padding(
           padding: EdgeInsets.only(top: 2),
           child: CustomAppBar(
-            isOthers: true,
             isImage: false,
             title: "Contact Us",
           ),

@@ -1,3 +1,4 @@
+import 'package:colorful_safe_area/colorful_safe_area.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:inzone/components/ui/profile_appbar.dart';
@@ -14,6 +15,7 @@ abstract class BaseProfileScreenState<T extends BaseProfileScreen>
   int currentPage = 0;
   String name = "Loading";
   String bio = 'Loading';
+  String username = 'Loading';
   int postCount = 0;
   int followingCount = 0;
   int followersCount = 0;
@@ -63,6 +65,7 @@ abstract class BaseProfileScreenState<T extends BaseProfileScreen>
         // Access the fields directly from the user data object
         name = userProfile["Name"] ?? userProfile["name"] ?? "Unknown";
         bio = userProfile["Bio"] ?? userProfile["bio"] ?? "";
+        username = userProfile["username"] ?? "Unknown";
 
         // Get followers and following counts from the profile data
         List<dynamic> followers = userProfile["followers"] ?? [];
@@ -115,13 +118,17 @@ abstract class BaseProfileScreenState<T extends BaseProfileScreen>
       systemNavigationBarColor: backgroundColor,
     ));
 
-    return Scaffold(
-      backgroundColor: backgroundColor,
-      extendBodyBehindAppBar: true,
-      appBar: buildAppBar(),
-      body: SafeArea(
-        top: false,
-        child: Column(
+    return ColorfulSafeArea(
+      topColor: backgroundColor,
+      left: false,
+      right: false,
+      top: true,
+      bottom: false,
+      child: Scaffold(
+        backgroundColor: Theme.of(context).dialogBackgroundColor,
+        extendBodyBehindAppBar: true,
+        appBar: buildAppBar(),
+        body: Column(
           children: [
             // Profile header with curved bottom including tab bar
             Container(
@@ -138,6 +145,7 @@ abstract class BaseProfileScreenState<T extends BaseProfileScreen>
                   ProfileAppbar(
                     name: name,
                     bio: bio,
+                    username: username,
                     postCount: postCount,
                     followingCount: followingCount,
                     followersCount: followersCount,
@@ -148,9 +156,9 @@ abstract class BaseProfileScreenState<T extends BaseProfileScreen>
                   // Tab bar
                   // Tab bar
                   Container(
-                    decoration: const BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.only(
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).canvasColor,
+                      borderRadius: const BorderRadius.only(
                         bottomLeft: Radius.circular(30),
                         bottomRight: Radius.circular(30),
                       ),

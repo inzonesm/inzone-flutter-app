@@ -128,8 +128,8 @@ Widget CategoryLoading(BuildContext context) {
           color: Colors.transparent,
         ),
       ),
-      const Padding(
-        padding: EdgeInsets.symmetric(vertical: 0, horizontal: 20),
+      Padding(
+        padding: const EdgeInsets.symmetric(vertical: 0, horizontal: 20),
         child: SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           child: Row(
@@ -137,19 +137,19 @@ Widget CategoryLoading(BuildContext context) {
               SkeletonContainer.circular(
                 height: 45,
                 width: 100,
-                color: Colors.white,
+                color: Theme.of(context).cardColor,
               ),
-              SizedBox(width: 10),
+              const SizedBox(width: 10),
               SkeletonContainer.circular(
                 height: 45,
                 width: 200,
-                color: Colors.white,
+                color: Theme.of(context).cardColor,
               ),
-              SizedBox(width: 10),
+              const SizedBox(width: 10),
               SkeletonContainer.circular(
                 height: 45,
                 width: 120,
-                color: Colors.white,
+                color: Theme.of(context).cardColor,
               ),
             ],
           ),
@@ -175,7 +175,7 @@ class Skelton extends StatelessWidget {
       height: height,
       width: width,
       decoration: BoxDecoration(
-        color: color ?? Colors.white,
+        color: color ?? Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(12),
       ),
       margin: const EdgeInsets.only(

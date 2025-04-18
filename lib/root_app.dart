@@ -98,11 +98,11 @@ class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
     return Scaffold(
       key: _key,
       backgroundColor: Theme.of(context).canvasColor,
+      extendBody: true, // 바텀 네비게이션 바 아래 영역까지 content가 확장됨
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       floatingActionButton: FloatingActionButton(
         heroTag: null,
-        foregroundColor: Colors.white,
-        elevation: 8,
+        elevation: 0,
         backgroundColor: Colors.transparent,
         onPressed: () {
           showPostScreen(context, curve: Curves.fastEaseInToSlowEaseOut);
@@ -110,9 +110,17 @@ class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
         child: Container(
           width: 56,
           height: 56,
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             shape: BoxShape.circle,
-            gradient: LinearGradient(
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.2),
+                spreadRadius: 1,
+                blurRadius: 3,
+                offset: const Offset(0, 1),
+              ),
+            ],
+            gradient: const LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
@@ -121,7 +129,7 @@ class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
               ],
             ),
           ),
-          child: const Icon(Icons.add, size: 28),
+          child: const Icon(Icons.add, size: 28, color: Colors.white),
         ),
       ),
       body: NotificationListener<ScrollNotification>(
@@ -148,36 +156,31 @@ class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
       bottomNavigationBar: AnimatedBottomNavigationBar.builder(
         itemCount: _bottomNavBarTitles.length,
         tabBuilder: (int index, bool isActive) {
-          return Column(
-            mainAxisSize: MainAxisSize.min,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Image.asset(
-                isActive
-                    ? 'icons/nav_bar_icons/${_bottomNavBarTitles[index].toLowerCase()}_selected.png'
-                    : 'icons/nav_bar_icons/${_bottomNavBarTitles[index].toLowerCase()}_unselected.png',
-                width: 24,
-                height: 24,
-              ),
-              const SizedBox(height: 4),
-              Text(
-                _bottomNavBarTitles[index],
-                style: TextStyle(
-                  fontSize: 12,
-                  color: isActive ? Colors.blue : Colors.grey,
-                ),
-              )
-            ],
+          final String iconName = _bottomNavBarTitles[index].toLowerCase();
+          return Center(
+            child: Image.asset(
+              isActive
+                  ? 'icons/nav_bar_icons/${iconName}_selected.png'
+                  : 'icons/nav_bar_icons/${iconName}_unselected.png',
+              width: 24,
+              height: 24,
+            ),
           );
         },
         activeIndex: _currentPage,
         gapLocation: GapLocation.center,
-        notchSmoothness: NotchSmoothness.defaultEdge,
+        notchSmoothness: NotchSmoothness.softEdge,
+        leftCornerRadius: 32,
+        rightCornerRadius: 32,
         onTap: _onItemTapped,
-        backgroundColor: Colors.white,
-        leftCornerRadius: 0,
-        rightCornerRadius: 0,
-        elevation: 8,
+        backgroundColor: Theme.of(context).cardColor,
+        splashColor: Colors.transparent,
+        splashRadius: 0,
+        shadow: const BoxShadow(
+          color: Colors.transparent,
+          blurRadius: 0,
+          spreadRadius: 0,
+        ),
       ),
     );
   }
@@ -230,9 +233,9 @@ class _AnimatedBottomSheetContentState
       position: _offsetAnimation,
       child: Container(
         height: MediaQuery.of(context).size.height * 0.9,
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
+        decoration: BoxDecoration(
+          color: Theme.of(context).cardColor,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
         ),
         child: const PostScreen(),
       ),

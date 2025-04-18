@@ -143,10 +143,9 @@ class _PostCardState extends State<PostCard> {
           decoration: BoxDecoration(
               boxShadow: [
                 BoxShadow(
-                  color: const Color(0xff959595).withOpacity(0.3),
-                  spreadRadius: 0,
-                  blurRadius: 15,
-                  offset: const Offset(0, 4), // changes position of shadow
+                  color: Colors.black.withOpacity(0.1),
+                  blurRadius: 8,
+                  offset: const Offset(0, 4),
                 ),
 
                 // Only add blue hue for human posts (not AI)
@@ -160,7 +159,7 @@ class _PostCardState extends State<PostCard> {
                         0, 0), // Center the glow around the container
                   ),
               ],
-              color: Colors.white.withOpacity(0.97),
+              color: Theme.of(context).cardColor,
               borderRadius: BorderRadius.circular(15)),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -201,8 +200,11 @@ class _PostCardState extends State<PostCard> {
                             scrollDirection: Axis.horizontal,
                             child: Text(
                               widget.post.userName,
-                              style: const TextStyle(
-                                  color: Colors.black,
+                              style: TextStyle(
+                                  color: Theme.of(context)
+                                      .textTheme
+                                      .titleLarge
+                                      ?.color,
                                   fontWeight: FontWeight.bold,
                                   fontSize: 20),
                             ),
@@ -214,9 +216,12 @@ class _PostCardState extends State<PostCard> {
                     onTap: () {
                       _showOptionsBottomSheet(context);
                     },
-                    child: const Padding(
-                      padding: EdgeInsets.all(15),
-                      child: Icon(Icons.more_horiz, color: Color(0xFFA4ACB9)),
+                    child: Padding(
+                      padding: const EdgeInsets.all(15),
+                      child: Icon(
+                        Icons.more_horiz,
+                        color: Theme.of(context).iconTheme.color,
+                      ),
                     ),
                   ),
                 ],
@@ -231,7 +236,10 @@ class _PostCardState extends State<PostCard> {
                       child: Text(
                         widget.post.textContent,
                         textAlign: TextAlign.start,
-                        style: const TextStyle(height: 1, color: Colors.black),
+                        style: TextStyle(
+                            height: 1,
+                            color:
+                                Theme.of(context).textTheme.bodyMedium?.color),
                       ),
                     ),
               const SizedBox(
@@ -410,9 +418,9 @@ class _PostCardState extends State<PostCard> {
       backgroundColor: Colors.transparent,
       context: context,
       builder: (context) => Container(
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.only(
+        decoration: BoxDecoration(
+          color: Theme.of(context).cardColor,
+          borderRadius: const BorderRadius.only(
             topRight: Radius.circular(30),
             topLeft: Radius.circular(30),
           ),
@@ -421,13 +429,17 @@ class _PostCardState extends State<PostCard> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
-              width: 50,
-              height: 5,
-              margin: const EdgeInsets.symmetric(vertical: 5),
-              decoration: BoxDecoration(
-                color: Colors.grey[300],
-                borderRadius: BorderRadius.circular(10),
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 5),
+              child: Center(
+                child: Container(
+                  width: 50,
+                  height: 5,
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).dividerColor,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
               ),
             ),
             const SizedBox(height: 15),
@@ -436,7 +448,6 @@ class _PostCardState extends State<PostCard> {
               "Flag this post",
               "not_interested",
             ),
-            Divider(height: 1, thickness: 0.5, color: Colors.grey.shade300),
             _optionItem(
               CustomIcons.dontShow,
               "Block ${widget.post.userName}",
@@ -476,7 +487,10 @@ class _PostCardState extends State<PostCard> {
             const SizedBox(width: 16),
             Text(
               title,
-              style: const TextStyle(fontSize: 16),
+              style: TextStyle(
+                fontSize: 16,
+                color: Theme.of(context).textTheme.bodyLarge?.color,
+              ),
             ),
           ],
         ),
@@ -504,9 +518,9 @@ class _PostCardState extends State<PostCard> {
                 constraints: const BoxConstraints(maxHeight: 100),
                 child: TextFormField(
                   scrollController: _scrollController,
-                  cursorColor: Colors.black,
-                  style: const TextStyle(
-                    color: Colors.black,
+                  cursorColor: Theme.of(context).colorScheme.primary,
+                  style: TextStyle(
+                    color: Theme.of(context).textTheme.bodyMedium?.color,
                     fontSize: 14,
                     fontWeight: FontWeight.w500,
                   ),
@@ -517,28 +531,34 @@ class _PostCardState extends State<PostCard> {
                   keyboardType: TextInputType.multiline,
                   // cursorHeight: 17,
                   decoration: InputDecoration(
-                    suffixIconColor: Colors.grey.withOpacity(0.4),
+                    suffixIconColor: Theme.of(context)
+                        .colorScheme
+                        .onSurface
+                        .withOpacity(0.4),
                     contentPadding:
                         const EdgeInsets.only(top: 10, left: 16, right: 16),
                     border: InputBorder.none,
                     hintText: type == 'Reply' ? 'Add Reply' : 'Add Comment',
-                    hintStyle: const TextStyle(
+                    hintStyle: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w400,
-                      color: Colors.black26,
+                      color: Theme.of(context).hintColor,
                     ),
                     filled: true,
-                    fillColor: Colors.grey.withOpacity(0.1),
+                    fillColor: Theme.of(context)
+                        .colorScheme
+                        .surfaceContainerHighest
+                        .withOpacity(0.3),
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(20),
-                      borderSide: const BorderSide(
-                        color: Colors.black38,
+                      borderSide: BorderSide(
+                        color: Theme.of(context).dividerColor,
                       ),
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(20),
-                      borderSide: const BorderSide(
-                        color: Colors.black,
+                      borderSide: BorderSide(
+                        color: Theme.of(context).colorScheme.primary,
                       ),
                     ),
                   ),
@@ -549,7 +569,7 @@ class _PostCardState extends State<PostCard> {
           MaterialButton(
             minWidth: 43,
             height: 43,
-            color: Colors.blue,
+            color: Theme.of(context).colorScheme.primary,
             shape: const CircleBorder(),
             onPressed: () {
               if (type == 'Reply') {
@@ -766,9 +786,9 @@ class _PostCardState extends State<PostCard> {
                   bottom: MediaQuery.of(context).viewInsets.bottom),
               child: Container(
                 height: MediaQuery.of(context).size.height * 0.56,
-                decoration: const BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.only(
+                decoration: BoxDecoration(
+                  color: Theme.of(context).cardColor,
+                  borderRadius: const BorderRadius.only(
                     topRight: Radius.circular(30),
                     topLeft: Radius.circular(30),
                   ),
@@ -783,7 +803,7 @@ class _PostCardState extends State<PostCard> {
                       height: 5,
                       margin: const EdgeInsets.symmetric(vertical: 5),
                       decoration: BoxDecoration(
-                        color: Colors.grey[300],
+                        color: Theme.of(context).dividerColor,
                         borderRadius: BorderRadius.circular(10),
                       ),
                     ),
@@ -879,7 +899,10 @@ class _PostCardState extends State<PostCard> {
                                                       vertical: 8,
                                                       horizontal: 8),
                                               decoration: BoxDecoration(
-                                                  color: Colors.grey[100],
+                                                  color: Theme.of(context)
+                                                      .colorScheme
+                                                      .surfaceContainerHighest
+                                                      .withOpacity(0.5),
                                                   borderRadius:
                                                       BorderRadius.circular(
                                                           12)),
@@ -895,8 +918,11 @@ class _PostCardState extends State<PostCard> {
                                                         ?.copyWith(
                                                             fontWeight:
                                                                 FontWeight.w600,
-                                                            color:
-                                                                Colors.black),
+                                                            color: Theme.of(
+                                                                    context)
+                                                                .textTheme
+                                                                .titleMedium
+                                                                ?.color),
                                                   ),
                                                   const SizedBox(
                                                     height: 4,
@@ -909,8 +935,11 @@ class _PostCardState extends State<PostCard> {
                                                         ?.copyWith(
                                                             fontWeight:
                                                                 FontWeight.w300,
-                                                            color:
-                                                                Colors.black),
+                                                            color: Theme.of(
+                                                                    context)
+                                                                .textTheme
+                                                                .bodyMedium
+                                                                ?.color),
                                                   ),
                                                 ],
                                               ),
@@ -929,7 +958,10 @@ class _PostCardState extends State<PostCard> {
                                                       vertical: 8,
                                                       horizontal: 8),
                                               decoration: BoxDecoration(
-                                                  color: Colors.grey[100],
+                                                  color: Theme.of(context)
+                                                      .colorScheme
+                                                      .surfaceContainerHighest
+                                                      .withOpacity(0.5),
                                                   borderRadius:
                                                       BorderRadius.circular(
                                                           12)),
@@ -939,6 +971,11 @@ class _PostCardState extends State<PostCard> {
                                                 children: [
                                                   Text(
                                                     '${data.content}',
+                                                    style: TextStyle(
+                                                        color: Theme.of(context)
+                                                            .textTheme
+                                                            .bodyMedium
+                                                            ?.color),
                                                   ),
                                                 ],
                                               ),

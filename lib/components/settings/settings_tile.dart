@@ -21,8 +21,8 @@ class SettingsTile extends StatelessWidget {
       onTap: onPressed,
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 5, horizontal: 10),
-        decoration: const BoxDecoration(
-          color: Colors.white,
+        decoration: BoxDecoration(
+          color: Theme.of(context).cardColor,
         ),
         child: isLogout
             ? Row(
@@ -52,24 +52,18 @@ class SettingsTile extends StatelessWidget {
                     children: [
                       Text(
                         title,
-                        style: const TextStyle(
-                            fontSize: 16,
-                            color: Colors.black,
-                            fontWeight: FontWeight.bold),
+                        style: Theme.of(context).textTheme.bodyMedium,
                       ),
                       const SizedBox(height: 5),
                       Text(
                         subtitle,
-                        style: const TextStyle(
-                            fontSize: 14,
-                            color: Colors.grey,
-                            fontWeight: FontWeight.normal),
+                        style: Theme.of(context).textTheme.bodySmall,
                       )
                     ],
                   ),
-                  const Icon(
+                  Icon(
                     Icons.arrow_forward_ios,
-                    color: Colors.black,
+                    color: Theme.of(context).iconTheme.color,
                     size: 16,
                   ),
                 ],
