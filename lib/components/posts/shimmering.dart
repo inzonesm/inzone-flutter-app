@@ -159,6 +159,113 @@ Widget CategoryLoading(BuildContext context) {
   );
 }
 
+Widget GroupLoading(BuildContext context) {
+  return Stack(
+    children: [
+      Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 15),
+        child: Skelton(
+          height: 40,
+          width: MediaQuery.of(context).size.width,
+          color: Colors.transparent,
+        ),
+      ),
+      Padding(
+        padding: const EdgeInsets.symmetric(vertical: 0, horizontal: 20),
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: [
+              SkeletonContainer.circular(
+                height: 45,
+                width: 100,
+                color: Theme.of(context).cardColor,
+              ),
+              const SizedBox(width: 10),
+              SkeletonContainer.circular(
+                height: 45,
+                width: 200,
+                color: Theme.of(context).cardColor,
+              ),
+              const SizedBox(width: 10),
+              SkeletonContainer.circular(
+                height: 45,
+                width: 120,
+                color: Theme.of(context).cardColor,
+              ),
+            ],
+          ),
+        ),
+      ),
+    ],
+  );
+}
+
+Widget GroupCardLoading(BuildContext context) {
+  return Padding(
+    padding: const EdgeInsets.all(4),
+    child: Container(
+      height: 220,
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: const Padding(
+        padding: EdgeInsets.symmetric(vertical: 18, horizontal: 18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Title area
+            SkeletonContainer.rounded(
+              height: 60,
+              width: double.infinity,
+            ),
+            SizedBox(height: 4),
+
+            // Description area
+            SkeletonContainer.rounded(
+              height: 80,
+              width: double.infinity,
+            ),
+            SizedBox(height: 8),
+
+            // Stats row
+            Row(
+              children: [
+                SkeletonContainer.circular(
+                  height: 24,
+                  width: 60,
+                ),
+                Spacer(),
+                SkeletonContainer.circular(
+                  height: 24,
+                  width: 60,
+                ),
+              ],
+            ),
+
+            Spacer(),
+
+            // Avatar stack at bottom
+            SkeletonContainer.circular(
+              height: 40,
+              width: 120,
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
 class Skelton extends StatelessWidget {
   const Skelton({
     super.key,

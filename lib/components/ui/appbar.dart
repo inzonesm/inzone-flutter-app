@@ -103,7 +103,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                           color: Theme.of(context).cardColor,
                         ),
                         child: Icon(
-                          Icons.search,
+                          Icons.add,
                           color: Theme.of(context).iconTheme.color,
                           size: 24,
                         ),
