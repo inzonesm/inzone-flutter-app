@@ -97,6 +97,7 @@ flutter:
     - assets/splash.png
     - assets/animations/
     - icons/
+    - icons/referral/
     - icons/nav_bar_icons/
     - icons/settings/
     - icons/content_icons/
