@@ -1,4 +1,3 @@
-import 'package:colorful_safe_area/colorful_safe_area.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:inzone/components/settings/settings_tile.dart';
@@ -6,8 +5,6 @@ import 'package:inzone/components/ui/appbar.dart';
 import 'package:inzone/screen/auth/introduction_screen.dart';
 import 'package:inzone/screen/settings/contact_screen.dart';
 import 'package:inzone/screen/settings/content_select_screen.dart';
-import 'package:inzone/theme/theme_manager.dart';
-import 'package:provider/provider.dart';
 import 'package:inzone/screen/settings/subscription_purchase.dart';
 import 'package:inzone/screen/settings/referral_screen.dart';
 // ignore: unused_import
@@ -40,7 +37,7 @@ class SettingsScreen extends StatelessWidget {
       Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(builder: (context) => const IntroductionScreen()),
-        (Route<dynamic> route) => false, // This removes all previous routes
+            (Route<dynamic> route) => false, // This removes all previous routes
       );
     } catch (e) {
       // Handle any errors (e.g., re-authentication required)
@@ -77,15 +74,15 @@ class SettingsScreen extends StatelessWidget {
 
   List<String> personalTitleList = [
     "Content Selection",
-    "Subscription",
+    "Subscription"
   ];
   List<String> personalSubtitleList = [
     "You can select different content",
-    "You can select different content",
+    "Manage your InCash subscription"
   ];
   List<VoidCallback> personalOnPressedList(BuildContext context) {
     return [
-      () {
+          () {
         try {
           Navigator.push(
             context,
@@ -95,12 +92,11 @@ class SettingsScreen extends StatelessWidget {
           );
         } catch (e) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-                content: Text('Error navigating to content selection: $e')),
+            SnackBar(content: Text('Error navigating to content selection: $e')),
           );
         }
       },
-      () {
+          () {
         try {
           Navigator.push(
             context,
@@ -135,7 +131,7 @@ class SettingsScreen extends StatelessWidget {
   ];
   List<VoidCallback> otherOnPressedList(BuildContext context) {
     return [
-      () {
+          () {
         try {
           Navigator.push(
             context,
@@ -149,7 +145,7 @@ class SettingsScreen extends StatelessWidget {
           );
         }
       },
-      () {
+          () {
         try {
           _launchInBrowser("https://inzone.ai/about");
         } catch (e) {
@@ -158,7 +154,7 @@ class SettingsScreen extends StatelessWidget {
           );
         }
       },
-      () {
+          () {
         try {
           _launchInBrowser("https://inzone.ai/privacy-policy");
         } catch (e) {
@@ -167,7 +163,7 @@ class SettingsScreen extends StatelessWidget {
           );
         }
       },
-      () {
+          () {
         try {
           _launchInBrowser("https://inzone.ai/terms-conditions");
         } catch (e) {
@@ -176,7 +172,7 @@ class SettingsScreen extends StatelessWidget {
           );
         }
       },
-      () {
+          () {
         showDialog(
           context: context,
           builder: (BuildContext context) {
@@ -203,7 +199,7 @@ class SettingsScreen extends StatelessWidget {
           },
         );
       },
-      () {
+          () {
         try {
           FirebaseAuth.instance.signOut().then((value) {
             Navigator.pushReplacement(
@@ -224,56 +220,48 @@ class SettingsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ColorfulSafeArea(
-      topColor: Theme.of(context).canvasColor,
-      left: false,
-      right: false,
-      top: true,
-      bottom: false,
-      child: Scaffold(
-        backgroundColor: Theme.of(context).canvasColor,
-        appBar: PreferredSize(
-          preferredSize: const Size.fromHeight(100),
-          child: Padding(
-            padding: const EdgeInsets.only(top: 2),
-            child: CustomAppBar(
-              isSettings: true,
-              isHome: true,
-              title: "Settings",
-              userPoints: "100",
-              onSearchTap: () {},
-              onProfileTap: () {},
-              onPointsTap: () {},
-            ),
+    return Scaffold(
+      backgroundColor: Theme.of(context).canvasColor,
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(100),
+        child: Padding(
+          padding: const EdgeInsets.only(top: 2),
+          child: CustomAppBar(
+            isSettings: false,
+            isImage: false,
+            title: "Settings",
+            userPoints: "100",
+            onSearchTap: () {},
+            onProfileTap: () {},
+            onPointsTap: () {},
           ),
         ),
-        body: Padding(
-          padding: const EdgeInsets.all(15.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.start,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                decoration: BoxDecoration(
-                  color: Theme.of(context).cardColor,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                padding: const EdgeInsets.all(10),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 10),
-                      child: Text(
-                        category[0],
-                        style: Theme.of(context).textTheme.titleMedium,
+      ),
+      body: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(15.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  padding: const EdgeInsets.all(10),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 10),
+                        child: Text(
+                          category[0],
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 10),
-                    ...List.generate(
-                      personalTitleList.length,
-                      (index) {
+                      ...List.generate(personalTitleList.length, (index) {
                         return Column(
                           children: [
                             SettingsTile(
@@ -282,158 +270,148 @@ class SettingsScreen extends StatelessWidget {
                               onPressed: personalOnPressedList(context)[index],
                             ),
                             if (index != personalTitleList.length - 1)
-                              Padding(
-                                padding:
-                                    const EdgeInsets.symmetric(vertical: 10),
-                                child: Divider(
-                                  color: Theme.of(context).dividerTheme.color,
-                                  thickness: 1,
-                                ),
+                              Divider(
+                                color: Colors.grey.shade200,
+                                thickness: 1,
                               ),
                           ],
                         );
-                      },
-                    ),
-                  ],
+                      }),
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(height: 15),
-              Container(
-                decoration: BoxDecoration(
-                  color: Theme.of(context).cardColor,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                padding: const EdgeInsets.all(10),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 10),
-                      child: Text(
-                        category[1],
-                        style: Theme.of(context).textTheme.titleMedium,
+                const SizedBox(height: 15),
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  padding: const EdgeInsets.all(10),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 10),
+                        child: Text(
+                          category[1],
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 10),
-                    ...List.generate(otherTitleList.length, (index) {
-                      return Column(
-                        children: [
-                          SettingsTile(
-                            title: otherTitleList[index],
-                            subtitle: otherSubtitleList[index],
-                            onPressed: otherOnPressedList(context)[index],
-                            isLogout: index == otherTitleList.length - 1,
-                          ),
-                          if (index != otherTitleList.length - 1)
-                            Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 10),
-                              child: Divider(
-                                color: Theme.of(context).dividerTheme.color,
+                      ...List.generate(otherTitleList.length, (index) {
+                        return Column(
+                          children: [
+                            SettingsTile(
+                              title: otherTitleList[index],
+                              subtitle: otherSubtitleList[index],
+                              onPressed: otherOnPressedList(context)[index],
+                              isLogout: index == otherTitleList.length - 1,
+                            ),
+                            if (index != otherTitleList.length - 1)
+                              Divider(
+                                color: Colors.grey.shade200,
                                 thickness: 1,
                               ),
-                            ),
-                        ],
-                      );
-                    }),
-                  ],
-                ),
-              )
+                          ],
+                        );
+                      }),
+                    ],
+                  ),
+                )
 
-              // Container(
-              //   width: MediaQuery.of(context).size.width - 20,
-              //   decoration: BoxDecoration(
-              //       color: Colors.white, borderRadius: BorderRadius.circular(15)),
-              //   child: Column(children: [
-              //     // SettingsTile(
-              //     //     title: "InZone Schedule",
-              //     //     imagePath: "icons/settings/content_scheduling.svg",
-              //     //     onPressed: () {
-              //     //       // Navigator.of(context)
-              //     //       //     .push(MaterialPageRoute(builder: (context) {
-              //     //       //   return const InZoneSchedule();
-              //     //       // }));
-              //     //     }),
+                // Container(
+                //   width: MediaQuery.of(context).size.width - 20,
+                //   decoration: BoxDecoration(
+                //       color: Colors.white, borderRadius: BorderRadius.circular(15)),
+                //   child: Column(children: [
+                //     // SettingsTile(
+                //     //     title: "InZone Schedule",
+                //     //     imagePath: "icons/settings/content_scheduling.svg",
+                //     //     onPressed: () {
+                //     //       // Navigator.of(context)
+                //     //       //     .push(MaterialPageRoute(builder: (context) {
+                //     //       //   return const InZoneSchedule();
+                //     //       // }));
+                //     //     }),
 
-              //     SettingsTile(
-              //         title: "Content Selection",
-              //         // imagePath: "icons/settings/content_selection.svg",
-              //         onPressed: () {
-              //           Navigator.of(context)
-              //               .push(MaterialPageRoute(builder: (context) {
-              //             return const ContentSelectionSettingsScreen();
-              //           }));
-              //         }),
-              //   ]),
-              // ),
+                //     SettingsTile(
+                //         title: "Content Selection",
+                //         // imagePath: "icons/settings/content_selection.svg",
+                //         onPressed: () {
+                //           Navigator.of(context)
+                //               .push(MaterialPageRoute(builder: (context) {
+                //             return const ContentSelectionSettingsScreen();
+                //           }));
+                //         }),
+                //   ]),
+                // ),
 
-              // Container(
-              //   width: MediaQuery.of(context).size.width - 20,
-              //   decoration: BoxDecoration(
-              //       color: Colors.white, borderRadius: BorderRadius.circular(30)),
-              //   child: Column(children: [
-              //     SettingsTile(
-              //         title: "Privacy Policy",
-              //         // imagePath: "icons/settings/privacy_policy.svg",
-              //         onPressed: () {
-              //           _launchInBrowser("https://www.inzone.ai/privacypolicy");
-              //         }),
-              //     SettingsTile(
-              //         title: "Terms & Conditions",
-              //         // imagePath: "icons/settings/terms_and_conditions.svg",
-              //         onPressed: () {
-              //           _launchInBrowser("https://www.inzone.ai/terms-condition");
-              //         }),
-              //     SettingsTile(
-              //       title: "Delete Account",
-              //       // imagePath: "icons/settings/delete_account.svg",
-              //       onPressed: () {
-              //         showDialog(
-              //           context: context,
-              //           builder: (BuildContext context) {
-              //             return AlertDialog(
-              //               title: const Text('Delete Account'),
-              //               content: const Text(
-              //                   'Are you sure you want to delete your account? This cannot be undone.'),
-              //               actions: <Widget>[
-              //                 TextButton(
-              //                   child: const Text('Cancel'),
-              //                   onPressed: () {
-              //                     Navigator.of(context).pop();
-              //                   },
-              //                 ),
-              //                 TextButton(
-              //                   child: const Text('Delete'),
-              //                   onPressed: () {
-              //                     // Close the dialog, then call the delete account method
-              //                     Navigator.of(context).pop();
-              //                     _deleteAccount(context);
-              //                   },
-              //                 ),
-              //               ],
-              //             );
-              //           },
-              //         );
-              //       },
-              //     ),
-              //     SettingsTile(
-              //         title: "Logout",
-              //         // imagePath: "icons/settings/logout.svg",
-              //         onPressed: () {
-              //           FirebaseAuth.instance.signOut().then((value) {
-              //             Navigator.pushReplacement(
-              //                 context,
-              //                 MaterialPageRoute(
-              //                     builder: (context) =>
-              //                         const IntroductionScreen()));
-              //           });
-              //         }),
-              //   ]),
-              // ),
-            ],
-          ),
-        ),
-      ),
+                // Container(
+                //   width: MediaQuery.of(context).size.width - 20,
+                //   decoration: BoxDecoration(
+                //       color: Colors.white, borderRadius: BorderRadius.circular(30)),
+                //   child: Column(children: [
+                //     SettingsTile(
+                //         title: "Privacy Policy",
+                //         // imagePath: "icons/settings/privacy_policy.svg",
+                //         onPressed: () {
+                //           _launchInBrowser("https://www.inzone.ai/privacypolicy");
+                //         }),
+                //     SettingsTile(
+                //         title: "Terms & Conditions",
+                //         // imagePath: "icons/settings/terms_and_conditions.svg",
+                //         onPressed: () {
+                //           _launchInBrowser("https://www.inzone.ai/terms-condition");
+                //         }),
+                //     SettingsTile(
+                //       title: "Delete Account",
+                //       // imagePath: "icons/settings/delete_account.svg",
+                //       onPressed: () {
+                //         showDialog(
+                //           context: context,
+                //           builder: (BuildContext context) {
+                //             return AlertDialog(
+                //               title: const Text('Delete Account'),
+                //               content: const Text(
+                //                   'Are you sure you want to delete your account? This cannot be undone.'),
+                //               actions: <Widget>[
+                //                 TextButton(
+                //                   child: const Text('Cancel'),
+                //                   onPressed: () {
+                //                     Navigator.of(context).pop();
+                //                   },
+                //                 ),
+                //                 TextButton(
+                //                   child: const Text('Delete'),
+                //                   onPressed: () {
+                //                     // Close the dialog, then call the delete account method
+                //                     Navigator.of(context).pop();
+                //                     _deleteAccount(context);
+                //                   },
+                //                 ),
+                //               ],
+                //             );
+                //           },
+                //         );
+                //       },
+                //     ),
+                //     SettingsTile(
+                //         title: "Logout",
+                //         // imagePath: "icons/settings/logout.svg",
+                //         onPressed: () {
+                //           FirebaseAuth.instance.signOut().then((value) {
+                //             Navigator.pushReplacement(
+                //                 context,
+                //                 MaterialPageRoute(
+                //                     builder: (context) =>
+                //                         const IntroductionScreen()));
+                //           });
+                //         }),
+                //   ]),
+                // ),
+              ],
+            ),
+          )),
     );
   }
 }
