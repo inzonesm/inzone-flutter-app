@@ -7,6 +7,7 @@ import 'package:inzone/components/cards/repost_card.dart';
 import 'package:inzone/components/posts/shimmering.dart';
 import 'package:inzone/components/profile/avatar_card.dart';
 import 'package:inzone/components/posts/category_selector_bar.dart';
+import 'package:inzone/components/profile/avatar_story_component.dart';
 import 'package:inzone/components/ui/appbar.dart';
 import 'package:inzone/data/inzone_avatar.dart';
 import 'package:inzone/data/inzone_post.dart';
@@ -27,6 +28,8 @@ class HomeScreenState extends State<HomeScreen> {
   bool isLoading = true;
   bool isLoadingMore = false;
   List<AvatarCard> avatarCards = [];
+  List<AvatarStoryComponent> avatarStoryComponents = [];
+
   late DateTime _startTime;
   int pageOpened = 0;
   int _currentPage = 0;
@@ -88,6 +91,7 @@ class HomeScreenState extends State<HomeScreen> {
         originalPosts.clear();
         categoriesList.clear();
         avatarCards.clear();
+        avatarStoryComponents.clear();
         hasMorePosts = true;
         selectedCategory = null; // Reset selected category on refresh
         reloadCount++; // Increment reload count on refresh
@@ -194,13 +198,16 @@ class HomeScreenState extends State<HomeScreen> {
 
   void _processAvatars(List<dynamic> fetchedCharacters) {
     avatarCards.clear();
+    avatarStoryComponents.clear();
     try {
       for (var characterData in fetchedCharacters) {
         // Use the new factory method
         InZoneAvatar avatar = InZoneAvatar.fromDirectJson(characterData);
         avatarCards.add(AvatarCard(avatar: avatar));
+        avatarStoryComponents.add(AvatarStoryComponent(avatar: avatar));
       }
       avatarCards.shuffle();
+      avatarStoryComponents.shuffle();
     } catch (e) {}
   }
 
@@ -257,19 +264,20 @@ class HomeScreenState extends State<HomeScreen> {
 
   Widget _buildAvatarCarousel() {
     return SizedBox(
-      height: 580,
+      height: 530,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
-            child: Text(
-              "Most Popular",
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-            ),
-          ),
+          // Padding(
+          //   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          //   child: Text(
+          //     "Most Popular",
+          //     style: Theme.of(context).textTheme.titleMedium?.copyWith(
+          //           fontWeight: FontWeight.bold,
+          //           fontSize: 18,
+          //         ),
+          //   ),
+          // ),
           Expanded(
             child: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
@@ -287,7 +295,22 @@ class HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
-
+  Widget _buildAvatarStories() {
+    return SizedBox(
+      height: 130 ,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 10.0),
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: avatarStoryComponents.map((avatarCard) {
+              return avatarCard;
+            }).toList(),
+          ),
+        ),
+      ),
+    );
+  }
   Widget _buildPostWidget(dynamic post, int index) {
     String postType = post['post_type'] ?? 'unknown';
 
@@ -485,24 +508,32 @@ class HomeScreenState extends State<HomeScreen> {
                         );
                       },
                     ),
-                    // 카테고리 선택 UI
+                 
+                    // Add Avatar Carousel above category selector bar
+
+                    
+
                     SliverToBoxAdapter(
-                      child: Padding(
-                        padding: const EdgeInsets.only(top: 10.0),
-                        child: categoriesList.isNotEmpty
-                            ? Padding(
-                                padding: const EdgeInsets.only(bottom: 10.0),
-                                child: CategorySelectorBar(
-                                  categories: categoriesList,
-                                  onTap: (selectedCat) {
-                                    _filterPostsByCategory(selectedCat);
-                                  },
-                                ),
-                              )
-                            : CategoryLoading(context),
-                      ),
+                      child: avatarStoryComponents.isNotEmpty
+                          ? _buildAvatarStories()
+                          : const SizedBox.shrink(),
                     ),
-                    // 포스트 목록
+                    // SliverToBoxAdapter(
+                    //   child: Padding(
+                    //     padding: const EdgeInsets.only(top: 10.0),
+                    //     child: categoriesList.isNotEmpty
+                    //         ? Padding(
+                    //       padding: const EdgeInsets.only(bottom: 10.0),
+                    //       child: CategorySelectorBar(
+                    //         categories: categoriesList,
+                    //         onTap: (selectedCat) {
+                    //           _filterPostsByCategory(selectedCat);
+                    //         },
+                    //       ),
+                    //     )
+                    //         : CategoryLoading(context),
+                    //   ),
+                    // ),
                     SliverList(
                       delegate: SliverChildBuilderDelegate(
                         (context, index) {
