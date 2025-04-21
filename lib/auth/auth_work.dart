@@ -3,9 +3,11 @@ import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:inzone/screen/chat/all_chats_screen.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:video_player/video_player.dart';
+import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 
 class AuthWork {
   static FirebaseAuth auth = FirebaseAuth.instance;
@@ -450,6 +452,90 @@ class AuthWork {
       await thumbnailRef.delete();
     } catch (e) {
       throw Exception('Failed to delete video');
+    }
+  }
+
+  /* ----------------------google sign in-------------------------- */
+
+  signinWithGoogle() async {
+    final GoogleSignInAccount? gUser = await GoogleSignIn().signIn();
+
+    if (gUser == null) {
+      return;
+    }
+
+    //get reqruest
+    final GoogleSignInAuthentication gAuth = await gUser.authentication;
+
+    //create credential
+    final credential = GoogleAuthProvider.credential(
+      accessToken: gAuth.accessToken,
+      idToken: gAuth.idToken,
+    );
+
+    //sign in
+    await auth.signInWithCredential(credential);
+  }
+
+  signinWithApple() async {
+    try {
+      final credential = await SignInWithApple.getAppleIDCredential(
+        scopes: [
+          AppleIDAuthorizationScopes.email,
+          AppleIDAuthorizationScopes.fullName,
+        ],
+      );
+
+      final oAuthProvider = OAuthProvider('apple.com').credential(
+        idToken: credential.identityToken,
+        accessToken: credential.authorizationCode,
+      );
+
+      return await auth.signInWithCredential(oAuthProvider);
+    } catch (e) {
+      print("❌ Sign in with Apple failed: $e");
+      return null;
+    }
+  }
+
+  /* ----------------------email sign in-------------------------- */
+  static Future<String?> loginOrSignUpWithEmail({
+    required String email,
+    required String password,
+  }) async {
+    if (!RegExp(r"^[^@]+@[^@]+\.[^@]+").hasMatch(email)) {
+      return 'invalid-email';
+    }
+
+    if (password.length < 6) {
+      return 'weak-password';
+    }
+
+    try {
+      await auth.signInWithEmailAndPassword(email: email, password: password);
+      print('✅ Login successful for $email');
+      return null;
+    } on FirebaseAuthException catch (e) {
+      print("❌ Login failed: ${e.code}");
+
+      if (e.code == 'user-not-found') {
+        try {
+          final credential = await auth.createUserWithEmailAndPassword(
+            email: email,
+            password: password,
+          );
+          print('✅ Signed up new user: ${credential.user?.uid}');
+          return 'signed-up';
+        } on FirebaseAuthException catch (e2) {
+          print("❌ Sign up failed: ${e2.code}");
+          return e2.code;
+        }
+      }
+
+      return e.code;
+    } catch (e) {
+      print("❌ Unexpected error: $e");
+      return 'unexpected-error';
     }
   }
 }

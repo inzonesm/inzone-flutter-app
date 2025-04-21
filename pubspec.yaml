@@ -58,6 +58,7 @@ dependencies:
   visibility_detector: ^0.4.0+2
   youtube_player_flutter: ^9.1.1
   animated_bottom_navigation_bar: ^1.4.0
+  flutter_feather_icons: ^2.0.0
 
 
 
@@ -68,6 +69,8 @@ dependencies:
   image_stack: ^2.1.1
   bounce: ^1.0.2
   flutter_keyboard_visibility: ^6.0.0
+  google_sign_in: ^6.3.0
+  sign_in_with_apple: ^7.0.1
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -95,12 +98,14 @@ flutter:
     - assets/images/
     - assets/splash.png
     - assets/animations/
+    - assets/auth/
     - icons/
     - icons/nav_bar_icons/
     - icons/settings/
     - icons/content_icons/
     - icons/post_icons/
     - icons/category_icons/
+    - icons/referral/
     - shorebird.yaml
 
   # An image asset can refer to one or more resolution-specific "variants", see

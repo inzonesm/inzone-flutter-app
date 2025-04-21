@@ -3,8 +3,10 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:inzone/components/ui/button.dart';
 import 'package:inzone/root_app.dart';
-import 'package:inzone/screen/auth/email_login_screen.dart';
-import 'package:inzone/screen/auth/signup_screens.dart';
+import 'package:inzone/screen/auth/old/email_login_screen.dart';
+import 'package:inzone/screen/auth/old/signup_screens.dart';
+import 'package:inzone/screen/auth/signin_login_screen.dart';
+import 'package:inzone/auth/auth_work.dart';
 
 class IntroductionScreen extends StatefulWidget {
   const IntroductionScreen({super.key});
@@ -17,14 +19,14 @@ class _IntroductionScreenState extends State<IntroductionScreen> {
   @override
   void initState() {
     super.initState();
-    // 빌드가 완료된 후 다이얼로그와 로그인 체크 시작
+    // after build, start dialog and login check
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _checkLoginStatus();
     });
   }
 
   Future<void> _checkLoginStatus() async {
-    // 로딩 다이얼로그 표시
+    // show loading dialog
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -42,20 +44,20 @@ class _IntroductionScreenState extends State<IntroductionScreen> {
           .get();
 
       if (doc.exists) {
-        // 문서 존재 → 홈으로 이동
-        Navigator.of(context).pop(); // 로딩 다이얼로그 닫기
+        // user exists, move to home
+        Navigator.of(context).pop(); // close loading dialog
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (_) => const RootApp()),
         );
         return;
       } else {
-        // 문서 없음 → 로그아웃
+        // user does not exist, sign out
         await FirebaseAuth.instance.signOut();
       }
     }
 
-    // 다이얼로그 닫기
+    // close dialog
     Navigator.of(context).pop();
   }
 
@@ -81,28 +83,129 @@ class _IntroductionScreenState extends State<IntroductionScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: Button(
-                      text: "Register",
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const SignUpScreens(),
-                          ),
-                        );
-                      },
-                      isLoginPage: true,
-                    ),
+                  // Padding(
+                  //   padding: const EdgeInsets.symmetric(horizontal: 20),
+                  //   child: Button(
+                  //     text: "Register",
+                  //     onPressed: () {
+                  //       Navigator.push(
+                  //         context,
+                  //         MaterialPageRoute(
+                  //           builder: (_) => const SignUpScreens(),
+                  //         ),
+                  //       );
+                  //     },
+                  //     isLoginPage: true,
+                  //   ),
+                  // ),
+
+                  appleLoginButton(
+                    context,
+                    () async {
+                      showDialog(
+                        context: context,
+                        barrierDismissible: false,
+                        builder: (_) => const Center(
+                          child: CircularProgressIndicator(color: Colors.white),
+                        ),
+                      );
+
+                      try {
+                        // 2. sign in with apple
+                        await AuthWork().signinWithApple();
+
+                        // 3. check current user
+                        final user = FirebaseAuth.instance.currentUser;
+
+                        if (user != null) {
+                          final doc = await FirebaseFirestore.instance
+                              .collection('humanUsers')
+                              .doc(user.uid)
+                              .get();
+
+                          if (doc.exists) {
+                            // user exits, move to home
+                            if (context.mounted) {
+                              Navigator.of(context).pop();
+                              Navigator.pushReplacement(
+                                context,
+                                MaterialPageRoute(
+                                    builder: (_) => const RootApp()),
+                              );
+                            }
+                            return;
+                          } else {
+                            // user does not exist, sign out
+                            await FirebaseAuth.instance.signOut();
+                          }
+                        }
+                      } catch (e) {
+                        // print log for debugging
+                        debugPrint("Google Sign-In Error: $e");
+                      }
+
+                      // if failed, close loading dialog
+                      if (context.mounted) Navigator.of(context).pop();
+                    },
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 12),
+                  googleLoginButton(
+                    context,
+                    () async {
+                      // 1. show loading dialog
+                      showDialog(
+                        context: context,
+                        barrierDismissible: false,
+                        builder: (_) => const Center(
+                          child: CircularProgressIndicator(color: Colors.white),
+                        ),
+                      );
+
+                      try {
+                        // 2. sign in with google
+                        await AuthWork().signinWithGoogle();
+
+                        // 3. check current user
+                        final user = FirebaseAuth.instance.currentUser;
+
+                        if (user != null) {
+                          final doc = await FirebaseFirestore.instance
+                              .collection('humanUsers')
+                              .doc(user.uid)
+                              .get();
+
+                          if (doc.exists) {
+                            // user exits, move to home
+                            if (context.mounted) {
+                              Navigator.of(context).pop();
+                              Navigator.pushReplacement(
+                                context,
+                                MaterialPageRoute(
+                                    builder: (_) => const RootApp()),
+                              );
+                            }
+                            return;
+                          } else {
+                            // user does not exist, sign out
+                            await FirebaseAuth.instance.signOut();
+                          }
+                        }
+                      } catch (e) {
+                        // print log for debugging
+                        debugPrint("Google Sign-In Error: $e");
+                      }
+
+                      // if failed, close loading dialog
+                      if (context.mounted) Navigator.of(context).pop();
+                    },
+                  ),
+                  const SizedBox(height: 12),
                   GestureDetector(
                     onTap: () {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (_) => const EmailLogInPage(),
+                          builder: (_) => const SignInLoginScreen(),
                         ),
                       );
                     },
@@ -110,11 +213,11 @@ class _IntroductionScreenState extends State<IntroductionScreen> {
                       text: const TextSpan(
                         children: [
                           TextSpan(
-                            text: "Already have an account?  ",
+                            text: "Do not have an account? Sign in with ",
                             style: TextStyle(color: Colors.white),
                           ),
                           TextSpan(
-                            text: "Log in",
+                            text: "Email",
                             style: TextStyle(
                               color: Colors.white,
                               fontWeight: FontWeight.bold,
@@ -125,11 +228,88 @@ class _IntroductionScreenState extends State<IntroductionScreen> {
                       ),
                     ),
                   ),
-                  SizedBox(height: MediaQuery.of(context).size.height * 0.05),
+                  const SizedBox(height: 12),
+                  Center(
+                    child: Padding(
+                      padding: const EdgeInsets.only(bottom: 16),
+                      child: Text(
+                        "By continuing, you are agreeing to our Terms of Service and Privacy Policy",
+                        textAlign: TextAlign.center,
+                        style: Theme.of(context)
+                            .textTheme
+                            .bodySmall
+                            ?.copyWith(fontSize: 8),
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget appleLoginButton(BuildContext context, VoidCallback onPressed) {
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(20),
+        color: Colors.white,
+      ),
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      margin: const EdgeInsets.symmetric(horizontal: 18),
+      child: OutlinedButton.icon(
+        onPressed: onPressed,
+        icon: Image.asset(
+          'assets/auth/apple.png',
+          height: 30,
+        ),
+        label: Text(
+          'Sign in with Apple',
+          style: Theme.of(context)
+              .textTheme
+              .titleLarge
+              ?.copyWith(color: Colors.black, fontSize: 18),
+        ),
+        style: OutlinedButton.styleFrom(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          shadowColor: Colors.transparent,
+          side: BorderSide.none,
+        ),
+      ),
+    );
+  }
+
+  Widget googleLoginButton(BuildContext context, VoidCallback onPressed) {
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(20),
+        color: Colors.white,
+      ),
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      margin: const EdgeInsets.symmetric(horizontal: 18),
+      child: OutlinedButton.icon(
+        onPressed: onPressed,
+        icon: Image.asset(
+          'assets/auth/google.png',
+          height: 40,
+        ),
+        label: Text(
+          'Sign in with Google',
+          style: Theme.of(context)
+              .textTheme
+              .titleLarge
+              ?.copyWith(color: Colors.black, fontSize: 18),
+        ),
+        style: OutlinedButton.styleFrom(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          shadowColor: Colors.transparent,
+          side: BorderSide.none,
         ),
       ),
     );
