@@ -1,65 +1,97 @@
+import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:inzone/data/inzone_post.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:in_app_purchase/in_app_purchase.dart';
+import 'package:in_app_purchase_storekit/in_app_purchase_storekit.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 class MonetizationService {
-  static const String baseUrl = 'https://inzoneapi-912424781531.us-central1.run.app/'; // Replace with your actual API URL
+  static const String _subscriptionId = 'InCashGold';
+  static const String _merchantId = 'merchant.InCash';
+  static const String _androidPublicKey = 'MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAsWPWTefpg+ddmxDHj+JieqJa0NY3kPLlyob1s6Get916ffVEDgpzYLbEmroqWhivuhSBpn9jcLeAOxTa+kBtLN7bfrOeWxn72iYtZOJw77oPCvA6zX0RkXBiFc62QVBqIX3YHJX1QjnrithQP14Yi/66iBrP3cMcFaXI0+yC4J/KAkt/6ArzGzwDtuebVgmNxFobs8sHcum8wD/G/a1UCTSpW3KbeD2UMYyTmHzlMys2NeqFcTQYDpt3sg1kLMcPZoUovKPOwWv2ikDrhzHlUwSkE5m3EaDUHlbgXUPkajMnc0NXTAAtuCJ1HCbHAivgAKy4rh5n/TicEBfwvMZB0wIDAQAB';
+  static const String baseUrl = 'https://inzoneapi-912424781531.us-central1.run.app/';
+  final InAppPurchase _inAppPurchase = InAppPurchase.instance;
+  final StreamController<List<PurchaseDetails>> _purchaseController = StreamController<List<PurchaseDetails>>.broadcast();
+  Stream<List<PurchaseDetails>> get purchaseStream => _purchaseController.stream;
 
-  // Get user's balance
-  Future<Map<String, dynamic>> getBalance() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) throw Exception('User not logged in');
+  MonetizationService() {
+    _initialize();
+  }
 
-    final response = await http.get(
-      Uri.parse('$baseUrl/wallet/balance?UserDocumentId=${user.uid}'),
-    );
+  Future<void> _initialize() async {
+    final Stream<List<PurchaseDetails>> purchaseUpdated = _inAppPurchase.purchaseStream;
+    purchaseUpdated.listen((List<PurchaseDetails> purchaseDetailsList) {
+      _handlePurchases(purchaseDetailsList);
+    });
+  }
 
-    if (response.statusCode == 200) {
-      return json.decode(response.body);
-    } else {
-      throw Exception('Failed to get balance');
+  Future<void> _handlePurchases(List<PurchaseDetails> purchaseDetailsList) async {
+    for (var purchaseDetails in purchaseDetailsList) {
+      if (purchaseDetails.status == PurchaseStatus.purchased ||
+          purchaseDetails.status == PurchaseStatus.restored) {
+        // Handle successful purchase
+        await _verifyAndDeliverProduct(purchaseDetails);
+      } else if (purchaseDetails.status == PurchaseStatus.error) {
+        // Handle purchase error
+        print('Purchase error: ${purchaseDetails.error}');
+      }
+    }
+    _purchaseController.add(purchaseDetailsList);
+  }
+
+  Future<void> _verifyAndDeliverProduct(PurchaseDetails purchaseDetails) async {
+    // Verify the purchase with your backend
+    if (purchaseDetails.pendingCompletePurchase) {
+      await _inAppPurchase.completePurchase(purchaseDetails);
     }
   }
 
-  // Purchase InCash
-  Future<Map<String, dynamic>> purchaseInCash(String packageId, String platform, String receiptData) async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) throw Exception('User not logged in');
+  Future<List<ProductDetails>> getProducts(List<String> productIds) async {
+    final ProductDetailsResponse response = await _inAppPurchase.queryProductDetails(productIds.toSet());
+    if (response.notFoundIDs.isNotEmpty) {
+      print('Products not found: ${response.notFoundIDs}');
+    }
+    return response.productDetails;
+  }
 
-    final response = await http.post(
-      Uri.parse('$baseUrl/wallet/purchase-incash'),
-      headers: {'Content-Type': 'application/json'},
-      body: json.encode({
-        'UserDocumentId': user.uid,
-        'PackageId': packageId,
-        'Platform': platform,
-        'ReceiptData': receiptData,
-      }),
+  Future<bool> purchaseProduct(ProductDetails product) async {
+    final PurchaseParam purchaseParam = PurchaseParam(
+      productDetails: product,
+      applicationUserName: null,
     );
 
-    if (response.statusCode == 200) {
-      return json.decode(response.body);
-    } else {
-      throw Exception('Failed to purchase InCash');
+    return await _inAppPurchase.buyNonConsumable(purchaseParam: purchaseParam);
+  }
+
+  Future<bool> subscribeToGoldPlan() async {
+    final List<ProductDetails> products = await getProducts([_subscriptionId]);
+    if (products.isEmpty) {
+      print('Subscription product not found');
+      return false;
+    }
+
+    final PurchaseParam purchaseParam = PurchaseParam(
+      productDetails: products.first,
+      applicationUserName: null,
+    );
+
+    return await _inAppPurchase.buyConsumable(purchaseParam: purchaseParam);
+  }
+
+  Future<void> restorePurchases() async {
+    try {
+      await _inAppPurchase.restorePurchases();
+    } catch (e) {
+      print('Error restoring purchases: $e');
     }
   }
 
-  // Get transaction history
-  Future<Map<String, dynamic>> getTransactionHistory() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) throw Exception('User not logged in');
-
-    final response = await http.get(
-      Uri.parse('$baseUrl/wallet/transaction-history?UserDocumentId=${user.uid}'),
-    );
-
-    if (response.statusCode == 200) {
-      return json.decode(response.body);
-    } else {
-      throw Exception('Failed to get transaction history');
-    }
+  void dispose() {
+    _purchaseController.close();
   }
 
   // Generate referral code
@@ -116,6 +148,43 @@ class MonetizationService {
       return json.decode(response.body);
     } else {
       throw Exception('Failed to get referral stats');
+    }
+  }
+
+  Future<Map<String, dynamic>> getBalance() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) throw Exception('User not logged in');
+
+    final response = await http.get(
+      Uri.parse('$baseUrl/wallet/balance?UserDocumentId=${user.uid}'),
+    );
+
+    if (response.statusCode == 200) {
+      return json.decode(response.body);
+    } else {
+      throw Exception('Failed to get balance');
+    }
+  }
+
+  Future<Map<String, dynamic>> purchaseInCash(String packageId, String platform, String receiptData) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) throw Exception('User not logged in');
+
+    final response = await http.post(
+      Uri.parse('$baseUrl/wallet/purchase-incash'),
+      headers: {'Content-Type': 'application/json'},
+      body: json.encode({
+        'UserDocumentId': user.uid,
+        'PackageId': packageId,
+        'Platform': platform,
+        'ReceiptData': receiptData,
+      }),
+    );
+
+    if (response.statusCode == 200) {
+      return json.decode(response.body);
+    } else {
+      throw Exception('Failed to process purchase');
     }
   }
 } 
