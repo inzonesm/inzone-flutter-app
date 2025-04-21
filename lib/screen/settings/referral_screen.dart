@@ -8,9 +8,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:inzone/services/monetization_service.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-
 class ReferralScreen extends StatefulWidget {
-  const ReferralScreen({Key? key}) : super(key: key);
+  const ReferralScreen({super.key});
 
   @override
   State<ReferralScreen> createState() => _ReferralScreenState();
@@ -47,7 +46,8 @@ class _ReferralScreenState extends State<ReferralScreen> {
   Future<void> _loadReferralData() async {
     try {
       // First generate a new referral code
-      final generateResponse = await _monetizationService.generateReferralCode();
+      final generateResponse =
+          await _monetizationService.generateReferralCode();
       if (generateResponse['success'] == true) {
         _referralCode = generateResponse['data']['referral_code'];
         _referralLink = 'https://inzone.ai/referral?code=$_referralCode';
@@ -59,7 +59,8 @@ class _ReferralScreenState extends State<ReferralScreen> {
         setState(() {
           _referralCount = stats['data']['referral_count'];
           _totalEarnings = stats['data']['total_earnings'];
-          _referralHistory = List<Map<String, dynamic>>.from(stats['data']['referral_history']);
+          _referralHistory = List<Map<String, dynamic>>.from(
+              stats['data']['referral_history']);
           _isLoading = false;
         });
       }
@@ -103,11 +104,11 @@ class _ReferralScreenState extends State<ReferralScreen> {
           ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
               child: Column(children: [
-                SizedBox(height: 10),
+                const SizedBox(height: 10),
                 Container(
                   padding: const EdgeInsets.all(24),
                   decoration: ShapeDecoration(
-                    color: Color(0xFFF5F5F5),
+                    color: const Color(0xFFF5F5F5),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(28),
                     ),
@@ -117,26 +118,26 @@ class _ReferralScreenState extends State<ReferralScreen> {
                     mainAxisAlignment: MainAxisAlignment.start,
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      Container(
-                        width: 120,
-                        height: 120,
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 16.50, vertical: 31),
-                        clipBehavior: Clip.antiAlias,
-                        decoration: ShapeDecoration(
-                          color: Color(0xFFF5F5F5),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                        ),
-                        child: SvgPicture.asset("icons/settings/refferal_header.svg"),
-                      ),
+                      // Container(
+                      //   width: 120,
+                      //   height: 120,
+                      //   padding: const EdgeInsets.symmetric(
+                      //       horizontal: 16.50, vertical: 31),
+                      //   clipBehavior: Clip.antiAlias,
+                      //   decoration: ShapeDecoration(
+                      //     color: Color(0xFFF5F5F5),
+                      //     shape: RoundedRectangleBorder(
+                      //       borderRadius: BorderRadius.circular(20),
+                      //     ),
+                      //   ),
+                      //   child: SvgPicture.asset("icons/settings/refferal_header.svg"),
+                      // ),
                       const SizedBox(height: 16),
                       Text(
                         'Give \$10, Get \$10 ',
                         textAlign: TextAlign.center,
                         style: GoogleFonts.outfit(
-                          color: Color(0xFF17181C),
+                          color: const Color(0xFF17181C),
                           fontSize: 24,
                           fontWeight: FontWeight.w700,
                         ),
@@ -146,7 +147,7 @@ class _ReferralScreenState extends State<ReferralScreen> {
                         'Refer friends to InZone, they get \$10 worth of InCash upon signing up. You get \$10 worth of InCash on us.',
                         textAlign: TextAlign.center,
                         style: GoogleFonts.outfit(
-                          color: Color(0xFF17181C),
+                          color: const Color(0xFF17181C),
                           fontSize: 13,
                           fontWeight: FontWeight.w300,
                         ),
@@ -156,13 +157,17 @@ class _ReferralScreenState extends State<ReferralScreen> {
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Image.asset("icons/referral/facebook.png",width:32,height:32),
+                            Image.asset("icons/referral/facebook.png",
+                                width: 32, height: 32),
                             const SizedBox(width: 14),
-                            Image.asset("icons/referral/twitter.png",width:32,height:32),
+                            Image.asset("icons/referral/twitter.png",
+                                width: 32, height: 32),
                             const SizedBox(width: 14),
-                            Image.asset("icons/referral/instagram.png",width:32,height:32),
+                            Image.asset("icons/referral/instagram.png",
+                                width: 32, height: 32),
                             const SizedBox(width: 14),
-                            Image.asset("icons/referral/tiktok.png",width:32,height:32),
+                            Image.asset("icons/referral/tiktok.png",
+                                width: 32, height: 32),
                           ],
                         ),
                       ),
@@ -170,8 +175,8 @@ class _ReferralScreenState extends State<ReferralScreen> {
                   ),
                 ),
                 Container(
-                    padding: EdgeInsets.symmetric(vertical: 24),
-                    decoration: BoxDecoration(
+                    padding: const EdgeInsets.symmetric(vertical: 24),
+                    decoration: const BoxDecoration(
                         color: Colors.white,
                         borderRadius:
                             BorderRadius.vertical(top: Radius.circular(20))),
@@ -179,13 +184,14 @@ class _ReferralScreenState extends State<ReferralScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Container(
-                            padding: EdgeInsets.only(left: 10),
+                            padding: const EdgeInsets.only(left: 10),
                             width: MediaQuery.of(context).size.width,
                             height: 60,
                             decoration: ShapeDecoration(
                               color: Colors.white,
                               shape: RoundedRectangleBorder(
-                                side: BorderSide(width: 1, color: Color(0XFFA3A3A3)),
+                                side: const BorderSide(
+                                    width: 1, color: Color(0XFFA3A3A3)),
                                 borderRadius: BorderRadius.circular(14),
                               ),
                             ),
@@ -195,20 +201,20 @@ class _ReferralScreenState extends State<ReferralScreen> {
                                     child: Text(
                                   _referralLink ?? "Loading...",
                                   style: GoogleFonts.outfit(
-                                      color: Color(0XFF5A6172),
+                                      color: const Color(0XFF5A6172),
                                       fontWeight: FontWeight.normal),
                                   maxLines: 1,
                                 )),
                                 IconButton(
                                     onPressed: _copyReferralLink,
-                                    icon: Icon(
+                                    icon: const Icon(
                                       Icons.copy,
                                       color: Color(0XFF228AF3),
                                     ))
                               ],
                             ),
                           ),
-                          SizedBox(height: 10),
+                          const SizedBox(height: 10),
                           ListView.builder(
                             shrinkWrap: true,
                             itemCount: _referralHistory.length,
@@ -220,7 +226,7 @@ class _ReferralScreenState extends State<ReferralScreen> {
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(18),
                                     ),
-                                    shadows: [
+                                    shadows: const [
                                       BoxShadow(
                                         color: Color(0x0C6F88D1),
                                         blurRadius: 30,
@@ -229,20 +235,24 @@ class _ReferralScreenState extends State<ReferralScreen> {
                                       )
                                     ],
                                   ),
-                                  padding: EdgeInsets.symmetric(vertical: 10),
+                                  padding:
+                                      const EdgeInsets.symmetric(vertical: 10),
                                   child: Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                    crossAxisAlignment: CrossAxisAlignment.center,
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.center,
                                     children: [
                                       ClipRRect(
-                                          borderRadius: BorderRadius.circular(18),
+                                          borderRadius:
+                                              BorderRadius.circular(18),
                                           child: Image.asset(
                                             "assets/logo.png",
                                             width: 48,
                                             height: 48,
                                             fit: BoxFit.fill,
                                           )),
-                                      SizedBox(width: 10),
+                                      const SizedBox(width: 10),
                                       Expanded(
                                           child: Column(children: [
                                         Row(
@@ -253,7 +263,8 @@ class _ReferralScreenState extends State<ReferralScreen> {
                                                 child: Text(
                                                   'Referred User',
                                                   style: GoogleFonts.outfit(
-                                                    color: Color(0xFF212121),
+                                                    color:
+                                                        const Color(0xFF212121),
                                                     fontSize: 16,
                                                     fontWeight: FontWeight.w500,
                                                   ),
@@ -262,7 +273,8 @@ class _ReferralScreenState extends State<ReferralScreen> {
                                               Text(
                                                 referral['date'] ?? 'N/A',
                                                 style: GoogleFonts.outfit(
-                                                  color: Color(0xFF999999),
+                                                  color:
+                                                      const Color(0xFF999999),
                                                   fontSize: 12,
                                                   fontWeight: FontWeight.w400,
                                                 ),
@@ -281,10 +293,10 @@ class _ReferralScreenState extends State<ReferralScreen> {
                       padding: const EdgeInsets.all(15),
                       clipBehavior: Clip.antiAlias,
                       decoration: ShapeDecoration(
-                        gradient: LinearGradient(
+                        gradient: const LinearGradient(
                           begin: Alignment(1.00, 0.00),
                           end: Alignment(-1, 0),
-                          colors: [Color(0xFF125455),Color(0xFF29BABB)],
+                          colors: [Color(0xFF125455), Color(0xFF29BABB)],
                         ),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(100),
