@@ -11,11 +11,8 @@ import firebase_auth
 import firebase_core
 import firebase_storage
 import flutter_inappwebview_macos
-<<<<<<< HEAD
 import google_sign_in_ios
-=======
 import in_app_purchase_storekit
->>>>>>> 22b2f553310bb6fea96b366a48fab39e62f52564
 import media_kit_libs_macos_video
 import media_kit_video
 import package_info_plus
@@ -35,11 +32,8 @@ func RegisterGeneratedPlugins(registry: FlutterPluginRegistry) {
   FLTFirebaseCorePlugin.register(with: registry.registrar(forPlugin: "FLTFirebaseCorePlugin"))
   FLTFirebaseStoragePlugin.register(with: registry.registrar(forPlugin: "FLTFirebaseStoragePlugin"))
   InAppWebViewFlutterPlugin.register(with: registry.registrar(forPlugin: "InAppWebViewFlutterPlugin"))
-<<<<<<< HEAD
   FLTGoogleSignInPlugin.register(with: registry.registrar(forPlugin: "FLTGoogleSignInPlugin"))
-=======
   InAppPurchasePlugin.register(with: registry.registrar(forPlugin: "InAppPurchasePlugin"))
->>>>>>> 22b2f553310bb6fea96b366a48fab39e62f52564
   MediaKitLibsMacosVideoPlugin.register(with: registry.registrar(forPlugin: "MediaKitLibsMacosVideoPlugin"))
   MediaKitVideoPlugin.register(with: registry.registrar(forPlugin: "MediaKitVideoPlugin"))
   FPPPackageInfoPlusPlugin.register(with: registry.registrar(forPlugin: "FPPPackageInfoPlusPlugin"))
