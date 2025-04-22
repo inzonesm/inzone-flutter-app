@@ -187,6 +187,8 @@ class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
                     );
                   },
                   activeIndex: _currentPage,
+                  splashSpeedInMilliseconds: 0,
+
                   gapLocation: GapLocation.center,
                   notchSmoothness: NotchSmoothness.softEdge,
                   leftCornerRadius: 32,
