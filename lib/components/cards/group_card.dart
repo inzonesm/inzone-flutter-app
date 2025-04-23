@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'dart:math';
 import 'package:random_avatar/random_avatar.dart';
 import 'package:image_stack/image_stack.dart';
 
 import 'package:inzone/data/group_data.dart';
-import 'package:inzone/data/group_data_mapper.dart';
 import 'package:inzone/screen/chat/group_chat_screen.dart';
 import 'package:bounce/bounce.dart';
 

@@ -73,12 +73,12 @@ class GroupChatService {
         print('No current user found');
         return;
       }
-
+//TODO work on this
       // Create participant object
       final currentParticipant = {
-        'uid': currentUser.uid,
+        'uid': 'qL73zIfq9OQP5WIHz6oxSRSesgx1',
         'type': 'user',
-        'name': currentUser.displayName ?? 'Anonymous',
+        'name': 'aryan527',
       };
 
       // Create the message with Timestamp instead of DateTime for Firestore compatibility
@@ -87,13 +87,12 @@ class GroupChatService {
         'id': DateTime.now().millisecondsSinceEpoch.toString(),
         'sender': currentParticipant,
         'content': content,
-        'isProcessed': true,
+        'isProcessed': false,
         'timestamp': timestamp,
       };
 
       print('Created message object for group $groupId: $message');
 
-      // Get the current document
       DocumentReference docRef = _firestore.collection('groupChats').doc(groupId);
       DocumentSnapshot docSnapshot = await docRef.get();
       

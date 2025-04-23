@@ -1,13 +1,8 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:inzone/data/inzone_post.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
-import 'package:in_app_purchase_storekit/in_app_purchase_storekit.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
 
 class MonetizationService {
   static const String _subscriptionId = 'InCashGold';

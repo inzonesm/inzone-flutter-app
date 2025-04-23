@@ -1,10 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:inzone/components/ui/button.dart';
 import 'package:inzone/root_app.dart';
-import 'package:inzone/screen/auth/old/email_login_screen.dart';
-import 'package:inzone/screen/auth/old/signup_screens.dart';
 import 'package:inzone/screen/auth/signin_login_screen.dart';
 import 'package:inzone/auth/auth_work.dart';
 
