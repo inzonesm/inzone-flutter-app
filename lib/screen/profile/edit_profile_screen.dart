@@ -1,7 +1,6 @@
 import 'package:colorful_safe_area/colorful_safe_area.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:inzone/components/ui/appbar.dart';
 import 'package:random_avatar/random_avatar.dart';
 import 'package:inzone/services/inzone_database.dart';

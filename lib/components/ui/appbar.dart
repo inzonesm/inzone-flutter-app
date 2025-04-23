@@ -1,7 +1,5 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:inzone/screen/chat/all_chats_screen.dart';
-import 'package:inzone/screen/chat/chat_screen.dart';
 import 'package:random_avatar/random_avatar.dart';
 
 class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
