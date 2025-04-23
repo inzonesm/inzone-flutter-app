@@ -1,12 +1,10 @@
 import 'package:colorful_safe_area/colorful_safe_area.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
-import 'dart:math';
 import 'package:inzone/components/cards/post_card.dart';
 import 'package:inzone/components/cards/repost_card.dart';
 import 'package:inzone/components/posts/shimmering.dart';
 import 'package:inzone/components/profile/avatar_card.dart';
-import 'package:inzone/components/posts/category_selector_bar.dart';
 import 'package:inzone/components/profile/avatar_story_component.dart';
 import 'package:inzone/components/ui/appbar.dart';
 import 'package:inzone/data/inzone_avatar.dart';
@@ -441,6 +439,7 @@ class HomeScreenState extends State<HomeScreen> {
                   child: CustomAppBar(
                     isHome: true,
                     userPoints: "100",
+
                     profileImageUrl: null,
                     onSearchTap: () {},
                     onProfileTap: () {},

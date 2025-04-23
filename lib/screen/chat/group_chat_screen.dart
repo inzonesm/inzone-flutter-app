@@ -1,6 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:inzone/components/ui/appbar.dart';
 import 'package:random_avatar/random_avatar.dart';
 import 'package:inzone/data/group_data.dart';
 import 'package:inzone/data/group_chat_data.dart';
@@ -518,51 +516,116 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   }
 
   Widget _buildChatInput() {
-    return Padding(
-      padding: const EdgeInsets.only(left: 5.0, right: 8, bottom: 30, top: 2),
-      child: Row(
-        children: [
-          Expanded(
-            child: Container(
-              constraints: const BoxConstraints(maxHeight: 100),
-              child: TextField(
-                controller: _msgController,
-                maxLines: null,
-                keyboardType: TextInputType.multiline,
-                textCapitalization: TextCapitalization.sentences,
-                decoration: InputDecoration(
-                  contentPadding: const EdgeInsets.all(10),
-                  border: InputBorder.none,
-                  hintText: 'Send a message',
-                  filled: true,
-                  fillColor: Colors.blue.withOpacity(0.2),
-                  enabledBorder: OutlineInputBorder(
-                    borderSide: BorderSide.none,
-                    borderRadius: BorderRadius.circular(30),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderSide: BorderSide.none,
-                    borderRadius: BorderRadius.circular(30),
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            offset: const Offset(0, -2),
+            blurRadius: 3,
+            color: Colors.black.withOpacity(0.1),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      child: SafeArea(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            // Attachment button
+            // InkWell(
+            //   onTap: () {
+            //     // Show attachment options
+            //   },
+            //   borderRadius: BorderRadius.circular(50),
+            //   child: Container(
+            //     padding: const EdgeInsets.all(8),
+            //     child: Icon(
+            //       Icons.attach_file_rounded,
+            //       color: Colors.grey[600],
+            //       size: 24,
+            //     ),
+            //   ),
+            // ),
+            
+            // Text field
+            Expanded(
+              child: Container(
+                margin: const EdgeInsets.symmetric(horizontal: 8),
+                decoration: BoxDecoration(
+                  color: Colors.grey[100],
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(color: Colors.grey.withOpacity(0.2)),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.only(left: 16.0, right: 8.0),
+                        child: TextField(
+                          controller: _msgController,
+                          maxLines: 5,
+                          minLines: 1,
+                          keyboardType: TextInputType.multiline,
+                          textCapitalization: TextCapitalization.sentences,
+                          style: const TextStyle(
+                            fontSize: 16,
+                          ),
+                          decoration: InputDecoration(
+                            hintText: 'Message',
+                            hintStyle: TextStyle(color: Colors.grey[400]),
+                            border: InputBorder.none,
+                            contentPadding: const EdgeInsets.symmetric(
+                              vertical: 12,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    
+                    // Emoji button
+                    Padding(
+                      padding: const EdgeInsets.only(right: 8.0, bottom: 8.0),
+                      child: InkWell(
+                        onTap: () {
+                          // Show emoji picker
+                        },
+                        borderRadius: BorderRadius.circular(50),
+                        child: Container(
+                          padding: const EdgeInsets.all(6),
+                          child: Icon(
+                            Icons.emoji_emotions_outlined,
+                            color: Colors.grey[600],
+                            size: 24,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            
+            // Send button
+            Material(
+              color: Theme.of(context).primaryColor,
+              borderRadius: BorderRadius.circular(50),
+              child: InkWell(
+                onTap: _sendMessage,
+                borderRadius: BorderRadius.circular(50),
+                child: Container(
+                  padding: const EdgeInsets.all(10),
+                  child: const Icon(
+                    Icons.send_rounded,
+                    color: Colors.white,
+                    size: 22,
                   ),
                 ),
               ),
             ),
-          ),
-          MaterialButton(
-            minWidth: 43,
-            height: 43,
-            color: Colors.blue,
-            shape: const CircleBorder(),
-            onPressed: _sendMessage,
-            child: const Center(
-              child: Icon(
-                Icons.send_rounded,
-                color: Colors.white,
-                size: 18,
-              ),
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
