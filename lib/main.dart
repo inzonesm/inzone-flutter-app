@@ -2,14 +2,10 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:inzone/config/default_firebase_options.dart';
-import 'package:inzone/root_app.dart';
-import 'package:inzone/screen/auth/introduction_screen.dart';
 import 'package:inzone/screen/auth/splash_screen.dart';
 import 'package:appsflyer_sdk/appsflyer_sdk.dart';
 import 'package:media_kit/media_kit.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:inzone/theme/theme_manager.dart';
 import 'package:provider/provider.dart';
 

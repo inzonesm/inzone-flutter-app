@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 
 class BottomSheetBar extends StatelessWidget {
-  const BottomSheetBar({Key? key}) : super(key: key);
+  const BottomSheetBar({super.key});
 
   @override
   Widget build(BuildContext context) {

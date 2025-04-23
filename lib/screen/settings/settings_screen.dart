@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:inzone/components/settings/settings_tile.dart';
 import 'package:inzone/components/ui/appbar.dart';
 import 'package:inzone/screen/auth/introduction_screen.dart';
-import 'package:inzone/screen/settings/contact_screen.dart';
 import 'package:inzone/screen/settings/content_select_screen.dart';
 import 'package:inzone/screen/settings/subscription_purchase.dart';
 import 'package:inzone/screen/settings/referral_screen.dart';

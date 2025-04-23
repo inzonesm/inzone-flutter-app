@@ -5,7 +5,6 @@ import 'package:inzone/screen/explore/groups_explore_screen.dart';
 import 'package:inzone/screen/common/home_screen.dart';
 import 'package:inzone/screen/post/post_screen.dart';
 import 'package:inzone/screen/profile/user_profile_screen.dart';
-import 'package:inzone/screen/settings/settings_screen.dart';
 import 'package:animated_bottom_navigation_bar/animated_bottom_navigation_bar.dart';
 
 class RootApp extends StatefulWidget {
