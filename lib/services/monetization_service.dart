@@ -8,28 +8,23 @@ import 'package:flutter/material.dart';
 
 class MonetizationService {
   static const String _subscriptionId = 'InCashGold2025';
-  static const String baseUrl =
-      'https://inzoneapi-912424781531.us-central1.run.app/';
+  static const String baseUrl = 'https://inzoneapi-912424781531.us-central1.run.app/';
   final InAppPurchase _inAppPurchase = InAppPurchase.instance;
-  final StreamController<List<PurchaseDetails>> _purchaseController =
-      StreamController<List<PurchaseDetails>>.broadcast();
-  Stream<List<PurchaseDetails>> get purchaseStream =>
-      _purchaseController.stream;
+  final StreamController<List<PurchaseDetails>> _purchaseController = StreamController<List<PurchaseDetails>>.broadcast();
+  Stream<List<PurchaseDetails>> get purchaseStream => _purchaseController.stream;
 
   MonetizationService() {
     _initialize();
   }
 
   Future<void> _initialize() async {
-    final Stream<List<PurchaseDetails>> purchaseUpdated =
-        _inAppPurchase.purchaseStream;
+    final Stream<List<PurchaseDetails>> purchaseUpdated = _inAppPurchase.purchaseStream;
     purchaseUpdated.listen((List<PurchaseDetails> purchaseDetailsList) {
       _handlePurchases(purchaseDetailsList);
     });
   }
 
-  Future<void> _handlePurchases(
-      List<PurchaseDetails> purchaseDetailsList) async {
+  Future<void> _handlePurchases(List<PurchaseDetails> purchaseDetailsList) async {
     for (var purchaseDetails in purchaseDetailsList) {
       if (purchaseDetails.status == PurchaseStatus.purchased ||
           purchaseDetails.status == PurchaseStatus.restored) {
@@ -51,8 +46,7 @@ class MonetizationService {
   }
 
   Future<List<ProductDetails>> getProducts(List<String> productIds) async {
-    final ProductDetailsResponse response =
-        await _inAppPurchase.queryProductDetails(productIds.toSet());
+    final ProductDetailsResponse response = await _inAppPurchase.queryProductDetails(productIds.toSet());
     if (response.notFoundIDs.isNotEmpty) {
       print('Products not found: ${response.notFoundIDs}');
     }
@@ -167,8 +161,7 @@ class MonetizationService {
     }
   }
 
-  Future<Map<String, dynamic>> purchaseInCash(
-      String packageId, String platform, String receiptData) async {
+  Future<Map<String, dynamic>> purchaseInCash(String packageId, String platform, String receiptData) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) throw Exception('User not logged in');
 
@@ -190,30 +183,30 @@ class MonetizationService {
     }
   }
 }
-
-class InAppPurchaseController extends GetxController {
+class InAppPurchaseProvider extends ChangeNotifier {
   final InAppPurchase _inAppPurchase = InAppPurchase.instance;
   final List<String> _productIds = [
     'InCashGold2025',
     'InCashElite2025',
     'InCashAdvanced2025',
-    'InCashBasic2025'
+    'InCashBasic2025',
   ];
-  final RxBool _isAvailable = false.obs;
-  final RxList<ProductDetails> _products = <ProductDetails>[].obs;
 
-  bool get isAvailable => _isAvailable.value;
+  bool _isAvailable = false;
+  List<ProductDetails> _products = [];
+
+  bool get isAvailable => _isAvailable;
   List<ProductDetails> get products => _products;
 
-  @override
-  void onInit() {
+  InAppPurchaseProvider() {
     _initialize();
-    super.onInit();
   }
 
   Future<void> _initialize() async {
-    _isAvailable.value = await _inAppPurchase.isAvailable();
-    if (_isAvailable.value) {
+    _isAvailable = await _inAppPurchase.isAvailable();
+    notifyListeners();
+
+    if (_isAvailable) {
       _listenToPurchases();
       await _getProducts();
     }
@@ -225,6 +218,12 @@ class InAppPurchaseController extends GetxController {
     });
   }
 
+  Future<void> _getProducts() async {
+    final response = await _inAppPurchase.queryProductDetails(_productIds.toSet());
+    _products = response.productDetails;
+    notifyListeners();
+  }
+
   Future<void> _handlePurchaseUpdates(List<PurchaseDetails> purchases) async {
     for (var purchase in purchases) {
       if (purchase.status == PurchaseStatus.purchased ||
@@ -234,26 +233,22 @@ class InAppPurchaseController extends GetxController {
           await _inAppPurchase.completePurchase(purchase);
         }
       } else if (purchase.status == PurchaseStatus.error) {
-        Get.snackbar(
-          'Error',
-          'Purchase failed: ${purchase.error?.message}',
-          snackPosition: SnackPosition.BOTTOM,
-        );
+        // Use your own error display logic here, e.g. a dialog or snackbar
+        // For example, you could use a callback or a custom error notifier
+        debugPrint('Purchase failed: ${purchase.error?.message}');
       }
     }
   }
 
   Future<void> _verifyPurchase(PurchaseDetails purchase) async {
     try {
-      final platform = Theme.of(Get.context!).platform == TargetPlatform.iOS
-          ? 'ios'
-          : 'android';
+      final platform = Theme.of(Get.context!).platform == TargetPlatform.iOS ? 'ios' : 'android';
       final response = await MonetizationService().purchaseInCash(
         purchase.productID,
         platform,
         purchase.verificationData.localVerificationData,
       );
-
+      
       if (response['success'] == true) {
         Get.snackbar(
           'Success',
@@ -272,17 +267,9 @@ class InAppPurchaseController extends GetxController {
     }
   }
 
-  Future<List<ProductDetails>> _getProducts() async {
-    final response =
-        await _inAppPurchase.queryProductDetails(_productIds.toSet());
-    _products.value = response.productDetails;
-    return response.productDetails;
-  }
-
   Future<void> buyProduct(String productId) async {
     try {
-      final products = await _getProducts();
-      final product = products.firstWhere(
+      final product = _products.firstWhere(
         (p) => p.id == productId,
         orElse: () => throw Exception('Product not found'),
       );
@@ -313,4 +300,4 @@ class InAppPurchaseController extends GetxController {
       );
     }
   }
-}
+} 
