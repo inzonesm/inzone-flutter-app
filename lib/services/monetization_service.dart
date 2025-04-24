@@ -12,14 +12,7 @@ class MonetizationService {
   final StreamController<List<PurchaseDetails>> _purchaseController = StreamController<List<PurchaseDetails>>.broadcast();
   Stream<List<PurchaseDetails>> get purchaseStream => _purchaseController.stream;
   
-  // Product IDs and their corresponding package IDs
-  static const Map<String, String> productToPackageMap = {
-    'InCashElite2025': 'elite_1500',
-    'InCashAdvanced2025': 'advanced_500',
-    'InCashBasic2025': 'basic_100',
-    'InCashGold2025': 'gold_2500'
-  };
-
+  // Product IDs
   static const List<String> productIds = ['InCashElite2025', 'InCashAdvanced2025', 'InCashBasic2025'];
   static const String subscriptionId = 'InCashGold2025';
 
@@ -44,81 +37,44 @@ class MonetizationService {
         await _verifyAndDeliverProduct(purchaseDetails);
       } else if (purchaseDetails.status == PurchaseStatus.error) {
         print('Purchase error: ${purchaseDetails.error}');
-        _purchaseController.add([purchaseDetails]);
       }
     }
+    _purchaseController.add(purchaseDetailsList);
   }
 
   Future<void> _verifyAndDeliverProduct(PurchaseDetails purchaseDetails) async {
     try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user == null) throw Exception('User not logged in');
-
       final platform = Platform.isIOS ? 'ios' : 'android';
       final verificationData = purchaseDetails.verificationData;
-      final packageId = productToPackageMap[purchaseDetails.productID];
-      
-      if (packageId == null) {
-        throw Exception('Invalid product ID');
-      }
 
       final response = await http.post(
         Uri.parse('$baseUrl/wallet/purchase-incash'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode({
-          'UserDocumentId': user.uid,
-          'PackageId': packageId,
+          'UserDocumentId': FirebaseAuth.instance.currentUser?.uid,
+          'PackageId': purchaseDetails.productID,
           'Platform': platform,
           'ReceiptData': verificationData.localVerificationData,
         }),
       );
 
       if (response.statusCode == 200) {
-        final result = json.decode(response.body);
-        if (result['success'] == true) {
-          // For consumable products, complete the purchase after successful verification
-          if (productIds.contains(purchaseDetails.productID)) {
-            await _inAppPurchase.completePurchase(purchaseDetails);
-          }
-          _purchaseController.add([purchaseDetails]);
-        } else {
-          throw Exception(result['error'] ?? 'Purchase verification failed');
-        }
+        await _inAppPurchase.completePurchase(purchaseDetails);
       } else {
-        throw Exception('Purchase verification failed with status ${response.statusCode}');
+        throw Exception('Purchase verification failed');
       }
     } catch (e) {
       print('Verification error: $e');
-      _purchaseController.add([PurchaseDetails(
-        productID: purchaseDetails.productID,
-        status: PurchaseStatus.error,
-        error: PurchaseErrorDetails(
-          code: PurchaseErrorCode.verificationFailed,
-          message: e.toString(),
-        ),
-      )]);
+      rethrow;
     }
   }
 
   Future<List<ProductDetails>> getProducts() async {
-    try {
-      final ProductDetailsResponse response = await _inAppPurchase.queryProductDetails(
-        {...productIds, subscriptionId}.toSet()
-      );
-      
-      if (response.notFoundIDs.isNotEmpty) {
-        print('Products not found: ${response.notFoundIDs}');
-      }
-      
-      if (response.error != null) {
-        print('Error querying products: ${response.error}');
-      }
-      
-      return response.productDetails;
-    } catch (e) {
-      print('Error getting products: $e');
-      return [];
+    final ProductDetailsResponse response = await _inAppPurchase.queryProductDetails(MonetizationService.productIds.toSet());
+    if (response.notFoundIDs.isNotEmpty) {
+      print('Products not found: ${response.notFoundIDs}');
     }
+    return response.productDetails;
   }
 
   Future<bool> purchaseProduct(String productId) async {
@@ -134,7 +90,11 @@ class MonetizationService {
         applicationUserName: null,
       );
 
-      return await _inAppPurchase.buyConsumable(purchaseParam: purchaseParam);
+      if (Platform.isIOS) {
+        return await _inAppPurchase.buyNonConsumable(purchaseParam: purchaseParam);
+      } else {
+        return await _inAppPurchase.buyConsumable(purchaseParam: purchaseParam);
+      }
     } catch (e) {
       print('Purchase error: $e');
       return false;
@@ -166,26 +126,6 @@ class MonetizationService {
       await _inAppPurchase.restorePurchases();
     } catch (e) {
       print('Restore error: $e');
-    }
-  }
-
-  Future<Map<String, dynamic>> getBalance() async {
-    try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user == null) throw Exception('User not logged in');
-
-      final response = await http.get(
-        Uri.parse('$baseUrl/wallet/balance?UserDocumentId=${user.uid}'),
-      );
-
-      if (response.statusCode == 200) {
-        return json.decode(response.body);
-      } else {
-        throw Exception('Failed to get balance');
-      }
-    } catch (e) {
-      print('Error getting balance: $e');
-      rethrow;
     }
   }
 
@@ -247,6 +187,21 @@ class MonetizationService {
       return json.decode(response.body);
     } else {
       throw Exception('Failed to get referral stats');
+    }
+  }
+
+  Future<Map<String, dynamic>> getBalance() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) throw Exception('User not logged in');
+
+    final response = await http.get(
+      Uri.parse('$baseUrl/wallet/balance?UserDocumentId=${user.uid}'),
+    );
+
+    if (response.statusCode == 200) {
+      return json.decode(response.body);
+    } else {
+      throw Exception('Failed to get balance');
     }
   }
 
