@@ -183,30 +183,22 @@ class MonetizationService {
     }
   }
 }
-class InAppPurchaseProvider extends ChangeNotifier {
+class InAppPurchaseController extends ChangeNotifier {
   final InAppPurchase _inAppPurchase = InAppPurchase.instance;
-  final List<String> _productIds = [
-    'InCashGold2025',
-    'InCashElite2025',
-    'InCashAdvanced2025',
-    'InCashBasic2025',
-  ];
-
-  bool _isAvailable = false;
-  List<ProductDetails> _products = [];
-
-  bool get isAvailable => _isAvailable;
+  final List<String> _productIds = ['InCashGold2025', 'InCashElite2025', 'InCashAdvanced2025', 'InCashBasic2025'];
+  final RxBool _isAvailable = false.obs;
+  final RxList<ProductDetails> _products = <ProductDetails>[].obs;
+  
+  bool get isAvailable => _isAvailable.value;
   List<ProductDetails> get products => _products;
-
-  InAppPurchaseProvider() {
+  
+  InAppPurchaseController() {
     _initialize();
   }
 
   Future<void> _initialize() async {
-    _isAvailable = await _inAppPurchase.isAvailable();
-    notifyListeners();
-
-    if (_isAvailable) {
+    _isAvailable.value = await _inAppPurchase.isAvailable();
+    if (_isAvailable.value) {
       _listenToPurchases();
       await _getProducts();
     }
@@ -218,24 +210,20 @@ class InAppPurchaseProvider extends ChangeNotifier {
     });
   }
 
-  Future<void> _getProducts() async {
-    final response = await _inAppPurchase.queryProductDetails(_productIds.toSet());
-    _products = response.productDetails;
-    notifyListeners();
-  }
-
   Future<void> _handlePurchaseUpdates(List<PurchaseDetails> purchases) async {
     for (var purchase in purchases) {
-      if (purchase.status == PurchaseStatus.purchased ||
+      if (purchase.status == PurchaseStatus.purchased || 
           purchase.status == PurchaseStatus.restored) {
         await _verifyPurchase(purchase);
         if (purchase.pendingCompletePurchase) {
           await _inAppPurchase.completePurchase(purchase);
         }
       } else if (purchase.status == PurchaseStatus.error) {
-        // Use your own error display logic here, e.g. a dialog or snackbar
-        // For example, you could use a callback or a custom error notifier
-        debugPrint('Purchase failed: ${purchase.error?.message}');
+        Get.snackbar(
+          'Error',
+          'Purchase failed: ${purchase.error?.message}',
+          snackPosition: SnackPosition.BOTTOM,
+        );
       }
     }
   }
@@ -267,9 +255,16 @@ class InAppPurchaseProvider extends ChangeNotifier {
     }
   }
 
+  Future<List<ProductDetails>> _getProducts() async {
+    final response = await _inAppPurchase.queryProductDetails(_productIds.toSet());
+    _products.value = response.productDetails;
+    return response.productDetails;
+  }
+
   Future<void> buyProduct(String productId) async {
     try {
-      final product = _products.firstWhere(
+      final products = await _getProducts();
+      final product = products.firstWhere(
         (p) => p.id == productId,
         orElse: () => throw Exception('Product not found'),
       );
