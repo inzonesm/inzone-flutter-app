@@ -1,16 +1,13 @@
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/cupertino.dart';
+import 'dart:async';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'dart:async';
-import 'package:flutter_svg/svg.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:in_app_purchase/in_app_purchase.dart';
 import 'package:inzone/components/bottom-sheet/bottom_sheet_bar.dart';
 import 'package:inzone/components/bottom-sheet/custom_bottom_sheet.dart';
 import 'package:inzone/services/monetization_service.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:in_app_purchase/in_app_purchase.dart';
+import 'package:get/get.dart';
 
 class SubscriptionScreen extends StatefulWidget {
   const SubscriptionScreen({super.key});
@@ -239,7 +236,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                                   planName: "Gold Plan",
                                   price: 9.99,
                                   coins: 2500,
-                                  productId: "InCashGold",
+                                  productId: "InCashGold2025",
                                   isSubscription: true,
                                 ),
                               )
@@ -403,7 +400,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                                   planName: "Elite Plan",
                                   price: 9.99,
                                   coins: 1500,
-                                  productId: "InCashElite",
+                                  productId: "InCashElite2025",
                                   isSubscription: false,
                                 ),
                               )
@@ -506,7 +503,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                                   planName: "Advanced Plan",
                                   price: 4.99,
                                   coins: 500,
-                                  productId: "InCashAdvanced",
+                                  productId: "InCashAdvanced2025",
                                   isSubscription: false,
                                 ),
                               )
@@ -609,7 +606,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                                   planName: "Basic Plan",
                                   price: 1.99,
                                   coins: 100,
-                                  productId: "InCashBasic",
+                                  productId: "InCashBasic2025",
                                   isSubscription: false,
                                 ),
                               )
@@ -719,19 +716,6 @@ class _PurchaseSubscriptionScreenState
   bool _isPurchasing = false;
   StreamSubscription<List<PurchaseDetails>>? _subscription;
 
-  Future<void> _launchInBrowser(String url) async {
-    if (await canLaunch(url)) {
-      await launch(
-        url,
-        forceSafariVC: false,
-        forceWebView: false,
-        headers: <String, String>{"header_key": "header_value"},
-      );
-    } else {
-      throw "Could not launch $url";
-    }
-  }
-
   @override
   void initState() {
     super.initState();
@@ -787,6 +771,19 @@ class _PurchaseSubscriptionScreenState
       setState(() {
         _isPurchasing = false;
       });
+    }
+  }
+
+  Future<void> _launchInBrowser(String url) async {
+    if (await canLaunch(url)) {
+      await launch(
+        url,
+        forceSafariVC: false,
+        forceWebView: false,
+        headers: <String, String>{"header_key": "header_value"},
+      );
+    } else {
+      throw "Could not launch $url";
     }
   }
 
@@ -1012,7 +1009,10 @@ class _PurchaseSubscriptionScreenState
               const SizedBox(width: 10),
               Expanded(
                   child: GestureDetector(
-                      onTap: _isPurchasing ? null : _purchase,
+                      onTap: _isPurchasing
+                          ? null
+                          : () => Get.find<InAppPurchaseController>()
+                              .buyProduct(widget.productId),
                       child: Container(
                         padding: const EdgeInsets.all(15),
                         clipBehavior: Clip.antiAlias,
