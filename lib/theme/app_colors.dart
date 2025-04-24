@@ -27,6 +27,25 @@ class AppColors {
   static const Color darkTextColor = Colors.white;
   static const Color darkDividerColor = Color(0xFF323232);
 
+  // Chat Colors - Light Theme
+  static const Color lightMyChatBubble =
+      Color(0xFF2196F3); // Primary blue for my messages
+  static const Color lightOtherChatBubble =
+      Color(0xFFECECEC); // Light gray for other messages
+  static const Color lightMyChatText =
+      Colors.white; // White text on blue bubble
+  static const Color lightOtherChatText =
+      Colors.black; // Black text on light gray bubble
+
+  // Chat Colors - Dark Theme
+  static const Color darkMyChatBubble =
+      Color(0xFF1976D2); // Darker blue for my messages
+  static const Color darkOtherChatBubble =
+      Color(0xFF2C2C2C); // Dark gray for other messages
+  static const Color darkMyChatText = Colors.white; // White text on blue bubble
+  static const Color darkOtherChatText =
+      Colors.white; // White text on dark gray bubble
+
   // Marketing gradient colors
   static const List<Color> blueGradient = [lightBlue, primaryBlue];
 

@@ -839,11 +839,11 @@ class _PostCardState extends State<PostCard> {
                             }).toList();
 
                             if (comments.isEmpty) {
-                              return const Center(
+                              return Center(
                                 child: Text(
                                   'No Comments Available',
-                                  style: TextStyle(
-                                      color: Colors.black, fontSize: 20),
+                                  style:
+                                      Theme.of(context).textTheme.headlineSmall,
                                 ),
                               );
                             }

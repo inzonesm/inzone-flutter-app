@@ -261,41 +261,27 @@ class HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildAvatarCarousel() {
+    final PageController pageController = PageController(viewportFraction: 0.8);
+
     return SizedBox(
-      height: 530,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Padding(
-          //   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          //   child: Text(
-          //     "Most Popular",
-          //     style: Theme.of(context).textTheme.titleMedium?.copyWith(
-          //           fontWeight: FontWeight.bold,
-          //           fontSize: 18,
-          //         ),
-          //   ),
-          // ),
-          Expanded(
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: avatarCards.map((avatarCard) {
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 4.0),
-                    child: avatarCard,
-                  );
-                }).toList(),
-              ),
-            ),
-          ),
-        ],
+      height: 580,
+      child: PageView.builder(
+        controller: pageController,
+        itemCount: avatarCards.length,
+        itemBuilder: (context, index) {
+          return Padding(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 8.0, vertical: 12.0),
+            child: avatarCards[index],
+          );
+        },
       ),
     );
   }
+
   Widget _buildAvatarStories() {
     return SizedBox(
-      height: 130 ,
+      height: 130,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 10.0),
         child: SingleChildScrollView(
@@ -309,6 +295,7 @@ class HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
+
   Widget _buildPostWidget(dynamic post, int index) {
     String postType = post['post_type'] ?? 'unknown';
 
@@ -439,7 +426,6 @@ class HomeScreenState extends State<HomeScreen> {
                   child: CustomAppBar(
                     isHome: true,
                     userPoints: "100",
-
                     profileImageUrl: null,
                     onSearchTap: () {},
                     onProfileTap: () {},
@@ -456,7 +442,7 @@ class HomeScreenState extends State<HomeScreen> {
                     children: [
                       // 카테고리 선택 UI (로딩 중)
                       Padding(
-                        padding: const EdgeInsets.only(top: 10.0, bottom: 10.0),
+                        padding: const EdgeInsets.only(top: 0.0, bottom: 35.0),
                         child: CategoryLoading(context),
                       ),
                       ...List<Widget>.generate(
@@ -507,10 +493,8 @@ class HomeScreenState extends State<HomeScreen> {
                         );
                       },
                     ),
-                 
-                    // Add Avatar Carousel above category selector bar
 
-                    
+                    // Add Avatar Carousel above category selector bar
 
                     SliverToBoxAdapter(
                       child: avatarStoryComponents.isNotEmpty
