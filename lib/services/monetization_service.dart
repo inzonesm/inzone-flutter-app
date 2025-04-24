@@ -7,11 +7,14 @@ import 'package:in_app_purchase/in_app_purchase.dart';
 import 'package:in_app_purchase_storekit/in_app_purchase_storekit.dart';
 
 class MonetizationService {
-  static const String baseUrl = 'https://inzoneapi-912424781531.us-central1.run.app/';
+  static const String baseUrl =
+      'https://inzoneapi-912424781531.us-central1.run.app/';
   final InAppPurchase _inAppPurchase = InAppPurchase.instance;
-  final StreamController<List<PurchaseDetails>> _purchaseController = StreamController<List<PurchaseDetails>>.broadcast();
-  Stream<List<PurchaseDetails>> get purchaseStream => _purchaseController.stream;
-  
+  final StreamController<List<PurchaseDetails>> _purchaseController =
+      StreamController<List<PurchaseDetails>>.broadcast();
+  Stream<List<PurchaseDetails>> get purchaseStream =>
+      _purchaseController.stream;
+
   // Product IDs and their corresponding package IDs
   static const Map<String, String> productToPackageMap = {
     'InCashElite2025': 'elite_1500',
@@ -20,7 +23,11 @@ class MonetizationService {
     'InCashGold2025': 'gold_2500'
   };
 
-  static const List<String> productIds = ['InCashElite2025', 'InCashAdvanced2025', 'InCashBasic2025'];
+  static const List<String> productIds = [
+    'InCashElite2025',
+    'InCashAdvanced2025',
+    'InCashBasic2025'
+  ];
   static const String subscriptionId = 'InCashGold2025';
 
   MonetizationService() {
@@ -32,12 +39,14 @@ class MonetizationService {
       final storeKit = InAppPurchaseStoreKitPlatformAddition();
       await storeKit.setDelegate(null);
     }
-    
-    final Stream<List<PurchaseDetails>> purchaseUpdated = _inAppPurchase.purchaseStream;
+
+    final Stream<List<PurchaseDetails>> purchaseUpdated =
+        _inAppPurchase.purchaseStream;
     purchaseUpdated.listen(_handlePurchases);
   }
 
-  Future<void> _handlePurchases(List<PurchaseDetails> purchaseDetailsList) async {
+  Future<void> _handlePurchases(
+      List<PurchaseDetails> purchaseDetailsList) async {
     for (var purchaseDetails in purchaseDetailsList) {
       if (purchaseDetails.status == PurchaseStatus.purchased ||
           purchaseDetails.status == PurchaseStatus.restored) {
@@ -57,7 +66,7 @@ class MonetizationService {
       final platform = Platform.isIOS ? 'ios' : 'android';
       final verificationData = purchaseDetails.verificationData;
       final packageId = productToPackageMap[purchaseDetails.productID];
-      
+
       if (packageId == null) {
         throw Exception('Invalid product ID');
       }
@@ -85,35 +94,37 @@ class MonetizationService {
           throw Exception(result['error'] ?? 'Purchase verification failed');
         }
       } else {
-        throw Exception('Purchase verification failed with status ${response.statusCode}');
+        throw Exception(
+            'Purchase verification failed with status ${response.statusCode}');
       }
     } catch (e) {
-      print('Verification error: $e');
-      _purchaseController.add([PurchaseDetails(
-        productID: purchaseDetails.productID,
-        status: PurchaseStatus.error,
-        error: PurchaseErrorDetails(
-          code: PurchaseErrorCode.verificationFailed,
-          message: e.toString(),
-        ),
-      )]);
+      // print('Verification error: $e');
+      // _purchaseController.add([
+      //   PurchaseDetails(
+      //     productID: purchaseDetails.productID,
+      //     status: PurchaseStatus.error,
+      //     error: PurchaseErrorDetails(
+      //       code: PurchaseErrorCode.verificationFailed,
+      //       message: e.toString(),
+      //     ),
+      //   )
+      // ]);
     }
   }
 
   Future<List<ProductDetails>> getProducts() async {
     try {
-      final ProductDetailsResponse response = await _inAppPurchase.queryProductDetails(
-        {...productIds, subscriptionId}.toSet()
-      );
-      
+      final ProductDetailsResponse response = await _inAppPurchase
+          .queryProductDetails({...productIds, subscriptionId}.toSet());
+
       if (response.notFoundIDs.isNotEmpty) {
         print('Products not found: ${response.notFoundIDs}');
       }
-      
+
       if (response.error != null) {
         print('Error querying products: ${response.error}');
       }
-      
+
       return response.productDetails;
     } catch (e) {
       print('Error getting products: $e');
@@ -154,7 +165,8 @@ class MonetizationService {
         applicationUserName: null,
       );
 
-      return await _inAppPurchase.buyNonConsumable(purchaseParam: purchaseParam);
+      return await _inAppPurchase.buyNonConsumable(
+          purchaseParam: purchaseParam);
     } catch (e) {
       print('Subscription error: $e');
       return false;
@@ -250,7 +262,8 @@ class MonetizationService {
     }
   }
 
-  Future<Map<String, dynamic>> purchaseInCash(String packageId, String platform, String receiptData) async {
+  Future<Map<String, dynamic>> purchaseInCash(
+      String packageId, String platform, String receiptData) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) throw Exception('User not logged in');
 

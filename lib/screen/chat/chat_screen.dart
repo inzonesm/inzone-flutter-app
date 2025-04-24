@@ -73,7 +73,7 @@ class _ChatScreenState extends State<ChatScreen> {
               Icons.arrow_back_ios_new,
               size: 20,
             ),
-            color: Colors.black,
+            color: Theme.of(context).primaryColor,
             onPressed: () {
               Navigator.pop(context);
             },
@@ -86,174 +86,157 @@ class _ChatScreenState extends State<ChatScreen> {
       body: SafeArea(
         bottom: false,
         child: Padding(
-            padding: const EdgeInsets.only(top: 10),
-            child: Column(
-              children: [
-                Expanded(
-                  child: GestureDetector(
-                    onTap: () {
-                      FocusScope.of(context).unfocus();
-                    },
-                    child: Container(
-                      width: MediaQuery.of(context).size.width,
-                      decoration: BoxDecoration(
-                        border: Border.all(
-                          color: Colors.white,
-                          style: BorderStyle.solid,
-                          width: 10.0,
+          padding: const EdgeInsets.only(top: 10),
+          child: Column(
+            children: [
+              Expanded(
+                child: GestureDetector(
+                  onTap: () {
+                    FocusScope.of(context).unfocus();
+                  },
+                  child: SingleChildScrollView(
+                    controller: _mainScrollController,
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      mainAxisSize: MainAxisSize.max,
+                      children: [
+                        const Text(
+                          "Remember: This is not a real person",
+                          style: TextStyle(color: Colors.blue),
                         ),
-                        color: Colors.white,
-                        borderRadius: const BorderRadius.only(
-                            topRight: Radius.circular(30),
-                            topLeft: Radius.circular(30)),
-                      ),
-                      child: SingleChildScrollView(
-                        controller: _mainScrollController,
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          mainAxisSize: MainAxisSize.max,
-                          children: [
-                            const Text(
-                              "Remember: This is not a real person",
-                              style: TextStyle(color: Colors.blue),
-                            ),
-                            const SizedBox(height: 20),
+                        const SizedBox(height: 20),
 
-                            widget.userData.profilePictureURL == null
-                                ? RandomAvatar(widget.userData.name!,
-                                    width: 200, height: 200)
-                                : Padding(
-                                    padding: const EdgeInsets.only(
-                                        right: 5.0, left: 5),
-                                    child: ClipRRect(
-                                      borderRadius:
-                                          BorderRadius.circular(200.0),
-                                      child: Image.network(
-                                        widget.userData.profilePictureURL!,
-                                        fit: BoxFit.fitWidth,
-                                        width:
-                                            MediaQuery.of(context).size.width -
-                                                60,
-                                        errorBuilder: (context, object, st) {
-                                          return const SizedBox();
-                                        },
-                                      ),
-                                    ),
+                        widget.userData.profilePictureURL == null
+                            ? RandomAvatar(widget.userData.name!,
+                                width: 200, height: 200)
+                            : Padding(
+                                padding:
+                                    const EdgeInsets.only(right: 5.0, left: 5),
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(200.0),
+                                  child: Image.network(
+                                    widget.userData.profilePictureURL!,
+                                    fit: BoxFit.fitWidth,
+                                    width:
+                                        MediaQuery.of(context).size.width - 60,
+                                    errorBuilder: (context, object, st) {
+                                      return const SizedBox();
+                                    },
                                   ),
-                            const SizedBox(height: 20),
-                            // Text(
-                            //   textAlign: TextAlign.center,
-                            //   "${widget.userData.name} was authored by @${widget.userData.email}",
-                            //   style: const TextStyle(color: Colors.blue),
-                            // ),
-                            getMessages()
-                          ],
-                        ),
-                      ),
+                                ),
+                              ),
+                        const SizedBox(height: 20),
+                        // Text(
+                        //   textAlign: TextAlign.center,
+                        //   "${widget.userData.name} was authored by @${widget.userData.email}",
+                        //   style: const TextStyle(color: Colors.blue),
+                        // ),
+                        getMessages()
+                      ],
                     ),
                   ),
                 ),
-                // Place the chatInput at the bottom
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10),
-                  color: Colors.white,
-                  child: chatInput(),
-                ),
-              ],
-            )),
+              ),
+              chatInput(),
+            ],
+          ),
+        ),
       ),
     );
   }
 
   Widget chatInput() {
-    return Padding(
-      padding: const EdgeInsets.only(left: 5.0, right: 8, bottom: 30, top: 2),
-      child: Row(
-        children: [
-          Expanded(
-            child: Scrollbar(
-              controller: _scrollController,
-              child: Container(
-                constraints: const BoxConstraints(maxHeight: 100),
-                child: TextFormField(
-                  scrollController: _scrollController,
-                  cursorColor: Colors.black,
-                  controller: msg,
-                  maxLines: null,
-                  keyboardType: TextInputType.multiline,
-                  decoration: InputDecoration(
-                    suffixIconColor: Colors.black,
-                    contentPadding:
-                        const EdgeInsets.only(top: 10, left: 15, right: 10),
-                    border: InputBorder.none,
-                    hintText: 'Send a message',
-                    filled: true,
-                    fillColor: Colors.blue.withOpacity(0.2),
-                    enabledBorder: OutlineInputBorder(
-                      borderSide: BorderSide(
-                        color: Theme.of(context)
-                            .canvasColor, // Set the border color to canvas color
+    return Container(
+      color: Theme.of(context).canvasColor,
+      child: Padding(
+        padding:
+            const EdgeInsets.only(left: 10.0, right: 10, bottom: 30, top: 2),
+        child: Row(
+          children: [
+            Expanded(
+              child: Scrollbar(
+                controller: _scrollController,
+                child: Container(
+                  constraints: const BoxConstraints(maxHeight: 100),
+                  child: TextFormField(
+                    scrollController: _scrollController,
+                    cursorColor: Theme.of(context).primaryColor,
+                    controller: msg,
+                    maxLines: null,
+                    keyboardType: TextInputType.multiline,
+                    decoration: InputDecoration(
+                      suffixIconColor: Colors.black,
+                      contentPadding:
+                          const EdgeInsets.only(top: 10, left: 15, right: 10),
+                      border: InputBorder.none,
+                      hintText: 'Send a message',
+                      filled: true,
+                      fillColor: Colors.blue.withOpacity(0.2),
+                      enabledBorder: OutlineInputBorder(
+                        borderSide: const BorderSide(
+                          color: Colors.transparent,
+                        ),
+                        borderRadius: BorderRadius.circular(30),
                       ),
-                      borderRadius: BorderRadius.circular(30),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderSide: BorderSide(
-                        color: Theme.of(context)
-                            .canvasColor, // Set the border color to canvas color
+                      focusedBorder: OutlineInputBorder(
+                        borderSide: BorderSide(
+                          color: Theme.of(context).canvasColor,
+                        ),
+                        borderRadius: BorderRadius.circular(30),
                       ),
-                      borderRadius: BorderRadius.circular(30),
                     ),
                   ),
                 ),
               ),
             ),
-          ),
-          MaterialButton(
-            minWidth: 43,
-            height: 43,
-            color: Colors.blue,
-            shape: const CircleBorder(),
-            onPressed: () async {
-              scrollToEnd();
-              String userMessage = msg.text;
+            const SizedBox(width: 10),
+            MaterialButton(
+              minWidth: 43,
+              height: 43,
+              color: Colors.blue,
+              shape: const CircleBorder(),
+              onPressed: () async {
+                scrollToEnd();
+                String userMessage = msg.text;
 
-              scrollToEnd();
-              addMessage(userMessage, true);
-              msg.clear();
-              scrollToEnd();
-              String? aiResponse;
-              if (widget.userData.chatId != null) {
-                if (kDebugMode) {
-                  print("Chat id found.");
+                scrollToEnd();
+                addMessage(userMessage, true);
+                msg.clear();
+                scrollToEnd();
+                String? aiResponse;
+                if (widget.userData.chatId != null) {
+                  if (kDebugMode) {
+                    print("Chat id found.");
+                  }
+                  if (kDebugMode) {
+                    print(widget.userData.email);
+                  }
+                  aiResponse = await InZoneDatabase.sendMessageToAI(userMessage,
+                      widget.userData.email!, widget.userData.chatId);
+                } else {
+                  if (kDebugMode) {
+                    print("Chat id not found.");
+                  }
+
+                  aiResponse = await InZoneDatabase.sendMessageToAI(
+                      userMessage, widget.userData.email!, null);
                 }
-                if (kDebugMode) {
-                  print(widget.userData.email);
-                }
-                aiResponse = await InZoneDatabase.sendMessageToAI(userMessage,
-                    widget.userData.email!, widget.userData.chatId);
-              } else {
-                if (kDebugMode) {
-                  print("Chat id not found.");
+                if (aiResponse != null) {
+                  addMessage(aiResponse, false);
                 }
 
-                aiResponse = await InZoneDatabase.sendMessageToAI(
-                    userMessage, widget.userData.email!, null);
-              }
-              if (aiResponse != null) {
-                addMessage(aiResponse, false);
-              }
-
-              scrollToEnd();
-            },
-            child: const Center(
-              child: Icon(
-                Icons.send_rounded,
-                color: Colors.white,
-                size: 18,
+                scrollToEnd();
+              },
+              child: const Center(
+                child: Icon(
+                  Icons.send_rounded,
+                  color: Colors.white,
+                  size: 18,
+                ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -275,7 +258,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 vertical: 5,
               ),
               decoration: BoxDecoration(
-                color: isMe ? Colors.blue : Theme.of(context).canvasColor,
+                color: isMe ? Colors.blue : Colors.white,
                 borderRadius: BorderRadius.only(
                   topLeft: const Radius.circular(18),
                   topRight: const Radius.circular(18),

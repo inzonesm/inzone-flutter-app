@@ -73,6 +73,7 @@ dependencies:
   google_sign_in: ^6.3.0
   sign_in_with_apple: ^7.0.1
   provider: any
+  get: ^4.7.2
 dev_dependencies:
   flutter_test:
     sdk: flutter
