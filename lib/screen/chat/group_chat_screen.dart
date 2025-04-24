@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:get/get_connect/http/src/utils/utils.dart';
 import 'package:random_avatar/random_avatar.dart';
 import 'package:inzone/data/group_data.dart';
 import 'package:inzone/data/group_chat_data.dart';
@@ -6,6 +7,7 @@ import 'package:inzone/services/group_chat_service.dart';
 import 'package:intl/intl.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:inzone/theme/light_theme.dart'; // Import for ChatTheme extension
 
 class GroupChatScreen extends StatefulWidget {
   final GroupData group;
@@ -20,22 +22,22 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   final TextEditingController _msgController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   final bool _isLoading = true;
-  
+
   GroupChatData? _groupChatData;
   late String _groupId;
 
   @override
   void initState() {
     super.initState();
-    
+
     // Use the provided group ID if it's a valid Firestore group ID
     // Otherwise, use the default one
-    _groupId = widget.group.id.contains('group_chat_') 
-        ? widget.group.id 
+    _groupId = widget.group.id.contains('group_chat_')
+        ? widget.group.id
         : GroupChatService.defaultGroupChatDocId;
-    
+
     print('Opening group chat with ID: $_groupId');
-    
+
     // Update the group's isMember status if not already a member
     if (!widget.group.isMember) {
       widget.group.isMember = true;
@@ -47,7 +49,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
     // Send message to Firestore, using the specific group ID
     GroupChatService.sendMessageToGroup(_groupId, _msgController.text.trim());
-    
+
     _msgController.clear();
     _scrollToBottom();
   }
@@ -67,7 +69,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: PreferredSize(
         preferredSize: const Size.fromHeight(kToolbarHeight),
         child: StreamBuilder<DocumentSnapshot>(
@@ -76,40 +78,45 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
             // Default values from the group data passed to constructor
             String groupName = widget.group.name;
             String memberCount = '${widget.group.memberCount} members';
-            Widget groupAvatar = RandomAvatar(widget.group.name, height: 40, width: 40);
-            
+            Widget groupAvatar =
+                RandomAvatar(widget.group.name, height: 40, width: 40);
+
             // If we have Firebase data, use it instead
             if (snapshot.hasData && snapshot.data!.exists) {
               try {
                 final data = snapshot.data!.data() as Map<String, dynamic>?;
                 if (data != null) {
-                  print('Group data from Firebase: name=${data['name']}, imageUrl=${data['imageUrl']}');
-                  
+                  print(
+                      'Group data from Firebase: name=${data['name']}, imageUrl=${data['imageUrl']}');
+
                   // Get participants info for debugging
-                  if (data.containsKey('participants') && data['participants'] is List) {
+                  if (data.containsKey('participants') &&
+                      data['participants'] is List) {
                     final participantsList = data['participants'] as List;
                     print('Group participants: ${participantsList.length}');
                     for (var participant in participantsList) {
                       if (participant is Map) {
-                        print(' - ${participant['name']} (${participant['type']})');
+                        print(
+                            ' - ${participant['name']} (${participant['type']})');
                       }
                     }
                   }
-                  
+
                   // Get name from Firebase
                   if (data.containsKey('name') && data['name'] != null) {
                     groupName = data['name'] as String;
                   }
-                  
+
                   // Get member count from Firebase participants
-                  if (data.containsKey('participants') && data['participants'] is List) {
+                  if (data.containsKey('participants') &&
+                      data['participants'] is List) {
                     final participantsList = data['participants'] as List;
                     memberCount = '${participantsList.length} members';
                   }
-                  
+
                   // Get image from Firebase
-                  if (data.containsKey('imageUrl') && 
-                      data['imageUrl'] != null && 
+                  if (data.containsKey('imageUrl') &&
+                      data['imageUrl'] != null &&
                       data['imageUrl'].toString().isNotEmpty) {
                     final imageUrl = data['imageUrl'] as String;
                     groupAvatar = ClipOval(
@@ -131,13 +138,14 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                 print('Error parsing group data in AppBar: $e');
               }
             }
-            
+
             return AppBar(
               elevation: 0,
-              backgroundColor: Colors.white,
+              backgroundColor: Theme.of(context).canvasColor,
               leadingWidth: 30,
               leading: IconButton(
-                icon: const Icon(Icons.arrow_back, color: Colors.black),
+                icon: Icon(Icons.arrow_back,
+                    color: Theme.of(context).primaryColor),
                 onPressed: () => Navigator.of(context).pop(),
               ),
               title: Row(
@@ -161,17 +169,17 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                       children: [
                         Text(
                           groupName,
-                          style: const TextStyle(
-                            color: Colors.black,
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
+                          style:
+                              Theme.of(context).textTheme.titleLarge?.copyWith(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                  ),
                           overflow: TextOverflow.ellipsis,
                         ),
                         Text(
                           memberCount,
-                          style: const TextStyle(
-                            color: Colors.grey,
+                          style: TextStyle(
+                            color: Theme.of(context).hintColor,
                             fontSize: 12,
                           ),
                         ),
@@ -182,7 +190,8 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
               ),
               actions: [
                 IconButton(
-                  icon: const Icon(Icons.more_vert, color: Colors.black),
+                  icon: Icon(Icons.more_vert,
+                      color: Theme.of(context).primaryColor),
                   onPressed: () {
                     // Show group options
                   },
@@ -203,50 +212,55 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return const Center(child: CircularProgressIndicator());
                   }
-                  
+
                   if (snapshot.hasError) {
                     return Center(
                       child: Text('Error: ${snapshot.error}'),
                     );
                   }
-                  
+
                   if (!snapshot.hasData || !snapshot.data!.exists) {
                     return const Center(
                       child: Text('No data available'),
                     );
                   }
-                  
+
                   try {
                     // Print raw data for debugging
-                    final rawData = snapshot.data!.data() as Map<String, dynamic>;
+                    final rawData =
+                        snapshot.data!.data() as Map<String, dynamic>;
                     print('Raw Firestore data: $rawData');
-                    
+
                     // Check if messages exist in the data
-                    final List<dynamic>? messagesData = rawData['messages'] as List<dynamic>?;
+                    final List<dynamic>? messagesData =
+                        rawData['messages'] as List<dynamic>?;
                     if (messagesData == null || messagesData.isEmpty) {
                       print('No messages found in Firestore data');
                       return const Center(
                         child: Text('No messages yet. Start the conversation!'),
                       );
                     }
-                    
+
                     print('Found ${messagesData.length} messages in Firestore');
-                    
+
                     // Convert the data to GroupChatData
                     _groupChatData = GroupChatData.fromSnapshot(snapshot.data!);
-                    
+
                     if (_groupChatData!.messages.isEmpty) {
                       print('Messages parsed but resulted in empty list');
                       return const Center(
-                        child: Text('No messages parsed correctly. Check data format.'),
+                        child: Text(
+                            'No messages parsed correctly. Check data format.'),
                       );
                     }
-                    
-                    print('Parsed ${_groupChatData!.messages.length} messages successfully');
-                    
+
+                    print(
+                        'Parsed ${_groupChatData!.messages.length} messages successfully');
+
                     // Scroll to bottom when new messages come in
-                    WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
-                    
+                    WidgetsBinding.instance
+                        .addPostFrameCallback((_) => _scrollToBottom());
+
                     return _buildMessageList(_groupChatData!.messages);
                   } catch (e) {
                     print('Error parsing Firestore data: $e');
@@ -270,16 +284,17 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
         child: Text('No messages yet. Start the conversation!'),
       );
     }
-    
+
     print('Building message list with ${messages.length} messages');
-    
+
     // Create a single list of widgets if there are no timestamps
     bool hasTimestamps = messages.any((msg) => msg.timestamp != null);
-    
+
     if (!hasTimestamps) {
-      print('No message timestamps found, showing messages without date grouping');
+      print(
+          'No message timestamps found, showing messages without date grouping');
       List<Widget> messageWidgets = [];
-      
+
       // Add a "Today" header
       messageWidgets.add(
         Padding(
@@ -288,13 +303,13 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
               decoration: BoxDecoration(
-                color: Colors.grey[200],
+                color: Theme.of(context).dividerColor.withOpacity(0.05),
                 borderRadius: BorderRadius.circular(16),
               ),
               child: Text(
                 'Messages',
                 style: TextStyle(
-                  color: Colors.grey[600],
+                  color: Theme.of(context).textTheme.bodySmall?.color,
                   fontSize: 12,
                 ),
               ),
@@ -302,12 +317,12 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
           ),
         ),
       );
-      
+
       // Add all messages
       for (var message in messages) {
         messageWidgets.add(_buildMessageBubble(message));
       }
-      
+
       return ListView.builder(
         controller: _scrollController,
         padding: const EdgeInsets.all(16),
@@ -317,7 +332,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
         },
       );
     }
-    
+
     // Group messages by date (original implementation)
     Map<String, List<ChatMessage>> messagesByDate = {};
 
@@ -331,7 +346,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
         messagesByDate[dateKey]!.add(message);
         continue;
       }
-      
+
       final String dateKey = _getDateKey(message.timestamp!);
 
       if (!messagesByDate.containsKey(dateKey)) {
@@ -353,13 +368,13 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
               decoration: BoxDecoration(
-                color: Colors.grey[200],
+                color: Theme.of(context).dividerColor.withOpacity(0.05),
                 borderRadius: BorderRadius.circular(16),
               ),
               child: Text(
                 dateKey,
                 style: TextStyle(
-                  color: Colors.grey[600],
+                  color: Theme.of(context).textTheme.bodySmall?.color,
                   fontSize: 12,
                 ),
               ),
@@ -400,7 +415,8 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   }
 
   Widget _buildMessageBubble(ChatMessage message) {
-    final bool isMe = message.sender.uid == FirebaseAuth.instance.currentUser?.uid;
+    final bool isMe =
+        message.sender.uid == FirebaseAuth.instance.currentUser?.uid;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 8.0),
@@ -414,7 +430,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
               child: Container(
                 width: 35,
                 height: 35,
-                color: Colors.grey[300], // Background color while loading
+                color: Theme.of(context).cardColor,
                 child: _buildSenderAvatar(message.sender),
               ),
             ),
@@ -433,7 +449,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
-                        color: Colors.grey[700],
+                        color: Theme.of(context).textTheme.titleMedium?.color,
                       ),
                     ),
                   ),
@@ -441,14 +457,18 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   decoration: BoxDecoration(
-                    color: isMe ? Colors.blue : const Color(0xFFF0F0F0),
+                    color: isMe
+                        ? Theme.of(context).myChatBubbleColor
+                        : Theme.of(context).otherChatBubbleColor,
                     borderRadius: BorderRadius.circular(18),
                   ),
                   child: Text(
                     message.content,
                     style: TextStyle(
-                        color: isMe ? Colors.white : Colors.black87,
-                        fontWeight: FontWeight.bold),
+                        color: isMe
+                            ? Theme.of(context).myChatTextColor
+                            : Theme.of(context).otherChatTextColor,
+                        fontWeight: FontWeight.w500),
                   ),
                 ),
                 if (message.timestamp != null)
@@ -458,7 +478,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                       _formatMessageTime(message.timestamp!),
                       style: TextStyle(
                         fontSize: 10,
-                        color: Colors.grey[600],
+                        color: Theme.of(context).textTheme.bodySmall?.color,
                       ),
                     ),
                   ),
@@ -485,7 +505,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
         },
       );
     }
-    
+
     // For other AI users, check if group has an image
     if (sender.type == 'ai' && _groupChatData?.imageUrl.isNotEmpty == true) {
       return Image.network(
@@ -498,7 +518,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
         },
       );
     }
-    
+
     // For regular users, use a random avatar based on UID
     return RandomAvatar(sender.uid, height: 35, width: 35);
   }
@@ -507,7 +527,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     final messageDate = DateTime(dateTime.year, dateTime.month, dateTime.day);
-    
+
     if (messageDate == today) {
       return DateFormat('h:mm a').format(dateTime);
     } else {
@@ -518,109 +538,92 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   Widget _buildChatInput() {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            offset: const Offset(0, -2),
-            blurRadius: 3,
-            color: Colors.black.withOpacity(0.1),
-          ),
-        ],
+        color: Theme.of(context).canvasColor,
       ),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      padding: const EdgeInsets.only(left: 10.0, right: 10, top: 2),
       child: SafeArea(
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
-            // Attachment button
-            // InkWell(
-            //   onTap: () {
-            //     // Show attachment options
-            //   },
-            //   borderRadius: BorderRadius.circular(50),
-            //   child: Container(
-            //     padding: const EdgeInsets.all(8),
-            //     child: Icon(
-            //       Icons.attach_file_rounded,
-            //       color: Colors.grey[600],
-            //       size: 24,
-            //     ),
-            //   ),
-            // ),
-            
             // Text field
             Expanded(
-              child: Container(
-                margin: const EdgeInsets.symmetric(horizontal: 8),
-                decoration: BoxDecoration(
-                  color: Colors.grey[100],
-                  borderRadius: BorderRadius.circular(24),
-                  border: Border.all(color: Colors.grey.withOpacity(0.2)),
-                ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.only(left: 16.0, right: 8.0),
-                        child: TextField(
-                          controller: _msgController,
-                          maxLines: 5,
-                          minLines: 1,
-                          keyboardType: TextInputType.multiline,
-                          textCapitalization: TextCapitalization.sentences,
-                          style: const TextStyle(
-                            fontSize: 16,
-                          ),
-                          decoration: InputDecoration(
-                            hintText: 'Message',
-                            hintStyle: TextStyle(color: Colors.grey[400]),
-                            border: InputBorder.none,
-                            contentPadding: const EdgeInsets.symmetric(
-                              vertical: 12,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.only(left: 16.0, right: 8.0),
+                      child: TextFormField(
+                        cursorColor: Theme.of(context).primaryColor,
+                        controller: _msgController,
+                        maxLines: null,
+                        keyboardType: TextInputType.multiline,
+                        decoration: InputDecoration(
+                          suffixIconColor: Theme.of(context).iconTheme.color,
+                          contentPadding: const EdgeInsets.only(
+                              top: 10, left: 15, right: 10),
+                          border: InputBorder.none,
+                          hintText: 'Send a message',
+                          filled: true,
+                          fillColor: Theme.of(context)
+                              .colorScheme
+                              .primary
+                              .withOpacity(0.2),
+                          enabledBorder: OutlineInputBorder(
+                            borderSide: const BorderSide(
+                              color: Colors.transparent,
                             ),
+                            borderRadius: BorderRadius.circular(30),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderSide: BorderSide(
+                              color: Theme.of(context)
+                                  .primaryColor
+                                  .withOpacity(0.3),
+                            ),
+                            borderRadius: BorderRadius.circular(30),
                           ),
                         ),
                       ),
                     ),
-                    
-                    // Emoji button
-                    Padding(
-                      padding: const EdgeInsets.only(right: 8.0, bottom: 8.0),
-                      child: InkWell(
-                        onTap: () {
-                          // Show emoji picker
-                        },
-                        borderRadius: BorderRadius.circular(50),
-                        child: Container(
-                          padding: const EdgeInsets.all(6),
-                          child: Icon(
-                            Icons.emoji_emotions_outlined,
-                            color: Colors.grey[600],
-                            size: 24,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+                  ),
+
+                  // Emoji button
+                  // Padding(
+                  //   padding: const EdgeInsets.only(right: 8.0, bottom: 8.0),
+                  //   child: InkWell(
+                  //     onTap: () {},
+                  //     borderRadius: BorderRadius.circular(50),
+                  //     child: Container(
+                  //       padding: const EdgeInsets.all(6),
+                  //       child: Icon(
+                  //         Icons.emoji_emotions_outlined,
+                  //         color: Theme.of(context)
+                  //             .iconTheme
+                  //             .color
+                  //             ?.withOpacity(0.6),
+                  //         size: 24,
+                  //       ),
+                  //     ),
+                  //   ),
+                  // ),
+                ],
               ),
             ),
-            
+
             // Send button
-            Material(
-              color: Theme.of(context).primaryColor,
-              borderRadius: BorderRadius.circular(50),
-              child: InkWell(
-                onTap: _sendMessage,
-                borderRadius: BorderRadius.circular(50),
-                child: Container(
-                  padding: const EdgeInsets.all(10),
-                  child: const Icon(
-                    Icons.send_rounded,
-                    color: Colors.white,
-                    size: 22,
-                  ),
+
+            MaterialButton(
+              minWidth: 43,
+              height: 43,
+              color: Theme.of(context).colorScheme.primary,
+              shape: const CircleBorder(),
+              onPressed: _sendMessage,
+              child: const Center(
+                child: Icon(
+                  Icons.send_rounded,
+                  color: Colors.white,
+                  size: 18,
                 ),
               ),
             ),

@@ -5,6 +5,7 @@ import 'package:inzone/config/custom_icons.dart';
 import 'package:inzone/services/inzone_database.dart';
 import 'package:inzone/screen/chat/all_chats_screen.dart';
 import 'package:inzone/screen/chat/post_chat_screen.dart';
+import 'package:inzone/theme/light_theme.dart'; // Import for ChatTheme extension
 import 'package:random_avatar/random_avatar.dart';
 
 class ChatScreen extends StatefulWidget {
@@ -165,13 +166,16 @@ class _ChatScreenState extends State<ChatScreen> {
                     maxLines: null,
                     keyboardType: TextInputType.multiline,
                     decoration: InputDecoration(
-                      suffixIconColor: Colors.black,
+                      suffixIconColor: Theme.of(context).iconTheme.color,
                       contentPadding:
                           const EdgeInsets.only(top: 10, left: 15, right: 10),
                       border: InputBorder.none,
                       hintText: 'Send a message',
                       filled: true,
-                      fillColor: Colors.blue.withOpacity(0.2),
+                      fillColor: Theme.of(context)
+                          .colorScheme
+                          .primary
+                          .withOpacity(0.2),
                       enabledBorder: OutlineInputBorder(
                         borderSide: const BorderSide(
                           color: Colors.transparent,
@@ -180,7 +184,8 @@ class _ChatScreenState extends State<ChatScreen> {
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderSide: BorderSide(
-                          color: Theme.of(context).canvasColor,
+                          color:
+                              Theme.of(context).primaryColor.withOpacity(0.3),
                         ),
                         borderRadius: BorderRadius.circular(30),
                       ),
@@ -193,7 +198,7 @@ class _ChatScreenState extends State<ChatScreen> {
             MaterialButton(
               minWidth: 43,
               height: 43,
-              color: Colors.blue,
+              color: Theme.of(context).colorScheme.primary,
               shape: const CircleBorder(),
               onPressed: () async {
                 scrollToEnd();
@@ -258,7 +263,9 @@ class _ChatScreenState extends State<ChatScreen> {
                 vertical: 5,
               ),
               decoration: BoxDecoration(
-                color: isMe ? Colors.blue : Colors.white,
+                color: isMe
+                    ? Theme.of(context).myChatBubbleColor
+                    : Theme.of(context).otherChatBubbleColor,
                 borderRadius: BorderRadius.only(
                   topLeft: const Radius.circular(18),
                   topRight: const Radius.circular(18),
@@ -272,7 +279,10 @@ class _ChatScreenState extends State<ChatScreen> {
               ),
               child: Text(
                 text,
-                style: TextStyle(color: isMe ? Colors.white : Colors.black),
+                style: TextStyle(
+                    color: isMe
+                        ? Theme.of(context).myChatTextColor
+                        : Theme.of(context).otherChatTextColor),
               ),
             ),
           ),

@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:inzone/services/inzone_database.dart';
+import 'package:inzone/theme/light_theme.dart'; // Import for ChatTheme extension
 import 'package:intl/intl.dart';
 import 'package:random_avatar/random_avatar.dart';
 
@@ -347,13 +348,17 @@ class _HumanChatScreenState extends State<HumanChatScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
             decoration: BoxDecoration(
-              color: isMe ? const Color(0xFFD1E7F0) : Colors.grey[300],
+              color: isMe
+                  ? Theme.of(context).myChatBubbleColor
+                  : Theme.of(context).otherChatBubbleColor,
               borderRadius: BorderRadius.circular(18),
             ),
             child: Text(
               text,
-              style: const TextStyle(
-                color: Colors.black87,
+              style: TextStyle(
+                color: isMe
+                    ? Theme.of(context).myChatTextColor
+                    : Theme.of(context).otherChatTextColor,
                 fontSize: 16,
               ),
             ),

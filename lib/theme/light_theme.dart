@@ -1,6 +1,25 @@
 import 'package:flutter/material.dart';
 import 'package:inzone/theme/app_colors.dart';
 
+/// Extension for chat-specific theme properties
+extension ChatTheme on ThemeData {
+  Color get myChatBubbleColor => brightness == Brightness.light
+      ? AppColors.lightMyChatBubble
+      : AppColors.darkMyChatBubble;
+
+  Color get otherChatBubbleColor => brightness == Brightness.light
+      ? AppColors.lightOtherChatBubble
+      : AppColors.darkOtherChatBubble;
+
+  Color get myChatTextColor => brightness == Brightness.light
+      ? AppColors.lightMyChatText
+      : AppColors.darkMyChatText;
+
+  Color get otherChatTextColor => brightness == Brightness.light
+      ? AppColors.lightOtherChatText
+      : AppColors.darkOtherChatText;
+}
+
 /// Light theme for the InZone app
 class LightTheme {
   static ThemeData get theme => ThemeData(
@@ -114,5 +133,9 @@ class LightTheme {
           backgroundColor: AppColors.primaryBlue,
           foregroundColor: AppColors.white,
         ),
+
+        // Add any additional theme properties here
+
+        // Chat-specific theme extensions are provided via the ChatTheme extension
       );
 }

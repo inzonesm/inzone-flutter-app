@@ -129,32 +129,60 @@ Widget CategoryLoading(BuildContext context) {
         ),
       ),
       Padding(
-        padding: const EdgeInsets.symmetric(vertical: 0, horizontal: 20),
+        padding: const EdgeInsets.symmetric(vertical: 0, horizontal: 15),
         child: SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           child: Row(
-            children: [
-              SkeletonContainer.circular(
-                height: 45,
-                width: 100,
-                color: Theme.of(context).cardColor,
-              ),
-              const SizedBox(width: 10),
-              SkeletonContainer.circular(
-                height: 45,
-                width: 200,
-                color: Theme.of(context).cardColor,
-              ),
-              const SizedBox(width: 10),
-              SkeletonContainer.circular(
-                height: 45,
-                width: 120,
-                color: Theme.of(context).cardColor,
-              ),
-            ],
+            children: List.generate(10, (index) {
+              return Padding(
+                padding: const EdgeInsets.only(right: 10),
+                child: Column(
+                  children: [
+                    SkeletonContainer.circular(
+                      height: 75,
+                      width: 75,
+                      color: Theme.of(context).cardColor,
+                    ),
+                    const SizedBox(height: 10),
+                    SkeletonContainer.circular(
+                      height: 10,
+                      width: 50,
+                      color: Theme.of(context).cardColor,
+                    ),
+                  ],
+                ),
+              );
+            }),
           ),
         ),
       ),
+      // Padding(
+      //   padding: const EdgeInsets.symmetric(vertical: 0, horizontal: 20),
+      //   child: SingleChildScrollView(
+      //     scrollDirection: Axis.horizontal,
+      //     child: Row(
+      //       children: [
+      //         SkeletonContainer.circular(
+      //           height: 45,
+      //           width: 100,
+      //           color: Theme.of(context).cardColor,
+      //         ),
+      //         const SizedBox(width: 10),
+      //         SkeletonContainer.circular(
+      //           height: 45,
+      //           width: 200,
+      //           color: Theme.of(context).cardColor,
+      //         ),
+      //         const SizedBox(width: 10),
+      //         SkeletonContainer.circular(
+      //           height: 45,
+      //           width: 120,
+      //           color: Theme.of(context).cardColor,
+      //         ),
+      //       ],
+      //     ),
+      //   ),
+      // ),
     ],
   );
 }

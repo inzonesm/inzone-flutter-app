@@ -246,7 +246,7 @@ class SettingsScreen extends StatelessWidget {
             children: [
               Container(
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: Theme.of(context).cardColor,
                   borderRadius: BorderRadius.circular(20),
                 ),
                 padding: const EdgeInsets.all(10),
@@ -274,7 +274,9 @@ class SettingsScreen extends StatelessWidget {
                             Padding(
                               padding: const EdgeInsets.symmetric(vertical: 5),
                               child: Divider(
-                                color: Colors.grey.shade200,
+                                color: Theme.of(context)
+                                    .dividerColor
+                                    .withOpacity(0.05),
                                 thickness: 1,
                               ),
                             ),
@@ -287,7 +289,7 @@ class SettingsScreen extends StatelessWidget {
               const SizedBox(height: 15),
               Container(
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: Theme.of(context).cardColor,
                   borderRadius: BorderRadius.circular(20),
                 ),
                 padding: const EdgeInsets.all(10),
@@ -316,7 +318,9 @@ class SettingsScreen extends StatelessWidget {
                             Padding(
                               padding: const EdgeInsets.symmetric(vertical: 5),
                               child: Divider(
-                                color: Colors.grey.shade200,
+                                color: Theme.of(context)
+                                    .dividerColor
+                                    .withOpacity(0.05),
                                 thickness: 1,
                               ),
                             ),

@@ -281,7 +281,8 @@ class _RepostCardState extends State<RepostCard> {
       onTap: () async {
         Navigator.pop(context); // Close the bottom sheet
         if (value == "chat") {
-          String? chatID = await InZoneDatabase.startConversation(widget.post.id);
+          String? chatID =
+              await InZoneDatabase.startConversation(widget.post.id);
         } else if (value == "not_interested") {
           const snackBar = SnackBar(
             content: Text("This post has been flagged for review."),
@@ -290,7 +291,8 @@ class _RepostCardState extends State<RepostCard> {
           ScaffoldMessenger.of(context).showSnackBar(snackBar);
         } else if (value == "dont_show") {
           final snackBar = SnackBar(
-            content: Text("Posts from ${widget.post.userName} will not be shown."),
+            content:
+                Text("Posts from ${widget.post.userName} will not be shown."),
             backgroundColor: Colors.red,
           );
           ScaffoldMessenger.of(context).showSnackBar(snackBar);
@@ -668,11 +670,11 @@ class _RepostCardState extends State<RepostCard> {
                             }).toList();
 
                             if (comments.isEmpty) {
-                              return const Center(
+                              return Center(
                                 child: Text(
                                   'No Comments Available',
-                                  style: TextStyle(
-                                      color: Colors.black, fontSize: 20),
+                                  style:
+                                      Theme.of(context).textTheme.headlineSmall,
                                 ),
                               );
                             }

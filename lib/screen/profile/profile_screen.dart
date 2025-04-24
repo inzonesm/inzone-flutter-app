@@ -383,7 +383,18 @@ class _ProfileScreenState extends BaseProfileScreenState<ProfileScreen> {
               ),
               padding: const EdgeInsets.symmetric(vertical: 8),
             ),
-            child: Text(isFollowing ? 'Following' : 'Follow'),
+            child: Text(
+              isFollowing ? 'Following' : 'Follow',
+              style: TextStyle(
+                color: isFollowing
+                    ? Theme.of(context)
+                        .textTheme
+                        .bodyLarge
+                        ?.color // 밝은/어두운 모드 자동 적용
+                    : Theme.of(context).colorScheme.onPrimary, // 버튼 배경색 위 글씨용
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ),
         ),
 
@@ -481,7 +492,13 @@ class _ProfileScreenState extends BaseProfileScreenState<ProfileScreen> {
               ),
               padding: const EdgeInsets.symmetric(vertical: 8),
             ),
-            child: const Text('Message'),
+            child: Text(
+              'Message',
+              style: TextStyle(
+                color: Theme.of(context).textTheme.bodyLarge?.color,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ),
         ),
       ],
@@ -569,13 +586,14 @@ class _ProfileScreenState extends BaseProfileScreenState<ProfileScreen> {
             InkWell(
               onTap: () async {
                 Navigator.pop(context); // Close the bottom sheet
-                String? currentUserId = await InZoneDatabase.getCurrentUserUid();
+                String? currentUserId =
+                    await InZoneDatabase.getCurrentUserUid();
                 if (currentUserId != null) {
-                  bool success = await InZoneDatabase.removeFromFollowers(getUserId());
+                  bool success =
+                      await InZoneDatabase.removeFromFollowers(getUserId());
                   if (success) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('User removed from your followers'))
-                    );
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                        content: Text('User removed from your followers')));
                     // Refresh the profile data
                     fetchUserProfile();
                   }
