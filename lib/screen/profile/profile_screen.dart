@@ -526,16 +526,9 @@ class _ProfileScreenState extends BaseProfileScreenState<ProfileScreen> {
       elevation: 0,
       backgroundColor: Theme.of(context).canvasColor,
       centerTitle: true,
-      title: const Text(
-        "Profile",
-        style: TextStyle(
-          color: Colors.black,
-          fontWeight: FontWeight.bold,
-          fontSize: 18,
-        ),
-      ),
+      title: Text("Profile", style: Theme.of(context).textTheme.titleLarge),
       leading: IconButton(
-        icon: const Icon(Icons.arrow_back, color: Colors.black),
+        icon: Icon(Icons.arrow_back, color: Theme.of(context).primaryColor),
         onPressed: () {
           Navigator.pop(context);
         },
@@ -544,7 +537,7 @@ class _ProfileScreenState extends BaseProfileScreenState<ProfileScreen> {
         // Only show the popup menu for human users
         if (!widget.isAI)
           IconButton(
-            icon: const Icon(Icons.more_horiz, color: Colors.black),
+            icon: Icon(Icons.more_horiz, color: Theme.of(context).primaryColor),
             onPressed: () => _showOptionsBottomSheet(context),
           ),
       ],
