@@ -294,6 +294,25 @@ Widget GroupCardLoading(BuildContext context) {
   );
 }
 
+Widget ImageLoading(BuildContext context) {
+  return Padding(
+    padding: const EdgeInsets.all(4),
+    child: Container(
+      height: 140,
+      width: 140,
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(24),
+      ),
+      child: SkeletonContainer.rounded(
+        height: 140,
+        width: 140,
+        color: Theme.of(context).cardColor,
+      ),
+    ),
+  );
+}
+
 class Skelton extends StatelessWidget {
   const Skelton({
     super.key,
