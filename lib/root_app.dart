@@ -86,6 +86,12 @@ class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
+    final systemUiOverlayStyle = SystemUiOverlayStyle(
+      systemNavigationBarColor: Theme.of(context).cardColor,
+      systemNavigationBarIconBrightness: Brightness.dark,
+    );
+    SystemChrome.setSystemUIOverlayStyle(systemUiOverlayStyle);
+
     void showPostScreen(BuildContext context,
         {Curve curve = Curves.easeInOut}) {
       Navigator.push(
@@ -94,22 +100,15 @@ class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
           builder: (context) {
             return const PostScreen();
           },
-          fullscreenDialog: true, // This makes the page come up from the bottom
+          fullscreenDialog: true,
         ),
       );
     }
 
-    // Check if keyboard is visible
     _isKeyboardVisible = MediaQuery.of(context).viewInsets.bottom > 0;
-    SystemChrome.setSystemUIOverlayStyle(
-      SystemUiOverlayStyle(
-        systemNavigationBarColor: Theme.of(context).cardColor,
-        systemNavigationBarIconBrightness: Brightness.dark,
-      ),
-    );
+
     return GestureDetector(
       onTap: () {
-        // Dismiss keyboard when tapping outside of input fields
         FocusScope.of(context).unfocus();
       },
       child: Scaffold(
@@ -118,7 +117,7 @@ class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
         extendBody: true,
         floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
         floatingActionButton: _isKeyboardVisible
-            ? null // Hide FAB when keyboard is visible
+            ? null
             : FloatingActionButton(
                 heroTag: null,
                 elevation: 0,
@@ -178,7 +177,7 @@ class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
           child: _isKeyboardVisible
               ? const SizedBox.shrink()
               : AnimatedBottomNavigationBar.builder(
-                  key: const ValueKey('navBar'), // 항상 같은 위젯인지 판별할 수 있게 key 부여
+                  key: const ValueKey('navBar'),
                   itemCount: _bottomNavBarTitles.length,
                   tabBuilder: (int index, bool isActive) {
                     final String iconName =
@@ -195,7 +194,6 @@ class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
                   },
                   activeIndex: _currentPage,
                   splashSpeedInMilliseconds: 0,
-
                   gapLocation: GapLocation.center,
                   notchSmoothness: NotchSmoothness.softEdge,
                   leftCornerRadius: 32,
