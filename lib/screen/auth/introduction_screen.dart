@@ -2,11 +2,14 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:colorful_safe_area/colorful_safe_area.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:inzone/auth/auth_work.dart';
 import 'package:inzone/root_app.dart';
 import 'package:inzone/screen/auth/interesting_select_screen.dart';
 import 'package:inzone/screen/auth/signin_login_screen.dart';
+import 'package:inzone/theme/app_colors.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class IntroductionScreen extends StatefulWidget {
   const IntroductionScreen({super.key});
@@ -104,6 +107,19 @@ class _IntroductionScreenState extends State<IntroductionScreen> {
     }
   }
 
+  Future<void> _launchInBrowser(String url) async {
+    if (await canLaunch(url)) {
+      await launch(
+        url,
+        forceSafariVC: false,
+        forceWebView: false,
+        headers: <String, String>{"header_key": "header_value"},
+      );
+    } else {
+      throw "Could not launch $url";
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -162,13 +178,63 @@ class _IntroductionScreenState extends State<IntroductionScreen> {
                   const SizedBox(height: 12),
                   Padding(
                     padding: const EdgeInsets.only(bottom: 16),
-                    child: Text(
-                      "By continuing, you are agreeing to our Terms of Service and Privacy Policy",
+                    child: RichText(
                       textAlign: TextAlign.center,
-                      style: Theme.of(context)
-                          .textTheme
-                          .bodySmall
-                          ?.copyWith(fontSize: 8),
+                      text: TextSpan(
+                        style: Theme.of(context)
+                            .textTheme
+                            .bodySmall
+                            ?.copyWith(fontSize: 8),
+                        children: [
+                          const TextSpan(
+                              text: "By continuing, you are agreeing to our "),
+                          TextSpan(
+                            text: "Terms of Service",
+                            style:
+                                Theme.of(context).textTheme.bodySmall?.copyWith(
+                                      fontSize: 8,
+                                      decoration: TextDecoration.underline,
+                                      decorationColor: AppColors.mediumGrey,
+                                    ),
+                            recognizer: TapGestureRecognizer()
+                              ..onTap = () {
+                                try {
+                                  _launchInBrowser(
+                                      "https://inzone.ai/terms-conditions");
+                                } catch (e) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                        content: Text(
+                                            'Error launching browser: $e')),
+                                  );
+                                }
+                              },
+                          ),
+                          const TextSpan(text: " and "),
+                          TextSpan(
+                            text: "Privacy Policy",
+                            style:
+                                Theme.of(context).textTheme.bodySmall?.copyWith(
+                                      fontSize: 8,
+                                      decoration: TextDecoration.underline,
+                                      decorationColor: AppColors.mediumGrey,
+                                    ),
+                            recognizer: TapGestureRecognizer()
+                              ..onTap = () {
+                                try {
+                                  _launchInBrowser(
+                                      "https://inzone.ai/privacy-policy");
+                                } catch (e) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                        content: Text(
+                                            'Error launching browser: $e')),
+                                  );
+                                }
+                              },
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ],
