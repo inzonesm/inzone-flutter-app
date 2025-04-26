@@ -4,14 +4,17 @@ import 'package:comment_tree/widgets/tree_theme_data.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:inzone/components/posts/shimmering.dart';
 import 'package:inzone/components/video/video_widget.dart';
 import 'package:inzone/config/custom_icons.dart';
 import 'package:inzone/data/comment_class.dart';
 import 'package:inzone/data/inzone_post.dart';
 import 'package:inzone/services/inzone_database.dart';
 import 'package:inzone/screen/profile/profile_screen.dart';
+import 'package:inzone/theme/app_colors.dart';
 import 'package:random_avatar/random_avatar.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:smooth_page_indicator/smooth_page_indicator.dart';
 
 class PostCard extends StatefulWidget {
   InZonePost post;
@@ -38,6 +41,9 @@ class _PostCardState extends State<PostCard> {
 
   String username = '';
   CommentClass? comment;
+  final PageController _mediaPageController = PageController(
+    viewportFraction: 0.9,
+  );
 
   bool isLiked = false;
   Future<bool> isCommentPresent() async {
@@ -248,79 +254,93 @@ class _PostCardState extends State<PostCard> {
               ),
               (widget.post.imageContent.isNotEmpty) ||
                       (widget.post.videoContent.isNotEmpty ?? false)
-                  ? SizedBox(
-                      width: MediaQuery.of(context).size.width - 30,
-                      child: SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        child: Row(
-                          children: [
-                            // Display all images first
-                            if (widget.post.imageContent.isNotEmpty)
-                              ...widget.post.imageContent.map((imageUrl) {
-                                return imageUrl.isNotEmpty
-                                    ? Padding(
-                                        padding:
-                                            const EdgeInsets.only(right: 5.0),
-                                        child: ClipRRect(
-                                          borderRadius:
-                                              BorderRadius.circular(8.0),
-                                          child: Image.network(
-                                            imageUrl,
-                                            fit: BoxFit.fitWidth,
-                                            loadingBuilder: (context, child,
-                                                loadingProgress) {
-                                              if (loadingProgress == null) {
-                                                return child; // The image has loaded
-                                              } else {
-                                                return Container(
-                                                  width: MediaQuery.of(context)
-                                                          .size
-                                                          .width -
-                                                      60,
-                                                  height:
-                                                      200, // Adjust to the approximate expected height
-                                                  color: Colors.grey[
-                                                      300], // Placeholder color
-                                                  child: const Center(
-                                                    child:
-                                                        CircularProgressIndicator(),
-                                                  ),
-                                                );
-                                              }
-                                            },
-                                            width: MediaQuery.of(context)
-                                                    .size
-                                                    .width -
-                                                60,
-                                            errorBuilder:
-                                                (context, object, st) {
-                                              return const SizedBox();
-                                            },
-                                          ),
-                                        ),
-                                      )
-                                    : const SizedBox();
-                              }),
+                  ? Column(
+                      children: [
+                        SizedBox(
+                          height: 300,
+                          child: PageView.builder(
+                            controller: _mediaPageController,
+                            itemCount: widget.post.imageContent.length +
+                                widget.post.videoContent.length,
+                            physics: const PageScrollPhysics(),
+                            itemBuilder: (context, index) {
+                              Widget mediaWidget;
 
-                            // Display all videos after images
-                            if (widget.post.videoContent.isNotEmpty &&
-                                widget.post.videoContent.first.length > 3)
-                              ...widget.post.videoContent.map((videoUrl) {
-                                return Padding(
-                                  padding: const EdgeInsets.only(right: 5.0),
-                                  child: SizedBox(
-                                    width:
-                                        MediaQuery.of(context).size.width - 60,
-                                    child: ClipRRect(
-                                      borderRadius: BorderRadius.circular(8.0),
-                                      child: VideoWidget(videoUrl: videoUrl),
+                              if (index < widget.post.imageContent.length) {
+                                final imageUrl =
+                                    widget.post.imageContent[index];
+                                mediaWidget = ClipRRect(
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: Image.network(
+                                    imageUrl,
+                                    fit: BoxFit.cover,
+                                    loadingBuilder:
+                                        (context, child, loadingProgress) {
+                                      if (loadingProgress == null) return child;
+                                      return Center(
+                                          child: ImageLoading2(context));
+                                    },
+                                    errorBuilder:
+                                        (context, error, stackTrace) =>
+                                            const SizedBox(),
+                                  ),
+                                );
+                              } else {
+                                final videoUrl = widget.post.videoContent[
+                                    index - widget.post.imageContent.length];
+
+                                final isVerticalVideo =
+                                    videoUrl.contains("youtube") ||
+                                        videoUrl.contains("vertical");
+
+                                final aspectRatio =
+                                    isVerticalVideo ? 9 / 16 : 16 / 9;
+
+                                mediaWidget = ClipRRect(
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: AspectRatio(
+                                    aspectRatio: aspectRatio,
+                                    child: Container(
+                                      color: Colors.black,
+                                      child: Center(
+                                        child: VideoWidget(videoUrl: videoUrl),
+                                      ),
                                     ),
                                   ),
                                 );
-                              }),
-                          ],
+                              }
+
+                              return Padding(
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 6),
+                                child: mediaWidget,
+                              );
+                            },
+                          ),
                         ),
-                      ),
+                        const SizedBox(height: 10),
+                        if ((widget.post.imageContent.length +
+                                widget.post.videoContent.length) >
+                            1)
+                          SmoothPageIndicator(
+                            controller: _mediaPageController,
+                            count: widget.post.imageContent.length +
+                                widget.post.videoContent.length,
+                            effect: ScrollingDotsEffect(
+                              activeDotColor: Theme.of(context).primaryColor,
+                              dotColor: AppColors.lightGrey,
+                              dotHeight: 8,
+                              dotWidth: 8,
+                              activeDotScale: 1.4,
+                              spacing: 8,
+                              maxVisibleDots: 5,
+                            ),
+                          ),
+                        if ((widget.post.imageContent.length +
+                                widget.post.videoContent.length) >
+                            1)
+                          const SizedBox(height: 10),
+                      ],
                     )
                   : const SizedBox(),
               const SizedBox(
@@ -456,6 +476,22 @@ class _PostCardState extends State<PostCard> {
             ),
             const SizedBox(height: 15),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildVideoWidget(String videoUrl, double aspectRatio) {
+    return AspectRatio(
+      aspectRatio: aspectRatio,
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.black,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(12),
+          child: VideoWidget(videoUrl: videoUrl),
         ),
       ),
     );
