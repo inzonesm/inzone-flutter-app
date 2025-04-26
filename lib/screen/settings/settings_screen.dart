@@ -120,11 +120,11 @@ class SettingsScreen extends StatelessWidget {
     "LogOut"
   ];
   List<String> otherSubtitleList = [
-    "Share referral code and get bonus",
-    "If you have any query you can contact us",
-    "Language settings according to your region",
-    "Set any type of notification message",
-    "",
+    "Invite friends and earn rewards",
+    "Get help or ask us any questions",
+    "Learn how we protect your personal information",
+    "Understand the rules of using our services",
+    "Permanently delete your account and data",
     "",
   ];
   List<VoidCallback> otherOnPressedList(BuildContext context) {

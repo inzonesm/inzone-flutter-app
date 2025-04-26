@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_expandable_fab/flutter_expandable_fab.dart';
 import 'package:inzone/screen/chat/all_chats_screen.dart';
 import 'package:inzone/screen/explore/groups_explore_screen.dart';
@@ -100,7 +101,12 @@ class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
 
     // Check if keyboard is visible
     _isKeyboardVisible = MediaQuery.of(context).viewInsets.bottom > 0;
-
+    SystemChrome.setSystemUIOverlayStyle(
+      SystemUiOverlayStyle(
+        systemNavigationBarColor: Theme.of(context).cardColor,
+        systemNavigationBarIconBrightness: Brightness.dark,
+      ),
+    );
     return GestureDetector(
       onTap: () {
         // Dismiss keyboard when tapping outside of input fields
@@ -109,7 +115,7 @@ class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
       child: Scaffold(
         key: _key,
         backgroundColor: Theme.of(context).canvasColor,
-        extendBody: true, // 바텀 네비게이션 바 아래 영역까지 content가 확장됨
+        extendBody: true,
         floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
         floatingActionButton: _isKeyboardVisible
             ? null // Hide FAB when keyboard is visible
