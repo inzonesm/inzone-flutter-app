@@ -1,9 +1,11 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:inzone/root_app.dart';
-import 'package:inzone/screen/auth/signin_login_screen.dart';
 import 'package:inzone/auth/auth_work.dart';
+import 'package:inzone/root_app.dart';
+import 'package:inzone/screen/auth/interesting_select_screen.dart';
+import 'package:inzone/screen/auth/signin_login_screen.dart';
 
 class IntroductionScreen extends StatefulWidget {
   const IntroductionScreen({super.key});
@@ -16,14 +18,58 @@ class _IntroductionScreenState extends State<IntroductionScreen> {
   @override
   void initState() {
     super.initState();
-    // after build, start dialog and login check
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _checkLoginStatus();
     });
   }
 
   Future<void> _checkLoginStatus() async {
-    // show loading dialog
+    _showLoadingDialog();
+
+    final user = FirebaseAuth.instance.currentUser;
+
+    if (user != null) {
+      final docRef =
+          FirebaseFirestore.instance.collection('humanUsers').doc(user.uid);
+      var doc = await docRef.get();
+
+      if (!doc.exists) {
+        await docRef.set({
+          'email': user.email ?? '',
+          'createdAt': DateTime.now().toIso8601String(),
+        });
+
+        // 🔥 set 후에는 다시 doc 받아야 함
+        doc = await docRef.get();
+      }
+
+      if (mounted) {
+        Navigator.of(context).pop();
+        Future.delayed(Duration.zero, () {
+          if (doc.exists && (doc.data()?['createdAt'] != null)) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (_) => const RootApp()),
+            );
+          } else {
+            Navigator.pushReplacement(
+              context,
+              CupertinoPageRoute(
+                fullscreenDialog: true,
+                builder: (_) => InterestSelectionScreen(
+                  email: user.email ?? "",
+                ),
+              ),
+            );
+          }
+        });
+      }
+    } else {
+      if (mounted) Navigator.of(context).pop();
+    }
+  }
+
+  void _showLoadingDialog() {
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -31,31 +77,30 @@ class _IntroductionScreenState extends State<IntroductionScreen> {
         child: CircularProgressIndicator(color: Colors.white),
       ),
     );
+  }
 
-    final user = FirebaseAuth.instance.currentUser;
+  Future<void> _handleAppleLogin() async {
+    _showLoadingDialog();
 
-    if (user != null) {
-      final doc = await FirebaseFirestore.instance
-          .collection('humanUsers')
-          .doc(user.uid)
-          .get();
-
-      if (doc.exists) {
-        // user exists, move to home
-        Navigator.of(context).pop(); // close loading dialog
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const RootApp()),
-        );
-        return;
-      } else {
-        // user does not exist, sign out
-        await FirebaseAuth.instance.signOut();
-      }
+    try {
+      await AuthWork().signinWithApple();
+      await _checkLoginStatus();
+    } catch (e) {
+      debugPrint("Apple Sign-In Error: $e");
+      if (mounted) Navigator.of(context).pop();
     }
+  }
 
-    // close dialog
-    Navigator.of(context).pop();
+  Future<void> _handleGoogleLogin() async {
+    _showLoadingDialog();
+
+    try {
+      await AuthWork().signinWithGoogle();
+      await _checkLoginStatus();
+    } catch (e) {
+      debugPrint("Google Sign-In Error: $e");
+      if (mounted) Navigator.of(context).pop();
+    }
   }
 
   @override
@@ -80,122 +125,9 @@ class _IntroductionScreenState extends State<IntroductionScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
-                  // Padding(
-                  //   padding: const EdgeInsets.symmetric(horizontal: 20),
-                  //   child: Button(
-                  //     text: "Register",
-                  //     onPressed: () {
-                  //       Navigator.push(
-                  //         context,
-                  //         MaterialPageRoute(
-                  //           builder: (_) => const SignUpScreens(),
-                  //         ),
-                  //       );
-                  //     },
-                  //     isLoginPage: true,
-                  //   ),
-                  // ),
-
-                  appleLoginButton(
-                    context,
-                    () async {
-                      showDialog(
-                        context: context,
-                        barrierDismissible: false,
-                        builder: (_) => const Center(
-                          child: CircularProgressIndicator(color: Colors.white),
-                        ),
-                      );
-
-                      try {
-                        // 2. sign in with apple
-                        await AuthWork().signinWithApple();
-
-                        // 3. check current user
-                        final user = FirebaseAuth.instance.currentUser;
-
-                        if (user != null) {
-                          final doc = await FirebaseFirestore.instance
-                              .collection('humanUsers')
-                              .doc(user.uid)
-                              .get();
-
-                          if (doc.exists) {
-                            // user exits, move to home
-                            if (context.mounted) {
-                              Navigator.of(context).pop();
-                              Navigator.pushReplacement(
-                                context,
-                                MaterialPageRoute(
-                                    builder: (_) => const RootApp()),
-                              );
-                            }
-                            return;
-                          } else {
-                            // user does not exist, sign out
-                            await FirebaseAuth.instance.signOut();
-                          }
-                        }
-                      } catch (e) {
-                        // print log for debugging
-                        debugPrint("Google Sign-In Error: $e");
-                      }
-
-                      // if failed, close loading dialog
-                      if (context.mounted) Navigator.of(context).pop();
-                    },
-                  ),
+                  appleLoginButton(context, _handleAppleLogin),
                   const SizedBox(height: 12),
-                  googleLoginButton(
-                    context,
-                    () async {
-                      // 1. show loading dialog
-                      showDialog(
-                        context: context,
-                        barrierDismissible: false,
-                        builder: (_) => const Center(
-                          child: CircularProgressIndicator(color: Colors.white),
-                        ),
-                      );
-
-                      try {
-                        // 2. sign in with google
-                        await AuthWork().signinWithGoogle();
-
-                        // 3. check current user
-                        final user = FirebaseAuth.instance.currentUser;
-
-                        if (user != null) {
-                          final doc = await FirebaseFirestore.instance
-                              .collection('humanUsers')
-                              .doc(user.uid)
-                              .get();
-
-                          if (doc.exists) {
-                            // user exits, move to home
-                            if (context.mounted) {
-                              Navigator.of(context).pop();
-                              Navigator.pushReplacement(
-                                context,
-                                MaterialPageRoute(
-                                    builder: (_) => const RootApp()),
-                              );
-                            }
-                            return;
-                          } else {
-                            // user does not exist, sign out
-                            await FirebaseAuth.instance.signOut();
-                          }
-                        }
-                      } catch (e) {
-                        // print log for debugging
-                        debugPrint("Google Sign-In Error: $e");
-                      }
-
-                      // if failed, close loading dialog
-                      if (context.mounted) Navigator.of(context).pop();
-                    },
-                  ),
+                  googleLoginButton(context, _handleGoogleLogin),
                   const SizedBox(height: 12),
                   GestureDetector(
                     onTap: () {
@@ -226,17 +158,15 @@ class _IntroductionScreenState extends State<IntroductionScreen> {
                     ),
                   ),
                   const SizedBox(height: 12),
-                  Center(
-                    child: Padding(
-                      padding: const EdgeInsets.only(bottom: 16),
-                      child: Text(
-                        "By continuing, you are agreeing to our Terms of Service and Privacy Policy",
-                        textAlign: TextAlign.center,
-                        style: Theme.of(context)
-                            .textTheme
-                            .bodySmall
-                            ?.copyWith(fontSize: 8),
-                      ),
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 16),
+                    child: Text(
+                      "By continuing, you are agreeing to our Terms of Service and Privacy Policy",
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context)
+                          .textTheme
+                          .bodySmall
+                          ?.copyWith(fontSize: 8),
                     ),
                   ),
                 ],
@@ -251,18 +181,15 @@ class _IntroductionScreenState extends State<IntroductionScreen> {
   Widget appleLoginButton(BuildContext context, VoidCallback onPressed) {
     return Container(
       width: double.infinity,
+      margin: const EdgeInsets.symmetric(horizontal: 18),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(20),
         color: Colors.white,
       ),
       padding: const EdgeInsets.symmetric(vertical: 6),
-      margin: const EdgeInsets.symmetric(horizontal: 18),
       child: OutlinedButton.icon(
         onPressed: onPressed,
-        icon: Image.asset(
-          'assets/auth/apple.png',
-          height: 30,
-        ),
+        icon: Image.asset('assets/auth/apple.png', height: 30),
         label: Text(
           'Sign in with Apple',
           style: Theme.of(context)
@@ -273,7 +200,6 @@ class _IntroductionScreenState extends State<IntroductionScreen> {
         style: OutlinedButton.styleFrom(
           backgroundColor: Colors.transparent,
           elevation: 0,
-          shadowColor: Colors.transparent,
           side: BorderSide.none,
         ),
       ),
@@ -283,18 +209,15 @@ class _IntroductionScreenState extends State<IntroductionScreen> {
   Widget googleLoginButton(BuildContext context, VoidCallback onPressed) {
     return Container(
       width: double.infinity,
+      margin: const EdgeInsets.symmetric(horizontal: 18),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(20),
         color: Colors.white,
       ),
       padding: const EdgeInsets.symmetric(vertical: 6),
-      margin: const EdgeInsets.symmetric(horizontal: 18),
       child: OutlinedButton.icon(
         onPressed: onPressed,
-        icon: Image.asset(
-          'assets/auth/google.png',
-          height: 40,
-        ),
+        icon: Image.asset('assets/auth/google.png', height: 40),
         label: Text(
           'Sign in with Google',
           style: Theme.of(context)
@@ -305,14 +228,12 @@ class _IntroductionScreenState extends State<IntroductionScreen> {
         style: OutlinedButton.styleFrom(
           backgroundColor: Colors.transparent,
           elevation: 0,
-          shadowColor: Colors.transparent,
           side: BorderSide.none,
         ),
       ),
     );
   }
 }
-
 
 /*
     String licenseAgreement = '''
