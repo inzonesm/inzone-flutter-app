@@ -1,3 +1,4 @@
+import 'package:colorful_safe_area/colorful_safe_area.dart';
 import 'package:flutter/material.dart';
 import 'package:inzone/components/settings/topic_selector_widget.dart';
 import 'package:inzone/root_app.dart';
@@ -103,55 +104,58 @@ class _InterestSelectionScreenState extends State<InterestSelectionScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Theme.of(context).canvasColor,
-      appBar: AppBar(
+    return ColorfulSafeArea(
+      color: Theme.of(context).canvasColor,
+      child: Scaffold(
         backgroundColor: Theme.of(context).canvasColor,
-        title: const Text("Select Your Interests"),
-      ),
-      body: Column(
-        children: [
-          const Padding(
-            padding: EdgeInsets.all(16.0),
-            child: Text("Choose a few topics you care about",
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
-          ),
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(8.0),
-              child: Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: topicList
-                    .map((topic) => TopicSelectorWidget(
-                          topic: topic,
-                          callBack: _toggleInterest,
-                        ))
-                    .toList(),
-              ),
+        appBar: AppBar(
+          backgroundColor: Theme.of(context).canvasColor,
+          title: const Text("Select Your Interests"),
+        ),
+        body: Column(
+          children: [
+            const Padding(
+              padding: EdgeInsets.all(16.0),
+              child: Text("Choose a few topics you care about",
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
             ),
-          ),
-          Padding(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 16.0, vertical: 20.0),
-            child: ElevatedButton(
-              onPressed: _finishSignUp,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.blue,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-              child: const Center(
-                child: Text(
-                  "Start InZone",
-                  style: TextStyle(fontSize: 18, color: Colors.white),
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(8.0),
+                child: Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: topicList
+                      .map((topic) => TopicSelectorWidget(
+                            topic: topic,
+                            callBack: _toggleInterest,
+                          ))
+                      .toList(),
                 ),
               ),
             ),
-          )
-        ],
+            Padding(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 16.0, vertical: 20.0),
+              child: ElevatedButton(
+                onPressed: _finishSignUp,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blue,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: const Center(
+                  child: Text(
+                    "Start InZone",
+                    style: TextStyle(fontSize: 18, color: Colors.white),
+                  ),
+                ),
+              ),
+            )
+          ],
+        ),
       ),
     );
   }
