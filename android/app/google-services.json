@@ -13,7 +13,36 @@
           "package_name": "com.aadeshkheria.inzone"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "912424781531-0l59p4u40k0lkpoca1j8qkp05p28e5l7.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.aadeshkheria.inzone",
+            "certificate_hash": "5883734c4d17cbef426153a470a5a8307e36e1c6"
+          }
+        },
+        {
+          "client_id": "912424781531-fccb4g98rrsdt2u8sgeqrqndohifi9tf.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.aadeshkheria.inzone",
+            "certificate_hash": "f2aee552fd781acc2269be36803cccfb6a97e084"
+          }
+        },
+        {
+          "client_id": "912424781531-pv1u3vcqgmv77nfoncss23vch28h76ip.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.aadeshkheria.inzone",
+            "certificate_hash": "e91f11c5cabd1c17e201c82b665e60724f41603e"
+          }
+        },
+        {
+          "client_id": "912424781531-vru85aelna5oro0lrnkl11jd49oc74ss.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyCHU9CCM_6zx3KVyPG0FetlG8TbW8h4oLA"
@@ -21,7 +50,19 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "912424781531-6hm4u3s3ps7ej0ij47ekt0tnf1qrovcp.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "912424781531-2vtjhlmifp6gggihubmpdnf0bt2ketgm.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.aadeshkheria.inzone"
+              }
+            }
+          ]
         }
       }
     }

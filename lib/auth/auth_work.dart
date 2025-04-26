@@ -456,24 +456,28 @@ class AuthWork {
   }
 
   /* ----------------------google sign in-------------------------- */
-
   signinWithGoogle() async {
-    final GoogleSignInAccount? gUser = await GoogleSignIn().signIn();
+    final GoogleSignIn googleSignIn = GoogleSignIn(
+      scopes: [
+        'email',
+      ],
+      serverClientId:
+          '912424781531-vru85aelna5oro0lrnkl11jd49oc74ss.apps.googleusercontent.com',
+    );
+
+    final GoogleSignInAccount? gUser = await googleSignIn.signIn();
 
     if (gUser == null) {
       return;
     }
 
-    //get reqruest
     final GoogleSignInAuthentication gAuth = await gUser.authentication;
 
-    //create credential
     final credential = GoogleAuthProvider.credential(
       accessToken: gAuth.accessToken,
       idToken: gAuth.idToken,
     );
 
-    //sign in
     await auth.signInWithCredential(credential);
   }
 
