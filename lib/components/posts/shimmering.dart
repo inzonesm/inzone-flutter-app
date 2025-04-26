@@ -313,6 +313,25 @@ Widget ImageLoading(BuildContext context) {
   );
 }
 
+Widget ImageLoading2(BuildContext context) {
+  return Padding(
+    padding: const EdgeInsets.all(4),
+    child: Container(
+      height: 300,
+      width: 300,
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(24),
+      ),
+      child: SkeletonContainer.rounded(
+        height: 300,
+        width: 300,
+        color: Theme.of(context).cardColor,
+      ),
+    ),
+  );
+}
+
 class Skelton extends StatelessWidget {
   const Skelton({
     super.key,
