@@ -112,14 +112,23 @@ class _SignInLoginScreenState extends State<SignInLoginScreen> {
       return;
     }
 
-    // 로딩 상태 시작
+    if (!(hasUppercase &&
+        hasLowercase &&
+        hasNumber &&
+        hasSpecialChar &&
+        hasMinLength)) {
+      setState(() {
+        _errorMessage = 'Please enter a valid password.';
+      });
+      return;
+    }
+
     setState(() {
       _isLoading = true;
       _errorMessage = null;
     });
 
     try {
-      // 로딩 화면으로 이동
       Navigator.push(
         context,
         PageRouteBuilder(
@@ -129,7 +138,6 @@ class _SignInLoginScreenState extends State<SignInLoginScreen> {
         ),
       );
 
-      // 최소 로딩 시간 설정
       final loadingDelay = Future.delayed(const Duration(seconds: 1));
 
       try {
