@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:colorful_safe_area/colorful_safe_area.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -107,8 +108,9 @@ class _IntroductionScreenState extends State<IntroductionScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
-      body: SafeArea(
-        bottom: false,
+      body: ColorfulSafeArea(
+        bottom: true,
+        bottomColor: Colors.black,
         child: Stack(
           children: [
             Positioned.fill(
