@@ -16,6 +16,8 @@ abstract class BaseProfileScreenState<T extends BaseProfileScreen>
   String name = "Loading";
   String bio = 'Loading';
   String username = 'Loading';
+  String profileImageUrl = "";
+
   int postCount = 0;
   int followingCount = 0;
   int followersCount = 0;
@@ -38,8 +40,6 @@ abstract class BaseProfileScreenState<T extends BaseProfileScreen>
         currentPage = _tabController.index;
       });
     });
-    fetchUserProfile();
-    fetchUserStats();
   }
 
   @override
@@ -60,23 +60,28 @@ abstract class BaseProfileScreenState<T extends BaseProfileScreen>
 
     Map<String, dynamic>? userProfile =
         await InZoneDatabase.getUserProfile(userId);
-    if (userProfile != null) {
-      setState(() {
-        // Access the fields directly from the user data object
-        name = userProfile["Name"] ?? userProfile["name"] ?? "Unknown";
-        bio = userProfile["Bio"] ?? userProfile["bio"] ?? "";
-        username = userProfile["username"] ?? "Unknown";
 
-        // Get followers and following counts from the profile data
+    if (userProfile != null) {
+      print(
+          "✅ userProfile fetched: $userProfile"); // ✅ 여기 추가 (Firestore에서 받아온 raw 데이터 프린트)
+
+      setState(() {
+        name = userProfile["name"] ?? "Unknown"; // 🔥 문제 원인 확인 가능
+        bio = userProfile["bio"] ?? "";
+        username = userProfile["username"] ?? "Unknown";
+        profileImageUrl = userProfile["profilePicture"] ?? "";
         List<dynamic> followers = userProfile["followers"] ?? [];
         List<dynamic> following = userProfile["following"] ?? [];
 
-        followersCount =
-            userProfile["followers_count"] ?? followers.length ?? 0;
-        followingCount =
-            userProfile["following_count"] ?? following.length ?? 0;
+        followersCount = followers.length;
+        followingCount = following.length;
       });
-    } else {}
+    } else {
+      print("❌ userProfile is null"); // ✅ null이면 이것도 출력
+      setState(() {
+        isLoading = false;
+      });
+    }
   }
 
   Future<void> fetchUserStats([bool isAi = false]) async {
@@ -145,6 +150,7 @@ abstract class BaseProfileScreenState<T extends BaseProfileScreen>
                   ProfileAppbar(
                     name: name,
                     bio: bio,
+                    profileImageUrl: profileImageUrl,
                     username: username,
                     postCount: postCount,
                     followingCount: followingCount,

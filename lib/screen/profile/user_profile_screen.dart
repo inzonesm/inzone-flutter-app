@@ -20,6 +20,7 @@ class UserProfileScreen extends BaseProfileScreen {
 class _UserProfileScreenState
     extends BaseProfileScreenState<UserProfileScreen> {
   String? currentUserId;
+  String profileImageUrl = "";
   // Store the community tab data
   Map<String, List<Map<String, dynamic>>> _communityTabData = {
     "followers": [],
@@ -28,9 +29,7 @@ class _UserProfileScreenState
 
   @override
   void initState() {
-    // Call super.initState() first to ensure proper initialization
     super.initState();
-    // Then get the current user ID
     _getCurrentUserId();
   }
 
@@ -43,9 +42,9 @@ class _UserProfileScreenState
         isLoading = false;
       });
     } else {
-      // Ensure we start fetching data if we have a valid user ID
-      fetchUserProfile();
-      fetchUserStats();
+      // 여기서만 fetch 시작
+      await fetchUserProfile();
+      await fetchUserStats();
     }
   }
 
@@ -142,32 +141,27 @@ class _UserProfileScreenState
 
   @override
   Future<void> fetchUserProfile() async {
-    // Do nothing, we're handling this in _getCurrentUserId
     if (currentUserId == null) return;
 
     Map<String, dynamic>? userProfile =
         await InZoneDatabase.getUserProfile(currentUserId!);
+
     if (userProfile != null) {
-      // Process followers and following data for the community tab
       List<dynamic> followers = userProfile["followers"] ?? [];
       List<dynamic> following = userProfile["following"] ?? [];
 
-      // Convert to the expected format for FollowersFollowingTab
       List<Map<String, dynamic>> formattedFollowers = [];
       List<Map<String, dynamic>> formattedFollowing = [];
 
       // Process followers
       for (var follower in followers) {
         if (follower is Map<String, dynamic>) {
-          // Ensure we only use the standard keys
-          Map<String, dynamic> formattedFollower = {
+          formattedFollowers.add({
             'id': follower['id'] ?? '',
             'username': follower['username'] ?? '',
-            'type': follower['type'] ?? 'human'
-          };
-          formattedFollowers.add(formattedFollower);
+            'type': follower['type'] ?? 'human',
+          });
         } else if (follower is String) {
-          // Legacy format - just an ID, try to get the user's profile
           try {
             Map<String, dynamic>? followerProfile =
                 await InZoneDatabase.getUserProfile(follower);
@@ -175,25 +169,24 @@ class _UserProfileScreenState
               formattedFollowers.add({
                 'id': follower,
                 'username': followerProfile['username'] ?? '',
-                'type': 'human'
+                'type': 'human',
               });
             }
-          } catch (e) {}
+          } catch (e) {
+            // ignore
+          }
         }
       }
 
       // Process following
       for (var follow in following) {
         if (follow is Map<String, dynamic>) {
-          // Ensure we only use the standard keys
-          Map<String, dynamic> formattedFollow = {
+          formattedFollowing.add({
             'id': follow['id'] ?? '',
             'username': follow['username'] ?? '',
-            'type': follow['type'] ?? 'human'
-          };
-          formattedFollowing.add(formattedFollow);
+            'type': follow['type'] ?? 'human',
+          });
         } else if (follow is String) {
-          // Legacy format - just an ID, try to get the user's profile
           try {
             Map<String, dynamic>? followProfile =
                 await InZoneDatabase.getUserProfile(follow);
@@ -201,29 +194,34 @@ class _UserProfileScreenState
               formattedFollowing.add({
                 'id': follow,
                 'username': followProfile['username'] ?? '',
-                'type': 'human'
+                'type': 'human',
               });
             }
-          } catch (e) {}
+          } catch (e) {
+            // ignore
+          }
         }
       }
 
+      // ✅ 데이터 업데이트
       setState(() {
-        // Access the fields directly from the user data object
-        name = userProfile["Name"] ?? userProfile["name"] ?? "Unknown";
-        bio = userProfile["Bio"] ?? userProfile["bio"] ?? "";
-
-        // Get followers and following counts from the profile data
-        followersCount = userProfile["followers_count"] ?? followers.length;
-        followingCount = userProfile["following_count"] ?? following.length;
-
-        // Update the community tab data
+        name = userProfile["name"] ?? "Unknown"; // 이름
+        username = userProfile["username"] ?? "Unknown"; // 유저네임
+        bio = userProfile["bio"] ?? ""; // 바이오
+        profileImageUrl =
+            userProfile["profilePicture"] ?? ""; // ✅ 프로필 이미지 URL 추가
+        followersCount = followers.length;
+        followingCount = following.length;
         _communityTabData = {
           "followers": formattedFollowers,
-          "following": formattedFollowing
+          "following": formattedFollowing,
         };
       });
-    } else {}
+    } else {
+      setState(() {
+        isLoading = false;
+      });
+    }
   }
 
   @override

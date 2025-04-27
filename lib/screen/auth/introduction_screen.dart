@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:inzone/auth/auth_work.dart';
 import 'package:inzone/root_app.dart';
 import 'package:inzone/screen/auth/interesting_select_screen.dart';
+import 'package:inzone/screen/auth/profile_screen.dart';
 import 'package:inzone/screen/auth/signin_login_screen.dart';
 import 'package:inzone/theme/app_colors.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -60,7 +61,7 @@ class _IntroductionScreenState extends State<IntroductionScreen> {
               context,
               CupertinoPageRoute(
                 fullscreenDialog: true,
-                builder: (_) => InterestSelectionScreen(
+                builder: (_) => ProfileScreen(
                   email: user.email ?? "",
                 ),
               ),
