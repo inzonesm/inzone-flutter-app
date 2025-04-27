@@ -488,6 +488,7 @@ class AuthWork {
         await firestore.collection('humanUsers').doc(currentUser.uid).set({
           'uid': currentUser.uid,
           'email': currentUser.email,
+          'username': currentUser.email,
           'createdAt': FieldValue.serverTimestamp(),
           'interests': [],
         });
@@ -519,6 +520,7 @@ class AuthWork {
           await firestore.collection('humanUsers').doc(currentUser.uid).set({
             'uid': currentUser.uid,
             'email': currentUser.email,
+            'username': currentUser.email,
             'createdAt': FieldValue.serverTimestamp(),
             'interests': [],
           });
