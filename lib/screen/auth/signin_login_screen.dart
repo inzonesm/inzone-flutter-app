@@ -1,9 +1,11 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:colorful_safe_area/colorful_safe_area.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_feather_icons/flutter_feather_icons.dart';
 import 'package:inzone/auth/auth_work.dart';
+import 'package:inzone/screen/auth/profile_screen.dart';
 import 'package:inzone/theme/app_colors.dart';
 import 'package:inzone/screen/auth/interesting_select_screen.dart';
 import 'package:inzone/root_app.dart';
@@ -170,6 +172,15 @@ class _SignInLoginScreenState extends State<SignInLoginScreen> {
               email: _emailController.text,
               password: _passwordController.text,
             );
+            await FirebaseFirestore.instance
+                .collection('humanUsers')
+                .doc(credential.user!.uid)
+                .set({
+              'uid': credential.user!.uid,
+              'email': credential.user!.email,
+              'createdAt': FieldValue.serverTimestamp(),
+              'interests': [],
+            });
 
             // 로딩 딜레이 적용
             await loadingDelay;
@@ -181,7 +192,7 @@ class _SignInLoginScreenState extends State<SignInLoginScreen> {
                 context,
                 CupertinoPageRoute(
                   fullscreenDialog: true,
-                  builder: (context) => InterestSelectionScreen(
+                  builder: (context) => ProfileScreen(
                     email: _emailController.text,
                   ),
                 ),

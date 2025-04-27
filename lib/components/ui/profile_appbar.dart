@@ -7,6 +7,7 @@ class ProfileAppbar extends StatelessWidget {
   final String name;
   final String bio;
   final String username;
+  final String profileImageUrl;
   final int postCount;
   final int followingCount;
   final int followersCount;
@@ -23,6 +24,7 @@ class ProfileAppbar extends StatelessWidget {
     required this.followersCount,
     required this.actionButtons,
     this.isProfilePage = false,
+    required this.profileImageUrl,
   });
 
   @override
@@ -73,7 +75,13 @@ class ProfileAppbar extends StatelessWidget {
                 // Profile picture
                 CircleAvatar(
                   radius: 40,
-                  child: RandomAvatar(name, height: 80, width: 80),
+                  backgroundColor: Colors.grey[300],
+                  backgroundImage: profileImageUrl.isNotEmpty
+                      ? NetworkImage(profileImageUrl)
+                      : null,
+                  child: profileImageUrl.isEmpty
+                      ? RandomAvatar(name, height: 80, width: 80)
+                      : null,
                 ),
                 const SizedBox(width: 16),
                 Expanded(

@@ -479,6 +479,20 @@ class AuthWork {
     );
 
     await auth.signInWithCredential(credential);
+
+    final currentUser = auth.currentUser;
+    if (currentUser != null) {
+      final userDoc =
+          await firestore.collection('humanUsers').doc(currentUser.uid).get();
+      if (!userDoc.exists) {
+        await firestore.collection('humanUsers').doc(currentUser.uid).set({
+          'uid': currentUser.uid,
+          'email': currentUser.email,
+          'createdAt': FieldValue.serverTimestamp(),
+          'interests': [],
+        });
+      }
+    }
   }
 
   signinWithApple() async {
@@ -495,7 +509,22 @@ class AuthWork {
         accessToken: credential.authorizationCode,
       );
 
-      return await auth.signInWithCredential(oAuthProvider);
+      final userCredential = await auth.signInWithCredential(oAuthProvider);
+
+      final currentUser = auth.currentUser;
+      if (currentUser != null) {
+        final userDoc =
+            await firestore.collection('humanUsers').doc(currentUser.uid).get();
+        if (!userDoc.exists) {
+          await firestore.collection('humanUsers').doc(currentUser.uid).set({
+            'uid': currentUser.uid,
+            'email': currentUser.email,
+            'createdAt': FieldValue.serverTimestamp(),
+            'interests': [],
+          });
+        }
+      }
+      return userCredential;
     } catch (e) {
       print("❌ Sign in with Apple failed: $e");
       return null;

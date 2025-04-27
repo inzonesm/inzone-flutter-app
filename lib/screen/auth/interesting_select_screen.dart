@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:colorful_safe_area/colorful_safe_area.dart';
 import 'package:flutter/material.dart';
 import 'package:inzone/components/settings/topic_selector_widget.dart';
@@ -76,14 +77,12 @@ class _InterestSelectionScreenState extends State<InterestSelectionScreen> {
     }
 
     try {
-      await InZoneDatabase.createUserProfile(
-        name: user.displayName ?? user.email ?? 'Unknown',
-        email: user.email ?? widget.email,
-        age: 0, // 나중에 age 필드가 있다면 이쪽으로 받아와도 됨
-        gender: "unknown", // 나중에 추가로 받는다면 수정 가능
-        userUid: user.uid,
-        userInterests: _interests,
-      );
+      await FirebaseFirestore.instance
+          .collection('humanUsers')
+          .doc(user.uid)
+          .update({
+        'interests': _interests,
+      });
 
       if (mounted) {
         Navigator.pushAndRemoveUntil(
@@ -109,6 +108,7 @@ class _InterestSelectionScreenState extends State<InterestSelectionScreen> {
       child: Scaffold(
         backgroundColor: Theme.of(context).canvasColor,
         appBar: AppBar(
+          automaticallyImplyLeading: false,
           backgroundColor: Theme.of(context).canvasColor,
           title: const Text("Select Your Interests"),
         ),
