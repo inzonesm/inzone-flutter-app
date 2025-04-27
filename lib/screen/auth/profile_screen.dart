@@ -101,96 +101,111 @@ class _ProfileScreenState extends State<ProfileScreen> {
           centerTitle: true,
           iconTheme: Theme.of(context).iconTheme,
         ),
-        body: Padding(
-          padding: const EdgeInsets.all(20.0),
-          child: Column(
-            children: [
-              const SizedBox(height: 20),
-              Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Text(
-                  "Please select a profile picture and enter your name.",
-                  style: Theme.of(context).textTheme.titleMedium,
-                  textAlign: TextAlign.center,
-                ),
-              ),
-              const SizedBox(height: 40),
-              Stack(
-                alignment: Alignment.center,
-                children: [
-                  GestureDetector(
-                    onTap: _pickImage,
-                    child: CircleAvatar(
-                      radius: 120,
-                      backgroundColor: Colors.grey[300],
-                      backgroundImage: _profileImageFile != null
-                          ? FileImage(_profileImageFile!)
-                          : null,
-                      child: _profileImageFile == null
-                          ? const Icon(Icons.person,
-                              size: 80, color: Colors.white)
-                          : null,
-                    ),
+        body: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.all(20.0),
+            child: Column(
+              children: [
+                const SizedBox(height: 20),
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Text(
+                    "Please select a profile picture and enter your name.",
+                    style: Theme.of(context).textTheme.titleMedium,
+                    textAlign: TextAlign.center,
                   ),
-                  Positioned(
-                    bottom: 10,
-                    right: 10,
-                    child: Container(
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: Theme.of(context).cardColor,
-                      ),
-                      child: IconButton(
-                        icon: Icon(
-                          FeatherIcons.camera,
-                          color:
-                              Theme.of(context).brightness == Brightness.light
-                                  ? Colors.black
-                                  : Colors.white,
-                        ),
-                        onPressed: _pickImage,
+                ),
+                const SizedBox(height: 40),
+                Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    GestureDetector(
+                      onTap: _pickImage,
+                      child: CircleAvatar(
+                        radius: 120,
+                        backgroundColor: Colors.grey[300],
+                        backgroundImage: _profileImageFile != null
+                            ? FileImage(_profileImageFile!)
+                            : null,
+                        child: _profileImageFile == null
+                            ? const Icon(Icons.person,
+                                size: 80, color: Colors.white)
+                            : null,
                       ),
                     ),
+                    Positioned(
+                      bottom: 10,
+                      right: 10,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Theme.of(context).cardColor,
+                        ),
+                        child: IconButton(
+                          icon: Icon(
+                            FeatherIcons.camera,
+                            color:
+                                Theme.of(context).brightness == Brightness.light
+                                    ? Colors.black
+                                    : Colors.white,
+                          ),
+                          onPressed: _pickImage,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 40),
+                TextField(
+                  controller: _nameController,
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.headlineLarge,
+                  decoration: InputDecoration(
+                    filled: false,
+                    hintText: 'Enter your name',
+                    hintStyle:
+                        Theme.of(context).textTheme.headlineLarge?.copyWith(
+                              color: Colors.grey,
+                            ),
+                    border: InputBorder.none,
+                    focusedBorder: InputBorder.none,
+                    enabledBorder: InputBorder.none,
+                  ),
+                ),
+                const SizedBox(height: 40),
+              ],
+            ),
+          ),
+        ),
+        bottomNavigationBar: Padding(
+          padding:
+              const EdgeInsets.only(left: 15, right: 15, bottom: 15, top: 15),
+          child: GestureDetector(
+            onTap: () {
+              if (!_isSaving) {
+                _saveProfile();
+              }
+            },
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              height: 60,
+              width: MediaQuery.of(context).size.width - 80,
+              decoration: BoxDecoration(
+                  color: Theme.of(context).primaryColor,
+                  borderRadius: BorderRadius.circular(20)),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    'Next',
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
                   ),
                 ],
               ),
-              const SizedBox(height: 40),
-              TextField(
-                controller: _nameController,
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.headlineLarge,
-                decoration: InputDecoration(
-                  filled: false,
-                  hintText: 'Enter your name',
-                  hintStyle:
-                      Theme.of(context).textTheme.headlineLarge?.copyWith(
-                            color: Colors.grey,
-                          ),
-                  border: InputBorder.none,
-                  focusedBorder: InputBorder.none,
-                  enabledBorder: InputBorder.none,
-                ),
-              ),
-              const SizedBox(height: 40),
-            ],
-          ),
-        ),
-        bottomSheet: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 20.0),
-          child: SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: _isSaving ? null : _saveProfile,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.blue,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-              child: _isSaving
-                  ? const CircularProgressIndicator()
-                  : const Text('Next'),
             ),
           ),
         ),
