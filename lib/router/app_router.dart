@@ -17,6 +17,12 @@ import 'package:inzone/screen/chat/group_chat_screen.dart';
 import 'package:inzone/screen/chat/chat_screen.dart';
 import 'package:inzone/data/group_data.dart';
 import 'package:inzone/router/routes.dart';
+// Import settings screens
+import 'package:inzone/screen/settings/content_select_screen.dart';
+import 'package:inzone/screen/settings/subscription_purchase.dart';
+import 'package:inzone/screen/settings/referral_screen.dart';
+// Future imports when they are created
+// import 'package:inzone/screen/settings/contact_screen.dart';
 
 class AppRouter {
   static final _rootNavigatorKey = GlobalKey<NavigatorState>();
@@ -161,6 +167,32 @@ class AppRouter {
           return ChatScreen(userData: userData);
         },
       ),
+      
+      // Settings Routes
+      GoRoute(
+        path: Routes.contentSelection,
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => const ContentSelectionSettingsScreen(),
+      ),
+      
+      GoRoute(
+        path: Routes.subscription,
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => const SubscriptionScreen(),
+      ),
+      
+      GoRoute(
+        path: Routes.referral,
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => const ReferralScreen(),
+      ),
+      
+      // External URLs routes simply redirect back to settings
+      // GoRoute(
+      //   path: Routes.contactUs,
+      //   parentNavigatorKey: _rootNavigatorKey,
+      //   builder: (context, state) => const ContactScreen(),
+      // ),
     ],
   );
 }

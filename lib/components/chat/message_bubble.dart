@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:intl/intl.dart';
+import 'package:inzone/config/custom_icons.dart';
 import 'package:inzone/theme/light_theme.dart';
 
 class MessageBubble extends StatelessWidget {
@@ -99,18 +101,10 @@ class MessageBubble extends StatelessWidget {
               onTap: onShare,
               child: Padding(
                 padding: const EdgeInsets.only(right: 5.0),
-                child: Container(
+                child: SizedBox(
                   height: 25,
                   width: 25,
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).cardColor,
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    Icons.share,
-                    size: 16,
-                    color: Theme.of(context).primaryColor,
-                  ),
+                  child: SvgPicture.asset(CustomIcons.send),
                 ),
               ),
             ),

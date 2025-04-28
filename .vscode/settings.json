@@ -5,4 +5,5 @@
     },
     "java.compile.nullAnalysis.mode": "automatic",
     "cmake.sourceDirectory": "/Users/Files/Internship/InZone/inzone-remake/linux",
+    "java.configuration.updateBuildConfiguration": "automatic",
 }
