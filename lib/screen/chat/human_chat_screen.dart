@@ -1,7 +1,11 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:inzone/components/chat/chat_app_bar.dart';
+import 'package:inzone/components/chat/chat_input.dart';
+import 'package:inzone/components/chat/date_header.dart';
+import 'package:inzone/components/chat/message_bubble.dart';
 import 'package:inzone/services/inzone_database.dart';
-import 'package:inzone/theme/light_theme.dart'; // Import for ChatTheme extension
+import 'package:inzone/theme/light_theme.dart';
 import 'package:intl/intl.dart';
 import 'package:random_avatar/random_avatar.dart';
 
@@ -131,32 +135,11 @@ class _HumanChatScreenState extends State<HumanChatScreen> {
     }
 
     return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        title: Row(
-          children: [
-            RandomAvatar(
-              widget.otherUserId,
-              height: 40,
-              width: 40,
-            ),
-            const SizedBox(width: 10),
-            Text(
-              widget.otherUserName,
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ],
-        ),
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, size: 20),
-          onPressed: () => Navigator.pop(context),
-        ),
+      backgroundColor: Theme.of(context).canvasColor,
+      appBar: ChatAppBar(
+        title: widget.otherUserName,
+        avatarId: widget.otherUserId,
+        onBack: () => Navigator.pop(context),
       ),
       body: Column(
         children: [
@@ -211,49 +194,80 @@ class _HumanChatScreenState extends State<HumanChatScreen> {
 
                 messagesByDate.forEach((dateKey, messageDocs) {
                   // Add date header
-                  messageWidgets.add(
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 16.0),
-                      child: Center(
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 16, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: Colors.grey[200],
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          child: Text(
-                            dateKey == 'Today'
-                                ? 'Today'
-                                : dateKey == 'Yesterday'
-                                    ? 'Yesterday'
-                                    : dateKey,
-                            style: TextStyle(
-                              color: Colors.grey[600],
-                              fontSize: 12,
+                  if (dateKey != 'No Date') {
+                    DateTime headerDate;
+                    final now = DateTime.now();
+                    final today = DateTime(now.year, now.month, now.day);
+
+                    if (dateKey == 'Today') {
+                      headerDate = today;
+                    } else if (dateKey == 'Yesterday') {
+                      headerDate = today.subtract(const Duration(days: 1));
+                    } else {
+                      // Parse the date from the format "MMMM d, yyyy"
+                      headerDate = DateFormat('MMMM d, yyyy').parse(dateKey);
+                    }
+
+                    messageWidgets.add(DateHeader(dateTime: headerDate));
+                  } else {
+                    // For messages without timestamp
+                    messageWidgets.add(
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 16.0),
+                        child: Center(
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Colors.grey[200],
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            child: const Text(
+                              'Undated Messages',
+                              style: TextStyle(
+                                color: Colors.grey,
+                                fontSize: 12,
+                              ),
                             ),
                           ),
                         ),
                       ),
-                    ),
-                  );
+                    );
+                  }
 
                   // Add messages for this date
                   for (var message in messageDocs) {
                     var messageData = message.data() as Map<String, dynamic>;
                     String senderId = messageData['senderId'] ?? '';
                     String messageText = messageData['text'] ?? '';
+                    String senderName = messageData['senderName'] ?? '';
                     Timestamp? timestamp =
                         messageData['timestamp'] as Timestamp?;
 
                     // Check if message is from current user
                     bool isMe = senderId == currentUserId;
+                    DateTime? messageDateTime = timestamp?.toDate();
 
                     messageWidgets.add(
-                      _messageBubble(
-                        messageText,
-                        isMe,
-                        timestamp,
+                      MessageBubble(
+                        message: messageText,
+                        isMe: isMe,
+                        timestamp: messageDateTime,
+                        senderName: isMe ? null : senderName,
+                        senderAvatar: isMe
+                            ? null
+                            : ClipOval(
+                                child: Container(
+                                  width: 35,
+                                  height: 35,
+                                  color: Theme.of(context).cardColor,
+                                  child: RandomAvatar(
+                                    senderId,
+                                    height: 35,
+                                    width: 35,
+                                  ),
+                                ),
+                              ),
                       ),
                     );
                   }
@@ -268,7 +282,10 @@ class _HumanChatScreenState extends State<HumanChatScreen> {
               },
             ),
           ),
-          _chatInput(),
+          ChatInput(
+            controller: _msgController,
+            onSend: _sendMessage,
+          ),
         ],
       ),
     );
@@ -287,84 +304,5 @@ class _HumanChatScreenState extends State<HumanChatScreen> {
     } else {
       return DateFormat('MMMM d, yyyy').format(dateTime);
     }
-  }
-
-  Widget _chatInput() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
-            spreadRadius: 1,
-            blurRadius: 3,
-            offset: const Offset(0, -1),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: TextField(
-              controller: _msgController,
-              decoration: InputDecoration(
-                hintText: 'Type a message...',
-                hintStyle: TextStyle(color: Colors.grey[400]),
-                filled: true,
-                fillColor: Colors.grey[100],
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(24),
-                  borderSide: BorderSide.none,
-                ),
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-              ),
-              textCapitalization: TextCapitalization.sentences,
-            ),
-          ),
-          const SizedBox(width: 8),
-          Container(
-            decoration: const BoxDecoration(
-              color: Colors.teal,
-              shape: BoxShape.circle,
-            ),
-            child: IconButton(
-              icon: const Icon(Icons.send, color: Colors.white, size: 20),
-              onPressed: _sendMessage,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _messageBubble(String text, bool isMe, Timestamp? timestamp) {
-    return Align(
-      alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
-      child: Wrap(
-        children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
-            decoration: BoxDecoration(
-              color: isMe
-                  ? Theme.of(context).myChatBubbleColor
-                  : Theme.of(context).otherChatBubbleColor,
-              borderRadius: BorderRadius.circular(18),
-            ),
-            child: Text(
-              text,
-              style: TextStyle(
-                color: isMe
-                    ? Theme.of(context).myChatTextColor
-                    : Theme.of(context).otherChatTextColor,
-                fontSize: 16,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
   }
 }

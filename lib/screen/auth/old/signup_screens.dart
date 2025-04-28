@@ -1,9 +1,10 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'dart:io' show Platform;
+import 'package:go_router/go_router.dart';
 
 import 'package:inzone/components/settings/topic_selector_widget.dart';
-import 'package:inzone/screen/auth/introduction_screen.dart';
+import 'package:inzone/router/routes.dart';
 import 'package:inzone/services/inzone_database.dart';
 import 'package:inzone/screen/auth/loading_screen.dart';
 import 'package:inzone/root_app.dart'; // Import this to detect the platform
@@ -113,19 +114,16 @@ By using the Licensed Application, you agree to abide by these terms and conditi
               userInterests: interests!,
             );
 
-            Navigator.pushAndRemoveUntil(
-              context,
-              MaterialPageRoute(builder: (context) => const RootApp()),
-              (route) => false, // removes all previous routes
-            );
+            // Navigate to home
+            if (mounted) {
+              context.go(Routes.home);
+            }
           }
         } else {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(
-              builder: (context) => const IntroductionScreen(),
-            ),
-          );
+          // Navigate back to introduction screen
+          if (mounted) {
+            context.go(Routes.login);
+          }
 
           const snackBar = SnackBar(
             content: Text("Error: Please fill all the fields!"),
