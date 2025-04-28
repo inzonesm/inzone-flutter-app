@@ -4,6 +4,10 @@ import 'package:flutter_expandable_fab/flutter_expandable_fab.dart';
 import 'package:go_router/go_router.dart';
 import 'package:inzone/router/routes.dart';
 import 'package:animated_bottom_navigation_bar/animated_bottom_navigation_bar.dart';
+import 'package:inzone/screen/common/home_screen.dart';
+import 'package:inzone/screen/explore/groups_explore_screen.dart';
+import 'package:inzone/screen/chat/all_chats_screen.dart';
+import 'package:inzone/screen/profile/user_profile_screen.dart';
 
 class RootApp extends StatefulWidget {
   final Widget child;
@@ -21,6 +25,14 @@ class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
   bool _isKeyboardVisible = false;
   // Focus node to track app-wide focus state
   final FocusNode _rootFocusNode = FocusNode();
+
+  // List of screens for the IndexedStack
+  final List<Widget> _screens = [
+    const HomeScreen(),
+    const GroupsExploreScreen(),
+    const AllChatsScreen(),
+    const UserProfileScreen(),
+  ];
 
   final List<String> _bottomNavBarTitles = [
     'Home',
@@ -62,8 +74,8 @@ class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
       _currentPage = index;
     });
 
-    // Navigate to the selected route
-    context.go(_routes[index]);
+    // Update the URL without rebuilding the page
+    context.go(_routes[index], extra: {'skipRebuild': true});
   }
 
   // Get current page index from the current route
@@ -107,6 +119,10 @@ class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
     SystemChrome.setSystemUIOverlayStyle(systemUiOverlayStyle);
 
     _isKeyboardVisible = MediaQuery.of(context).viewInsets.bottom > 0;
+
+    // Check if current route is one of the main tab routes
+    final String location = GoRouterState.of(context).matchedLocation;
+    final bool isMainTabRoute = _routes.contains(location);
 
     return GestureDetector(
       onTap: () {
@@ -164,7 +180,13 @@ class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
             }
             return false;
           },
-          child: widget.child,
+          // Use IndexedStack for main tab routes, otherwise use the provided child for nested routes
+          child: isMainTabRoute 
+              ? IndexedStack(
+                  index: _currentPage,
+                  children: _screens,
+                )
+              : widget.child, // Use the provided child for non-tab routes
         ),
         bottomNavigationBar: AnimatedSwitcher(
           duration: const Duration(milliseconds: 200),
