@@ -4,9 +4,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:inzone/auth/auth_work.dart';
-import 'package:inzone/root_app.dart';
-import 'package:inzone/screen/auth/interesting_select_screen.dart';
+import 'package:inzone/router/routes.dart';
 import 'package:inzone/screen/auth/profile_screen.dart';
 import 'package:inzone/screen/auth/signin_login_screen.dart';
 import 'package:inzone/theme/app_colors.dart';
@@ -52,20 +52,9 @@ class _IntroductionScreenState extends State<IntroductionScreen> {
         Navigator.of(context).pop();
         Future.delayed(Duration.zero, () {
           if (doc.exists && (doc.data()?['createdAt'] != null)) {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (_) => const RootApp()),
-            );
+            context.go(Routes.home);
           } else {
-            Navigator.pushReplacement(
-              context,
-              CupertinoPageRoute(
-                fullscreenDialog: true,
-                builder: (_) => ProfileScreen(
-                  email: user.email ?? "",
-                ),
-              ),
-            );
+            context.push('/auth/profile?email=${user.email ?? ""}');
           }
         });
       }
@@ -150,12 +139,7 @@ class _IntroductionScreenState extends State<IntroductionScreen> {
                   const SizedBox(height: 12),
                   GestureDetector(
                     onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const SignInLoginScreen(),
-                        ),
-                      );
+                      context.push('/auth/signin');
                     },
                     child: RichText(
                       text: const TextSpan(

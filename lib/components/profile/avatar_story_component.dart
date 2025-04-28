@@ -1,9 +1,11 @@
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:inzone/screen/chat/all_chats_screen.dart';
 import 'package:inzone/screen/chat/chat_screen.dart';
 import 'package:inzone/data/inzone_avatar.dart';
+import 'package:inzone/router/routes.dart';
 
 class AvatarStoryComponent extends StatefulWidget {
   InZoneAvatar avatar;
@@ -22,7 +24,7 @@ class _AvatarCardState extends State<AvatarStoryComponent> {
   int comments = 23;
   bool hasUnseenStory = true; // Track if story is seen
   late List<Color> gradientColors;
-  
+
   @override
   void initState() {
     super.initState();
@@ -43,36 +45,43 @@ class _AvatarCardState extends State<AvatarStoryComponent> {
     // Generate a seed from the avatar's ID or name
     final seed = widget.avatar.id.hashCode + widget.avatar.name.hashCode;
     final random = Random(seed);
-    
+
     // Predefined set of vibrant colors that work well in gradients
     final List<List<Color>> gradientOptions = [
       [const Color(0xFF14CFEE), const Color(0xFF2196F3)], // Blue cyan
-      [const Color(0xFFFF9800), const Color(0xFFFF5722)], // Orange to deep orange
+      [
+        const Color(0xFFFF9800),
+        const Color(0xFFFF5722)
+      ], // Orange to deep orange
       [const Color(0xFF9C27B0), const Color(0xFFE91E63)], // Purple to pink
-      [const Color(0xFF4CAF50), const Color(0xFF8BC34A)], // Green to light green
+      [
+        const Color(0xFF4CAF50),
+        const Color(0xFF8BC34A)
+      ], // Green to light green
       [const Color(0xFFFF4081), const Color(0xFFD500F9)], // Pink to purple
       [const Color(0xFFFFC107), const Color(0xFF9C27B0)], // Amber to purple
       [const Color(0xFF00BCD4), const Color(0xFF3F51B5)], // Cyan to indigo
       [const Color(0xFF9C27B0), const Color(0xFF2196F3)], // Purple to blue
-      [const Color(0xFFFF5722), const Color(0xFFFFEB3B)], // Deep orange to yellow
+      [
+        const Color(0xFFFF5722),
+        const Color(0xFFFFEB3B)
+      ], // Deep orange to yellow
       [const Color(0xFF3F51B5), const Color(0xFF4CAF50)], // Indigo to green
     ];
-    
+
     // Pick a random gradient from the options
     return gradientOptions[random.nextInt(gradientOptions.length)];
   }
 
   void navigateToChat() {
-    Navigator.push(context, MaterialPageRoute(builder: (context) {
-      return ChatScreen(
-        userData: ChatUser(
-          name: widget.avatar.name,
-          email: widget.avatar.id,
-          chatId: null,
-          profilePictureURL: widget.avatar.profilePicture
-        )
-      );
-    }));
+    // Use GoRouter instead of MaterialPageRoute
+    context.push(Routes.chat,
+        extra: ChatUser(
+            name: widget.avatar.name,
+            email: widget.avatar.id,
+            chatId: null,
+            profilePictureURL: widget.avatar.profilePicture));
+
     // Mark story as seen when clicked
     if (hasUnseenStory) {
       setState(() {
@@ -129,26 +138,26 @@ class _AvatarCardState extends State<AvatarStoryComponent> {
             Container(
               width: 80,
               height: 80,
-                   decoration: BoxDecoration(
+              decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                gradient:LinearGradient(
-                      colors: gradientColors,
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
+                gradient: LinearGradient(
+                  colors: gradientColors,
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
                 border: null,
               ),
               // decoration: BoxDecoration(
               //   shape: BoxShape.circle,
-              //   gradient: hasUnseenStory 
+              //   gradient: hasUnseenStory
               //     ? LinearGradient(
               //         colors: gradientColors,
               //         begin: Alignment.topLeft,
               //         end: Alignment.bottomRight,
               //       )
               //     : null,
-              //   border: !hasUnseenStory 
-              //     ? Border.all(color: Colors.grey, width: 2) 
+              //   border: !hasUnseenStory
+              //     ? Border.all(color: Colors.grey, width: 2)
               //     : null,
               // ),
               child: Padding(
@@ -172,7 +181,9 @@ class _AvatarCardState extends State<AvatarStoryComponent> {
                             child: Center(
                               child: Text(
                                 widget.avatar.name.isNotEmpty
-                                    ? widget.avatar.name.substring(0, 1).toUpperCase()
+                                    ? widget.avatar.name
+                                        .substring(0, 1)
+                                        .toUpperCase()
                                     : "?",
                                 style: const TextStyle(
                                   fontSize: 28,

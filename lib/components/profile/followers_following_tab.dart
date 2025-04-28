@@ -3,6 +3,8 @@ import 'package:inzone/components/ui/inzone_searchbar.dart';
 import 'package:random_avatar/random_avatar.dart';
 import 'package:inzone/services/inzone_database.dart';
 import 'package:inzone/screen/profile/profile_screen.dart';
+import 'package:inzone/router/routes.dart';
+import 'package:go_router/go_router.dart';
 
 class FollowersFollowingTab extends StatefulWidget {
   final Map<String, List<Map<String, dynamic>>> userList;
@@ -303,19 +305,18 @@ class _FollowersFollowingTabState extends State<FollowersFollowingTab> {
                   ],
                 ),
                 onTap: () {
-                  // Navigate to user profile using MaterialPageRoute instead of named route
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => ProfileScreen(
-                        uid: userId,
-                        isAI: userType == 'ai', // Check if it's an AI user
-                      ),
-                    ),
-                  ).then((_) {
-                    // Refresh the list when returning from profile
-                    fetchFollowersAndFollowing();
-                  });
+                  // Navigate to user profile using GoRouter instead of MaterialPageRoute
+                  if (userType == 'ai') {
+                    context.push(Routes.aiProfilePath(userId)).then((_) {
+                      // Refresh the list when returning from profile
+                      fetchFollowersAndFollowing();
+                    });
+                  } else {
+                    context.push(Routes.regularProfilePath(userId)).then((_) {
+                      // Refresh the list when returning from profile
+                      fetchFollowersAndFollowing();
+                    });
+                  }
                 },
               );
             });

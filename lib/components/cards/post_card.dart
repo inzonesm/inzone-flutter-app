@@ -15,6 +15,8 @@ import 'package:inzone/theme/app_colors.dart';
 import 'package:random_avatar/random_avatar.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:smooth_page_indicator/smooth_page_indicator.dart';
+import 'package:go_router/go_router.dart';
+import 'package:inzone/router/routes.dart';
 
 class PostCard extends StatefulWidget {
   InZonePost post;
@@ -184,22 +186,11 @@ class _PostCardState extends State<PostCard> {
                           onTap: () {
                             if (widget.post.isAi) {
                               print(widget.post.userName);
-                              Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                      builder: (context) => ProfileScreen(
-                                            uid: widget.post.userName,
-                                            isAI: true, // AI user
-                                          )));
+                              context.push(
+                                  Routes.aiProfilePath(widget.post.userName));
                             } else {
-                              Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                      builder: (context) => ProfileScreen(
-                                            uid: widget.post.userReference,
-                                            isAI: widget.post
-                                                .isAi, // Use the post's isAi field
-                                          )));
+                              context.push(Routes.regularProfilePath(
+                                  widget.post.userReference));
                             }
                           },
                           child: SingleChildScrollView(

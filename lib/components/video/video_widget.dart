@@ -476,10 +476,10 @@ class _FullscreenYoutubePlayerState extends State<FullscreenYoutubePlayer>
     // Add observer for lifecycle events
     WidgetsBinding.instance.addObserver(this);
 
-    // Lock the orientation to landscape
+    // Set orientation to portrait for reels-like experience
     SystemChrome.setPreferredOrientations([
-      DeviceOrientation.landscapeLeft,
-      DeviceOrientation.landscapeRight,
+      DeviceOrientation.portraitUp,
+      DeviceOrientation.portraitDown,
     ]);
 
     // Hide status bar
@@ -502,10 +502,10 @@ class _FullscreenYoutubePlayerState extends State<FullscreenYoutubePlayer>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      // Ensure orientation is locked to landscape when app is resumed
+      // Ensure orientation is locked to portrait when app is resumed
       SystemChrome.setPreferredOrientations([
-        DeviceOrientation.landscapeLeft,
-        DeviceOrientation.landscapeRight,
+        DeviceOrientation.portraitUp,
+        DeviceOrientation.portraitDown,
       ]);
     }
   }
@@ -536,20 +536,27 @@ class _FullscreenYoutubePlayerState extends State<FullscreenYoutubePlayer>
         body: SafeArea(
           child: Stack(
             children: [
+              // Center the YouTube player to achieve a reels-like experience
               Center(
-                child: YoutubePlayer(
-                  controller: _controller,
-                  showVideoProgressIndicator: true,
-                  progressIndicatorColor: Colors.red,
-                  progressColors: const ProgressBarColors(
-                    playedColor: Colors.red,
-                    handleColor: Colors.redAccent,
+                child: SizedBox(
+                  // Use screen width for a full portrait view like reels
+                  width: MediaQuery.of(context).size.width,
+                  // Match the YouTube video player height with aspect ratio
+                  height: MediaQuery.of(context).size.width * (16 / 9),
+                  child: YoutubePlayer(
+                    controller: _controller,
+                    showVideoProgressIndicator: true,
+                    progressIndicatorColor: Colors.red,
+                    progressColors: const ProgressBarColors(
+                      playedColor: Colors.red,
+                      handleColor: Colors.redAccent,
+                    ),
+                    onEnded: (metaData) {
+                      if (mounted) {
+                        _controller.pause();
+                      }
+                    },
                   ),
-                  onEnded: (metaData) {
-                    if (mounted) {
-                      _controller.pause();
-                    }
-                  },
                 ),
               ),
               Positioned(

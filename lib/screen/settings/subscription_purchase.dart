@@ -99,6 +99,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
         child: Column(children: [
           const SizedBox(height: 10),
           Container(
@@ -712,6 +713,7 @@ class PurchaseSubscriptionScreen extends StatefulWidget {
 class _PurchaseSubscriptionScreenState
     extends State<PurchaseSubscriptionScreen> {
   final MonetizationService _monetizationService = MonetizationService();
+  int _balance = 0;
   bool _isPurchasing = false;
   StreamSubscription<List<PurchaseDetails>>? _subscription;
 
@@ -732,12 +734,26 @@ class _PurchaseSubscriptionScreenState
   void initState() {
     super.initState();
     _subscription = _monetizationService.purchaseStream.listen(_handlePurchase);
+    _loadBalance();
   }
 
   @override
   void dispose() {
     _subscription?.cancel();
     super.dispose();
+  }
+
+  Future<void> _loadBalance() async {
+    try {
+      final response = await _monetizationService.getBalance();
+      if (response['success'] == true && response['data'] != null) {
+        setState(() {
+          _balance = response['data']['balance'] as int;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading balance: $e');
+    }
   }
 
   void _handlePurchase(List<PurchaseDetails> purchases) {
@@ -790,6 +806,7 @@ class _PurchaseSubscriptionScreenState
   Widget build(BuildContext context) {
     return Container(
         color: Colors.white,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
         child: Column(children: [
           const SizedBox(height: 10),
           Container(
@@ -820,7 +837,7 @@ class _PurchaseSubscriptionScreenState
                         width: 20, height: 20),
                     const SizedBox(width: 5),
                     Text(
-                      "2345",
+                      _balance.toString(),
                       style: GoogleFonts.outfit(
                           color: const Color(0XFF17181C),
                           fontSize: 16,

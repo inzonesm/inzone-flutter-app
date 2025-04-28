@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:get/get_connect/http/src/utils/utils.dart';
 import 'package:random_avatar/random_avatar.dart';
+import 'package:inzone/components/chat/chat_input.dart';
+import 'package:inzone/components/chat/date_header.dart';
+import 'package:inzone/components/chat/message_bubble.dart';
 import 'package:inzone/data/group_data.dart';
 import 'package:inzone/data/group_chat_data.dart';
 import 'package:inzone/services/group_chat_service.dart';
@@ -271,7 +274,10 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                 },
               ),
             ),
-            _buildChatInput(),
+            ChatInput(
+              controller: _msgController,
+              onSend: _sendMessage,
+            ),
           ],
         ),
       ),
@@ -361,27 +367,46 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
     messagesByDate.forEach((dateKey, messages) {
       // Add date header
-      messageWidgets.add(
-        Padding(
-          padding: const EdgeInsets.symmetric(vertical: 16.0),
-          child: Center(
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-              decoration: BoxDecoration(
-                color: Theme.of(context).dividerColor.withOpacity(0.05),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Text(
-                dateKey,
-                style: TextStyle(
-                  color: Theme.of(context).textTheme.bodySmall?.color,
-                  fontSize: 12,
+      if (dateKey != 'No Date') {
+        DateTime headerDate;
+        final now = DateTime.now();
+        final today = DateTime(now.year, now.month, now.day);
+
+        if (dateKey == 'Today') {
+          headerDate = today;
+        } else if (dateKey == 'Yesterday') {
+          headerDate = today.subtract(const Duration(days: 1));
+        } else {
+          // Parse the date from the format "MMMM d, yyyy"
+          headerDate = DateFormat('MMMM d, yyyy').parse(dateKey);
+        }
+
+        messageWidgets.add(DateHeader(dateTime: headerDate));
+      } else {
+        // For messages without timestamp
+        messageWidgets.add(
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 16.0),
+            child: Center(
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).dividerColor.withOpacity(0.05),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Text(
+                  'Undated Messages',
+                  style: TextStyle(
+                    color: Theme.of(context).textTheme.bodySmall?.color,
+                    fontSize: 12,
+                  ),
                 ),
               ),
             ),
           ),
-        ),
-      );
+        );
+      }
 
       // Add messages for this date
       for (var message in messages) {
@@ -418,74 +443,18 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     final bool isMe =
         message.sender.uid == FirebaseAuth.instance.currentUser?.uid;
 
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8.0),
-      child: Row(
-        mainAxisAlignment:
-            isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (!isMe) ...[
-            ClipOval(
-              child: Container(
-                width: 35,
-                height: 35,
-                color: Theme.of(context).cardColor,
-                child: _buildSenderAvatar(message.sender),
-              ),
-            ),
-            const SizedBox(width: 8),
-          ],
-          Flexible(
-            child: Column(
-              crossAxisAlignment:
-                  isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
-              children: [
-                if (!isMe)
-                  Padding(
-                    padding: const EdgeInsets.only(left: 4.0, bottom: 4.0),
-                    child: Text(
-                      message.sender.name,
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: Theme.of(context).textTheme.titleMedium?.color,
-                      ),
-                    ),
-                  ),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: isMe
-                        ? Theme.of(context).myChatBubbleColor
-                        : Theme.of(context).otherChatBubbleColor,
-                    borderRadius: BorderRadius.circular(18),
-                  ),
-                  child: Text(
-                    message.content,
-                    style: TextStyle(
-                        color: isMe
-                            ? Theme.of(context).myChatTextColor
-                            : Theme.of(context).otherChatTextColor,
-                        fontWeight: FontWeight.w500),
-                  ),
-                ),
-                if (message.timestamp != null)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 2, right: 4, left: 4),
-                    child: Text(
-                      _formatMessageTime(message.timestamp!),
-                      style: TextStyle(
-                        fontSize: 10,
-                        color: Theme.of(context).textTheme.bodySmall?.color,
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-        ],
+    return MessageBubble(
+      message: message.content,
+      isMe: isMe,
+      timestamp: message.timestamp,
+      senderName: message.sender.name,
+      senderAvatar: ClipOval(
+        child: Container(
+          width: 35,
+          height: 35,
+          color: Theme.of(context).cardColor,
+          child: _buildSenderAvatar(message.sender),
+        ),
       ),
     );
   }
@@ -533,104 +502,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     } else {
       return DateFormat('MMM d, h:mm a').format(dateTime);
     }
-  }
-
-  Widget _buildChatInput() {
-    return Container(
-      decoration: BoxDecoration(
-        color: Theme.of(context).canvasColor,
-      ),
-      padding: const EdgeInsets.only(left: 10.0, right: 10, top: 2),
-      child: SafeArea(
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            // Text field
-            Expanded(
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.only(left: 16.0, right: 8.0),
-                      child: TextFormField(
-                        cursorColor: Theme.of(context).primaryColor,
-                        controller: _msgController,
-                        maxLines: null,
-                        keyboardType: TextInputType.multiline,
-                        decoration: InputDecoration(
-                          suffixIconColor: Theme.of(context).iconTheme.color,
-                          contentPadding: const EdgeInsets.only(
-                              top: 10, left: 15, right: 10),
-                          border: InputBorder.none,
-                          hintText: 'Send a message',
-                          filled: true,
-                          fillColor: Theme.of(context)
-                              .colorScheme
-                              .primary
-                              .withOpacity(0.2),
-                          enabledBorder: OutlineInputBorder(
-                            borderSide: const BorderSide(
-                              color: Colors.transparent,
-                            ),
-                            borderRadius: BorderRadius.circular(30),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderSide: BorderSide(
-                              color: Theme.of(context)
-                                  .primaryColor
-                                  .withOpacity(0.3),
-                            ),
-                            borderRadius: BorderRadius.circular(30),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-
-                  // Emoji button
-                  // Padding(
-                  //   padding: const EdgeInsets.only(right: 8.0, bottom: 8.0),
-                  //   child: InkWell(
-                  //     onTap: () {},
-                  //     borderRadius: BorderRadius.circular(50),
-                  //     child: Container(
-                  //       padding: const EdgeInsets.all(6),
-                  //       child: Icon(
-                  //         Icons.emoji_emotions_outlined,
-                  //         color: Theme.of(context)
-                  //             .iconTheme
-                  //             .color
-                  //             ?.withOpacity(0.6),
-                  //         size: 24,
-                  //       ),
-                  //     ),
-                  //   ),
-                  // ),
-                ],
-              ),
-            ),
-
-            // Send button
-
-            MaterialButton(
-              minWidth: 43,
-              height: 43,
-              color: Theme.of(context).colorScheme.primary,
-              shape: const CircleBorder(),
-              onPressed: _sendMessage,
-              child: const Center(
-                child: Icon(
-                  Icons.send_rounded,
-                  color: Colors.white,
-                  size: 18,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 }
 

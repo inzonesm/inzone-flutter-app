@@ -4,6 +4,7 @@ import 'package:comment_tree/widgets/tree_theme_data.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:go_router/go_router.dart';
 import 'package:inzone/screen/chat/all_chats_screen.dart';
 import 'package:inzone/screen/chat/chat_screen.dart';
 import 'package:inzone/config/custom_icons.dart';
@@ -13,6 +14,7 @@ import 'package:inzone/data/inzone_post.dart';
 import 'package:inzone/services/inzone_database.dart';
 import 'package:random_avatar/random_avatar.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:inzone/router/routes.dart';
 
 class RepostCard extends StatefulWidget {
   InZonePost post;
@@ -203,16 +205,13 @@ class _RepostCardState extends State<RepostCard> {
                   const Spacer(),
                   ElevatedButton(
                     onPressed: () {
-                      // TODO Check this
-                      Navigator.push(context,
-                          MaterialPageRoute(builder: (context) {
-                        return ChatScreen(
-                            userData: ChatUser(
-                                name: widget.repost.username,
-                                email: widget.repost.id,
-                                profilePictureURL: widget.repost.profilePicture,
-                                chatId: null));
-                      }));
+                      // Update to use go_router
+                      context.push(Routes.chat,
+                          extra: ChatUser(
+                              name: widget.repost.username,
+                              email: widget.repost.id,
+                              profilePictureURL: widget.repost.profilePicture,
+                              chatId: null));
                     },
                     style: ElevatedButton.styleFrom(
                       shape: RoundedRectangleBorder(

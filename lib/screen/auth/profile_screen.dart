@@ -5,8 +5,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_feather_icons/flutter_feather_icons.dart';
+import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:inzone/screen/auth/interesting_select_screen.dart';
+import 'package:inzone/router/routes.dart';
 import 'package:inzone/theme/app_colors.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -64,12 +65,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       });
 
       if (mounted) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (_) => InterestSelectionScreen(email: widget.email),
-          ),
-        );
+        context.push(Routes.interestsWithEmail(widget.email));
       }
     } catch (e) {
       print('Error saving profile: $e');
@@ -156,23 +152,35 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ],
                 ),
                 const SizedBox(height: 40),
-                TextField(
-                  controller: _nameController,
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.headlineLarge,
-                  decoration: InputDecoration(
-                    filled: false,
-                    hintText: 'Enter your name',
-                    hintStyle:
-                        Theme.of(context).textTheme.headlineLarge?.copyWith(
-                              color: Colors.grey,
-                            ),
-                    border: InputBorder.none,
-                    focusedBorder: InputBorder.none,
-                    enabledBorder: InputBorder.none,
+                Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 8.0),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12.0,
+                    vertical: 8.0,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).cardColor,
+                    borderRadius: BorderRadius.circular(12.0),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 10,
+                        offset: const Offset(0, 5),
+                      ),
+                    ],
+                  ),
+                  child: TextField(
+                    controller: _nameController,
+                    style: Theme.of(context).textTheme.bodyLarge,
+                    decoration: InputDecoration(
+                      border: InputBorder.none,
+                      hintText: 'Enter your name',
+                      hintStyle: TextStyle(
+                        color: Colors.grey[400],
+                      ),
+                    ),
                   ),
                 ),
-                const SizedBox(height: 40),
               ],
             ),
           ),

@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'dart:math';
+import 'package:go_router/go_router.dart';
 import 'package:random_avatar/random_avatar.dart';
 import 'package:image_stack/image_stack.dart';
 
 import 'package:inzone/data/group_data.dart';
 import 'package:inzone/screen/chat/group_chat_screen.dart';
 import 'package:bounce/bounce.dart';
+import 'package:inzone/router/routes.dart';
 
 class GroupCard extends StatelessWidget {
   final GroupData group;
@@ -40,11 +42,7 @@ class GroupCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(24),
           child: InkWell(
             onTap: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (context) => GroupChatScreen(group: group),
-                ),
-              );
+              context.push(Routes.groupChat, extra: group);
             },
             borderRadius: BorderRadius.circular(24),
             splashColor: Theme.of(context).colorScheme.primary.withOpacity(0.1),
