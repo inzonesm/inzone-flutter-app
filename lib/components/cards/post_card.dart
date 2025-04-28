@@ -206,14 +206,15 @@ class _PostCardState extends State<PostCard> {
                             scrollDirection: Axis.horizontal,
                             child: Text(
                               widget.post.userName,
+                              overflow: TextOverflow.ellipsis,
                               style: TextStyle(
-                                  color: Theme.of(context)
-                                      .textTheme
-                                      .titleLarge
-                                      ?.color,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 20,
-                                  overflow: TextOverflow.ellipsis),
+                                color: Theme.of(context)
+                                    .textTheme
+                                    .titleLarge
+                                    ?.color,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 20,
+                              ),
                             ),
                           ),
                         ),
