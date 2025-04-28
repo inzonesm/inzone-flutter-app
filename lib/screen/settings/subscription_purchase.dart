@@ -99,6 +99,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
         child: Column(children: [
           const SizedBox(height: 10),
           Container(
@@ -790,6 +791,7 @@ class _PurchaseSubscriptionScreenState
   Widget build(BuildContext context) {
     return Container(
         color: Colors.white,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
         child: Column(children: [
           const SizedBox(height: 10),
           Container(
