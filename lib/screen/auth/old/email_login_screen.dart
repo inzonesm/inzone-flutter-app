@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:inzone/root_app.dart';
+import 'package:go_router/go_router.dart';
+import 'package:inzone/router/routes.dart';
 import 'package:inzone/screen/auth/loading_screen.dart';
 
 class EmailLogInPage extends StatefulWidget {
@@ -50,7 +51,7 @@ class _EmailLogInPageState extends State<EmailLogInPage> {
           children: [
             GestureDetector(
               onTap: () {
-                Navigator.pop(context);
+                context.pop();
               },
               child: const Icon(
                 Icons.arrow_back_ios_rounded,
@@ -92,7 +93,8 @@ class _EmailLogInPageState extends State<EmailLogInPage> {
                       ),
                     ),
                     const Text("E-mail",
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+                        style: TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.w700)),
                     const SizedBox(
                       height: 10,
                     ),
@@ -129,7 +131,8 @@ class _EmailLogInPageState extends State<EmailLogInPage> {
                       height: 30,
                     ),
                     const Text("Password",
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+                        style: TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.w700)),
                     const SizedBox(
                       height: 10,
                     ),
@@ -168,10 +171,13 @@ class _EmailLogInPageState extends State<EmailLogInPage> {
                     ),
                     Center(
                       child: ElevatedButton(
-                          onPressed: isLoading 
-                              ? null 
+                          onPressed: isLoading
+                              ? null
                               : () async {
-                                  if (email == null || email!.isEmpty || password == null || password!.isEmpty) {
+                                  if (email == null ||
+                                      email!.isEmpty ||
+                                      password == null ||
+                                      password!.isEmpty) {
                                     setState(() {
                                       errorMessage = "Please fill all fields!";
                                     });
@@ -183,57 +189,58 @@ class _EmailLogInPageState extends State<EmailLogInPage> {
 
                                     // Navigate to full loading screen instead of dialog
                                     Navigator.push(
-                                      context, 
-                                      PageRouteBuilder(
-                                        opaque: true,
-                                        pageBuilder: (_, __, ___) => const LoadingScreen(),
-                                        transitionDuration: Duration.zero,
-                                      )
-                                    );
-                                    
+                                        context,
+                                        PageRouteBuilder(
+                                          opaque: true,
+                                          pageBuilder: (_, __, ___) =>
+                                              const LoadingScreen(),
+                                          transitionDuration: Duration.zero,
+                                        ));
+
                                     // Create a future that completes after at least 1 second
-                                    final loadingDelay = Future.delayed(const Duration(seconds: 1));
-                                    
+                                    final loadingDelay = Future.delayed(
+                                        const Duration(seconds: 1));
+
                                     try {
                                       // Login process
-                                      final authResult = await FirebaseAuth.instance.signInWithEmailAndPassword(
+                                      final authResult = await FirebaseAuth
+                                          .instance
+                                          .signInWithEmailAndPassword(
                                         email: email!,
                                         password: password!,
                                       );
-                                      
+
                                       // Wait for minimum loading time
                                       await loadingDelay;
-                                      
+
                                       // Only navigate if the widget is still mounted
                                       if (mounted) {
-                                        // Navigate directly to root app, replacing both loading screen and login screen
-                                        Navigator.pushAndRemoveUntil(
-                                          context, 
-                                          MaterialPageRoute(builder: (context) => const RootApp()),
-                                          (route) => false, // remove all previous routes
-                                        );
+                                        // Navigate directly to home
+                                        context.go(Routes.home);
                                       }
                                     } on FirebaseAuthException catch (e) {
                                       // Wait for minimum loading time
                                       await loadingDelay;
-                                      
+
                                       // Pop loading screen and return to login screen
                                       if (mounted) Navigator.pop(context);
-                                      
+
                                       setState(() {
                                         isLoading = false;
-                                        errorMessage = getUserFriendlyErrorMessage(e);
+                                        errorMessage =
+                                            getUserFriendlyErrorMessage(e);
                                       });
                                     } catch (e) {
                                       // Wait for minimum loading time
                                       await loadingDelay;
-                                      
+
                                       // Pop loading screen and return to login screen
                                       if (mounted) Navigator.pop(context);
-                                      
+
                                       setState(() {
                                         isLoading = false;
-                                        errorMessage = "An unexpected error occurred. Please try again.";
+                                        errorMessage =
+                                            "An unexpected error occurred. Please try again.";
                                       });
                                     }
                                   }
@@ -241,17 +248,18 @@ class _EmailLogInPageState extends State<EmailLogInPage> {
                           style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.blue,
                               elevation: 10,
-                              disabledBackgroundColor: Colors.blue.withOpacity(0.6),
+                              disabledBackgroundColor:
+                                  Colors.blue.withOpacity(0.6),
                               //elevation of button
                               shape: RoundedRectangleBorder(
-                                //to set border radius to button
+                                  //to set border radius to button
                                   side: const BorderSide(
                                       width: 1, color: Colors.blue),
                                   borderRadius: BorderRadius.circular(30)),
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 120,
                                   vertical: 20) //content padding inside button
-                          ),
+                              ),
                           child: Text(
                             isLoading ? "Logging in..." : "Log in",
                             style: const TextStyle(
@@ -267,7 +275,8 @@ class _EmailLogInPageState extends State<EmailLogInPage> {
                       Center(
                         child: Text(
                           errorMessage!,
-                          style: const TextStyle(color: Colors.red, fontSize: 15),
+                          style:
+                              const TextStyle(color: Colors.red, fontSize: 15),
                           textAlign: TextAlign.center,
                         ),
                       )

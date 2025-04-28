@@ -3,11 +3,11 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:inzone/config/default_firebase_options.dart';
-import 'package:inzone/screen/auth/splash_screen.dart';
 import 'package:appsflyer_sdk/appsflyer_sdk.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:inzone/theme/theme_manager.dart';
 import 'package:provider/provider.dart';
+import 'package:inzone/router/app_router.dart';
 
 AppsFlyerOptions appsFlyerOptions = AppsFlyerOptions(
   afDevKey: "GouQRMcXkXP2CMBgZfHdfB",
@@ -58,37 +58,13 @@ class MyApp extends StatelessWidget {
     // Get the ThemeManager from the Provider
     final themeManager = Provider.of<ThemeManager>(context);
 
-    return MaterialApp(
+    return MaterialApp.router(
       debugShowCheckedModeBanner: false,
+      title: 'Inzone',
       theme: themeManager.getLightTheme(),
       darkTheme: themeManager.getDarkTheme(),
       themeMode: themeManager.themeMode,
-      home: const AuthenticationWrapper(),
-    );
-  }
-}
-
-class AuthenticationWrapper extends StatelessWidget {
-  const AuthenticationWrapper({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return StreamBuilder<User?>(
-      stream: FirebaseAuth.instance.authStateChanges(),
-      builder: (context, snapshot) {
-        // Show splash screen while checking authentication state
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const SplashScreen(loggedIn: null);
-        }
-
-        // User is logged in
-        if (snapshot.hasData && snapshot.data != null) {
-          return const SplashScreen(loggedIn: true);
-        }
-
-        // User is not logged in
-        return const SplashScreen(loggedIn: false);
-      },
+      routerConfig: AppRouter.router,
     );
   }
 }
