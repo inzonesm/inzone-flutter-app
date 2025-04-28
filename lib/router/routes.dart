@@ -22,6 +22,15 @@ class Routes {
   static const String regularProfile = '/profile/:uid';
   static const String groupChat = '/group-chat';
   static const String chat = '/chat';
+  
+  // Settings routes
+  static const String settings = '/settings';
+  static const String contentSelection = '/settings/content-selection';
+  static const String subscription = '/settings/subscription';
+  static const String referral = '/settings/referral';
+  static const String contactUs = '/settings/contact-us';
+  static const String privacyPolicy = '/settings/privacy-policy';
+  static const String termsConditions = '/settings/terms-conditions';
 
   // Helper methods to generate paths with parameters
   static String groupDetailsPath(String id) => '/group/$id';
