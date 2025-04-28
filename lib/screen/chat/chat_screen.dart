@@ -37,6 +37,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
   bool isUploading = false;
   List<Widget> messageCards = [];
+  List<Set> chatHistory = [];
   @override
   void dispose() {
     _mainScrollController.dispose();
@@ -55,6 +56,8 @@ class _ChatScreenState extends State<ChatScreen> {
   addMessage(text, isMe) {
     setState(() {
       messageCards.add(messageCard(text, isMe));
+
+      chatHistory.add({text, isMe?"user":"ai"});
     });
   }
 
@@ -217,14 +220,14 @@ class _ChatScreenState extends State<ChatScreen> {
                     print(widget.userData.email);
                   }
                   aiResponse = await InZoneDatabase.sendMessageToAI(userMessage,
-                      widget.userData.email!, widget.userData.chatId);
+                      widget.userData.email!, widget.userData.chatId, chatHistory);
                 } else {
                   if (kDebugMode) {
                     print("Chat id not found.");
                   }
 
                   aiResponse = await InZoneDatabase.sendMessageToAI(
-                      userMessage, widget.userData.email!, null);
+                      userMessage, widget.userData.email!, null, chatHistory);
                 }
                 if (aiResponse != null) {
                   addMessage(aiResponse, false);

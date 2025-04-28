@@ -95,7 +95,7 @@ class InZoneDatabase {
   }
 
   static Future<String?> sendMessageToAI(
-      String userMessage, String aiUsername, String? chatID) async {
+      String userMessage, String aiUsername, String? chatID, List<Set> chatHistory) async {
     String url;
     if (aiUsername.contains('.')) {
       url = 'https://ai-apis-912424781531.us-east1.run.app/chat/aiUser';
@@ -111,15 +111,17 @@ class InZoneDatabase {
         currentUserUID = value;
       }
     });
-
+    // Convert each Set to a List (or call toJson() if it’s a custom object)
+    final chatHistoryJson = chatHistory.map((s) => s.toList()).toList();
     if (currentUserUID != null) {
       try {
-        Map<String, String> requestBody = {
+        Map<String, dynamic> requestBody = {
           'message': userMessage,
           'ai_id': aiUsername,
+          'chat_history' : chatHistoryJson
         };
+        print("Sending this: ${requestBody}");
 
-        // Add conversation ID if it exists
         if (chatID != null) {
           requestBody['ConversationId'] = chatID;
         }
@@ -132,7 +134,6 @@ class InZoneDatabase {
           },
           body: jsonEncode(requestBody),
         );
-
         // Check if the request was successful
         if (response.statusCode == 200) {
           // Decode the response body as JSON
