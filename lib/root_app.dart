@@ -1,16 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_expandable_fab/flutter_expandable_fab.dart';
-import 'package:inzone/screen/chat/all_chats_screen.dart';
-import 'package:inzone/screen/explore/groups_explore_screen.dart';
-import 'package:inzone/screen/common/home_screen.dart';
-import 'package:inzone/screen/post/post_screen.dart';
-import 'package:inzone/screen/profile/user_profile_screen.dart';
+import 'package:go_router/go_router.dart';
+import 'package:inzone/router/routes.dart';
 import 'package:animated_bottom_navigation_bar/animated_bottom_navigation_bar.dart';
-import 'package:flutter/cupertino.dart';
 
 class RootApp extends StatefulWidget {
-  const RootApp({super.key});
+  final Widget child;
+
+  const RootApp({super.key, required this.child});
 
   @override
   _RootAppState createState() => _RootAppState();
@@ -31,40 +29,16 @@ class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
     'Profile',
   ];
 
+  final List<String> _routes = [
+    Routes.home,
+    Routes.groups,
+    Routes.chats,
+    Routes.profile_tab,
+  ];
+
   @override
   void initState() {
-    _pages = [
-      HomeScreen(
-          controller:
-              _homeScrollController), // Assign the GlobalKey to HomeScreen
-      const GroupsExploreScreen(),
-      const AllChatsScreen(),
-      const UserProfileScreen(),
-    ];
     super.initState();
-  }
-
-  late List<Widget> _pages;
-  void _onItemTapped(int index) {
-    if (_currentPage == index) {
-      // Reload the HomeScreen when it's already active
-      if (index == 0) {
-        // If Home is tapped and is already selected, scroll to the top
-        _homeScrollController.animateTo(
-          0.0,
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeOut,
-        );
-        setState(() {
-          _currentPage = index;
-        });
-        // _homeScreenKey.currentState?.getFeed(isRefresh: true);
-      }
-    } else {
-      setState(() {
-        _currentPage = index;
-      });
-    }
   }
 
   @override
@@ -74,9 +48,49 @@ class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
     super.dispose();
   }
 
+  void _onItemTapped(int index) {
+    if (_currentPage == index) {
+      // If same tab is tapped again, do any special handling here
+      if (index == 0) {
+        // For home tab, could implement scroll to top functionality
+        // or other refresh logic
+      }
+    }
+
+    // Update the current page index
+    setState(() {
+      _currentPage = index;
+    });
+
+    // Navigate to the selected route
+    context.go(_routes[index]);
+  }
+
+  // Get current page index from the current route
+  void _updateCurrentPageFromRoute(BuildContext context) {
+    final String location = GoRouterState.of(context).matchedLocation;
+
+    for (int i = 0; i < _routes.length; i++) {
+      if (location == _routes[i]) {
+        if (_currentPage != i) {
+          setState(() {
+            _currentPage = i;
+          });
+        }
+        break;
+      }
+    }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _updateCurrentPageFromRoute(context);
+  }
+
   bool isUserScrolling = false;
 
-// Function to return the title based on the current page
+  // Function to return the title based on the current page
   String _getPageTitle(int page) {
     if (page == 1) {
       return 'Explore Groups';
@@ -91,19 +105,6 @@ class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
       systemNavigationBarIconBrightness: Brightness.dark,
     );
     SystemChrome.setSystemUIOverlayStyle(systemUiOverlayStyle);
-
-    void showPostScreen(BuildContext context,
-        {Curve curve = Curves.easeInOut}) {
-      Navigator.push(
-        context,
-        CupertinoPageRoute(
-          builder: (context) {
-            return const PostScreen();
-          },
-          fullscreenDialog: true,
-        ),
-      );
-    }
 
     _isKeyboardVisible = MediaQuery.of(context).viewInsets.bottom > 0;
 
@@ -123,8 +124,7 @@ class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
                 elevation: 0,
                 backgroundColor: Colors.transparent,
                 onPressed: () {
-                  showPostScreen(context,
-                      curve: Curves.fastEaseInToSlowEaseOut);
+                  context.push(Routes.post);
                 },
                 child: Container(
                   width: 56,
@@ -164,13 +164,7 @@ class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
             }
             return false;
           },
-          child: Column(
-            children: <Widget>[
-              Expanded(
-                child: IndexedStack(index: _currentPage, children: _pages),
-              ),
-            ],
-          ),
+          child: widget.child,
         ),
         bottomNavigationBar: AnimatedSwitcher(
           duration: const Duration(milliseconds: 200),

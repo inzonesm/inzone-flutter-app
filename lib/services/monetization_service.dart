@@ -146,7 +146,7 @@ class MonetizationService {
 
   Future<Map<String, dynamic>> getBalance() async {
     final user = FirebaseAuth.instance.currentUser;
-    if (user == null) throw Exception('User not logged in');
+    if (user == null || user.uid.isEmpty) throw Exception('User not logged in or UID missing');
 
     final response = await http.get(
       Uri.parse('$baseUrl/wallet/balance?UserDocumentId=${user.uid}'),

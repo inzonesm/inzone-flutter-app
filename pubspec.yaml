@@ -75,6 +75,7 @@ dependencies:
   provider: any
   get: ^4.7.2
   smooth_page_indicator: ^1.2.1
+  go_router: ^15.1.1
 dev_dependencies:
   flutter_test:
     sdk: flutter

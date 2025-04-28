@@ -12,14 +12,15 @@ import 'package:inzone/data/inzone_post.dart';
 import 'package:inzone/services/inzone_database.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key, required this.controller});
-  final ScrollController controller;
+  const HomeScreen({super.key, this.controller});
+  final ScrollController? controller;
 
   @override
   State<HomeScreen> createState() => HomeScreenState();
 }
 
 class HomeScreenState extends State<HomeScreen> {
+  late ScrollController _scrollController;
   List<Widget> feedItems = [];
   List<Widget> originalFeedItems = []; // Store the original order of feed items
   List<String> categoriesList = [];
@@ -43,27 +44,31 @@ class HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
+    _scrollController = widget.controller ?? ScrollController();
     _startTime = DateTime.now();
     loadFeed();
     loadAvatars();
-    widget.controller.addListener(_onScroll);
+    _scrollController.addListener(_onScroll);
   }
 
   @override
   void dispose() {
+    // Only dispose the controller if we created it internally
+    if (widget.controller == null) {
+      _scrollController.dispose();
+    }
     DateTime endTime = DateTime.now();
     Duration timeSpent = endTime.difference(_startTime);
     InZoneDatabase.logEvent('home_screen', {
       "timeSpent": timeSpent.inSeconds,
       "pageOpenedCount": pageOpened,
     });
-    widget.controller.removeListener(_onScroll);
     super.dispose();
   }
 
   void _onScroll() {
-    if (widget.controller.position.pixels >=
-            widget.controller.position.maxScrollExtent - 200 &&
+    if (_scrollController.position.pixels >=
+            _scrollController.position.maxScrollExtent - 200 &&
         !isLoadingMore &&
         hasMorePosts) {
       _loadMorePosts();
@@ -416,7 +421,7 @@ class HomeScreenState extends State<HomeScreen> {
         top: true,
         bottom: false,
         child: NestedScrollView(
-          controller: widget.controller,
+          controller: _scrollController,
           headerSliverBuilder: (BuildContext context, bool innerBoxIsScrolled) {
             return <Widget>[
               SliverPersistentHeader(

@@ -4,8 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:colorful_safe_area/colorful_safe_area.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_feather_icons/flutter_feather_icons.dart';
+import 'package:go_router/go_router.dart';
 import 'package:inzone/auth/auth_work.dart';
-import 'package:inzone/screen/auth/profile_screen.dart';
+import 'package:inzone/router/routes.dart';
 import 'package:inzone/theme/app_colors.dart';
 import 'package:inzone/screen/auth/interesting_select_screen.dart';
 import 'package:inzone/root_app.dart';
@@ -29,6 +30,7 @@ class _SignInLoginScreenState extends State<SignInLoginScreen> {
 
   bool _isLoading = false;
   String? _errorMessage;
+  final bool _isSignUp = false; // Default to login mode
 
   // Regular expressions for validation
   final RegExp _upperCase = RegExp(r'(?=.*[A-Z])');
@@ -106,128 +108,64 @@ class _SignInLoginScreenState extends State<SignInLoginScreen> {
   }
 
   // 로그인/회원가입 처리 함수
-  Future<void> _handleAuthentication() async {
-    if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
-      setState(() {
-        _errorMessage = 'Please fill all fields';
-      });
-      return;
-    }
-
-    if (!(hasUppercase &&
-        hasLowercase &&
-        hasNumber &&
-        hasSpecialChar &&
-        hasMinLength)) {
-      setState(() {
-        _errorMessage = 'Please enter a valid password.';
-      });
-      return;
-    }
+  void _handleAuthentication() async {
+    FocusScope.of(context).unfocus();
 
     setState(() {
       _isLoading = true;
       _errorMessage = null;
     });
 
+    // Validate form
+    if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
+      setState(() {
+        _isLoading = false;
+        _errorMessage = "Please enter both email and password.";
+      });
+      return;
+    }
+
     try {
-      Navigator.push(
-        context,
-        PageRouteBuilder(
-          opaque: true,
-          pageBuilder: (_, __, ___) => const LoadingScreen(),
-          transitionDuration: Duration.zero,
-        ),
-      );
-
-      final loadingDelay = Future.delayed(const Duration(seconds: 1));
-
-      try {
-        await FirebaseAuth.instance.signInWithEmailAndPassword(
-          email: _emailController.text,
+      if (_isSignUp) {
+        // Register new user
+        await FirebaseAuth.instance.createUserWithEmailAndPassword(
+          email: _emailController.text.trim(),
           password: _passwordController.text,
         );
 
-        // 로딩 딜레이 적용
-        await loadingDelay;
+        final user = FirebaseAuth.instance.currentUser;
+        final docRef =
+            FirebaseFirestore.instance.collection('humanUsers').doc(user?.uid);
+        await docRef.set({
+          'email': _emailController.text.trim(),
+          'createdAt': DateTime.now().toIso8601String(),
+        });
 
         if (mounted) {
-          Navigator.pushAndRemoveUntil(
-            context,
-            MaterialPageRoute(builder: (context) => const RootApp()),
-            (route) => false,
-          );
+          // Navigate to profile setup screen
+          context.push(Routes.profileWithEmail(_emailController.text.trim()));
         }
-      } on FirebaseAuthException catch (e) {
-        print("❌ Firebase login error: ${e.code}");
+      } else {
+        // Login existing user
+        await FirebaseAuth.instance.signInWithEmailAndPassword(
+          email: _emailController.text.trim(),
+          password: _passwordController.text,
+        );
 
-        if (e.code == 'user-not-found' ||
-            e.code == 'invalid-credential' ||
-            e.code == 'INVALID_LOGIN_CREDENTIALS') {
-          print("✅ Sign up attempt");
-          try {
-            // 회원가입 시도
-            final credential =
-                await FirebaseAuth.instance.createUserWithEmailAndPassword(
-              email: _emailController.text,
-              password: _passwordController.text,
-            );
-            await FirebaseFirestore.instance
-                .collection('humanUsers')
-                .doc(credential.user!.uid)
-                .set({
-              'uid': credential.user!.uid,
-              'email': credential.user!.email,
-              'createdAt': FieldValue.serverTimestamp(),
-              'interests': [],
-            });
-
-            // 로딩 딜레이 적용
-            await loadingDelay;
-
-            print("✅ Sign up successful, moving to interest selection screen");
-
-            if (mounted) {
-              Navigator.pushReplacement(
-                context,
-                CupertinoPageRoute(
-                  fullscreenDialog: true,
-                  builder: (context) => ProfileScreen(
-                    email: _emailController.text,
-                  ),
-                ),
-              );
-            }
-          } on FirebaseAuthException catch (signUpError) {
-            print("❌ Sign up with Email failed: ${signUpError.code}");
-
-            await loadingDelay;
-            if (mounted) Navigator.pop(context);
-
-            setState(() {
-              _isLoading = false;
-              _errorMessage = _getUserFriendlyErrorMessage(signUpError);
-            });
-          }
-        } else {
-          print("❌ Sign in with Email failed: ${e.code}");
-
-          await loadingDelay;
-          if (mounted) Navigator.pop(context);
-
-          setState(() {
-            _isLoading = false;
-            _errorMessage = _getUserFriendlyErrorMessage(e);
-          });
+        if (mounted) {
+          // Navigate to home screen
+          context.go(Routes.home);
         }
       }
-    } catch (e) {
-      print("❌ Sign in with Email failed: $e");
-
-      if (mounted) Navigator.pop(context);
+    } on FirebaseAuthException catch (e) {
       setState(() {
         _isLoading = false;
-        _errorMessage = 'An unexpected error occurred';
+        _errorMessage = _getUserFriendlyErrorMessage(e);
+      });
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+        _errorMessage = "An unexpected error occurred. Please try again.";
       });
     }
   }
@@ -373,7 +311,7 @@ class _SignInLoginScreenState extends State<SignInLoginScreen> {
           children: [
             GestureDetector(
               onTap: () {
-                Navigator.pop(context);
+                context.pop();
               },
               child: Container(
                 padding: const EdgeInsets.all(8),

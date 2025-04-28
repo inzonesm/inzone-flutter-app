@@ -1,8 +1,9 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:colorful_safe_area/colorful_safe_area.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:inzone/components/settings/topic_selector_widget.dart';
-import 'package:inzone/root_app.dart';
+import 'package:inzone/router/routes.dart';
 import 'package:inzone/services/inzone_database.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
@@ -85,11 +86,7 @@ class _InterestSelectionScreenState extends State<InterestSelectionScreen> {
       });
 
       if (mounted) {
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(builder: (_) => const RootApp()),
-          (route) => false,
-        );
+        context.go(Routes.home);
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
