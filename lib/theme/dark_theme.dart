@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:inzone/theme/app_colors.dart';
 import 'package:inzone/theme/light_theme.dart'; // Import for ChatTheme extension
+import 'package:google_fonts/google_fonts.dart';
 
 /// Dark theme for the InZone app
 class DarkTheme {
@@ -9,6 +10,7 @@ class DarkTheme {
         primaryColor: AppColors.primaryBlue,
         canvasColor: AppColors.darkBackground,
         scaffoldBackgroundColor: AppColors.darkBackground,
+        fontFamily: GoogleFonts.outfit().fontFamily,
 
         // Color scheme
         colorScheme: const ColorScheme(
@@ -24,37 +26,40 @@ class DarkTheme {
         ),
 
         // App bar theme
-        appBarTheme: const AppBarTheme(
+        appBarTheme: AppBarTheme(
           backgroundColor: AppColors.darkSurfaceColor,
           elevation: 0,
-          iconTheme: IconThemeData(color: AppColors.white),
-          titleTextStyle: TextStyle(
-              color: AppColors.white,
-              fontSize: 20,
-              fontWeight: FontWeight.bold),
+          iconTheme: const IconThemeData(color: AppColors.white),
+          titleTextStyle: GoogleFonts.outfit(
+            color: AppColors.white,
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+          ),
         ),
 
-        // Text themes
-        textTheme: const TextTheme(
-          headlineLarge:
-              TextStyle(color: AppColors.white, fontWeight: FontWeight.bold),
-          headlineMedium:
-              TextStyle(color: AppColors.white, fontWeight: FontWeight.bold),
-          headlineSmall:
-              TextStyle(color: AppColors.white, fontWeight: FontWeight.bold),
-          titleLarge:
-              TextStyle(color: AppColors.white, fontWeight: FontWeight.bold),
-          titleMedium:
-              TextStyle(color: AppColors.white, fontWeight: FontWeight.w600),
-          titleSmall:
-              TextStyle(color: AppColors.white, fontWeight: FontWeight.w600),
-          bodyLarge: TextStyle(color: AppColors.white),
-          bodyMedium: TextStyle(color: AppColors.white),
-          bodySmall: TextStyle(color: AppColors.grey),
-          labelLarge: TextStyle(
-              color: AppColors.lightBlue, fontWeight: FontWeight.bold),
-          labelMedium: TextStyle(color: AppColors.lightBlue),
-          labelSmall: TextStyle(color: AppColors.grey),
+        // Text themes - using GoogleFonts outfitTextTheme for better optimization
+        textTheme: GoogleFonts.outfitTextTheme(
+          const TextTheme(
+            headlineLarge:
+                TextStyle(color: AppColors.white, fontWeight: FontWeight.bold),
+            headlineMedium:
+                TextStyle(color: AppColors.white, fontWeight: FontWeight.bold),
+            headlineSmall:
+                TextStyle(color: AppColors.white, fontWeight: FontWeight.bold),
+            titleLarge:
+                TextStyle(color: AppColors.white, fontWeight: FontWeight.bold),
+            titleMedium:
+                TextStyle(color: AppColors.white, fontWeight: FontWeight.w600),
+            titleSmall:
+                TextStyle(color: AppColors.white, fontWeight: FontWeight.w600),
+            bodyLarge: TextStyle(color: AppColors.white),
+            bodyMedium: TextStyle(color: AppColors.white),
+            bodySmall: TextStyle(color: AppColors.grey),
+            labelLarge: TextStyle(
+                color: AppColors.lightBlue, fontWeight: FontWeight.bold),
+            labelMedium: TextStyle(color: AppColors.lightBlue),
+            labelSmall: TextStyle(color: AppColors.grey),
+          ),
         ),
 
         // Button themes
@@ -95,7 +100,7 @@ class DarkTheme {
             borderRadius: BorderRadius.circular(10),
             borderSide: BorderSide.none,
           ),
-          hintStyle: TextStyle(color: Colors.grey.shade400),
+          hintStyle: GoogleFonts.outfit(color: Colors.grey.shade400),
         ),
 
         // Divider theme
