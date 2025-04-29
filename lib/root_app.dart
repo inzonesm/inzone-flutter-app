@@ -181,7 +181,7 @@ class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
             return false;
           },
           // Use IndexedStack for main tab routes, otherwise use the provided child for nested routes
-          child: isMainTabRoute 
+          child: isMainTabRoute
               ? IndexedStack(
                   index: _currentPage,
                   children: _screens,

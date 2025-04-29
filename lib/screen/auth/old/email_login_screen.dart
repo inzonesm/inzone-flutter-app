@@ -188,14 +188,7 @@ class _EmailLogInPageState extends State<EmailLogInPage> {
                                     });
 
                                     // Navigate to full loading screen instead of dialog
-                                    Navigator.push(
-                                        context,
-                                        PageRouteBuilder(
-                                          opaque: true,
-                                          pageBuilder: (_, __, ___) =>
-                                              const LoadingScreen(),
-                                          transitionDuration: Duration.zero,
-                                        ));
+                                    context.push(Routes.splash);
 
                                     // Create a future that completes after at least 1 second
                                     final loadingDelay = Future.delayed(

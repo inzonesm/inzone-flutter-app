@@ -9,6 +9,7 @@ import 'package:inzone/screen/chat/human_chat_screen.dart';
 import 'package:inzone/screen/chat/all_chats_screen.dart'; // For ChatUser class
 
 import 'package:inzone/services/inzone_database.dart';
+import 'package:go_router/go_router.dart';
 
 class ProfileScreen extends BaseProfileScreen {
   final String uid;
@@ -418,18 +419,12 @@ class _ProfileScreenState extends BaseProfileScreenState<ProfileScreen> {
 
               if (isAiUser) {
                 // For AI users, navigate to ChatScreen
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => ChatScreen(
-                      userData: ChatUser(
-                        name: name,
-                        email: targetUserId,
-                        chatId: null,
-                      ),
-                    ),
-                  ),
-                );
+                context.pushNamed('chat',
+                    extra: ChatUser(
+                      name: name,
+                      email: targetUserId,
+                      chatId: null,
+                    ));
               } else {
                 // For human users, create or open conversation
 
@@ -467,16 +462,11 @@ class _ProfileScreenState extends BaseProfileScreenState<ProfileScreen> {
                   }
 
                   // Navigate to chat screen
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => HumanChatScreen(
-                        conversationId: conversationId,
-                        otherUserName: name,
-                        otherUserId: targetUserId,
-                      ),
-                    ),
-                  );
+                  context.pushNamed('chat', extra: {
+                    'conversationId': conversationId,
+                    'otherUserName': name,
+                    'otherUserId': targetUserId,
+                  });
                 } catch (e) {
                   ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
                       content: Text(

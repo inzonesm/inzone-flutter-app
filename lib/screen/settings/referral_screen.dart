@@ -115,21 +115,22 @@ class _ReferralScreenState extends State<ReferralScreen> {
                     mainAxisAlignment: MainAxisAlignment.start,
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      // Container(
-                      //   width: 120,
-                      //   height: 120,
-                      //   padding: const EdgeInsets.symmetric(
-                      //       horizontal: 16.50, vertical: 31),
-                      //   clipBehavior: Clip.antiAlias,
-                      //   decoration: ShapeDecoration(
-                      //     color: const Color(0xFFF5F5F5),
-                      //     shape: RoundedRectangleBorder(
-                      //       borderRadius: BorderRadius.circular(20),
-                      //     ),
-                      //   ),
-                      //   child: SvgPicture.asset(
-                      //       "icons/settings/refferal_header.svg"),
-                      // ),
+                      Container(
+                        width: 120,
+                        height: 120,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16.50, vertical: 31),
+                        clipBehavior: Clip.antiAlias,
+                        decoration: ShapeDecoration(
+                          color: const Color(0xFFF5F5F5),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                        ),
+                        child: SvgPicture.asset(
+                          "icons/referral/Frame.png",
+                        ),
+                      ),
                       const SizedBox(height: 16),
                       Text(
                         'Give \$10, Get \$10 ',
