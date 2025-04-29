@@ -90,127 +90,116 @@ class _FollowersFollowingTabState extends State<FollowersFollowingTab> {
 
     return Column(
       children: [
-        const SizedBox(
-          height: 10,
-        ),
-        Flexible(
-          flex: 1,
-          child: Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 10,
+        const SizedBox(height: 10),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+          height: 40,
+          width: MediaQuery.of(context).size.width - 10,
+          decoration: BoxDecoration(
+              color: backgroundColor, borderRadius: BorderRadius.circular(100)),
+          child: Row(children: [
+            Expanded(
+              child: GestureDetector(
+                onTap: () {
+                  setState(() {
+                    followersSelected = true;
+                    updateMessageShown();
+                  });
+                },
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: followersSelected ? Colors.blue : Colors.white,
+                    borderRadius: BorderRadius.circular(100),
+                  ),
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  child: Center(
+                    child: Text(
+                      "Followers",
+                      style: TextStyle(
+                        color: followersSelected ? Colors.white : Colors.black,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
             ),
-            width: MediaQuery.of(context).size.width - 10,
-            decoration: BoxDecoration(
-                color: backgroundColor,
-                borderRadius: BorderRadius.circular(100)),
-            child: Row(children: [
-              Expanded(
-                child: ElevatedButton(
-                    onPressed: () {
-                      setState(() {
-                        followersSelected = true;
-                        updateMessageShown();
-                      });
-                    },
-                    style: ButtonStyle(
-                        elevation: WidgetStateProperty.all(0),
-                        backgroundColor: followersSelected
-                            ? WidgetStateProperty.all(Colors.blue)
-                            : WidgetStateProperty.all(Colors.white),
-                        foregroundColor: WidgetStateProperty.all(Colors.black),
-                        shape: WidgetStateProperty.all<RoundedRectangleBorder>(
-                            RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(100.0),
-                        ))),
-                    child: const Text("Followers")),
+            const SizedBox(width: 10),
+            Expanded(
+              child: GestureDetector(
+                onTap: () {
+                  setState(() {
+                    followersSelected = false;
+                    updateMessageShown();
+                  });
+                },
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: followersSelected ? Colors.white : Colors.blue,
+                    borderRadius: BorderRadius.circular(100),
+                  ),
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  child: Center(
+                    child: Text(
+                      "Following",
+                      style: TextStyle(
+                        color: followersSelected ? Colors.black : Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
+                  ),
+                ),
               ),
-              const SizedBox(
-                width: 10,
-              ),
-              Expanded(
-                child: ElevatedButton(
-                    onPressed: () {
-                      setState(() {
-                        followersSelected = false;
-                        updateMessageShown();
-                      });
-                    },
-                    style: ButtonStyle(
-                        elevation: WidgetStateProperty.all(0),
-                        backgroundColor: followersSelected
-                            ? WidgetStateProperty.all(Colors.white)
-                            : WidgetStateProperty.all(Colors.blue),
-                        foregroundColor: WidgetStateProperty.all(Colors.black),
-                        shape: WidgetStateProperty.all<RoundedRectangleBorder>(
-                            RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(100.0),
-                        ))),
-                    child: const Text("Following")),
-              ),
-            ]),
+            ),
+          ]),
+        ),
+        const SizedBox(height: 10),
+        Container(
+          height: 50,
+          padding: const EdgeInsets.symmetric(horizontal: 8.0),
+          child: const InZoneSearchBar(
+            backgroundColor: Color(0xffA8D7E9),
           ),
         ),
-        const SizedBox(
-          height: 10,
-        ),
-        const Flexible(
-          flex: 1,
-          child: Padding(
-            padding: EdgeInsets.symmetric(horizontal: 8.0),
-            child: InZoneSearchBar(
-              backgroundColor: Color(0xffA8D7E9),
-            ),
-          ),
-        ),
-        const SizedBox(
-          height: 10,
-        ),
-        Flexible(
-            flex: 7,
+        const SizedBox(height: 10),
+        Expanded(
             child: messageShown
                 ? Center(
                     child: Text(
                         "No ${followersSelected ? "Followers" : "Following"} yet"))
                 : buildUserList()),
-        Flexible(
-          flex: 1,
-          child: Container(
-            height: 90,
-            width: MediaQuery.of(context).size.width,
-            decoration: BoxDecoration(
-              color: Theme.of(context).canvasColor,
-              boxShadow: [
-                BoxShadow(
-                  color: Theme.of(context).canvasColor,
-                  spreadRadius: 40,
-                  blurRadius: 40,
-                  offset: const Offset(0, 6), // changes position of shadow
-                ),
-              ],
-            ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  "${displayUserList["following"]!.length}",
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
-                const Text(
-                  " Following ",
-                ),
-                const SizedBox(
-                  width: 10,
-                ),
-                Text(
-                  "${displayUserList["followers"]!.length}",
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
-                const Text(
-                  " Followers",
-                ),
-              ],
-            ),
+        Container(
+          height: 60,
+          width: MediaQuery.of(context).size.width,
+          decoration: BoxDecoration(
+            color: Theme.of(context).canvasColor,
+            boxShadow: [
+              BoxShadow(
+                color: Theme.of(context).canvasColor,
+                spreadRadius: 40,
+                blurRadius: 40,
+                offset: const Offset(0, 6),
+              ),
+            ],
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                "${displayUserList["following"]!.length}",
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+              const Text(" Following "),
+              const SizedBox(width: 10),
+              Text(
+                "${displayUserList["followers"]!.length}",
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+              const Text(" Followers"),
+            ],
           ),
         )
       ],

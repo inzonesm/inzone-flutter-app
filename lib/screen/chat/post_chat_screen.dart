@@ -6,6 +6,7 @@ import 'package:inzone/data/inzone_post.dart';
 import 'package:inzone/services/inzone_database.dart';
 import 'package:random_avatar/random_avatar.dart';
 import 'package:go_router/go_router.dart';
+import 'package:inzone/theme/light_theme.dart'; // Import for ChatTheme extension
 
 class PostChatScreen extends StatefulWidget {
   String name;
@@ -60,24 +61,27 @@ class _PostChatScreenState extends State<PostChatScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-        resizeToAvoidBottomInset:
-            true, // Allows the view to resize with keyboard
+    final theme = Theme.of(context);
 
+    return Scaffold(
+        resizeToAvoidBottomInset: true,
         appBar: AppBar(
-          elevation: 0, // No shadow/elevation
-          backgroundColor: Theme.of(context).canvasColor,
+          elevation: 0,
+          backgroundColor: theme.colorScheme.surface,
           leading: IconButton(
-            icon: const Icon(
+            icon: Icon(
               Icons.arrow_back_ios,
-              color: Colors.white,
+              color: theme.iconTheme.color,
               size: 24.0,
             ),
             onPressed: () {
               context.pop();
             },
           ),
-          title: const Text("Share this chat"),
+          title: Text(
+            "Share this chat",
+            style: theme.textTheme.titleLarge,
+          ),
           actions: [
             TextButton(
               onPressed: () async {
@@ -86,7 +90,6 @@ class _PostChatScreenState extends State<PostChatScreen> {
                     // First analyze sentiment
                     final analysis =
                         await InZoneDatabase.analyzeSentiment(postContent!);
-                    // Debug print
 
                     // Update state before proceeding with post creation
                     int sentiment = analysis["sentiment"] as int;
@@ -106,10 +109,10 @@ class _PostChatScreenState extends State<PostChatScreen> {
                     // Show error message and return if content is inappropriate
                     if (sentiment == -1) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text(
+                        SnackBar(
+                          content: const Text(
                               'Your post contains inappropriate content. Please revise and try again.'),
-                          backgroundColor: Colors.red,
+                          backgroundColor: theme.colorScheme.error,
                         ),
                       );
                       return;
@@ -126,126 +129,128 @@ class _PostChatScreenState extends State<PostChatScreen> {
                       videoRefs: [],
                     );
 
-                    // Debug print
-
                     if (!result["success"]) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
                           content: Text(
                               result["error"] ?? 'Failed to create repost'),
-                          backgroundColor: Colors.red,
+                          backgroundColor: theme.colorScheme.error,
                         ),
                       );
                       return;
                     }
 
                     Navigator.pop(context);
-                    const snackBar = SnackBar(
-                      content: Text("Post Successful"),
-                      backgroundColor: Colors.blue,
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: const Text("Post Successful"),
+                        backgroundColor: theme.colorScheme.primary,
+                      ),
                     );
-                    ScaffoldMessenger.of(context).showSnackBar(snackBar);
                   } catch (e) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
                         content: Text('Error creating repost: $e'),
-                        backgroundColor: Colors.red,
+                        backgroundColor: theme.colorScheme.error,
                       ),
                     );
                   }
                 } else {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Please enter some text for your post'),
-                      backgroundColor: Colors.red,
+                    SnackBar(
+                      content:
+                          const Text('Please enter some text for your post'),
+                      backgroundColor: theme.colorScheme.error,
                     ),
                   );
                 }
               },
               child: Text(
                 'Post',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: Theme.of(context).primaryColor,
-                ),
+                style: theme.textTheme.labelLarge,
               ),
             ),
           ],
         ),
-        body: SingleChildScrollView(
-          child: Center(
+        body: Container(
+          color: theme.scaffoldBackgroundColor,
+          child: SingleChildScrollView(
+            child: Center(
               child: Column(
-            children: [
-              Padding(
-                padding: const EdgeInsets.only(
-                  left: 6.0,
-                  right: 6.0,
-                  top: 6.0,
-                ),
-                child: Center(
-                  child: Text(
-                    doesNotWork
-                        ? "Please rephrase. Your message violates our guideline."
-                        : "Your post works well with InZone guidelines",
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                        color: doesNotWork ? Colors.red : Colors.blue,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500),
-                  ),
-                ),
-              ),
-              SizedBox(
-                width: MediaQuery.of(context).size.width - 50,
-                height: 30,
-                child: Stack(
-                  alignment: AlignmentDirectional.centerStart,
-                  children: [
-                    LayoutBuilder(builder:
-                        (BuildContext context, BoxConstraints constraints) {
-                      maxWidth = constraints.maxWidth;
-                      return Container(
-                        height: 14,
-                        width: double.infinity,
-                        margin: const EdgeInsets.all(8.0),
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(30),
-                          gradient: const LinearGradient(
-                            colors: [
-                              Color(0xffff8d6c),
-                              Color(0xffe064f7),
-                              Color(0xff00b2e7)
-                            ],
-                          ),
-                        ),
-                        // transform:  (Matrix4.identity() + Matrix4.rotationZ(math.pi / 4))
-                      );
-                    }),
-                    AnimatedContainer(
-                      height: 14,
-                      width: 16,
-                      margin: EdgeInsets.only(
-                          left: maxWidth * maxMovable * moveValue),
-                      decoration: BoxDecoration(
-                          border:
-                              Border.all(color: Theme.of(context).canvasColor),
-                          borderRadius: BorderRadius.circular(30),
-                          color: Colors.white),
-                      duration: const Duration(seconds: 1),
-                      // transform:  (Matrix4.identity() + Matrix4.rotationZ(math.pi / 4))
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.only(
+                      left: 6.0,
+                      right: 6.0,
+                      top: 16.0,
                     ),
-                  ],
-                ),
+                    child: Center(
+                      child: Text(
+                        doesNotWork
+                            ? "Please rephrase. Your message violates our guideline."
+                            : "Your post works well with InZone guidelines",
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: doesNotWork
+                              ? theme.colorScheme.error
+                              : theme.colorScheme.primary,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ),
+                  SizedBox(
+                    width: MediaQuery.of(context).size.width - 50,
+                    height: 30,
+                    child: Stack(
+                      alignment: AlignmentDirectional.centerStart,
+                      children: [
+                        LayoutBuilder(builder:
+                            (BuildContext context, BoxConstraints constraints) {
+                          maxWidth = constraints.maxWidth;
+                          return Container(
+                            height: 14,
+                            width: double.infinity,
+                            margin: const EdgeInsets.all(8.0),
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(30),
+                              gradient: const LinearGradient(
+                                colors: [
+                                  Color(0xffff8d6c),
+                                  Color(0xffe064f7),
+                                  Color(0xff00b2e7)
+                                ],
+                              ),
+                            ),
+                          );
+                        }),
+                        AnimatedContainer(
+                          height: 14,
+                          width: 16,
+                          margin: EdgeInsets.only(
+                              left: maxWidth * maxMovable * moveValue),
+                          decoration: BoxDecoration(
+                            border: Border.all(color: theme.dividerColor),
+                            borderRadius: BorderRadius.circular(30),
+                            color: theme.cardColor,
+                          ),
+                          duration: const Duration(seconds: 1),
+                        ),
+                      ],
+                    ),
+                  ),
+                  RepostPostCard(
+                    name: widget.name,
+                    profileImageURL: widget.profileImageURL,
+                    chat: widget.chat,
+                    avatarID: widget.avatarID,
+                    callback: setPostContent,
+                  ),
+                ],
               ),
-              RepostPostCard(
-                name: widget.name,
-                profileImageURL: widget.profileImageURL,
-                chat: widget.chat,
-                avatarID: widget.avatarID,
-                callback: setPostContent,
-              ),
-            ],
-          )),
+            ),
+          ),
         ));
   }
 }
@@ -272,46 +277,41 @@ class RepostPostCard extends StatefulWidget {
 
 class _RepostPostCardState extends State<RepostPostCard> {
   bool imageSuccess = false;
-
   bool isLiked = false;
   bool isUnLike = false;
-
   String username = '';
   CommentClass? comment;
 
   @override
   void initState() {
     super.initState();
-    // _checkIfLiked();  // Check if the current post is liked when the widget is initialized
   }
-
-// Function to check if the current post is liked
-//   Future<void> _checkIfLiked() async {
-//     bool liked = await LikedPostsPreferences.isPostLiked(widget.post.id);  // Check if postId is in SharedPreferences
-//     setState(() {
-//       isLiked = liked;
-//     });
-//   }
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return GestureDetector(
       onTap: () {
         // Navigator.push(context, MaterialPageRoute(builder: (context)=>MeScreen()));
       },
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 40.0, horizontal: 10),
+        padding: const EdgeInsets.symmetric(vertical: 24.0, horizontal: 16),
         child: Container(
           width: MediaQuery.of(context).size.width - 30,
-          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 10),
-          decoration: BoxDecoration(boxShadow: [
-            BoxShadow(
-              color: const Color(0xff959595).withOpacity(0.3),
-              spreadRadius: 0,
-              blurRadius: 15,
-              offset: const Offset(0, 4), // changes position of shadow
-            ),
-          ], color: Colors.white, borderRadius: BorderRadius.circular(15)),
+          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+          decoration: BoxDecoration(
+            boxShadow: [
+              BoxShadow(
+                color: theme.shadowColor.withOpacity(0.1),
+                spreadRadius: 0,
+                blurRadius: 15,
+                offset: const Offset(0, 4),
+              ),
+            ],
+            color: theme.cardColor,
+            borderRadius: BorderRadius.circular(15),
+          ),
           child: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -323,10 +323,12 @@ class _RepostPostCardState extends State<RepostPostCard> {
                       textInputAction: TextInputAction.done,
                       autofocus: true,
                       textAlign: TextAlign.start,
-                      style: const TextStyle(height: 1.5, color: Colors.black),
-                      decoration: const InputDecoration(
-                          border: InputBorder.none, // No underline/border
-                          hintText: "What do you think about this chat?"),
+                      style: theme.textTheme.bodyMedium,
+                      decoration: InputDecoration(
+                        border: InputBorder.none,
+                        hintText: "What do you think about this chat?",
+                        hintStyle: TextStyle(color: theme.hintColor),
+                      ),
                       onChanged: (text) {
                         widget.callback(text);
                       },
@@ -336,8 +338,9 @@ class _RepostPostCardState extends State<RepostPostCard> {
                 const SizedBox(
                   height: 10,
                 ),
-                const Divider(
-                  color: Colors.blue,
+                Divider(
+                  color: theme.dividerTheme.color,
+                  thickness: theme.dividerTheme.thickness,
                 ),
                 Center(
                   child: SizedBox(
@@ -373,60 +376,23 @@ class _RepostPostCardState extends State<RepostPostCard> {
     );
   }
 
-  // PopupMenuItem menuOption(String iconPath, String title, String value,
-  //     BuildContext context, String userEmail, String userName) {
-  //   return PopupMenuItem(
-  //     value: value,
-  //     onTap: () async {
-  //       if (value == "chat") {
-  //         String? chatID = await InZoneDatabase.startConversation(widget.post.id);
-  //         print(chatID);
-  //       } else if(value == "not_interested"){
-  //         final snackBar = SnackBar(
-  //           content: Text("This post has been flagged for review."),
-  //           backgroundColor: Colors.red,
-  //         );
-  //         ScaffoldMessenger.of(context).showSnackBar(snackBar);
-  //       }else if(value == "dont_show"){
-  //         final snackBar = SnackBar(
-  //           content: Text("Posts from ${widget.post.userName} will not be shown."),
-  //           backgroundColor: Colors.red,
-  //         );
-  //         ScaffoldMessenger.of(context).showSnackBar(snackBar);
-  //       }else if(value == "dont_show"){
-  //         final snackBar = SnackBar(
-  //           content: Text("Posts from ${widget.post.userName} will not be shown."),
-  //           backgroundColor: Colors.red,
-  //         );
-  //         ScaffoldMessenger.of(context).showSnackBar(snackBar);
-  //       }
-  //     },
-  //     child: Row(children: [
-  //       SvgPicture.asset(iconPath),
-  //       const SizedBox(
-  //         width: 6,
-  //       ),
-  //       Text(title)
-  //     ]),
-  //   );
-  // }
-
   Widget messageCard(String text, bool isMe) {
+    final theme = Theme.of(context);
+
     return Padding(
       padding: const EdgeInsets.all(8.0),
       child: Align(
         alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
         child: Column(
-          crossAxisAlignment: isMe
-              ? CrossAxisAlignment.end
-              : CrossAxisAlignment.start, // Align properly for different users
+          crossAxisAlignment:
+              isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 15.0),
               child: Text(
                 widget.name,
-                style: const TextStyle(color: Colors.blue),
+                style: TextStyle(color: theme.colorScheme.primary),
               ),
             ),
             Row(
@@ -434,7 +400,6 @@ class _RepostPostCardState extends State<RepostPostCard> {
                   isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
               children: [
                 Flexible(
-                  // Flexible allows the text to take up available space and wrap when needed
                   child: Container(
                     padding: const EdgeInsets.all(15),
                     margin: const EdgeInsets.symmetric(
@@ -442,25 +407,29 @@ class _RepostPostCardState extends State<RepostPostCard> {
                       vertical: 5,
                     ),
                     decoration: BoxDecoration(
-                      color: isMe ? Colors.blue : Theme.of(context).canvasColor,
+                      color: isMe
+                          ? theme.myChatBubbleColor
+                          : theme.otherChatBubbleColor,
                       borderRadius: BorderRadius.only(
                         topLeft: const Radius.circular(18),
                         topRight: const Radius.circular(18),
                         bottomRight: isMe
-                            ? const Radius.circular(18)
-                            : const Radius.circular(0),
-                        bottomLeft: isMe
                             ? const Radius.circular(0)
                             : const Radius.circular(18),
+                        bottomLeft: isMe
+                            ? const Radius.circular(18)
+                            : const Radius.circular(0),
                       ),
                     ),
                     child: Text(
                       text,
-                      overflow: TextOverflow
-                          .visible, // Ensures the text wraps when necessary
-                      softWrap: true, // Allows the text to wrap naturally
-                      style:
-                          TextStyle(color: isMe ? Colors.white : Colors.black),
+                      overflow: TextOverflow.visible,
+                      softWrap: true,
+                      style: TextStyle(
+                        color: isMe
+                            ? theme.myChatTextColor
+                            : theme.otherChatTextColor,
+                      ),
                     ),
                   ),
                 ),
@@ -474,7 +443,7 @@ class _RepostPostCardState extends State<RepostPostCard> {
 }
 
 class LikeButtonWidget extends StatefulWidget {
-  final InZonePost post; // Unique ID for the post
+  final InZonePost post;
   bool liked;
   LikeButtonWidget({super.key, required this.post, required this.liked});
 
@@ -489,10 +458,9 @@ class _LikeButtonWidgetState extends State<LikeButtonWidget> {
   void initState() {
     super.initState();
     isLiked = widget.liked;
-    _loadLikedState(); // Load the liked state when the widget is initialized
+    _loadLikedState();
   }
 
-  // Load the liked state from SharedPreferences
   Future<void> _loadLikedState() async {
     bool liked = await LikedPostsPreferences.isPostLiked(widget.post.id);
     setState(() {
@@ -500,7 +468,6 @@ class _LikeButtonWidgetState extends State<LikeButtonWidget> {
     });
   }
 
-  // Handle like and unlike actions
   Future<void> _handleLike() async {
     if (isLiked) {
       await LikedPostsPreferences.removeLikedPost(widget.post.id);
@@ -508,21 +475,25 @@ class _LikeButtonWidgetState extends State<LikeButtonWidget> {
       await LikedPostsPreferences.addLikedPost(widget.post);
     }
     setState(() {
-      isLiked = !isLiked; // Toggle the like state
+      isLiked = !isLiked;
     });
   }
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: _handleLike, // Toggle like/unlike when tapped
+      onTap: _handleLike,
       child: SizedBox(
         height: 30,
         width: 30,
         child: SvgPicture.asset(
-          isLiked
-              ? CustomIcons.like
-              : CustomIcons.notlike, // Show correct icon based on state
+          isLiked ? CustomIcons.like : CustomIcons.notlike,
+          colorFilter: ColorFilter.mode(
+            isLiked
+                ? Theme.of(context).colorScheme.primary
+                : Theme.of(context).iconTheme.color!,
+            BlendMode.srcIn,
+          ),
         ),
       ),
     );
