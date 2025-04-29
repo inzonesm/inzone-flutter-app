@@ -114,7 +114,7 @@ abstract class BaseProfileScreenState<T extends BaseProfileScreen>
   @override
   Widget build(BuildContext context) {
     // Get the app's background color from the theme
-    final backgroundColor = Theme.of(context).canvasColor;
+    final backgroundColor = Theme.of(context).cardColor;
 
     // Set status bar color
     SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle(
@@ -124,7 +124,7 @@ abstract class BaseProfileScreenState<T extends BaseProfileScreen>
     ));
 
     return ColorfulSafeArea(
-      topColor: backgroundColor,
+      topColor: Theme.of(context).canvasColor,
       left: false,
       right: false,
       top: true,
@@ -139,10 +139,6 @@ abstract class BaseProfileScreenState<T extends BaseProfileScreen>
             Container(
               decoration: BoxDecoration(
                 color: backgroundColor,
-                borderRadius: const BorderRadius.only(
-                  bottomLeft: Radius.circular(30),
-                  bottomRight: Radius.circular(30),
-                ),
               ),
               child: Column(
                 children: [
@@ -163,7 +159,7 @@ abstract class BaseProfileScreenState<T extends BaseProfileScreen>
                   // Tab bar
                   Container(
                     decoration: BoxDecoration(
-                      color: Theme.of(context).canvasColor,
+                      color: Theme.of(context).cardColor,
                       borderRadius: const BorderRadius.only(
                         bottomLeft: Radius.circular(30),
                         bottomRight: Radius.circular(30),

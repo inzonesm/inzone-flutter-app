@@ -13,6 +13,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:lottie/lottie.dart';
 import 'package:inzone/auth/auth_work.dart';
+import 'package:go_router/go_router.dart';
 
 class PostScreen extends StatefulWidget {
   const PostScreen({super.key});
@@ -138,7 +139,7 @@ class _PostScreenState extends State<PostScreen> {
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     IconButton(
-                      onPressed: () => Navigator.pop(context),
+                      onPressed: () => context.pop(),
                       icon: Icon(
                         FeatherIcons.x,
                         color: Theme.of(context).iconTheme.color,
@@ -211,7 +212,7 @@ class _PostScreenState extends State<PostScreen> {
                                     return;
                                   }
 
-                                  Navigator.pop(context);
+                                  context.pop();
 
                                   showDialog(
                                     context: context,
@@ -676,5 +677,9 @@ class _PostScreenState extends State<PostScreen> {
         ),
       ),
     );
+  }
+
+  void _navigateBack() {
+    context.pop();
   }
 }

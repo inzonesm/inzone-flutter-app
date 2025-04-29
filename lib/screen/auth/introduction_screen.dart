@@ -33,7 +33,7 @@ class _IntroductionScreenState extends State<IntroductionScreen> {
     final user = FirebaseAuth.instance.currentUser;
 
     if (user == null) {
-      if (mounted) Navigator.of(context).pop();
+      _dismissLoadingDialog();
       return;
     }
 
@@ -51,13 +51,11 @@ class _IntroductionScreenState extends State<IntroductionScreen> {
 
     bool isProfileCompleted = doc.data()?['createdAt'] != null;
 
-    if (mounted) {
-      Navigator.of(context).pop();
-      if (isProfileCompleted) {
-        context.go(Routes.home);
-      } else {
-        context.go(Routes.profileWithEmail(user.email ?? ""));
-      }
+    _dismissLoadingDialog();
+    if (isProfileCompleted) {
+      context.go(Routes.home);
+    } else {
+      context.go(Routes.profileWithEmail(user.email ?? ""));
     }
   }
 
@@ -71,6 +69,10 @@ class _IntroductionScreenState extends State<IntroductionScreen> {
     );
   }
 
+  void _dismissLoadingDialog() {
+    if (mounted) Navigator.of(context).pop();
+  }
+
   Future<void> _handleAppleLogin() async {
     _showLoadingDialog();
 
@@ -79,11 +81,7 @@ class _IntroductionScreenState extends State<IntroductionScreen> {
       await _checkLoginStatus();
     } catch (e) {
       debugPrint("Apple Sign-In Error: $e");
-      if (mounted) Navigator.of(context).pop();
-    } finally {
-      if (mounted && Navigator.of(context).canPop()) {
-        Navigator.of(context).pop();
-      }
+      _dismissLoadingDialog();
     }
   }
 
@@ -95,11 +93,7 @@ class _IntroductionScreenState extends State<IntroductionScreen> {
       await _checkLoginStatus();
     } catch (e) {
       debugPrint("Google Sign-In Error: $e");
-      if (mounted) Navigator.of(context).pop();
-    } finally {
-      if (mounted && Navigator.of(context).canPop()) {
-        Navigator.of(context).pop();
-      }
+      _dismissLoadingDialog();
     }
   }
 

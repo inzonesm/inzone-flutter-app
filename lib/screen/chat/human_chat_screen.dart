@@ -8,6 +8,8 @@ import 'package:inzone/services/inzone_database.dart';
 import 'package:inzone/theme/light_theme.dart';
 import 'package:intl/intl.dart';
 import 'package:random_avatar/random_avatar.dart';
+import 'package:flutter/foundation.dart';
+import 'package:go_router/go_router.dart';
 
 class HumanChatScreen extends StatefulWidget {
   final String conversationId; // Unique ID for this conversation
@@ -127,7 +129,7 @@ class _HumanChatScreenState extends State<HumanChatScreen> {
           elevation: 0,
           leading: IconButton(
             icon: const Icon(Icons.arrow_back_ios, size: 20),
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => context.pop(),
           ),
         ),
         body: const Center(child: CircularProgressIndicator()),
@@ -139,7 +141,8 @@ class _HumanChatScreenState extends State<HumanChatScreen> {
       appBar: ChatAppBar(
         title: widget.otherUserName,
         avatarId: widget.otherUserId,
-        onBack: () => Navigator.pop(context),
+        avatarUrl: widget.otherUserName,
+        onBack: () => context.pop(),
       ),
       body: Column(
         children: [

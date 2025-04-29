@@ -10,6 +10,8 @@ import 'package:inzone/screen/chat/all_chats_screen.dart';
 import 'package:inzone/screen/chat/post_chat_screen.dart';
 import 'package:inzone/theme/light_theme.dart'; // Import for ChatTheme extension
 import 'package:random_avatar/random_avatar.dart';
+import 'package:go_router/go_router.dart';
+import 'package:inzone/router/routes.dart';
 
 class ChatScreen extends StatefulWidget {
   ChatUser userData;
@@ -64,14 +66,12 @@ class _ChatScreenState extends State<ChatScreen> {
           isMe: isMe,
           onShare: !isMe && !widget.userData.email!.contains('.')
               ? () {
-                  Navigator.push(context, MaterialPageRoute(builder: (context) {
-                    return PostChatScreen(
-                      name: widget.userData.name!,
-                      profileImageURL: widget.userData.profilePictureURL!,
-                      chat: text,
-                      avatarID: widget.userData.email!,
-                    );
-                  }));
+                  context.push(Routes.postChat, extra: {
+                    'name': widget.userData.name!,
+                    'profileImageURL': widget.userData.profilePictureURL!,
+                    'chat': text,
+                    'avatarID': widget.userData.email!,
+                  });
                 }
               : null,
         ),
@@ -90,7 +90,7 @@ class _ChatScreenState extends State<ChatScreen> {
         avatarId: widget.userData.name!,
         avatarUrl: widget.userData.profilePictureURL,
         onBack: () {
-          Navigator.pop(context);
+          context.pop();
         },
       ),
       body: SafeArea(

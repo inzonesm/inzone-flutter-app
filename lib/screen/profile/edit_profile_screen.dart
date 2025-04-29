@@ -5,6 +5,7 @@ import 'package:inzone/components/ui/appbar.dart';
 import 'package:random_avatar/random_avatar.dart';
 import 'package:inzone/services/inzone_database.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:go_router/go_router.dart';
 
 class EditProfileScreen extends StatefulWidget {
   final String userId;
@@ -83,7 +84,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         );
 
         // Return true to indicate successful update and trigger profile refresh
-        Navigator.pop(context, true);
+        context.pop(true);
       }
     } catch (e) {
       if (mounted) {

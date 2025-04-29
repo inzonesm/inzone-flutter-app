@@ -3,6 +3,7 @@ import 'package:colorful_safe_area/colorful_safe_area.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:inzone/components/settings/topic_selector_widget.dart';
+import 'package:inzone/router/app_router.dart';
 import 'package:inzone/router/routes.dart';
 import 'package:inzone/services/inzone_database.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -77,18 +78,75 @@ class _InterestSelectionScreenState extends State<InterestSelectionScreen> {
       return;
     }
 
+    // 로딩 다이얼로그 표시
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const CircularProgressIndicator(
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.blue),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  "Setting up InZone...",
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+
     try {
+      print("InterestScreen - Finishing signup for user: ${user.uid}");
+      print("InterestScreen - Selected interests: $_interests");
+
+      // Set a timestamp to mark profile completion
+      final timestamp = DateTime.now().toIso8601String();
+      print("InterestScreen - Setting createdAt timestamp: $timestamp");
+
+      // Update the user document with interests and createdAt timestamp
       await FirebaseFirestore.instance
           .collection('humanUsers')
           .doc(user.uid)
           .update({
         'interests': _interests,
+        'createdAt': timestamp,
       });
 
+      print("InterestScreen - Updated interests and set createdAt timestamp");
+
+      // Force refresh of auth state
+      await AppRouter.authNotifier.refreshAuthState();
+
       if (mounted) {
-        context.go(Routes.home);
+        // 로딩 다이얼로그 닫기
+        Navigator.of(context).pop();
+
+        print("InterestScreen - Navigating to home screen");
+        // Use replaceAll to completely replace the navigation stack and ensure we go to the root app
+        context.pushReplacement(Routes.home);
       }
     } catch (e) {
+      // 로딩 다이얼로그 닫기
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
+
+      print("InterestScreen - Error completing signup: $e");
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text("Failed to complete sign up: $e"),

@@ -2,6 +2,8 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:go_router/go_router.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:inzone/router/auth_notifier.dart';
 
 // Screens
 import 'package:inzone/root_app.dart';
@@ -15,9 +17,11 @@ import 'package:inzone/screen/explore/groups_explore_screen.dart';
 import 'package:inzone/screen/chat/all_chats_screen.dart';
 import 'package:inzone/screen/profile/user_profile_screen.dart';
 import 'package:inzone/screen/profile/profile_screen.dart';
+import 'package:inzone/screen/profile/edit_profile_screen.dart';
 import 'package:inzone/screen/post/post_screen.dart';
 import 'package:inzone/screen/chat/group_chat_screen.dart';
 import 'package:inzone/screen/chat/chat_screen.dart';
+import 'package:inzone/screen/chat/post_chat_screen.dart';
 import 'package:inzone/screen/settings/content_select_screen.dart';
 import 'package:inzone/screen/settings/subscription_purchase.dart';
 import 'package:inzone/screen/settings/referral_screen.dart';
@@ -31,30 +35,79 @@ import 'package:inzone/router/routes.dart';
 class AppRouter {
   static final rootNavigatorKey = GlobalKey<NavigatorState>();
   static final _shellNavigatorKey = GlobalKey<NavigatorState>();
+  static final authNotifier = AuthNotifier();
 
   static final GoRouter router = GoRouter(
     initialLocation: Routes.splash,
     navigatorKey: rootNavigatorKey,
     debugLogDiagnostics: true,
+    refreshListenable: authNotifier,
     redirect: (BuildContext context, GoRouterState state) {
-      final User? user = FirebaseAuth.instance.currentUser;
-      final bool isLoggedIn = user != null;
-      final bool isGoingToSplash = state.matchedLocation == Routes.splash;
+      final bool isLoading = authNotifier.isLoading;
+      final bool isLoggedIn = authNotifier.isLoggedIn;
+      final bool isProfileCompleted = authNotifier.isProfileCompleted;
 
-      if (isGoingToSplash) {
+      final bool isGoingToSplash = state.matchedLocation == Routes.splash;
+      final bool isProfileScreen = state.matchedLocation == Routes.profile ||
+          state.matchedLocation.startsWith('/auth/profile');
+      final bool isInterestsScreen =
+          state.matchedLocation == Routes.interests ||
+              state.matchedLocation.startsWith('/auth/interests');
+      final bool isAuthScreen = state.matchedLocation.contains('/auth/');
+
+      print("GoRouter redirect - Current location: ${state.matchedLocation}");
+      print("GoRouter redirect - Profile completed: $isProfileCompleted");
+      print("GoRouter redirect - Auth screen: $isAuthScreen");
+
+      // Don't redirect while still loading
+      if (isLoading) {
+        print("GoRouter redirect - Still loading, no redirect");
         return null;
       }
 
-      if (!isLoggedIn && !state.matchedLocation.contains('/auth/')) {
+      if (isGoingToSplash) {
+        print("GoRouter redirect - Going to splash, no redirect");
+        return null;
+      }
+
+      // Not logged in but trying to access non-auth screens
+      if (!isLoggedIn && !isAuthScreen) {
+        print("GoRouter redirect - Not logged in, redirecting to login");
         return Routes.login;
       }
 
-      if (isLoggedIn && state.matchedLocation.contains('/auth/')) {
+      // Check profile completion status - this should take priority
+      if (isLoggedIn && !isProfileCompleted) {
+        // If user is going to profile or interests screens, allow it
+        if (isProfileScreen || isInterestsScreen) {
+          print(
+              "GoRouter redirect - Incomplete profile but already on profile/interests screen, no redirect");
+          return null;
+        }
+
+        // Otherwise redirect to profile setup
+        print(
+            "GoRouter redirect - Incomplete profile, redirecting to profile setup");
+        final user = FirebaseAuth.instance.currentUser;
+        return Routes.profileWithEmail(user?.email ?? "");
+      }
+
+      // If profile is completed and user is on auth screens that aren't needed anymore
+      if (isLoggedIn &&
+          isProfileCompleted &&
+          isAuthScreen &&
+          !isGoingToSplash) {
+        print(
+            "GoRouter redirect - Profile completed but on auth screen, redirecting to home");
         return Routes.home;
       }
 
+      print("GoRouter redirect - No redirect needed");
       return null;
     },
+
+    // Handle redirects
+    redirectLimit: 5,
     routes: [
       // 🚀 Auth and splash routes
       GoRoute(
@@ -127,6 +180,20 @@ class AppRouter {
         ),
       ),
       GoRoute(
+        path: Routes.editProfile,
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) {
+          final Map<String, dynamic> extra =
+              state.extra as Map<String, dynamic>;
+          return EditProfileScreen(
+            userId: extra['userId'] as String,
+            initialName: extra['initialName'] as String,
+            initialUsername: extra['initialUsername'] as String,
+            initialBio: extra['initialBio'] as String,
+          );
+        },
+      ),
+      GoRoute(
         path: Routes.aiProfile,
         parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) {
@@ -156,6 +223,20 @@ class AppRouter {
         builder: (context, state) {
           final userData = state.extra as ChatUser;
           return ChatScreen(userData: userData);
+        },
+      ),
+      GoRoute(
+        path: Routes.postChat,
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) {
+          final Map<String, dynamic> extra =
+              state.extra as Map<String, dynamic>;
+          return PostChatScreen(
+            name: extra['name'] as String,
+            profileImageURL: extra['profileImageURL'] as String,
+            chat: extra['chat'] as String,
+            avatarID: extra['avatarID'] as String,
+          );
         },
       ),
       GoRoute(

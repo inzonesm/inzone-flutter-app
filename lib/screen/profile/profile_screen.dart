@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_feather_icons/flutter_feather_icons.dart';
 import 'package:inzone/components/profile/base_profile_screen.dart';
 import 'package:inzone/components/profile/user_posts_tab.dart';
 import 'package:inzone/components/profile/followers_following_tab.dart';
@@ -368,57 +369,67 @@ class _ProfileScreenState extends BaseProfileScreenState<ProfileScreen> {
 
   @override
   Widget buildActionButtons() {
+    final theme = Theme.of(context);
+
     return Row(
       children: [
-        // Show Follow button for both human and AI users
-        Expanded(
-          child: ElevatedButton(
-            onPressed: toggleFollow,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: isFollowing ? Colors.white : Colors.blue,
-              foregroundColor: isFollowing ? Colors.black : Colors.white,
-              side:
-                  isFollowing ? BorderSide(color: Colors.grey.shade300) : null,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
-              ),
-              padding: const EdgeInsets.symmetric(vertical: 8),
-            ),
-            child: Text(
-              isFollowing ? 'Following' : 'Follow',
-              style: TextStyle(
+        // Follow/Following Button
+        Padding(
+          padding: const EdgeInsets.only(left: 16),
+          child: GestureDetector(
+            onTap: toggleFollow,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
                 color: isFollowing
-                    ? Theme.of(context)
-                        .textTheme
-                        .bodyLarge
-                        ?.color // 밝은/어두운 모드 자동 적용
-                    : Theme.of(context).colorScheme.onPrimary, // 버튼 배경색 위 글씨용
-                fontWeight: FontWeight.bold,
+                    ? Colors.transparent
+                    : theme.colorScheme.primary, // Follow시 파란색 배경
+                border: Border.all(
+                  color: isFollowing
+                      ? theme.dividerColor
+                      : theme.colorScheme.primary,
+                  width: 1,
+                ),
+                borderRadius: BorderRadius.circular(30),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    isFollowing ? FeatherIcons.check : FeatherIcons.userPlus,
+                    size: 18,
+                    color: isFollowing
+                        ? theme.textTheme.bodyMedium?.color
+                        : theme.colorScheme.onPrimary,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    isFollowing ? 'Following' : 'Follow',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: isFollowing
+                          ? theme.textTheme.bodyMedium?.color
+                          : theme.colorScheme.onPrimary,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
         ),
 
-        const SizedBox(width: 8),
-
-        // Message button is always shown
-        Expanded(
-          child: OutlinedButton(
-            onPressed: () async {
-              // Get current user ID
+        // Message Button
+        Padding(
+          padding: const EdgeInsets.only(left: 10),
+          child: GestureDetector(
+            onTap: () async {
               String? currentUserId = await InZoneDatabase.getCurrentUserUid();
-              if (currentUserId == null) {
-                return; // Exit if no user is logged in
-              }
+              if (currentUserId == null) return;
 
-              // Get the target user ID
               String targetUserId = getUserId();
-
-              // Check if the profile is an AI user
               bool isAiUser = widget.isAI;
 
               if (isAiUser) {
-                // For AI users, navigate to ChatScreen
                 context.pushNamed('chat',
                     extra: ChatUser(
                       name: name,
@@ -426,26 +437,19 @@ class _ProfileScreenState extends BaseProfileScreenState<ProfileScreen> {
                       chatId: null,
                     ));
               } else {
-                // For human users, create or open conversation
-
-                // Create a consistent conversation ID that's the same for both users
-                // Sort the IDs to ensure the same ID regardless of who initiates
                 List<String> sortedIds = [currentUserId, targetUserId]..sort();
                 String conversationId = "${sortedIds[0]}_${sortedIds[1]}";
 
                 try {
-                  // Check if conversation already exists
                   final conversationDoc = await FirebaseFirestore.instance
                       .collection('conversations')
                       .doc(conversationId)
                       .get();
 
                   if (!conversationDoc.exists) {
-                    // Get current user's name
                     String currentUserName =
                         await _getCurrentUserName(currentUserId);
 
-                    // Create new conversation document if it doesn't exist
                     await FirebaseFirestore.instance
                         .collection('conversations')
                         .doc(conversationId)
@@ -461,32 +465,48 @@ class _ProfileScreenState extends BaseProfileScreenState<ProfileScreen> {
                     });
                   }
 
-                  // Navigate to chat screen
                   context.pushNamed('chat', extra: {
                     'conversationId': conversationId,
                     'otherUserName': name,
                     'otherUserId': targetUserId,
                   });
                 } catch (e) {
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
                       content: Text(
-                          'Failed to open conversation. Please try again.')));
+                          'Failed to open conversation. Please try again.'),
+                    ),
+                  );
                 }
               }
             },
-            style: OutlinedButton.styleFrom(
-              foregroundColor: Colors.black,
-              side: const BorderSide(color: Colors.blue),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.transparent,
+                border: Border.all(
+                  color: theme.dividerColor,
+                  width: 1,
+                ),
+                borderRadius: BorderRadius.circular(30),
               ),
-              padding: const EdgeInsets.symmetric(vertical: 8),
-            ),
-            child: Text(
-              'Message',
-              style: TextStyle(
-                color: Theme.of(context).textTheme.bodyLarge?.color,
-                fontWeight: FontWeight.bold,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    FeatherIcons.messageCircle,
+                    size: 18,
+                    color: theme.textTheme.bodyMedium?.color,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Message',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: theme.textTheme.bodyMedium?.color,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
@@ -520,7 +540,7 @@ class _ProfileScreenState extends BaseProfileScreenState<ProfileScreen> {
       leading: IconButton(
         icon: Icon(Icons.arrow_back, color: Theme.of(context).primaryColor),
         onPressed: () {
-          Navigator.pop(context);
+          context.pop();
         },
       ),
       actions: [
@@ -568,7 +588,7 @@ class _ProfileScreenState extends BaseProfileScreenState<ProfileScreen> {
             const SizedBox(height: 15),
             InkWell(
               onTap: () async {
-                Navigator.pop(context); // Close the bottom sheet
+                Navigator.of(context).pop(); // Close the bottom sheet
                 String? currentUserId =
                     await InZoneDatabase.getCurrentUserUid();
                 if (currentUserId != null) {
@@ -582,9 +602,9 @@ class _ProfileScreenState extends BaseProfileScreenState<ProfileScreen> {
                   }
                 }
               },
-              child: const Padding(
-                padding: EdgeInsets.symmetric(vertical: 15),
-                child: Row(
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                child: const Row(
                   children: [
                     Icon(Icons.person_remove),
                     SizedBox(width: 16),
@@ -596,7 +616,6 @@ class _ProfileScreenState extends BaseProfileScreenState<ProfileScreen> {
                 ),
               ),
             ),
-            const SizedBox(height: 15),
           ],
         ),
       ),

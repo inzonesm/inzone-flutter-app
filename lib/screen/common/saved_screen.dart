@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:inzone/components/cards/post_card.dart';
 import 'dart:async';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:go_router/go_router.dart';
 
 import 'package:inzone/components/profile/avatar_card.dart';
 import 'package:shimmer/shimmer.dart';
@@ -214,13 +215,13 @@ class _SavedScreenState extends State<SavedScreen> {
                             "This will remove all your saved posts. This action cannot be undone."),
                         actions: [
                           TextButton(
+                            child: const Text('Cancel'),
                             onPressed: () => Navigator.of(context).pop(false),
-                            child: const Text("Cancel"),
                           ),
                           TextButton(
-                            onPressed: () => Navigator.of(context).pop(true),
                             child: const Text("Clear All",
                                 style: TextStyle(color: Colors.red)),
+                            onPressed: () => Navigator.of(context).pop(true),
                           ),
                         ],
                       ),
