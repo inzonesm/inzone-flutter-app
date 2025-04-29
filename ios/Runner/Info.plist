@@ -19,6 +19,9 @@
 				</array>
 			</dict>
 		</array>
+		<key>NSContactsUsageDescription</key>
+		<string>We need access to your contacts to invite your friends via referral</string>
+
 		<!-- End of the Google Sign-in Section -->
 		<key>CADisableMinimumFrameDurationOnPhone</key>
 		<true/>
