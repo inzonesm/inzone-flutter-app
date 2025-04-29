@@ -10,7 +10,7 @@ abstract class BaseProfileScreen extends StatefulWidget {
 }
 
 abstract class BaseProfileScreenState<T extends BaseProfileScreen>
-    extends State<T> with SingleTickerProviderStateMixin {
+    extends State<T> with TickerProviderStateMixin {
   // Common state variables
   int currentPage = 0;
   String name = "Loading";

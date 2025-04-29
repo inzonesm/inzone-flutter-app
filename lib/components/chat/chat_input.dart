@@ -34,6 +34,18 @@ class ChatInput extends StatelessWidget {
                     controller: controller,
                     maxLines: null,
                     keyboardType: TextInputType.multiline,
+                    onFieldSubmitted: (_) => onSend(),
+                    textInputAction: TextInputAction.send,
+                    onEditingComplete: onSend,
+                    onTap: () {
+                      controller.addListener(() {
+                        if (controller.text.endsWith('\n')) {
+                          controller.text = controller.text
+                              .substring(0, controller.text.length - 1);
+                          onSend();
+                        }
+                      });
+                    },
                     decoration: InputDecoration(
                       suffixIconColor: Theme.of(context).iconTheme.color,
                       contentPadding:

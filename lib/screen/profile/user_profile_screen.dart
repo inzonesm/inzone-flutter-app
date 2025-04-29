@@ -9,6 +9,7 @@ import 'package:flutter/services.dart';
 import 'package:inzone/components/profile/base_profile_screen.dart';
 import 'package:inzone/components/profile/user_posts_tab.dart';
 import 'package:inzone/screen/profile/edit_profile_screen.dart';
+import 'package:inzone/components/ui/profile_appbar.dart';
 import 'package:go_router/go_router.dart';
 import 'package:inzone/router/routes.dart';
 
@@ -27,6 +28,8 @@ class _UserProfileScreenState
   String? currentUserId;
   @override
   String profileImageUrl = "";
+  late TabController _scrollTabController;
+
   // Store the community tab data
   Map<String, List<Map<String, dynamic>>> _communityTabData = {
     "followers": [],
@@ -36,7 +39,25 @@ class _UserProfileScreenState
   @override
   void initState() {
     super.initState();
+    _scrollTabController =
+        TabController(length: getTabLabels().length, vsync: this);
+
+    // Keep the controllers in sync
+    _scrollTabController.addListener(() {
+      if (_scrollTabController.index != currentPage) {
+        setState(() {
+          currentPage = _scrollTabController.index;
+        });
+      }
+    });
+
     _getCurrentUserId();
+  }
+
+  @override
+  void dispose() {
+    _scrollTabController.dispose();
+    super.dispose();
   }
 
   Future<void> _getCurrentUserId() async {
@@ -69,7 +90,6 @@ class _UserProfileScreenState
     if (currentUserId == null) {
       return [
         const Center(child: Text('Please log in to view your posts')),
-        const Center(child: Text('Please log in to view your community')),
       ];
     }
     return [
@@ -77,10 +97,6 @@ class _UserProfileScreenState
         userId: currentUserId!,
         ai: false,
       ),
-      // FollowersFollowingTab(
-      //   userList: _communityTabData,
-      //   userId: currentUserId!,
-      // ),
     ];
   }
 
@@ -189,17 +205,7 @@ class _UserProfileScreenState
 
   @override
   PreferredSizeWidget? buildAppBar() {
-    return PreferredSize(
-      preferredSize: Size.zero,
-      child: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        systemOverlayStyle: const SystemUiOverlayStyle(
-          statusBarColor: Colors.transparent,
-          statusBarIconBrightness: Brightness.dark,
-        ),
-      ),
-    );
+    return null; // SliverAppBar를 사용하므로 여기선 null을 반환
   }
 
   @override
@@ -292,6 +298,107 @@ class _UserProfileScreenState
     // Do nothing, we're handling this in _getCurrentUserId
     if (currentUserId == null) return;
     await super.fetchUserStats();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: SafeArea(
+        child: NestedScrollView(
+          headerSliverBuilder: (BuildContext context, bool innerBoxIsScrolled) {
+            return [
+              // 상단 여백 (앱바 대신 사용)
+              const SliverToBoxAdapter(
+                child: SizedBox(height: 0),
+              ),
+
+              // Profile header
+              SliverToBoxAdapter(
+                child: Container(
+                  color: Theme.of(context).cardColor,
+                  child: ProfileAppbar(
+                    name: name,
+                    bio: bio,
+                    profileImageUrl: profileImageUrl,
+                    username: username,
+                    postCount: postCount,
+                    followingCount: followingCount,
+                    followersCount: followersCount,
+                    actionButtons: buildActionButtons(),
+                    isProfilePage: true,
+                  ),
+                ),
+              ),
+
+              // Tab bar
+              SliverPersistentHeader(
+                delegate: _SliverAppBarDelegate(
+                  Container(
+                    height: 54.0, // 명시적 높이 설정
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).cardColor,
+                      borderRadius: const BorderRadius.only(
+                        bottomLeft: Radius.circular(30),
+                        bottomRight: Radius.circular(30),
+                      ),
+                    ),
+                    child: Center(
+                      // Center로 감싸서 위치 고정
+                      child: TabBar(
+                        controller: _scrollTabController,
+                        tabs: getTabLabels()
+                            .map((label) => Tab(text: label))
+                            .toList(),
+                        indicatorColor: Theme.of(context).primaryColor,
+                        labelColor: Theme.of(context).primaryColor,
+                        unselectedLabelColor: Theme.of(context).hintColor,
+                        indicatorWeight: 3.0,
+                      ),
+                    ),
+                  ),
+                ),
+                pinned: true,
+              ),
+
+              // Add space
+              const SliverToBoxAdapter(
+                child: SizedBox(height: 5),
+              ),
+            ];
+          },
+          body: TabBarView(
+            controller: _scrollTabController,
+            children: getTabViews(),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SliverAppBarDelegate extends SliverPersistentHeaderDelegate {
+  final Widget child;
+
+  _SliverAppBarDelegate(this.child);
+
+  @override
+  double get minExtent => 54.0; // 탭바의 최소 높이를 증가
+
+  @override
+  double get maxExtent => 54.0; // 탭바의 최대 높이를 증가
+
+  @override
+  Widget build(
+      BuildContext context, double shrinkOffset, bool overlapsContent) {
+    return SizedBox(
+      width: double.infinity,
+      child: child,
+    );
+  }
+
+  @override
+  bool shouldRebuild(_SliverAppBarDelegate oldDelegate) {
+    return true; // 항상 다시 빌드하도록 설정
   }
 }
 

@@ -29,7 +29,7 @@ class MessageBubble extends StatelessWidget {
       child: Row(
         mainAxisAlignment:
             isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
-        crossAxisAlignment: CrossAxisAlignment.end,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           if (!isMe && senderAvatar != null) ...[
             senderAvatar!,
@@ -56,7 +56,7 @@ class MessageBubble extends StatelessWidget {
                   padding: const EdgeInsets.all(15),
                   margin: const EdgeInsets.symmetric(
                     horizontal: 10,
-                    vertical: 5,
+                    vertical: 12,
                   ),
                   decoration: BoxDecoration(
                     color: isMe
@@ -66,11 +66,11 @@ class MessageBubble extends StatelessWidget {
                       topLeft: const Radius.circular(18),
                       topRight: const Radius.circular(18),
                       bottomRight: isMe
-                          ? const Radius.circular(18)
-                          : const Radius.circular(0),
-                      bottomLeft: isMe
                           ? const Radius.circular(0)
                           : const Radius.circular(18),
+                      bottomLeft: isMe
+                          ? const Radius.circular(18)
+                          : const Radius.circular(0),
                     ),
                   ),
                   child: Text(
@@ -97,14 +97,17 @@ class MessageBubble extends StatelessWidget {
             ),
           ),
           if (!isMe && onShare != null)
-            GestureDetector(
-              onTap: onShare,
-              child: Padding(
-                padding: const EdgeInsets.only(right: 5.0),
-                child: SizedBox(
-                  height: 25,
-                  width: 25,
-                  child: SvgPicture.asset(CustomIcons.send),
+            Padding(
+              padding: const EdgeInsets.only(left: 8.0),
+              child: GestureDetector(
+                onTap: onShare,
+                child: Padding(
+                  padding: const EdgeInsets.only(bottom: 15.0, right: 5.0),
+                  child: SizedBox(
+                    height: 25,
+                    width: 25,
+                    child: SvgPicture.asset(CustomIcons.send),
+                  ),
                 ),
               ),
             ),

@@ -4,6 +4,7 @@ import 'package:flutter_feather_icons/flutter_feather_icons.dart';
 import 'package:inzone/components/profile/base_profile_screen.dart';
 import 'package:inzone/components/profile/user_posts_tab.dart';
 import 'package:inzone/components/profile/followers_following_tab.dart';
+import 'package:inzone/components/ui/profile_appbar.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:inzone/screen/chat/chat_screen.dart';
 import 'package:inzone/screen/chat/human_chat_screen.dart';
@@ -24,6 +25,33 @@ class ProfileScreen extends BaseProfileScreen {
 
 class _ProfileScreenState extends BaseProfileScreenState<ProfileScreen> {
   bool isFollowing = false;
+  late TabController _scrollTabController;
+
+  @override
+  void initState() {
+    super.initState();
+    // Create a separate controller for our scrollable UI
+    _scrollTabController =
+        TabController(length: getTabLabels().length, vsync: this);
+
+    // Keep the controllers in sync
+    _scrollTabController.addListener(() {
+      if (_scrollTabController.index != currentPage) {
+        setState(() {
+          currentPage = _scrollTabController.index;
+        });
+      }
+    });
+
+    fetchUserProfile();
+    fetchUserStats(widget.isAI);
+  }
+
+  @override
+  void dispose() {
+    _scrollTabController.dispose();
+    super.dispose();
+  }
 
   @override
   Future<void> fetchUserProfile() async {
@@ -177,10 +205,13 @@ class _ProfileScreenState extends BaseProfileScreenState<ProfileScreen> {
       // Posts tab
       UserPostsTab(userId: getUserId(), ai: widget.isAI),
 
-      // Community tab - Use the processed data
-      FollowersFollowingTab(
-        userList: _communityTabData,
-        userId: getUserId(),
+      // Community tab - 스크롤 문제를 해결하기 위한 래핑
+      Scaffold(
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        body: FollowersFollowingTab(
+          userList: _communityTabData,
+          userId: getUserId(),
+        ),
       ),
     ];
   }
@@ -532,31 +563,7 @@ class _ProfileScreenState extends BaseProfileScreenState<ProfileScreen> {
 
   @override
   PreferredSizeWidget? buildAppBar() {
-    return AppBar(
-      elevation: 0,
-      backgroundColor: Theme.of(context).canvasColor,
-      centerTitle: true,
-      title: Text("Profile", style: Theme.of(context).textTheme.titleLarge),
-      leading: IconButton(
-        icon: Icon(Icons.arrow_back, color: Theme.of(context).primaryColor),
-        onPressed: () {
-          context.pop();
-        },
-      ),
-      actions: [
-        // Only show the popup menu for human users
-        if (!widget.isAI)
-          IconButton(
-            icon: Icon(Icons.more_horiz, color: Theme.of(context).primaryColor),
-            onPressed: () => _showOptionsBottomSheet(context),
-          ),
-      ],
-      systemOverlayStyle: SystemUiOverlayStyle(
-        statusBarColor: Colors.transparent,
-        statusBarIconBrightness: Brightness.dark,
-        systemNavigationBarColor: Theme.of(context).canvasColor,
-      ),
-    );
+    return null; // Return null as we'll use SliverAppBar instead
   }
 
   void _showOptionsBottomSheet(BuildContext context) {
@@ -620,5 +627,158 @@ class _ProfileScreenState extends BaseProfileScreenState<ProfileScreen> {
         ),
       ),
     );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: SafeArea(
+        child: NestedScrollView(
+          headerSliverBuilder: (BuildContext context, bool innerBoxIsScrolled) {
+            return [
+              // 상단 여백 (앱바 대신 사용)
+              const SliverToBoxAdapter(
+                child: SizedBox(height: 0),
+              ),
+
+              // Profile header
+              SliverToBoxAdapter(
+                child: Container(
+                  color: Theme.of(context).cardColor,
+                  child: Stack(
+                    children: [
+                      // Profile info section
+                      ProfileAppbar(
+                        name: name,
+                        bio: bio,
+                        profileImageUrl: profileImageUrl,
+                        username: username,
+                        postCount: postCount,
+                        followingCount: followingCount,
+                        followersCount: followersCount,
+                        actionButtons: buildActionButtons(),
+                        isProfilePage: true,
+                      ),
+
+                      // 뒤로 가기 버튼
+                      Positioned(
+                        top: 10,
+                        left: 10,
+                        child: GestureDetector(
+                          onTap: () => context.pop(),
+                          child: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color:
+                                  Theme.of(context).cardColor.withOpacity(0.7),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              Icons.arrow_back,
+                              color: Theme.of(context).primaryColor,
+                              size: 24,
+                            ),
+                          ),
+                        ),
+                      ),
+
+                      // More options button (AI가 아닐 때만 표시)
+                      if (!widget.isAI)
+                        Positioned(
+                          top: 10,
+                          right: 10,
+                          child: GestureDetector(
+                            onTap: () => _showOptionsBottomSheet(context),
+                            child: Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: Theme.of(context)
+                                    .cardColor
+                                    .withOpacity(0.7),
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(
+                                Icons.more_horiz,
+                                color: Theme.of(context).primaryColor,
+                                size: 24,
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+
+              // Tab bar
+              SliverPersistentHeader(
+                delegate: _SliverAppBarDelegate(
+                  Container(
+                    height: 54.0, // 명시적 높이 설정
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).cardColor,
+                      borderRadius: const BorderRadius.only(
+                        bottomLeft: Radius.circular(30),
+                        bottomRight: Radius.circular(30),
+                      ),
+                    ),
+                    child: Center(
+                      // Center로 감싸서 위치 고정
+                      child: TabBar(
+                        controller: _scrollTabController,
+                        tabs: getTabLabels()
+                            .map((label) => Tab(text: label))
+                            .toList(),
+                        indicatorColor: Theme.of(context).primaryColor,
+                        labelColor: Theme.of(context).primaryColor,
+                        unselectedLabelColor: Theme.of(context).hintColor,
+                        indicatorWeight: 3.0,
+                      ),
+                    ),
+                  ),
+                ),
+                pinned: true,
+              ),
+
+              // Add space
+              const SliverToBoxAdapter(
+                child: SizedBox(height: 5),
+              ),
+            ];
+          },
+          // 스크롤 문제를 해결하기 위해 직접 TabBarView를 구현
+          body: TabBarView(
+            controller: _scrollTabController,
+            children: getTabViews(),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SliverAppBarDelegate extends SliverPersistentHeaderDelegate {
+  final Widget child;
+
+  _SliverAppBarDelegate(this.child);
+
+  @override
+  double get minExtent => 54.0;
+
+  @override
+  double get maxExtent => 54.0;
+
+  @override
+  Widget build(
+      BuildContext context, double shrinkOffset, bool overlapsContent) {
+    return SizedBox(
+      width: double.infinity,
+      child: child,
+    );
+  }
+
+  @override
+  bool shouldRebuild(_SliverAppBarDelegate oldDelegate) {
+    return true;
   }
 }
