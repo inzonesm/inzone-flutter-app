@@ -40,12 +40,44 @@ class _ProfileScreenState extends State<ProfileScreen> {
       return;
     }
 
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const CircularProgressIndicator(
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.blue),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  "Saving profile...",
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+
     setState(() {
       _isSaving = true;
     });
 
     try {
       final currentUser = FirebaseAuth.instance.currentUser!;
+      print("ProfileScreen - Saving profile for user: ${currentUser.uid}");
 
       String? profileImageUrl;
       if (_profileImageFile != null) {
@@ -54,6 +86,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             .child('profile_pictures/${currentUser.uid}.jpg');
         await ref.putFile(_profileImageFile!);
         profileImageUrl = await ref.getDownloadURL();
+        print("ProfileScreen - Uploaded profile image: $profileImageUrl");
       }
 
       await FirebaseFirestore.instance
@@ -64,11 +97,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
         'name': _nameController.text.trim(),
       });
 
+      print(
+          "ProfileScreen - Profile saved successfully, navigating to interests screen");
+
       if (mounted) {
-        context.push(Routes.interestsWithEmail(widget.email));
+        Navigator.of(context).pop();
+
+        print(
+            "ProfileScreen - Navigating to: ${Routes.interestsWithEmail(widget.email)}");
+        context.go(Routes.interestsWithEmail(widget.email));
       }
     } catch (e) {
-      print('Error saving profile: $e');
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
+
+      print('ProfileScreen - Error saving profile: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
             content: Text('Failed to save profile. Please try again.')),

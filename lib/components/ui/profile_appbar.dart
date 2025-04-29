@@ -1,5 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_feather_icons/flutter_feather_icons.dart';
 import 'package:inzone/screen/settings/settings_screen.dart';
 import 'package:random_avatar/random_avatar.dart';
 
@@ -29,113 +30,103 @@ class ProfileAppbar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Theme.of(context).canvasColor,
-        borderRadius: isProfilePage
-            ? null
-            : const BorderRadius.only(
-                bottomLeft: Radius.circular(30),
-                bottomRight: Radius.circular(30),
-              ),
-        boxShadow: const [
-          BoxShadow(color: Colors.black12, blurRadius: 10, spreadRadius: 0.5)
-        ],
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 12.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Text(
-                  username,
-                  style: Theme.of(context).textTheme.headlineMedium,
-                ),
-                const Spacer(),
-                IconButton(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => SettingsScreen(),
-                      ),
-                    );
-                  },
-                  icon: const Icon(CupertinoIcons.ellipsis_vertical),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            // Avatar and stats
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Profile picture
-                CircleAvatar(
-                  radius: 40,
-                  backgroundColor: Colors.grey[300],
-                  backgroundImage: profileImageUrl.isNotEmpty
-                      ? NetworkImage(profileImageUrl)
-                      : null,
-                  child: profileImageUrl.isEmpty
-                      ? RandomAvatar(name, height: 80, width: 80)
-                      : null,
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start, // name을 왼쪽 정렬
-                    children: [
-                      Row(
-                        children: [
-                          Text(
-                            name,
-                            style: Theme.of(context).textTheme.titleSmall,
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      Padding(
-                        padding: const EdgeInsets.only(right: 20),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            _buildStatColumn(
-                                postCount.toString(), "posts", context),
-                            _buildStatColumn(followingCount.toString(),
-                                "following", context),
-                            _buildStatColumn(followersCount.toString(),
-                                "followers", context),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 10),
-              child: Text(
-                bio.isEmpty ? "No bio set yet" : bio,
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
-            ),
-            const SizedBox(height: 12),
+    final theme = Theme.of(context);
 
-            actionButtons,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Container(
+              height: 120,
+              width: double.infinity,
+              decoration: BoxDecoration(
+                color: Theme.of(context).canvasColor,
+              ),
+            ),
+            Positioned(
+              left: 16,
+              bottom: -40,
+              child: Container(
+                width: 80,
+                height: 80,
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(20),
+                  image: profileImageUrl.isNotEmpty
+                      ? DecorationImage(
+                          image: NetworkImage(profileImageUrl),
+                          fit: BoxFit.cover,
+                        )
+                      : null,
+                ),
+                child: profileImageUrl.isEmpty
+                    ? ClipRRect(
+                        borderRadius: BorderRadius.circular(20),
+                        child: RandomAvatar(name, height: 80, width: 80),
+                      )
+                    : null,
+              ),
+            ),
           ],
         ),
-      ),
+        const SizedBox(height: 50), // 사진 공간 확보
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.center, // 핵심: center로
+          mainAxisAlignment: MainAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.only(left: 24, right: 0),
+                    child: Text(
+                      name,
+                      style: theme.textTheme.titleLarge,
+                    ),
+                  ),
+                  const SizedBox(height: 8), // name과 bio 사이 간격
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    child: Text(
+                      bio.isEmpty ? "No bio set yet" : bio,
+                      style: theme.textTheme.bodyMedium,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.only(right: 24),
+              child: Align(
+                alignment: Alignment.center,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _buildStatColumn(postCount.toString(), "Posts", context),
+                    const SizedBox(width: 20),
+                    _buildStatColumn(
+                        followingCount.toString(), "Following", context),
+                    const SizedBox(width: 20),
+                    _buildStatColumn(
+                        followersCount.toString(), "Followers", context),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+
+        const SizedBox(height: 16),
+        actionButtons,
+      ],
     );
   }
 
   Widget _buildStatColumn(String value, String label, BuildContext context) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           value,

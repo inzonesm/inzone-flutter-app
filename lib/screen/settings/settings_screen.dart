@@ -134,12 +134,7 @@ class SettingsScreen extends StatelessWidget {
     return [
       () {
         try {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => const ContentSelectionSettingsScreen(),
-            ),
-          );
+          context.push(Routes.contentSelection);
         } catch (e) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -149,12 +144,7 @@ class SettingsScreen extends StatelessWidget {
       },
       () {
         try {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => const SubscriptionScreen(),
-            ),
-          );
+          context.push(Routes.subscription);
         } catch (e) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('Error navigating to subscription: $e')),
@@ -184,12 +174,7 @@ class SettingsScreen extends StatelessWidget {
     return [
       () {
         try {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => const ReferralScreen(),
-            ),
-          );
+          context.push(Routes.referral);
         } catch (e) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('Error navigating to referral: $e')),

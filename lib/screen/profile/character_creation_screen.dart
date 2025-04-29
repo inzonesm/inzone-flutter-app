@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:inzone/services/inzone_database.dart';
 import 'package:inzone/services/shared_preferences_helper_class.dart';
 import 'package:lottie/lottie.dart';
+import 'package:go_router/go_router.dart';
 
 class CharacterCreationScreen extends StatefulWidget {
   const CharacterCreationScreen({super.key});
@@ -300,9 +301,7 @@ class _CharacterCreationScreenState extends State<CharacterCreationScreen> {
                                   Flexible(
                                     child: ElevatedButton(
                                         onPressed: () {
-                                          setState(() {
-                                            Navigator.pop(context);
-                                          });
+                                          context.pop();
                                         },
                                         style: ElevatedButton.styleFrom(
                                             elevation: 10,

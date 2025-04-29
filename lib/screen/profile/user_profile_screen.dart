@@ -1,14 +1,19 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_feather_icons/flutter_feather_icons.dart';
 import 'package:inzone/components/cards/post_card.dart';
 import 'package:inzone/components/profile/avatar_card.dart';
 import 'package:inzone/data/inzone_avatar.dart';
+import 'package:inzone/screen/settings/settings_screen.dart';
 import 'package:inzone/services/inzone_database.dart';
 import 'package:flutter/services.dart';
 import 'package:inzone/components/profile/base_profile_screen.dart';
 import 'package:inzone/components/profile/user_posts_tab.dart';
 import 'package:inzone/screen/profile/edit_profile_screen.dart';
+import 'package:go_router/go_router.dart';
+import 'package:inzone/router/routes.dart';
 
 import 'package:inzone/data/inzone_post.dart';
+import 'package:inzone/theme/app_colors.dart';
 
 class UserProfileScreen extends BaseProfileScreen {
   const UserProfileScreen({super.key});
@@ -20,6 +25,7 @@ class UserProfileScreen extends BaseProfileScreen {
 class _UserProfileScreenState
     extends BaseProfileScreenState<UserProfileScreen> {
   String? currentUserId;
+  @override
   String profileImageUrl = "";
   // Store the community tab data
   Map<String, List<Map<String, dynamic>>> _communityTabData = {
@@ -81,42 +87,99 @@ class _UserProfileScreenState
 //edit profile button
   @override
   Widget buildActionButtons() {
-    // For the current user, we could add an edit profile button here
+    final theme = Theme.of(context);
+
     return Row(
       children: [
-        Expanded(
-          child: ElevatedButton(
-            onPressed: () {
-              // Navigate to edit profile screen
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => EditProfileScreen(
-                    userId: currentUserId!,
-                    initialName: name,
-                    initialUsername: name, // Using name as username for now
-                    initialBio: bio,
-                  ),
-                ),
+        Padding(
+          padding: const EdgeInsets.only(left: 16),
+          child: GestureDetector(
+            onTap: () {
+              context.push(
+                Routes.editProfile,
+                extra: {
+                  'userId': currentUserId!,
+                  'initialName': name,
+                  'initialUsername': name, // Using name as username for now
+                  'initialBio': bio,
+                },
               ).then((updated) {
-                // Refresh profile if updated
                 if (updated == true) {
                   fetchUserProfile();
                   fetchUserStats();
                 }
               });
             },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.blueAccent,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.transparent,
+                border: Border.all(
+                  color: theme.dividerColor, // ✔️ 라인도 테마 기반으로
+                  width: 1,
+                ),
                 borderRadius: BorderRadius.circular(30),
               ),
-              padding: const EdgeInsets.symmetric(vertical: 15),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    FeatherIcons.user,
+                    size: 18,
+                    color: theme.textTheme.bodyMedium?.color, // ✔️ 아이콘 컬러 테마 적용
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Edit Profile',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color:
+                          theme.textTheme.bodyMedium?.color, // ✔️ 텍스트 컬러 테마 적용
+                    ),
+                  ),
+                ],
+              ),
             ),
-            child: Text(
-              'Edit profile',
-              style: Theme.of(context).textTheme.bodyMedium,
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.only(left: 10),
+          child: GestureDetector(
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => SettingsScreen(),
+                ),
+              );
+            },
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.transparent,
+                border: Border.all(
+                  color: theme.dividerColor, // ✔️ 라인도 테마 기반으로
+                  width: 1,
+                ),
+                borderRadius: BorderRadius.circular(30),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    FeatherIcons.settings,
+                    size: 18,
+                    color: theme.textTheme.bodyMedium?.color, // ✔️ 아이콘 컬러 테마 적용
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Settings',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color:
+                          theme.textTheme.bodyMedium?.color, // ✔️ 텍스트 컬러 테마 적용
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),

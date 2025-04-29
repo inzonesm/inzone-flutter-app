@@ -11,6 +11,7 @@ import 'package:inzone/screen/settings/subcription_tile.dart';
 import 'package:inzone/services/monetization_service.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
+import 'package:go_router/go_router.dart';
 
 class SubscriptionScreen extends StatefulWidget {
   const SubscriptionScreen({super.key});
@@ -23,7 +24,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
   final MonetizationService _monetizationService = MonetizationService();
   int _balance = 0;
   bool _isLoading = true;
-  String? _selectedPlan;
+  String _selectedPlan = "Gold";
 
   Future<void> _launchInBrowser(String url) async {
     if (await canLaunch(url)) {
@@ -114,7 +115,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                           top: 70,
                           right: 20,
                           child: GestureDetector(
-                            onTap: () => Navigator.of(context).pop(),
+                            onTap: () => context.pop(),
                             child: Container(
                               width: 40,
                               height: 40,
@@ -517,7 +518,7 @@ class _PurchaseSubscriptionScreenState
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Purchase successful!')),
         );
-        Navigator.of(context).pop();
+        context.pop();
       } else if (purchase.status == PurchaseStatus.error) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -758,7 +759,7 @@ class _PurchaseSubscriptionScreenState
               Expanded(
                   child: GestureDetector(
                       onTap: () {
-                        Navigator.of(context).pop();
+                        context.pop();
                       },
                       child: Container(
                         padding: const EdgeInsets.all(15),

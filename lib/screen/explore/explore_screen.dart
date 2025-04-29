@@ -7,6 +7,9 @@ import 'package:inzone/components/posts/category_selector_bar.dart';
 import 'package:inzone/data/inzone_avatar.dart';
 import 'package:inzone/services/inzone_database.dart';
 import 'package:shimmer/shimmer.dart';
+import 'package:go_router/go_router.dart';
+import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
 
 import 'package:inzone/data/inzone_post.dart';
 
@@ -224,9 +227,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
                       Platform.isIOS ? Icons.arrow_back_ios : Icons.arrow_back,
                       color: Colors.black,
                     ),
-                    onPressed: () {
-                      Navigator.pop(context);
-                    },
+                    onPressed: _handleBackButtonPress,
                   ),
                 if (!isSearching)
                   Text(
@@ -381,6 +382,44 @@ class _ExploreScreenState extends State<ExploreScreen> {
           borderRadius: BorderRadius.circular(8.0),
         ),
       ),
+    );
+  }
+
+  void _handleBackButtonPress() {
+    // Check if we can pop the current screen
+    if (context.canPop()) {
+      context.pop();
+    } else {
+      // If we can't pop, we might be at the root, show exit confirmation
+      _showExitConfirmationDialog(context);
+    }
+  }
+
+  void _showExitConfirmationDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Exit App'),
+          content: const Text('Are you sure you want to exit?'),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop(); // Close dialog
+              },
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop(); // Close dialog
+                // Then exit the app
+                SystemNavigator.pop();
+              },
+              child: const Text('Exit'),
+            ),
+          ],
+        );
+      },
     );
   }
 }

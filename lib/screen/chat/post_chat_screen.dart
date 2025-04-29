@@ -5,6 +5,7 @@ import 'package:inzone/data/comment_class.dart';
 import 'package:inzone/data/inzone_post.dart';
 import 'package:inzone/services/inzone_database.dart';
 import 'package:random_avatar/random_avatar.dart';
+import 'package:go_router/go_router.dart';
 
 class PostChatScreen extends StatefulWidget {
   String name;
@@ -66,7 +67,16 @@ class _PostChatScreenState extends State<PostChatScreen> {
         appBar: AppBar(
           elevation: 0, // No shadow/elevation
           backgroundColor: Theme.of(context).canvasColor,
-          leading: const BackButton(), // Default back button
+          leading: IconButton(
+            icon: const Icon(
+              Icons.arrow_back_ios,
+              color: Colors.white,
+              size: 24.0,
+            ),
+            onPressed: () {
+              context.pop();
+            },
+          ),
           title: const Text("Share this chat"),
           actions: [
             TextButton(

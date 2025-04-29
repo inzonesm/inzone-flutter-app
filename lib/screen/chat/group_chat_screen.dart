@@ -11,6 +11,8 @@ import 'package:intl/intl.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:inzone/theme/light_theme.dart'; // Import for ChatTheme extension
+import 'package:flutter/services.dart';
+import 'package:go_router/go_router.dart';
 
 class GroupChatScreen extends StatefulWidget {
   final GroupData group;
@@ -147,9 +149,8 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
               backgroundColor: Theme.of(context).canvasColor,
               leadingWidth: 30,
               leading: IconButton(
-                icon: Icon(Icons.arrow_back,
-                    color: Theme.of(context).primaryColor),
-                onPressed: () => Navigator.of(context).pop(),
+                icon: const Icon(Icons.arrow_back_ios_rounded),
+                onPressed: () => context.pop(),
               ),
               title: Row(
                 children: [

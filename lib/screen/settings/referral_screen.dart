@@ -1,9 +1,16 @@
+import 'package:cloud_functions/cloud_functions.dart';
+import 'package:colorful_safe_area/colorful_safe_area.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_svg/svg.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:inzone/components/ui/appbar.dart';
+import 'package:inzone/components/ui/button.dart';
 import 'package:inzone/services/monetization_service.dart';
+import 'package:inzone/screen/settings/referral_tile.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:contacts_service/contacts_service.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:go_router/go_router.dart';
 
 class ReferralScreen extends StatefulWidget {
   const ReferralScreen({super.key});
@@ -16,23 +23,8 @@ class _ReferralScreenState extends State<ReferralScreen> {
   final MonetizationService _monetizationService = MonetizationService();
   String? _referralCode;
   String? _referralLink;
-  int _referralCount = 0;
-  int _totalEarnings = 0;
   List<Map<String, dynamic>> _referralHistory = [];
   bool _isLoading = true;
-
-  Future<void> _launchInBrowser(String url) async {
-    if (await canLaunch(url)) {
-      await launch(
-        url,
-        forceSafariVC: false,
-        forceWebView: false,
-        headers: <String, String>{"header_key": "header_value"},
-      );
-    } else {
-      throw "Could not launch $url";
-    }
-  }
 
   @override
   void initState() {
@@ -42,7 +34,6 @@ class _ReferralScreenState extends State<ReferralScreen> {
 
   Future<void> _loadReferralData() async {
     try {
-      // First generate a new referral code
       final generateResponse =
           await _monetizationService.generateReferralCode();
       if (generateResponse['success'] == true) {
@@ -50,12 +41,9 @@ class _ReferralScreenState extends State<ReferralScreen> {
         _referralLink = 'https://inzone.ai/referral?code=$_referralCode';
       }
 
-      // Then get the stats
       final stats = await _monetizationService.getReferralStats();
       if (stats['success'] == true) {
         setState(() {
-          _referralCount = stats['data']['referral_count'];
-          _totalEarnings = stats['data']['total_earnings'];
           _referralHistory = List<Map<String, dynamic>>.from(
               stats['data']['referral_history']);
           _isLoading = false;
@@ -84,235 +72,461 @@ class _ReferralScreenState extends State<ReferralScreen> {
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        title: const Text('Referral Program'),
-        backgroundColor: Colors.white,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.pop(context),
+  Future<void> _launchInBrowser(String url) async {
+    if (await canLaunch(url)) {
+      await launch(url, forceSafariVC: false, forceWebView: false);
+    } else {
+      throw 'Could not launch $url';
+    }
+  }
+
+  /* -------------------------------------*/
+  Future<List<Contact>> fetchContacts() async {
+    try {
+      var status = await Permission.contacts.status;
+
+      if (!status.isGranted) {
+        status = await Permission.contacts.request();
+        if (!status.isGranted) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                  content: Text('Permission denied. Cannot access contacts.')),
+            );
+          }
+          return [];
+        }
+      }
+
+      final contacts = await ContactsService.getContacts(withThumbnails: false);
+
+      return contacts.toList();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error fetching contacts: $e')),
+        );
+      }
+      return [];
+    }
+  }
+
+  Future<List<Contact>> selectContacts(BuildContext context) async {
+    try {
+      setState(() {
+        _isLoading = true;
+      });
+
+      final contacts = await fetchContacts();
+
+      if (contacts.isEmpty) {
+        setState(() {
+          _isLoading = false;
+        });
+        return [];
+      }
+
+      List<Contact> selectedContacts = [];
+
+      await showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Theme.of(context).cardColor,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
         ),
-      ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
-              child: Column(children: [
-                const SizedBox(height: 10),
-                Container(
-                  padding: const EdgeInsets.all(24),
-                  decoration: ShapeDecoration(
-                    color: const Color(0xFFF5F5F5),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(28),
+        builder: (context) {
+          return StatefulBuilder(
+            builder: (context, setModalState) {
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).cardColor,
+                      borderRadius:
+                          const BorderRadius.vertical(top: Radius.circular(20)),
+                    ),
+                    child: Column(
+                      children: [
+                        Container(
+                          width: 40,
+                          height: 4,
+                          decoration: BoxDecoration(
+                            color: Colors.grey[300],
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'Select Contacts to Refer',
+                          style: Theme.of(context).textTheme.titleLarge,
+                        ),
+                      ],
                     ),
                   ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    mainAxisAlignment: MainAxisAlignment.start,
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      Container(
-                        width: 120,
-                        height: 120,
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 16.50, vertical: 31),
-                        clipBehavior: Clip.antiAlias,
-                        decoration: ShapeDecoration(
-                          color: const Color(0xFFF5F5F5),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(20),
+                  Divider(height: 1, color: Theme.of(context).dividerColor),
+                  Expanded(
+                    child: ListView.builder(
+                      itemCount: contacts.length,
+                      itemBuilder: (context, index) {
+                        final contact = contacts[index];
+                        final isSelected = selectedContacts.contains(contact);
+                        return ListTile(
+                          leading: CircleAvatar(
+                            backgroundColor: Theme.of(context)
+                                .colorScheme
+                                .primary
+                                .withOpacity(0.1),
+                            child: const Icon(Icons.person),
                           ),
-                        ),
-                        child: SvgPicture.asset(
-                          "icons/referral/Frame.png",
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        'Give \$10, Get \$10 ',
-                        textAlign: TextAlign.center,
-                        style: GoogleFonts.outfit(
-                          color: const Color(0xFF17181C),
-                          fontSize: 24,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        'Refer friends to InZone, they get \$10 worth of InCash upon signing up. You get \$10 worth of InCash on us.',
-                        textAlign: TextAlign.center,
-                        style: GoogleFonts.outfit(
-                          color: const Color(0xFF17181C),
-                          fontSize: 13,
-                          fontWeight: FontWeight.w300,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      Container(
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Image.asset("icons/referral/facebook.png",
-                                width: 32, height: 32),
-                            const SizedBox(width: 14),
-                            Image.asset("icons/referral/twitter.png",
-                                width: 32, height: 32),
-                            const SizedBox(width: 14),
-                            Image.asset("icons/referral/instagram.png",
-                                width: 32, height: 32),
-                            const SizedBox(width: 14),
-                            Image.asset("icons/referral/tiktok.png",
-                                width: 32, height: 32),
-                          ],
-                        ),
-                      ),
-                    ],
+                          title: Text(contact.displayName ?? 'No Name'),
+                          subtitle: contact.phones?.isNotEmpty == true
+                              ? Text(contact.phones!.first.value ?? '')
+                              : const Text('No phone number'),
+                          trailing: Checkbox(
+                            value: isSelected,
+                            onChanged: contact.phones?.isEmpty == true
+                                ? null
+                                : (bool? selected) {
+                                    setModalState(() {
+                                      if (selected == true) {
+                                        selectedContacts.add(contact);
+                                      } else {
+                                        selectedContacts.remove(contact);
+                                      }
+                                    });
+                                  },
+                          ),
+                          onTap: contact.phones?.isEmpty == true
+                              ? null
+                              : () {
+                                  setModalState(() {
+                                    if (isSelected) {
+                                      selectedContacts.remove(contact);
+                                    } else {
+                                      selectedContacts.add(contact);
+                                    }
+                                  });
+                                },
+                        );
+                      },
+                    ),
                   ),
-                ),
-                Container(
-                    padding: const EdgeInsets.symmetric(vertical: 24),
-                    decoration: const BoxDecoration(
-                        color: Colors.white,
-                        borderRadius:
-                            BorderRadius.vertical(top: Radius.circular(20))),
-                    child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.only(left: 10),
-                            width: MediaQuery.of(context).size.width,
-                            height: 60,
-                            decoration: ShapeDecoration(
-                              color: Colors.white,
-                              shape: RoundedRectangleBorder(
-                                side: const BorderSide(
-                                    width: 1, color: Color(0XFFA3A3A3)),
-                                borderRadius: BorderRadius.circular(14),
-                              ),
-                            ),
-                            child: Row(
-                              children: [
-                                Expanded(
-                                    child: Text(
-                                  _referralLink ?? "Loading...",
-                                  style: GoogleFonts.outfit(
-                                      color: const Color(0XFF5A6172),
-                                      fontWeight: FontWeight.normal),
-                                  maxLines: 1,
-                                )),
-                                IconButton(
-                                    onPressed: _copyReferralLink,
-                                    icon: const Icon(
-                                      Icons.copy,
-                                      color: Color(0XFF228AF3),
-                                    ))
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 10),
-                          ListView.builder(
-                            shrinkWrap: true,
-                            itemCount: _referralHistory.length,
-                            itemBuilder: (BuildContext context, int index) {
-                              final referral = _referralHistory[index];
-                              return Container(
-                                  decoration: ShapeDecoration(
-                                    color: Colors.white,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(18),
-                                    ),
-                                    shadows: const [
-                                      BoxShadow(
-                                        color: Color(0x0C6F88D1),
-                                        blurRadius: 30,
-                                        offset: Offset(0, 10),
-                                        spreadRadius: 0,
-                                      )
-                                    ],
-                                  ),
-                                  padding:
-                                      const EdgeInsets.symmetric(vertical: 10),
-                                  child: Row(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.spaceBetween,
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.center,
-                                    children: [
-                                      ClipRRect(
-                                          borderRadius:
-                                              BorderRadius.circular(18),
-                                          child: Image.asset(
-                                            "assets/logo.png",
-                                            width: 48,
-                                            height: 48,
-                                            fit: BoxFit.fill,
-                                          )),
-                                      const SizedBox(width: 10),
-                                      Expanded(
-                                          child: Column(children: [
-                                        Row(
-                                            mainAxisAlignment:
-                                                MainAxisAlignment.spaceBetween,
-                                            children: [
-                                              Expanded(
-                                                child: Text(
-                                                  'Referred User',
-                                                  style: GoogleFonts.outfit(
-                                                    color:
-                                                        const Color(0xFF212121),
-                                                    fontSize: 16,
-                                                    fontWeight: FontWeight.w500,
-                                                  ),
-                                                ),
-                                              ),
-                                              Text(
-                                                referral['date'] ?? 'N/A',
-                                                style: GoogleFonts.outfit(
-                                                  color:
-                                                      const Color(0xFF999999),
-                                                  fontSize: 12,
-                                                  fontWeight: FontWeight.w400,
-                                                ),
-                                              ),
-                                            ]),
-                                      ])),
-                                    ],
-                                  ));
-                            },
-                          ),
-                        ])),
-                Align(
-                    alignment: Alignment.bottomCenter,
-                    child: Container(
+                  Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: SizedBox(
                       width: double.infinity,
-                      padding: const EdgeInsets.all(15),
-                      clipBehavior: Clip.antiAlias,
-                      decoration: ShapeDecoration(
-                        gradient: const LinearGradient(
-                          begin: Alignment(1.00, 0.00),
-                          end: Alignment(-1, 0),
-                          colors: [Color(0xFF125455), Color(0xFF29BABB)],
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(100),
-                        ),
+                      child: Button(
+                        text: "Invite Selected Contacts",
+                        onPressed: selectedContacts.isEmpty
+                            ? () {}
+                            : () {
+                                context.pop();
+                              },
                       ),
-                      child: Text(
-                        'Sync Contacts',
-                        textAlign: TextAlign.center,
-                        style: GoogleFonts.outfit(
-                          color: Colors.white,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    )),
-              ]),
+                    ),
+                  ),
+                ],
+              );
+            },
+          );
+        },
+      );
+
+      setState(() {
+        _isLoading = false;
+      });
+
+      return selectedContacts;
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error selecting contacts: $e')),
+        );
+      }
+
+      return [];
+    }
+  }
+
+  Future<void> sendReferralSMS(
+      List<Contact> contacts, String referralCode) async {
+    if (contacts.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text('No contacts selected or referral code missing')),
+        );
+      }
+      return;
+    }
+
+    try {
+      setState(() {
+        _isLoading = true;
+      });
+
+      final HttpsCallable callable =
+          FirebaseFunctions.instance.httpsCallable('sendReferralSMS');
+
+      final phoneNumbers = contacts
+          .map((c) =>
+              c.phones?.isNotEmpty == true ? c.phones!.first.value : null)
+          .where((number) => number != null)
+          .toList();
+
+      if (phoneNumbers.isEmpty) {
+        throw Exception('No valid phone numbers found');
+      }
+
+      await callable.call({
+        'phoneNumbers': phoneNumbers,
+        'referralCode': referralCode,
+      });
+
+      setState(() {
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error sending SMS: $e')),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return ColorfulSafeArea(
+      color: theme.canvasColor,
+      child: Scaffold(
+        backgroundColor: theme.canvasColor,
+        appBar: PreferredSize(
+          preferredSize: const Size.fromHeight(100),
+          child: Padding(
+            padding: const EdgeInsets.only(top: 2),
+            child: CustomAppBar(
+              isHome: true,
+              isSettings: true,
+              isImage: false,
+              title: "Referral",
+              userPoints: "100",
+              onSearchTap: () {},
+              onProfileTap: () {},
+              onPointsTap: () {},
             ),
+          ),
+        ),
+        body: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 10),
+                _buildTopBanner(theme),
+                const SizedBox(height: 20),
+                _buildReferralLinkSection(theme),
+                const SizedBox(height: 20),
+                Text(
+                  "Your Referrals",
+                  style: theme.textTheme.titleLarge,
+                ),
+                const SizedBox(height: 10),
+                // const ReferralTile(photoUrl: "", name: "name", date: "date"),
+                _isLoading
+                    ? _buildLoadingList()
+                    : _buildReferralHistoryList(theme),
+                const SizedBox(height: 30),
+              ],
+            ),
+          ),
+        ),
+        bottomNavigationBar: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 25),
+          child: Button(
+            text: _isLoading ? "Loading..." : "Sync Contacts",
+            onPressed: _isLoading
+                ? () {}
+                : () async {
+                    try {
+                      final selectedContacts = await selectContacts(context);
+
+                      if (selectedContacts.isNotEmpty &&
+                          _referralCode != null) {
+                        await sendReferralSMS(selectedContacts, _referralCode!);
+
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                                content:
+                                    Text('Referral SMS sent successfully!')),
+                          );
+                        }
+                      }
+                    } catch (e) {
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Error: $e')),
+                        );
+                      }
+                    }
+                  },
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTopBanner(ThemeData theme) {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: theme.cardColor,
+        borderRadius: BorderRadius.circular(28),
+        boxShadow: [
+          BoxShadow(
+            color: theme.shadowColor.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Container(
+            width: 120,
+            height: 120,
+            padding: const EdgeInsets.symmetric(vertical: 31),
+            decoration: BoxDecoration(
+              color: theme.cardColor,
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Image.asset("icons/referral/Frame.png"),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'Give \$10, Get \$10',
+            textAlign: TextAlign.center,
+            style: theme.textTheme.titleLarge?.copyWith(fontSize: 24),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'Refer friends to InZone, they get \$10 worth of InCash upon signing up. You get \$10 worth of InCash on us.',
+            textAlign: TextAlign.center,
+            style: theme.textTheme.bodyMedium?.copyWith(fontSize: 13),
+          ),
+          const SizedBox(height: 16),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Image.asset("icons/referral/facebook.png", width: 32, height: 32),
+              const SizedBox(width: 14),
+              Image.asset("icons/referral/twitter.png", width: 32, height: 32),
+              const SizedBox(width: 14),
+              Image.asset("icons/referral/instagram.png",
+                  width: 32, height: 32),
+              const SizedBox(width: 14),
+              Image.asset("icons/referral/tiktok.png", width: 32, height: 32),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildReferralLinkSection(ThemeData theme) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10),
+      decoration: BoxDecoration(
+        color: theme.cardColor,
+        border: Border.all(color: theme.dividerColor),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              _referralLink ?? "Loading...",
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.textTheme.bodySmall?.color,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          IconButton(
+            onPressed: _copyReferralLink,
+            icon: const Icon(Icons.copy),
+            color: theme.colorScheme.primary,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLoadingList() {
+    return const Center(
+      child: Padding(
+        padding: EdgeInsets.symmetric(vertical: 20),
+        child: CircularProgressIndicator(),
+      ),
+    );
+  }
+
+  Widget _buildReferralHistoryList(ThemeData theme) {
+    if (_referralHistory.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 20),
+          child: Text(
+            "No referrals yet.",
+            style: theme.textTheme.bodyMedium?.copyWith(color: Colors.grey),
+          ),
+        ),
+      );
+    }
+
+    return ListView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: _referralHistory.length,
+      itemBuilder: (context, index) {
+        final referral = _referralHistory[index];
+        return Container(
+          margin: const EdgeInsets.symmetric(vertical: 4),
+          decoration: BoxDecoration(
+            color: theme.cardColor,
+            borderRadius: BorderRadius.circular(18),
+            boxShadow: [
+              BoxShadow(
+                color: theme.shadowColor.withOpacity(0.05),
+                blurRadius: 30,
+                offset: const Offset(0, 10),
+              ),
+            ],
+          ),
+          child: ReferralTile(
+            photoUrl: referral['photo_url'] ?? '',
+            name: referral['name'] ?? 'Referred User',
+            date: referral['date'] ?? 'N/A',
+          ),
+        );
+      },
     );
   }
 }

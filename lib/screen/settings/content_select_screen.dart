@@ -2,6 +2,7 @@ import 'package:colorful_safe_area/colorful_safe_area.dart';
 import 'package:flutter/material.dart';
 import 'package:inzone/components/settings/topic_selector_widget.dart';
 import 'package:inzone/components/ui/appbar.dart';
+import 'package:go_router/go_router.dart';
 
 class ContentSelectionSettingsScreen extends StatefulWidget {
   const ContentSelectionSettingsScreen({super.key});
@@ -30,7 +31,7 @@ class _ContentSelectionSettingsScreenState
         backgroundColor: Colors.blue,
       ),
     );
-    Navigator.pop(context);
+    context.pop();
   }
 
   final List<String> topicList = [
@@ -64,6 +65,10 @@ class _ContentSelectionSettingsScreenState
     'empowerment',
     'friendship',
   ];
+
+  void _goBack() {
+    context.pop();
+  }
 
   @override
   Widget build(BuildContext context) {
