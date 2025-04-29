@@ -8,6 +8,7 @@ import 'package:media_kit/media_kit.dart';
 import 'package:inzone/theme/theme_manager.dart';
 import 'package:provider/provider.dart';
 import 'package:inzone/router/app_router.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 AppsFlyerOptions appsFlyerOptions = AppsFlyerOptions(
   afDevKey: "GouQRMcXkXP2CMBgZfHdfB",
@@ -24,6 +25,9 @@ AppsflyerSdk appsflyerSdk = AppsflyerSdk(appsFlyerOptions);
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   MediaKit.ensureInitialized();
+
+  // Initialize Google Fonts
+  GoogleFonts.config.allowRuntimeFetching = true;
 
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
