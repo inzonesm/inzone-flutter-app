@@ -1,9 +1,13 @@
+import 'package:colorful_safe_area/colorful_safe_area.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_feather_icons/flutter_feather_icons.dart';
 import 'dart:async';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:inzone/components/bottom-sheet/bottom_sheet_bar.dart';
 import 'package:inzone/components/bottom-sheet/custom_bottom_sheet.dart';
+import 'package:inzone/components/ui/appbar.dart';
+import 'package:inzone/screen/settings/subcription_tile.dart';
 import 'package:inzone/services/monetization_service.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
@@ -19,6 +23,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
   final MonetizationService _monetizationService = MonetizationService();
   int _balance = 0;
   bool _isLoading = true;
+  String? _selectedPlan;
 
   Future<void> _launchInBrowser(String url) async {
     if (await canLaunch(url)) {
@@ -65,7 +70,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
       // In a real app, you would get the receipt data from the platform's purchase API
       // For now, we'll use a placeholder
       final platform =
-      Theme.of(context).platform == TargetPlatform.iOS ? 'ios' : 'android';
+          Theme.of(context).platform == TargetPlatform.iOS ? 'ios' : 'android';
       const receiptData = 'placeholder_receipt_data';
 
       final response = await _monetizationService.purchaseInCash(
@@ -85,605 +90,336 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        title: const Text('Subscription'),
-        backgroundColor: Colors.white,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.pop(context),
-        ),
-      ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-        child: Column(children: [
-          const SizedBox(height: 10),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10),
-            width: MediaQuery.of(context).size.width,
-            height: 60,
-            decoration: ShapeDecoration(
-              color: Colors.white,
-              shape: RoundedRectangleBorder(
-                side:
-                const BorderSide(width: 1, color: Color(0XFFA3A3A3)),
-                borderRadius: BorderRadius.circular(14),
-              ),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                    child: Text(
-                      "Balance",
-                      style: GoogleFonts.outfit(
-                          color: const Color(0XFF17181C),
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600),
-                      maxLines: 1,
-                    )),
-                Row(
+    return ColorfulSafeArea(
+      top: false,
+      color: Theme.of(context).cardColor,
+      child: Scaffold(
+        backgroundColor: Theme.of(context).cardColor,
+        body: _isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Image.asset("icons/settings/balance.png",
-                        width: 20, height: 20),
-                    const SizedBox(width: 5),
-                    Text(
-                      _balance.toString(),
-                      style: GoogleFonts.outfit(
-                          color: const Color(0XFF17181C),
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600),
-                      maxLines: 1,
-                    )
-                  ],
-                )
-              ],
-            ),
-          ),
-          const SizedBox(height: 10),
-          Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Image.asset(
-              "assets/images/subscription_header.png",
-              fit: BoxFit.fitWidth,
-            ),
-            const SizedBox(height: 10),
-            Text(
-              "InCash  Packages",
-              style: GoogleFonts.outfit(
-                  color: const Color(0XFF17181C),
-                  fontSize: 16,
-                  fontWeight: FontWeight.w500),
-              maxLines: 1,
-            ),
-            const SizedBox(height: 10),
-            RichText(
-              text: TextSpan(
-                style: GoogleFonts.outfit(
-                    color: Colors.black,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w400),
-                children: <TextSpan>[
-                  const TextSpan(
-                      text: "By purchasing InCash, you agree to our"),
-                  TextSpan(
-                      text: ' Terms of Use',
-                      style: GoogleFonts.outfit(
-                          color: Colors.black,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700),
-                      recognizer: TapGestureRecognizer()
-                        ..onTap = () {
-                          _launchInBrowser(
-                              "https://inzone.ai/terms-conditions");
-                        }),
-                  const TextSpan(text: ' and '),
-                  TextSpan(
-                      text: 'Privacy Policy',
-                      style: GoogleFonts.outfit(
-                          color: Colors.black,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700),
-                      recognizer: TapGestureRecognizer()
-                        ..onTap = () {
-                          _launchInBrowser(
-                              "https://inzone.ai/privacy-policy");
-                        }),
-                  const TextSpan(
-                      text: ", including the arbitration clause and "),
-                  TextSpan(
-                      text: 'revocation policy',
-                      style: GoogleFonts.outfit(
-                          color: Colors.black,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700),
-                      recognizer: TapGestureRecognizer()
-                        ..onTap = () {
-                          _launchInBrowser(
-                              "https://inzone.ai/revocation-policy");
-                        }),
-                  const TextSpan(
-                      text:
-                      ". You consent to the immediate performance of the contract and acknowledge that you thereby lose your right of withdrawal."),
-                ],
-              ),
-            ),
-            const SizedBox(height: 10),
-            GestureDetector(
-              onTap: () {
-                CustomBottomSheet(
-                    backgroundColor: Colors.white,
-                    isNeedMargin: false,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisAlignment: MainAxisAlignment.center,
+                    Stack(
                       children: [
-                        const BottomSheetBar(),
-                        const SizedBox(height: 16),
-                        Text(
-                          "In Cash Gold Plan",
-                          style: GoogleFonts.outfit(
-                              color: Colors.black,
-                              fontSize: 18,
-                              fontWeight: FontWeight.w600),
+                        Image.asset(
+                          "assets/images/subImage.png",
+                          fit: BoxFit.fitWidth,
+                          width: MediaQuery.of(context).size.width,
+                          height: 300,
                         ),
-                        const SizedBox(height: 5),
+                        Positioned(
+                          top: 70,
+                          right: 20,
+                          child: GestureDetector(
+                            onTap: () => Navigator.of(context).pop(),
+                            child: Container(
+                              width: 40,
+                              height: 40,
+                              decoration: BoxDecoration(
+                                color: Theme.of(context)
+                                    .cardColor
+                                    .withOpacity(0.8),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(FeatherIcons.x, size: 20),
+                            ),
+                          ),
+                        ),
+                        Positioned(
+                          bottom: 0,
+                          left: 0,
+                          right: 0,
+                          height: 60,
+                          child: Container(
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                                colors: [
+                                  Theme.of(context).cardColor.withOpacity(0),
+                                  Theme.of(context).cardColor.withOpacity(0.6),
+                                  Theme.of(context).cardColor,
+                                ],
+                                stops: const [0.0, 0.5, 1.0],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.only(left: 16),
+                          child: Text(
+                            "InCash Packages",
+                            style: Theme.of(context)
+                                .textTheme
+                                .headlineLarge!
+                                .copyWith(fontSize: 24),
+                            maxLines: 1,
+                          ),
+                        ),
                         Container(
-                          child: const PurchaseSubscriptionScreen(
-                            planName: "Gold Plan",
-                            price: 9.99,
-                            coins: 2500,
-                            productId: "InCashGold2025",
-                            isSubscription: true,
+                          margin: const EdgeInsets.only(left: 20),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).canvasColor,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Image.asset("icons/settings/balance.png",
+                                  width: 20, height: 20),
+                              const SizedBox(width: 5),
+                              Text(
+                                "Balance",
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .titleLarge!
+                                    .copyWith(
+                                      fontSize: 16,
+                                    ),
+                                maxLines: 1,
+                              ),
+                              const SizedBox(width: 5),
+                              Text(
+                                _balance.toString(),
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .titleLarge!
+                                    .copyWith(
+                                      fontSize: 16,
+                                    ),
+                                maxLines: 1,
+                              )
+                            ],
                           ),
                         )
                       ],
-                    )).customBottomSheet(context);
-              },
-              child: Container(
-                clipBehavior: Clip.antiAlias,
-                decoration: ShapeDecoration(
-                  color: const Color(0xFFE0E0E0),
-                  shape: RoundedRectangleBorder(
-                    side: const BorderSide(width: 1, color: Colors.white),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                ),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.start,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 8),
-                      decoration:
-                      const BoxDecoration(color: Color(0xFF228AF3)),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          Text(
-                            'Gold Plan',
-                            style: GoogleFonts.outfit(
-                              color: Colors.white,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
+                    ),
+                    const SizedBox(height: 10),
+                    SubscriptionTile(
+                      price: "\$9.99",
+                      coins: "2500",
+                      onLeftButtonClick: () {
+                        setState(() {
+                          _selectedPlan = "Gold";
+                        });
+                      },
+                      isSelected: _selectedPlan == "Gold",
+                      isMonth: true,
+                    ),
+                    SubscriptionTile(
+                      price: "\$9.99",
+                      coins: "1500",
+                      onLeftButtonClick: () {
+                        setState(() {
+                          _selectedPlan = "Elite";
+                        });
+                      },
+                      isSelected: _selectedPlan == "Elite",
+                      isMonth: false,
+                    ),
+                    SubscriptionTile(
+                      price: "\$4.99",
+                      coins: "500",
+                      onLeftButtonClick: () {
+                        setState(() {
+                          _selectedPlan = "Advanced";
+                        });
+                      },
+                      isSelected: _selectedPlan == "Advanced",
+                      isMonth: false,
+                    ),
+                    SubscriptionTile(
+                      price: "\$1.99",
+                      coins: "100",
+                      onLeftButtonClick: () {
+                        setState(() {
+                          _selectedPlan = "Basic";
+                        });
+                      },
+                      isSelected: _selectedPlan == "Basic",
+                      isMonth: false,
+                    ),
+                    const SizedBox(height: 20),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      child: RichText(
+                        text: TextSpan(
+                          style: Theme.of(context)
+                              .textTheme
+                              .bodySmall!
+                              .copyWith(
+                                fontSize: 12,
+                                color: Theme.of(context).colorScheme.onSurface,
+                              ),
+                          children: <TextSpan>[
+                            const TextSpan(
+                              text: "By purchasing InCash, you agree to our ",
                             ),
-                          ),
-                          const SizedBox(width: 12),
-                          Text.rich(
                             TextSpan(
-                              children: [
-                                TextSpan(
-                                  text: '\$9.99/ ',
-                                  style: GoogleFonts.outfit(
-                                    color: Colors.white,
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                                TextSpan(
-                                  text: 'Month',
-                                  style: GoogleFonts.outfit(
-                                    color: Colors.white,
+                              text: 'Terms of Use',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodySmall!
+                                  .copyWith(
                                     fontSize: 12,
-                                    fontWeight: FontWeight.w400,
+                                    fontWeight: FontWeight.w700,
+                                    decoration: TextDecoration.underline,
+                                    color:
+                                        Theme.of(context).colorScheme.onSurface,
                                   ),
-                                ),
-                              ],
+                              recognizer: TapGestureRecognizer()
+                                ..onTap = () {
+                                  _launchInBrowser(
+                                      "https://inzone.ai/terms-conditions");
+                                },
                             ),
-                          ),
-                        ],
+                            const TextSpan(text: ' and '),
+                            TextSpan(
+                              text: 'Privacy Policy',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodySmall!
+                                  .copyWith(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                    decoration: TextDecoration.underline,
+                                    color:
+                                        Theme.of(context).colorScheme.onSurface,
+                                  ),
+                              recognizer: TapGestureRecognizer()
+                                ..onTap = () {
+                                  _launchInBrowser(
+                                      "https://inzone.ai/privacy-policy");
+                                },
+                            ),
+                            const TextSpan(
+                                text:
+                                    ", including arbitration and revocation policies. "),
+                            TextSpan(
+                              text: 'Revocation Policy',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodySmall!
+                                  .copyWith(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                    decoration: TextDecoration.underline,
+                                    color:
+                                        Theme.of(context).colorScheme.onSurface,
+                                  ),
+                              recognizer: TapGestureRecognizer()
+                                ..onTap = () {
+                                  _launchInBrowser(
+                                      "https://inzone.ai/revocation-policy");
+                                },
+                            ),
+                            const TextSpan(
+                                text:
+                                    " You consent to immediate performance of the contract and acknowledge losing your right of withdrawal."),
+                          ],
+                        ),
                       ),
                     ),
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        mainAxisAlignment: MainAxisAlignment.start,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Container(
-                            child: Row(
-                              mainAxisAlignment:
-                              MainAxisAlignment.spaceBetween,
-                              crossAxisAlignment:
-                              CrossAxisAlignment.center,
-                              children: [
-                                Text(
-                                  'Coins',
-                                  style: GoogleFonts.outfit(
-                                    color: const Color(0xFF17181C),
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Container(
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    mainAxisAlignment:
-                                    MainAxisAlignment.start,
-                                    crossAxisAlignment:
-                                    CrossAxisAlignment.center,
-                                    children: [
-                                      Image.asset(
-                                          "icons/settings/balance.png",
-                                          width: 20,
-                                          height: 20),
-                                      const SizedBox(width: 8),
-                                      Text.rich(
-                                        TextSpan(
-                                          children: [
-                                            TextSpan(
-                                              text: '2500/ ',
-                                              style: GoogleFonts.outfit(
-                                                color: const Color(
-                                                    0xFF17181C),
-                                                fontSize: 16,
-                                                fontWeight:
-                                                FontWeight.w600,
-                                              ),
-                                            ),
-                                            TextSpan(
-                                              text: 'Month',
-                                              style: GoogleFonts.outfit(
-                                                color: const Color(
-                                                    0xFF17181C),
-                                                fontSize: 12,
-                                                fontWeight:
-                                                FontWeight.w400,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
+                    const SizedBox(height: 20),
                   ],
                 ),
               ),
-            ),
-            const SizedBox(height: 10),
-            GestureDetector(
-              onTap: () {
-                CustomBottomSheet(
-                    backgroundColor: Colors.white,
-                    isNeedMargin: false,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const BottomSheetBar(),
-                        const SizedBox(height: 16),
-                        Text(
-                          "In Cash Elite Plan",
-                          style: GoogleFonts.outfit(
-                              color: Colors.black,
-                              fontSize: 18,
-                              fontWeight: FontWeight.w600),
+        bottomNavigationBar: (_selectedPlan != null)
+            ? Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: GestureDetector(
+                  onTap: () async {
+                    if (_selectedPlan == "Gold") {
+                      // Gold면 CustomBottomSheet만 띄운다 (아무 결제하지 마라)
+                      CustomBottomSheet.show(
+                        context: context,
+                        backgroundColor: Theme.of(context).cardColor,
+                        isNeedMargin: false,
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const BottomSheetBar(),
+                            const SizedBox(height: 16),
+                            Text(
+                              "In Cash $_selectedPlan Plan",
+                              style: GoogleFonts.outfit(
+                                  color:
+                                      Theme.of(context).colorScheme.onSurface,
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w600),
+                            ),
+                            const SizedBox(height: 10),
+                            PurchaseSubscriptionScreen(
+                              planName: "$_selectedPlan Plan",
+                              price: 9.99,
+                              coins: 2500,
+                              productId: "InCashGold",
+                              isSubscription: true,
+                            ),
+                            const SizedBox(height: 10),
+                          ],
                         ),
-                        const SizedBox(height: 5),
-                        Container(
-                          child: const PurchaseSubscriptionScreen(
-                            planName: "Elite Plan",
-                            price: 9.99,
-                            coins: 1500,
-                            productId: "InCashElite2025",
-                            isSubscription: false,
-                          ),
-                        )
-                      ],
-                    )).customBottomSheet(context);
-              },
-              child: Container(
-                clipBehavior: Clip.antiAlias,
-                decoration: const ShapeDecoration(
-                  color: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    side: BorderSide(width: 1, color: Colors.white),
+                      );
+                    } else {
+                      // 나머지는 바로 구매
+                      final productId = _selectedPlan == "Elite"
+                          ? "InCashElite2025"
+                          : _selectedPlan == "Advanced"
+                              ? "InCashAdvanced2025"
+                              : "InCashBasic2025";
+
+                      final products =
+                          await _monetizationService.getProducts([productId]);
+                      if (products.isNotEmpty) {
+                        await _monetizationService
+                            .purchaseProduct(products.first);
+                      } else {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Product not found')),
+                        );
+                      }
+                    }
+                  },
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        begin: Alignment(1.00, 0.00),
+                        end: Alignment(-1, 0),
+                        colors: [Color(0xFF125455), Color(0xFF29BABB)],
+                      ),
+                      borderRadius: BorderRadius.circular(100),
+                    ),
+                    child: Text(
+                      "Buy Now",
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.outfit(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                   ),
                 ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  mainAxisAlignment: MainAxisAlignment.start,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 8),
-                      decoration: ShapeDecoration(
-                        color: const Color(0xFFE0E0E0),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          SizedBox(
-                              width: 80,
-                              child: Text(
-                                'Elite',
-                                style: GoogleFonts.outfit(
-                                  color: const Color(0xFF17181C),
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              )),
-                          Container(
-                            child: Row(
-                              children: [
-                                Image.asset("icons/settings/balance.png",
-                                    width: 20, height: 20),
-                                const SizedBox(width: 8),
-                                Text(
-                                  '1500',
-                                  style: GoogleFonts.outfit(
-                                    color: const Color(0xFF17181C),
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          Text(
-                            '\$9.99',
-                            style: GoogleFonts.outfit(
-                              color: const Color(0xFF212121),
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 10),
-            GestureDetector(
-              onTap: () {
-                CustomBottomSheet(
-                    backgroundColor: Colors.white,
-                    isNeedMargin: false,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const BottomSheetBar(),
-                        const SizedBox(height: 16),
-                        Text(
-                          "In Cash Advanced Plan",
-                          style: GoogleFonts.outfit(
-                              color: Colors.black,
-                              fontSize: 18,
-                              fontWeight: FontWeight.w600),
-                        ),
-                        const SizedBox(height: 5),
-                        Container(
-                          child: const PurchaseSubscriptionScreen(
-                            planName: "Advanced Plan",
-                            price: 4.99,
-                            coins: 500,
-                            productId: "InCashAdvanced2025",
-                            isSubscription: false,
-                          ),
-                        )
-                      ],
-                    )).customBottomSheet(context);
-              },
-              child: Container(
-                clipBehavior: Clip.antiAlias,
-                decoration: const ShapeDecoration(
-                  color: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    side: BorderSide(width: 1, color: Colors.white),
-                  ),
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  mainAxisAlignment: MainAxisAlignment.start,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 8),
-                      decoration: ShapeDecoration(
-                        color: const Color(0xFFE0E0E0),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          SizedBox(
-                              width: 80,
-                              child: Text(
-                                'Advanced',
-                                style: GoogleFonts.outfit(
-                                  color: const Color(0xFF17181C),
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              )),
-                          Container(
-                            child: Row(
-                              children: [
-                                Image.asset("icons/settings/balance.png",
-                                    width: 20, height: 20),
-                                const SizedBox(width: 8),
-                                Text(
-                                  '500',
-                                  style: GoogleFonts.outfit(
-                                    color: const Color(0xFF17181C),
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          Text(
-                            '\$4.99',
-                            style: GoogleFonts.outfit(
-                              color: const Color(0xFF212121),
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 10),
-            GestureDetector(
-              onTap: () {
-                CustomBottomSheet(
-                    backgroundColor: Colors.white,
-                    isNeedMargin: false,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const BottomSheetBar(),
-                        const SizedBox(height: 16),
-                        Text(
-                          "In Cash Basic Plan",
-                          style: GoogleFonts.outfit(
-                              color: Colors.black,
-                              fontSize: 18,
-                              fontWeight: FontWeight.w600),
-                        ),
-                        const SizedBox(height: 5),
-                        Container(
-                          child: const PurchaseSubscriptionScreen(
-                            planName: "Basic Plan",
-                            price: 1.99,
-                            coins: 100,
-                            productId: "InCashBasic2025",
-                            isSubscription: false,
-                          ),
-                        )
-                      ],
-                    )).customBottomSheet(context);
-              },
-              child: Container(
-                clipBehavior: Clip.antiAlias,
-                decoration: const ShapeDecoration(
-                  color: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    side: BorderSide(width: 1, color: Colors.white),
-                  ),
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  mainAxisAlignment: MainAxisAlignment.start,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 8),
-                      decoration: ShapeDecoration(
-                        color: const Color(0xFFE0E0E0),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          SizedBox(
-                              width: 80,
-                              child: Text(
-                                'Basic',
-                                style: GoogleFonts.outfit(
-                                  color: const Color(0xFF17181C),
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              )),
-                          Container(
-                            child: Row(
-                              children: [
-                                Image.asset("icons/settings/balance.png",
-                                    width: 20, height: 20),
-                                const SizedBox(width: 8),
-                                Text(
-                                  '100',
-                                  style: GoogleFonts.outfit(
-                                    color: const Color(0xFF17181C),
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          Text(
-                            '\$1.99',
-                            style: GoogleFonts.outfit(
-                              color: const Color(0xFF212121),
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ])
-        ]),
+              )
+            : null,
       ),
     );
   }
@@ -716,6 +452,7 @@ class _PurchaseSubscriptionScreenState
   int _balance = 0;
   bool _isPurchasing = false;
   StreamSubscription<List<PurchaseDetails>>? _subscription;
+  bool _isDisposed = false;
 
   Future<void> _launchInBrowser(String url) async {
     if (await canLaunch(url)) {
@@ -734,11 +471,25 @@ class _PurchaseSubscriptionScreenState
   void initState() {
     super.initState();
     _subscription = _monetizationService.purchaseStream.listen(_handlePurchase);
-    _loadBalance();
+  }
+
+  Future<void> _initializePurchase() async {
+    try {
+      _subscription =
+          _monetizationService.purchaseStream.listen(_handlePurchase);
+      await _loadBalance();
+    } catch (e) {
+      if (!_isDisposed) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error initializing purchase: $e')),
+        );
+      }
+    }
   }
 
   @override
   void dispose() {
+    _isDisposed = true;
     _subscription?.cancel();
     super.dispose();
   }
@@ -747,9 +498,11 @@ class _PurchaseSubscriptionScreenState
     try {
       final response = await _monetizationService.getBalance();
       if (response['success'] == true && response['data'] != null) {
-        setState(() {
-          _balance = response['data']['balance'] as int;
-        });
+        if (!_isDisposed) {
+          setState(() {
+            _balance = response['data']['balance'] as int;
+          });
+        }
       }
     } catch (e) {
       debugPrint('Error loading balance: $e');
@@ -757,6 +510,8 @@ class _PurchaseSubscriptionScreenState
   }
 
   void _handlePurchase(List<PurchaseDetails> purchases) {
+    if (_isDisposed) return;
+
     for (var purchase in purchases) {
       if (purchase.status == PurchaseStatus.purchased) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -770,42 +525,44 @@ class _PurchaseSubscriptionScreenState
         );
       }
     }
-    setState(() {
-      _isPurchasing = false;
-    });
-  }
-
-  Future<void> _purchase() async {
-    setState(() {
-      _isPurchasing = true;
-    });
-
-    try {
-      final products =
-      await _monetizationService.getProducts([widget.productId]);
-      if (products.isEmpty) {
-        throw Exception('Product not found');
-      }
-
-      final success =
-      await _monetizationService.purchaseProduct(products.first);
-      if (!success) {
-        throw Exception('Purchase failed');
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e')),
-      );
+    if (!_isDisposed) {
       setState(() {
         _isPurchasing = false;
       });
     }
   }
 
+  Future<void> _purchase() async {
+    if (_isPurchasing) return;
+
+    setState(() {
+      _isPurchasing = true;
+    });
+
+    try {
+      final products =
+          await _monetizationService.getProducts([widget.productId]);
+      if (products.isEmpty) {
+        throw Exception('Product not found');
+      }
+
+      await _monetizationService.purchaseProduct(products.first);
+    } catch (e) {
+      if (!_isDisposed) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e')),
+        );
+        setState(() {
+          _isPurchasing = false;
+        });
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Container(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         padding: const EdgeInsets.symmetric(horizontal: 16),
         child: Column(children: [
           const SizedBox(height: 10),
@@ -814,9 +571,10 @@ class _PurchaseSubscriptionScreenState
             width: MediaQuery.of(context).size.width,
             height: 60,
             decoration: ShapeDecoration(
-              color: Colors.white,
+              color: Theme.of(context).cardColor,
               shape: RoundedRectangleBorder(
-                side: const BorderSide(width: 1, color: Color(0XFFA3A3A3)),
+                side:
+                    BorderSide(width: 1, color: Theme.of(context).dividerColor),
                 borderRadius: BorderRadius.circular(14),
               ),
             ),
@@ -824,13 +582,13 @@ class _PurchaseSubscriptionScreenState
               children: [
                 Expanded(
                     child: Text(
-                      "Balance",
-                      style: GoogleFonts.outfit(
-                          color: const Color(0XFF17181C),
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600),
-                      maxLines: 1,
-                    )),
+                  "Balance",
+                  style: GoogleFonts.outfit(
+                      color: Theme.of(context).colorScheme.onSurface,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600),
+                  maxLines: 1,
+                )),
                 Row(
                   children: [
                     Image.asset("icons/settings/balance.png",
@@ -839,7 +597,7 @@ class _PurchaseSubscriptionScreenState
                     Text(
                       _balance.toString(),
                       style: GoogleFonts.outfit(
-                          color: const Color(0XFF17181C),
+                          color: Theme.of(context).colorScheme.onSurface,
                           fontSize: 16,
                           fontWeight: FontWeight.w600),
                       maxLines: 1,
@@ -853,7 +611,7 @@ class _PurchaseSubscriptionScreenState
           Container(
             padding: const EdgeInsets.all(24),
             decoration: ShapeDecoration(
-              color: const Color(0xFFF5F5F5),
+              color: Theme.of(context).colorScheme.surfaceContainerHighest,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(28),
               ),
@@ -863,9 +621,8 @@ class _PurchaseSubscriptionScreenState
               children: [
                 Text(
                   'InCash ${widget.planName}',
-                  textAlign: TextAlign.center,
                   style: GoogleFonts.outfit(
-                    color: const Color(0xFF17181C),
+                    color: Theme.of(context).colorScheme.onSurface,
                     fontSize: 16,
                     fontWeight: FontWeight.w500,
                   ),
@@ -882,7 +639,7 @@ class _PurchaseSubscriptionScreenState
                             'Monthly',
                             textAlign: TextAlign.center,
                             style: GoogleFonts.outfit(
-                              color: const Color(0xFF17181C),
+                              color: Theme.of(context).colorScheme.onSurface,
                               fontSize: 16,
                               fontWeight: FontWeight.w500,
                             ),
@@ -891,7 +648,7 @@ class _PurchaseSubscriptionScreenState
                             'Renews on: 10/08/2024',
                             textAlign: TextAlign.center,
                             style: GoogleFonts.outfit(
-                              color: const Color(0xFF17181C),
+                              color: Theme.of(context).colorScheme.onSurface,
                               fontSize: 16,
                               fontWeight: FontWeight.w500,
                             ),
@@ -901,7 +658,7 @@ class _PurchaseSubscriptionScreenState
                             'One-time Purchase',
                             textAlign: TextAlign.center,
                             style: GoogleFonts.outfit(
-                              color: const Color(0xFF17181C),
+                              color: Theme.of(context).colorScheme.onSurface,
                               fontSize: 16,
                               fontWeight: FontWeight.w500,
                             ),
@@ -910,7 +667,7 @@ class _PurchaseSubscriptionScreenState
                             '${widget.coins} Coins',
                             textAlign: TextAlign.center,
                             style: GoogleFonts.outfit(
-                              color: const Color(0xFF17181C),
+                              color: Theme.of(context).colorScheme.onSurface,
                               fontSize: 16,
                               fontWeight: FontWeight.w500,
                             ),
@@ -922,7 +679,7 @@ class _PurchaseSubscriptionScreenState
                       '\$${widget.price.toStringAsFixed(2)}',
                       textAlign: TextAlign.center,
                       style: GoogleFonts.outfit(
-                        color: const Color(0xFF17181C),
+                        color: Theme.of(context).colorScheme.onSurface,
                         fontSize: 26,
                         fontWeight: FontWeight.w600,
                       ),
@@ -936,17 +693,17 @@ class _PurchaseSubscriptionScreenState
           RichText(
             text: TextSpan(
               style: GoogleFonts.outfit(
-                  color: Colors.black,
+                  color: Theme.of(context).colorScheme.onSurface,
                   fontSize: 12,
                   fontWeight: FontWeight.w400),
               children: <TextSpan>[
                 const TextSpan(
                     text:
-                    "By clicking Purchase you acknowledge that you are 18 years of age, or that you are the parent or legal guardian of the account owner, and that you agree to our"),
+                        "By clicking Purchase you acknowledge that you are 18 years of age, or that you are the parent or legal guardian of the account owner, and that you agree to our"),
                 TextSpan(
                     text: ' Terms of Use',
                     style: GoogleFonts.outfit(
-                        color: Colors.black,
+                        color: Theme.of(context).colorScheme.onSurface,
                         fontSize: 12,
                         fontWeight: FontWeight.w700),
                     recognizer: TapGestureRecognizer()
@@ -957,7 +714,7 @@ class _PurchaseSubscriptionScreenState
                 TextSpan(
                     text: 'Privacy Policy',
                     style: GoogleFonts.outfit(
-                        color: Colors.black,
+                        color: Theme.of(context).colorScheme.onSurface,
                         fontSize: 12,
                         fontWeight: FontWeight.w700),
                     recognizer: TapGestureRecognizer()
@@ -968,7 +725,7 @@ class _PurchaseSubscriptionScreenState
                 TextSpan(
                     text: 'revocation policy',
                     style: GoogleFonts.outfit(
-                        color: Colors.black,
+                        color: Theme.of(context).colorScheme.onSurface,
                         fontSize: 12,
                         fontWeight: FontWeight.w700),
                     recognizer: TapGestureRecognizer()
@@ -983,7 +740,7 @@ class _PurchaseSubscriptionScreenState
                   TextSpan(
                       text: ' here',
                       style: GoogleFonts.outfit(
-                          color: Colors.black,
+                          color: Theme.of(context).colorScheme.onSurface,
                           fontSize: 12,
                           fontWeight: FontWeight.w700),
                       recognizer: TapGestureRecognizer()
@@ -1015,40 +772,45 @@ class _PurchaseSubscriptionScreenState
                         child: Text(
                           'Cancel',
                           textAlign: TextAlign.center,
-                          style: GoogleFonts.outfit(
-                            color: Colors.black,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                          ),
+                          style: Theme.of(context)
+                              .textTheme
+                              .bodySmall!
+                              .copyWith(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                color: Theme.of(context).colorScheme.onSurface,
+                              ),
                         ),
                       ))),
               const SizedBox(width: 10),
               Expanded(
-                  child: GestureDetector(
-                      onTap: _isPurchasing ? null : _purchase,
-                      child: Container(
-                        padding: const EdgeInsets.all(15),
-                        clipBehavior: Clip.antiAlias,
-                        decoration: ShapeDecoration(
-                          gradient: const LinearGradient(
-                            begin: Alignment(1.00, 0.00),
-                            end: Alignment(-1, 0),
-                            colors: [Color(0xFF125455), Color(0xFF29BABB)],
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(100),
-                          ),
-                        ),
-                        child: Text(
-                          _isPurchasing ? 'Processing...' : 'Purchase',
-                          textAlign: TextAlign.center,
-                          style: GoogleFonts.outfit(
-                            color: Colors.white,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ))),
+                child: GestureDetector(
+                  onTap: _isPurchasing ? null : _purchase,
+                  child: Container(
+                    padding: const EdgeInsets.all(15),
+                    clipBehavior: Clip.antiAlias,
+                    decoration: ShapeDecoration(
+                      gradient: const LinearGradient(
+                        begin: Alignment(1.00, 0.00),
+                        end: Alignment(-1, 0),
+                        colors: [Color(0xFF125455), Color(0xFF29BABB)],
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(100),
+                      ),
+                    ),
+                    child: Text(
+                      _isPurchasing ? 'Processing...' : 'Purchase',
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.outfit(
+                        color: Colors.white,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
             ],
           )
         ]));

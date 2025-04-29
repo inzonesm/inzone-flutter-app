@@ -30,36 +30,34 @@ class _IntroductionScreenState extends State<IntroductionScreen> {
 
   Future<void> _checkLoginStatus() async {
     _showLoadingDialog();
-
     final user = FirebaseAuth.instance.currentUser;
 
-    if (user != null) {
-      final docRef =
-          FirebaseFirestore.instance.collection('humanUsers').doc(user.uid);
-      var doc = await docRef.get();
-
-      if (!doc.exists) {
-        await docRef.set({
-          'email': user.email ?? '',
-          'createdAt': DateTime.now().toIso8601String(),
-        });
-
-        // 🔥 set 후에는 다시 doc 받아야 함
-        doc = await docRef.get();
-      }
-
-      if (mounted) {
-        Navigator.of(context).pop();
-        Future.delayed(Duration.zero, () {
-          if (doc.exists && (doc.data()?['createdAt'] != null)) {
-            context.go(Routes.home);
-          } else {
-            context.push('/auth/profile?email=${user.email ?? ""}');
-          }
-        });
-      }
-    } else {
+    if (user == null) {
       if (mounted) Navigator.of(context).pop();
+      return;
+    }
+
+    final docRef =
+        FirebaseFirestore.instance.collection('humanUsers').doc(user.uid);
+    var doc = await docRef.get();
+
+    if (!doc.exists) {
+      await docRef.set({
+        'email': user.email ?? '',
+        'createdAt': null, // 아직 프로필 설정 안 했으면 createdAt 비워둬야 구분 가능
+      });
+      doc = await docRef.get();
+    }
+
+    bool isProfileCompleted = doc.data()?['createdAt'] != null;
+
+    if (mounted) {
+      Navigator.of(context).pop();
+      if (isProfileCompleted) {
+        context.go(Routes.home);
+      } else {
+        context.go(Routes.profileWithEmail(user.email ?? ""));
+      }
     }
   }
 
@@ -82,6 +80,10 @@ class _IntroductionScreenState extends State<IntroductionScreen> {
     } catch (e) {
       debugPrint("Apple Sign-In Error: $e");
       if (mounted) Navigator.of(context).pop();
+    } finally {
+      if (mounted && Navigator.of(context).canPop()) {
+        Navigator.of(context).pop();
+      }
     }
   }
 
@@ -94,6 +96,10 @@ class _IntroductionScreenState extends State<IntroductionScreen> {
     } catch (e) {
       debugPrint("Google Sign-In Error: $e");
       if (mounted) Navigator.of(context).pop();
+    } finally {
+      if (mounted && Navigator.of(context).canPop()) {
+        Navigator.of(context).pop();
+      }
     }
   }
 

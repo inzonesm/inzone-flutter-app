@@ -9,6 +9,7 @@ import 'package:inzone/screen/chat/human_chat_screen.dart';
 import 'package:inzone/services/inzone_database.dart';
 import 'package:inzone/theme/app_colors.dart';
 import 'package:random_avatar/random_avatar.dart';
+import 'package:go_router/go_router.dart';
 
 class AllChatsScreen extends StatefulWidget {
   const AllChatsScreen({super.key});
@@ -186,7 +187,7 @@ class _AllChatsScreenState extends State<AllChatsScreen>
 
   @override
   Widget build(BuildContext context) {
-    // Get the count based on current tab
+    // Get the count based on current tabç
     int chatCount =
         _currentTabIndex == 0 ? _chatUsers.length : _groupChats.length;
     String subtitle = '$chatCount ${chatCount == 1 ? 'chat' : 'chats'}';
@@ -374,16 +375,11 @@ class _ChatUserCardState extends State<ChatUserCard> {
       onTap: () {
         if (widget.userData.isHuman) {
           // Navigate to human chat
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => HumanChatScreen(
-                conversationId: widget.userData.chatId ?? '',
-                otherUserName: widget.userData.name ?? 'User',
-                otherUserId: widget.userData.email ?? '',
-              ),
-            ),
-          ).then((_) {
+          context.pushNamed('chat', extra: {
+            'conversationId': widget.userData.chatId ?? '',
+            'otherUserName': widget.userData.name ?? 'User',
+            'otherUserId': widget.userData.email ?? '',
+          }).then((_) {
             // Refresh the conversation list when returning from chat
             if (mounted) {
               (context.findAncestorStateOfType<_AllChatsScreenState>())
@@ -392,14 +388,7 @@ class _ChatUserCardState extends State<ChatUserCard> {
           });
         } else {
           // Navigate to AI chat
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => ChatScreen(
-                userData: widget.userData,
-              ),
-            ),
-          );
+          context.pushNamed('chat', extra: widget.userData);
         }
       },
       child: ListTile(

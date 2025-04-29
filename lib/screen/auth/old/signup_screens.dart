@@ -73,12 +73,7 @@ By using the Licensed Application, you agree to abide by these terms and conditi
   void _navigateToPage(int page) async {
     if (_currentPage == 1) {
       // Show loading screen and then navigate to the home screen
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => const LoadingScreen(),
-        ),
-      );
+      context.push(Routes.splash);
 
       // Simulate a minimum 2-second loading time, and then proceed with tasks
       await Future.delayed(const Duration(seconds: 2));

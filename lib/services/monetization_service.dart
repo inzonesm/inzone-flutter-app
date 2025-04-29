@@ -5,34 +5,45 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
 
 class MonetizationService {
-  static const String _subscriptionId = 'InCashGold2025';
-  static const String baseUrl = 'https://inzoneapi-912424781531.us-central1.run.app/';
+  static const String _subscriptionId = 'InCashGold';
+  static const String baseUrl =
+      'https://inzoneapi-912424781531.us-central1.run.app/';
   final InAppPurchase _inAppPurchase = InAppPurchase.instance;
-  final StreamController<List<PurchaseDetails>> _purchaseController = StreamController<List<PurchaseDetails>>.broadcast();
-  Stream<List<PurchaseDetails>> get purchaseStream => _purchaseController.stream;
+  final StreamController<List<PurchaseDetails>> _purchaseController =
+      StreamController<List<PurchaseDetails>>.broadcast();
+  Stream<List<PurchaseDetails>> get purchaseStream =>
+      _purchaseController.stream;
 
   MonetizationService() {
     _initialize();
   }
 
   Future<void> _initialize() async {
-    final Stream<List<PurchaseDetails>> purchaseUpdated = _inAppPurchase.purchaseStream;
+    final Stream<List<PurchaseDetails>> purchaseUpdated =
+        _inAppPurchase.purchaseStream;
     purchaseUpdated.listen((List<PurchaseDetails> purchaseDetailsList) {
       _handlePurchases(purchaseDetailsList);
     });
   }
 
-  Future<void> _handlePurchases(List<PurchaseDetails> purchaseDetailsList) async {
+  Future<void> _handlePurchases(
+      List<PurchaseDetails> purchaseDetailsList) async {
     for (var purchaseDetails in purchaseDetailsList) {
+      if (purchaseDetails.pendingCompletePurchase) {
+        // ✅ 무조건 completePurchase() 호출해줘야 한다
+        await _inAppPurchase.completePurchase(purchaseDetails);
+      }
+
       if (purchaseDetails.status == PurchaseStatus.purchased ||
           purchaseDetails.status == PurchaseStatus.restored) {
-        // Handle successful purchase
-        await _verifyAndDeliverProduct(purchaseDetails);
+        // 구매 완료 처리
+        // 여기서는 딱히 별다른 작업 안 해도 된다 (이미 completePurchase했으니까)
       } else if (purchaseDetails.status == PurchaseStatus.error) {
-        // Handle purchase error
+        // 에러 처리
         print('Purchase error: ${purchaseDetails.error}');
       }
     }
+
     _purchaseController.add(purchaseDetailsList);
   }
 
@@ -44,7 +55,8 @@ class MonetizationService {
   }
 
   Future<List<ProductDetails>> getProducts(List<String> productIds) async {
-    final ProductDetailsResponse response = await _inAppPurchase.queryProductDetails(productIds.toSet());
+    final ProductDetailsResponse response =
+        await _inAppPurchase.queryProductDetails(productIds.toSet());
     if (response.notFoundIDs.isNotEmpty) {
       print('Products not found: ${response.notFoundIDs}');
     }
@@ -146,7 +158,8 @@ class MonetizationService {
 
   Future<Map<String, dynamic>> getBalance() async {
     final user = FirebaseAuth.instance.currentUser;
-    if (user == null || user.uid.isEmpty) throw Exception('User not logged in or UID missing');
+    if (user == null || user.uid.isEmpty)
+      throw Exception('User not logged in or UID missing');
 
     final response = await http.get(
       Uri.parse('$baseUrl/wallet/balance?UserDocumentId=${user.uid}'),
@@ -159,7 +172,8 @@ class MonetizationService {
     }
   }
 
-  Future<Map<String, dynamic>> purchaseInCash(String packageId, String platform, String receiptData) async {
+  Future<Map<String, dynamic>> purchaseInCash(
+      String packageId, String platform, String receiptData) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) throw Exception('User not logged in');
 

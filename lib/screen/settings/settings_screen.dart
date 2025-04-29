@@ -3,12 +3,15 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:inzone/components/settings/settings_tile.dart';
 import 'package:inzone/components/ui/appbar.dart';
+import 'package:inzone/router/app_router.dart';
 import 'package:inzone/screen/auth/introduction_screen.dart';
 import 'package:inzone/screen/settings/content_select_screen.dart';
 import 'package:inzone/screen/settings/subscription_purchase.dart';
 import 'package:inzone/screen/settings/referral_screen.dart';
 // ignore: unused_import
 import 'package:url_launcher/url_launcher.dart';
+import 'package:go_router/go_router.dart';
+import 'package:inzone/router/routes.dart';
 
 class SettingsScreen extends StatelessWidget {
   SettingsScreen({super.key});
@@ -26,48 +29,98 @@ class SettingsScreen extends StatelessWidget {
   }
 
   Future<void> _deleteAccount(BuildContext context) async {
-    try {
-      // Sign out of Firebase
-      await FirebaseAuth.instance.signOut();
+    final User? currentUser = FirebaseAuth.instance.currentUser;
 
-      // Delete the user account
-      await FirebaseAuth.instance.currentUser?.delete();
-
-      // Navigate to the introduction screen and clear navigation stack
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(builder: (context) => const IntroductionScreen()),
-        (Route<dynamic> route) => false, // This removes all previous routes
-      );
-    } catch (e) {
-      // Handle any errors (e.g., re-authentication required)
-      if (e.toString().contains('requires-recent-login')) {
-        // Show a dialog informing the user to re-authenticate
-        showDialog(
-          context: context,
-          builder: (BuildContext context) {
-            return AlertDialog(
-              title: const Text('Re-authentication required'),
-              content: const Text(
-                  'For security reasons, please sign in again to delete your account.'),
-              actions: <Widget>[
-                TextButton(
-                  child: const Text('OK'),
-                  onPressed: () {
-                    Navigator.of(context).pop();
-                  },
-                ),
-              ],
-            );
-          },
-        );
-      } else {
-        // Display an error message
+    if (currentUser == null) {
+      if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: ${e.toString()}')),
+          const SnackBar(
+            content: Text('No user is signed in'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      return;
+    }
+
+    try {
+      await currentUser.delete();
+      await FirebaseAuth.instance
+          .authStateChanges()
+          .firstWhere((user) => user == null);
+
+      if (context.mounted) {
+        context.go(Routes.login);
+      }
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'requires-recent-login') {
+        try {
+          await FirebaseAuth.instance.signOut();
+
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Please sign in again to delete your account'),
+                duration: Duration(seconds: 5),
+                backgroundColor: Colors.orange,
+              ),
+            );
+            context.go(Routes.login);
+          }
+        } catch (signOutError) {
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Error signing out: $signOutError'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+        }
+      } else {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error: ${e.message ?? e.toString()}'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Unexpected error: $e'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     }
+  }
+
+  Future<bool> _confirmDeleteAccountDialog(BuildContext context) async {
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Delete Account'),
+          content: const Text(
+              'Are you sure you want to delete your account? This action cannot be undone.'),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('Cancel'),
+              onPressed: () => Navigator.of(context).pop(false),
+            ),
+            TextButton(
+              child: const Text('Delete'),
+              onPressed: () => Navigator.of(context).pop(true),
+            ),
+          ],
+        );
+      },
+    );
+    return result ?? false; // 아무것도 선택 안 하고 닫으면 false
   }
 
   List<String> category = ["Personal", "Others"];
@@ -170,42 +223,16 @@ class SettingsScreen extends StatelessWidget {
           );
         }
       },
-      () {
-        showDialog(
-          context: context,
-          builder: (BuildContext context) {
-            return AlertDialog(
-              title: const Text('Delete Account'),
-              content: const Text(
-                  'Are you sure you want to delete your account? This action cannot be undone.'),
-              actions: <Widget>[
-                TextButton(
-                  child: const Text('Cancel'),
-                  onPressed: () {
-                    Navigator.of(context).pop();
-                  },
-                ),
-                TextButton(
-                  child: const Text('Delete'),
-                  onPressed: () {
-                    Navigator.of(context).pop();
-                    _deleteAccount(context);
-                  },
-                ),
-              ],
-            );
-          },
-        );
+      () async {
+        final confirmed = await _confirmDeleteAccountDialog(context);
+        if (confirmed) {
+          await _deleteAccount(context);
+        }
       },
       () {
         try {
           FirebaseAuth.instance.signOut().then((value) {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const IntroductionScreen(),
-              ),
-            );
+            GoRouter.of(context).go(Routes.login);
           });
         } catch (e) {
           ScaffoldMessenger.of(context).showSnackBar(

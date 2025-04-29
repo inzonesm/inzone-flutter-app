@@ -1,6 +1,9 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:go_router/go_router.dart';
+
+// Screens
 import 'package:inzone/root_app.dart';
 import 'package:inzone/screen/auth/splash_screen.dart';
 import 'package:inzone/screen/auth/introduction_screen.dart';
@@ -15,68 +18,67 @@ import 'package:inzone/screen/profile/profile_screen.dart';
 import 'package:inzone/screen/post/post_screen.dart';
 import 'package:inzone/screen/chat/group_chat_screen.dart';
 import 'package:inzone/screen/chat/chat_screen.dart';
-import 'package:inzone/data/group_data.dart';
-import 'package:inzone/router/routes.dart';
-// Import settings screens
 import 'package:inzone/screen/settings/content_select_screen.dart';
 import 'package:inzone/screen/settings/subscription_purchase.dart';
 import 'package:inzone/screen/settings/referral_screen.dart';
-// Future imports when they are created
-// import 'package:inzone/screen/settings/contact_screen.dart';
+
+// Models
+import 'package:inzone/data/group_data.dart';
+
+// Routes
+import 'package:inzone/router/routes.dart';
 
 class AppRouter {
-  static final _rootNavigatorKey = GlobalKey<NavigatorState>();
+  static final rootNavigatorKey = GlobalKey<NavigatorState>();
   static final _shellNavigatorKey = GlobalKey<NavigatorState>();
 
   static final GoRouter router = GoRouter(
     initialLocation: Routes.splash,
-    navigatorKey: _rootNavigatorKey,
+    navigatorKey: rootNavigatorKey,
     debugLogDiagnostics: true,
     redirect: (BuildContext context, GoRouterState state) {
       final User? user = FirebaseAuth.instance.currentUser;
       final bool isLoggedIn = user != null;
       final bool isGoingToSplash = state.matchedLocation == Routes.splash;
 
-      // Allow access to splash screen
       if (isGoingToSplash) {
         return null;
       }
 
-      // If user is not logged in and not on login route, redirect to login
       if (!isLoggedIn && !state.matchedLocation.contains('/auth/')) {
         return Routes.login;
       }
 
-      // User is logged in and trying to access login/register, redirect to home
       if (isLoggedIn && state.matchedLocation.contains('/auth/')) {
         return Routes.home;
       }
 
-      // Allow the requested page to load
       return null;
     },
     routes: [
-      // Splash and Auth routes
+      // 🚀 Auth and splash routes
       GoRoute(
         path: Routes.splash,
         builder: (context, state) => const SplashScreen(),
       ),
-
       GoRoute(
         path: Routes.login,
         builder: (context, state) => const IntroductionScreen(),
       ),
-
       GoRoute(
         path: Routes.signin,
         builder: (context, state) => const SignInLoginScreen(),
       ),
-
       GoRoute(
         path: Routes.profile,
-        builder: (context, state) {
+        parentNavigatorKey: AppRouter.rootNavigatorKey,
+        pageBuilder: (context, state) {
           final email = state.uri.queryParameters['email'] ?? '';
-          return auth.ProfileScreen(email: email);
+          return CupertinoPage(
+            key: state.pageKey,
+            fullscreenDialog: true,
+            child: auth.ProfileScreen(email: email),
+          );
         },
       ),
 
@@ -88,32 +90,25 @@ class AppRouter {
         },
       ),
 
-      // Main app shell route
+      // 🚀 Shell for Main App
       ShellRoute(
         navigatorKey: _shellNavigatorKey,
         builder: (context, state, child) {
           return RootApp(child: child);
         },
         routes: [
-          // Home tab
           GoRoute(
             path: Routes.home,
             builder: (context, state) => const HomeScreen(),
           ),
-
-          // Groups tab
           GoRoute(
             path: Routes.groups,
             builder: (context, state) => const GroupsExploreScreen(),
           ),
-
-          // Chats tab
           GoRoute(
             path: Routes.chats,
             builder: (context, state) => const AllChatsScreen(),
           ),
-
-          // Profile tab
           GoRoute(
             path: Routes.profile_tab,
             builder: (context, state) => const UserProfileScreen(),
@@ -121,78 +116,67 @@ class AppRouter {
         ],
       ),
 
-      // Post screen - accessed from FAB
+      // 🚀 Others (Root level)
       GoRoute(
         path: Routes.post,
-        parentNavigatorKey: _rootNavigatorKey,
-        builder: (context, state) => const PostScreen(),
+        parentNavigatorKey: rootNavigatorKey,
+        pageBuilder: (context, state) => CupertinoPage(
+          key: state.pageKey,
+          fullscreenDialog: true,
+          child: const PostScreen(),
+        ),
       ),
-
-      // AI Profile route
       GoRoute(
         path: Routes.aiProfile,
-        parentNavigatorKey: _rootNavigatorKey,
+        parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) {
           final username = state.pathParameters['username'] ?? '';
           return ProfileScreen(uid: username, isAI: true);
         },
       ),
-
-      // Human profile route
       GoRoute(
         path: Routes.regularProfile,
-        parentNavigatorKey: _rootNavigatorKey,
+        parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) {
           final uid = state.pathParameters['uid'] ?? '';
           return ProfileScreen(uid: uid);
         },
       ),
-
-      // Group chat route
       GoRoute(
         path: Routes.groupChat,
-        parentNavigatorKey: _rootNavigatorKey,
+        parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) {
           final group = state.extra as GroupData;
           return GroupChatScreen(group: group);
         },
       ),
-
-      // Direct chat route
       GoRoute(
         path: Routes.chat,
-        parentNavigatorKey: _rootNavigatorKey,
+        parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) {
           final userData = state.extra as ChatUser;
           return ChatScreen(userData: userData);
         },
       ),
-      
-      // Settings Routes
       GoRoute(
         path: Routes.contentSelection,
-        parentNavigatorKey: _rootNavigatorKey,
+        parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) => const ContentSelectionSettingsScreen(),
       ),
-      
       GoRoute(
         path: Routes.subscription,
-        parentNavigatorKey: _rootNavigatorKey,
-        builder: (context, state) => const SubscriptionScreen(),
+        parentNavigatorKey: rootNavigatorKey,
+        pageBuilder: (context, state) => CupertinoPage(
+          key: state.pageKey,
+          fullscreenDialog: true,
+          child: const SubscriptionScreen(),
+        ),
       ),
-      
       GoRoute(
         path: Routes.referral,
-        parentNavigatorKey: _rootNavigatorKey,
+        parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) => const ReferralScreen(),
       ),
-      
-      // External URLs routes simply redirect back to settings
-      // GoRoute(
-      //   path: Routes.contactUs,
-      //   parentNavigatorKey: _rootNavigatorKey,
-      //   builder: (context, state) => const ContactScreen(),
-      // ),
     ],
   );
 }

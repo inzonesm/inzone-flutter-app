@@ -22,7 +22,7 @@ class Routes {
   static const String regularProfile = '/profile/:uid';
   static const String groupChat = '/group-chat';
   static const String chat = '/chat';
-  
+
   // Settings routes
   static const String settings = '/settings';
   static const String contentSelection = '/settings/content-selection';
