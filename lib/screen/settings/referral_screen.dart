@@ -8,7 +8,7 @@ import 'package:inzone/components/ui/button.dart';
 import 'package:inzone/services/monetization_service.dart';
 import 'package:inzone/screen/settings/referral_tile.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:contacts_service/contacts_service.dart';
+import 'package:flutter_contacts/flutter_contacts.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:go_router/go_router.dart';
 
@@ -98,7 +98,7 @@ class _ReferralScreenState extends State<ReferralScreen> {
         }
       }
 
-      final contacts = await ContactsService.getContacts(withThumbnails: false);
+      final contacts = await FlutterContacts.getContacts(withProperties: true);
 
       return contacts.toList();
     } catch (e) {
@@ -183,12 +183,12 @@ class _ReferralScreenState extends State<ReferralScreen> {
                             child: const Icon(Icons.person),
                           ),
                           title: Text(contact.displayName ?? 'No Name'),
-                          subtitle: contact.phones?.isNotEmpty == true
-                              ? Text(contact.phones!.first.value ?? '')
+                          subtitle: contact.phones.isNotEmpty
+                              ? Text(contact.phones.first.number)
                               : const Text('No phone number'),
                           trailing: Checkbox(
                             value: isSelected,
-                            onChanged: contact.phones?.isEmpty == true
+                            onChanged: contact.phones.isEmpty
                                 ? null
                                 : (bool? selected) {
                                     setModalState(() {
@@ -200,7 +200,7 @@ class _ReferralScreenState extends State<ReferralScreen> {
                                     });
                                   },
                           ),
-                          onTap: contact.phones?.isEmpty == true
+                          onTap: contact.phones.isEmpty
                               ? null
                               : () {
                                   setModalState(() {
@@ -277,8 +277,7 @@ class _ReferralScreenState extends State<ReferralScreen> {
           FirebaseFunctions.instance.httpsCallable('sendReferralSMS');
 
       final phoneNumbers = contacts
-          .map((c) =>
-              c.phones?.isNotEmpty == true ? c.phones!.first.value : null)
+          .map((c) => c.phones.isNotEmpty ? c.phones.first.number : null)
           .where((number) => number != null)
           .toList();
 
