@@ -3,6 +3,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_feather_icons/flutter_feather_icons.dart';
 import 'dart:async';
+import 'dart:io';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:inzone/components/bottom-sheet/bottom_sheet_bar.dart';
 import 'package:inzone/components/bottom-sheet/custom_bottom_sheet.dart';
@@ -346,6 +347,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                   onTap: () async {
                     if (_selectedPlan == "Gold") {
                       // Gold면 CustomBottomSheet만 띄운다 (아무 결제하지 마라)
+                      // If Gold, only show the CustomBottomSheet (do not trigger a direct purchase)
                       CustomBottomSheet.show(
                         context: context,
                         backgroundColor: Theme.of(context).cardColor,
@@ -370,7 +372,9 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                               planName: "$_selectedPlan Plan",
                               price: 9.99,
                               coins: 2500,
-                              productId: "InCashGold",
+                              productId: Platform.isIOS 
+                                ? "InCashGold" 
+                                : "2025incashgold",   // Android Gold ID
                               isSubscription: true,
                             ),
                             const SizedBox(height: 10),
@@ -379,12 +383,19 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                       );
                     } else {
                       // 나머지는 바로 구매
+                      // For the others, purchase immediately
                       final productId = _selectedPlan == "Elite"
-                          ? "InCashElite2025"
+                          ? (Platform.isIOS
+                                ? "InCashElite2025"
+                                : "2025incashelite")     // Android Elite ID
                           : _selectedPlan == "Advanced"
-                              ? "InCashAdvanced2025"
-                              : "InCashBasic2025";
-
+                              ? (Platform.isIOS
+                                    ? "InCashAdvanced2025"
+                                    : "2025incashadvanced") // Android Advanced ID
+                              : (Platform.isIOS
+                                    ? "InCashBasic2025"
+                                    : "2025incashbasic");   // Android Basic ID
+                                  
                       final products =
                           await _monetizationService.getProducts([productId]);
                       if (products.isNotEmpty) {
@@ -814,6 +825,8 @@ class _PurchaseSubscriptionScreenState
               ),
             ],
           )
-        ]));
+        ]
+      )
+    );
   }
 }
