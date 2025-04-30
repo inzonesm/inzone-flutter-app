@@ -21,6 +21,7 @@ import 'package:inzone/screen/profile/edit_profile_screen.dart';
 import 'package:inzone/screen/post/post_screen.dart';
 import 'package:inzone/screen/chat/group_chat_screen.dart';
 import 'package:inzone/screen/chat/chat_screen.dart';
+import 'package:inzone/screen/chat/human_chat_screen.dart';
 import 'package:inzone/screen/chat/post_chat_screen.dart';
 import 'package:inzone/screen/settings/content_select_screen.dart';
 import 'package:inzone/screen/settings/subscription_purchase.dart';
@@ -219,10 +220,26 @@ class AppRouter {
       ),
       GoRoute(
         path: Routes.chat,
+        name: 'chat',
         parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) {
-          final userData = state.extra as ChatUser;
-          return ChatScreen(userData: userData);
+          // Check if extra is ChatUser or Map
+          if (state.extra is ChatUser) {
+            final userData = state.extra as ChatUser;
+            return ChatScreen(userData: userData);
+          } else if (state.extra is Map<String, dynamic>) {
+            final Map<String, dynamic> params =
+                state.extra as Map<String, dynamic>;
+            return HumanChatScreen(
+              conversationId: params['conversationId'] as String,
+              otherUserName: params['otherUserName'] as String,
+              otherUserId: params['otherUserId'] as String,
+            );
+          }
+
+          // Fallback in case of unexpected type
+          throw Exception(
+              'Unexpected extra type for chat route: ${state.extra.runtimeType}');
         },
       ),
       GoRoute(

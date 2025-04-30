@@ -110,11 +110,11 @@ class SettingsScreen extends StatelessWidget {
           actions: <Widget>[
             TextButton(
               child: const Text('Cancel'),
-              onPressed: () => context.pop(false),
+              onPressed: () => Navigator.of(context).pop(false),
             ),
             TextButton(
               child: const Text('Delete'),
-              onPressed: () => context.pop(true),
+              onPressed: () => Navigator.of(context).pop(true),
             ),
           ],
         );
