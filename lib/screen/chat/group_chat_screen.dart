@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get_connect/http/src/utils/utils.dart';
+import 'package:inzone/services/inzone_database.dart';
 import 'package:random_avatar/random_avatar.dart';
 import 'package:inzone/components/chat/chat_input.dart';
 import 'package:inzone/components/chat/date_header.dart';
@@ -49,14 +50,97 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     }
   }
 
-  void _sendMessage() {
+  void _sendMessage() async {
     if (_msgController.text.trim().isEmpty) return;
 
-    // Send message to Firestore, using the specific group ID
-    GroupChatService.sendMessageToGroup(_groupId, _msgController.text.trim());
-
+    final content = _msgController.text.trim();
     _msgController.clear();
-    _scrollToBottom();
+
+    // Get current user ID
+    final currentUserId = FirebaseAuth.instance.currentUser?.uid;
+    if (currentUserId == null) {
+      // Handle not logged in case
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('You need to be logged in to send messages')),
+      );
+      return;
+    }
+
+    try {
+      // Check if current user is already a participant
+      bool isParticipant = false;
+
+      if (_groupChatData != null) {
+        // Check in the already loaded data
+        isParticipant =
+            _groupChatData!.participants.any((p) => p.uid == currentUserId);
+      } else {
+        // Fetch latest data from Firestore
+        final docSnapshot = await FirebaseFirestore.instance
+            .collection('groupChats')
+            .doc(_groupId)
+            .get();
+
+        if (docSnapshot.exists) {
+          final data = docSnapshot.data();
+          if (data != null && data['participants'] is List) {
+            final participants = data['participants'] as List;
+            isParticipant =
+                participants.any((p) => p is Map && p['uid'] == currentUserId);
+          }
+        }
+      }
+
+      if (!isParticipant) {
+        print('User is not a participant, adding to the group first');
+
+        // Get current user info for adding as participant
+        final currentUser = FirebaseAuth.instance.currentUser!;
+        String displayName = currentUser.displayName ?? 't';
+        if (displayName.length < 2) {
+          try {
+            // Try to get user profile from Firebase
+            Map<String, dynamic>? userProfile =
+                await InZoneDatabase.getUserProfile(currentUser.uid);
+            if (userProfile != null) {
+              displayName =
+                  userProfile["Name"] ?? userProfile["name"] ?? 'User';
+              currentUser.updateDisplayName(displayName);
+            }
+          } catch (e) {
+            print('Error fetching user name from database: $e');
+          }
+        }
+
+        // Create participant object
+        final currentParticipant = {
+          'uid': currentUser.uid,
+          'type': 'user',
+          'name': displayName,
+        };
+
+        // Add current user to participants
+        await FirebaseFirestore.instance
+            .collection('groupChats')
+            .doc(_groupId)
+            .update({
+          'participants': FieldValue.arrayUnion([currentParticipant]),
+          'updatedAt': Timestamp.now(),
+        });
+
+        print('Added current user to participants');
+      }
+
+      // Now send the message
+      await GroupChatService.sendMessageToGroup(_groupId, content);
+      _scrollToBottom();
+    } catch (e) {
+      print('Error checking/updating participant status: $e');
+      // Fallback to direct message send
+      GroupChatService.sendMessageToGroup(_groupId, content);
+      _scrollToBottom();
+    }
   }
 
   void _scrollToBottom() {
@@ -197,7 +281,8 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                   icon: Icon(Icons.more_vert,
                       color: Theme.of(context).primaryColor),
                   onPressed: () {
-                    // Show group options
+                    // Show the participants dialog
+                    _showParticipantsDialog(context);
                   },
                 ),
               ],
@@ -503,6 +588,224 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     } else {
       return DateFormat('MMM d, h:mm a').format(dateTime);
     }
+  }
+
+  // Method to show the participants dialog
+  void _showParticipantsDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: StreamBuilder<DocumentSnapshot>(
+            stream: GroupChatService.getGroupChatStreamById(_groupId),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Padding(
+                  padding: EdgeInsets.all(20.0),
+                  child: Center(child: CircularProgressIndicator()),
+                );
+              }
+
+              if (snapshot.hasError) {
+                return Padding(
+                  padding: const EdgeInsets.all(20.0),
+                  child: Center(child: Text('Error: ${snapshot.error}')),
+                );
+              }
+
+              if (!snapshot.hasData || !snapshot.data!.exists) {
+                return const Padding(
+                  padding: EdgeInsets.all(20.0),
+                  child: Center(child: Text('No data available')),
+                );
+              }
+
+              try {
+                final data = snapshot.data!.data() as Map<String, dynamic>;
+                final List<dynamic> participantsData =
+                    data['participants'] ?? [];
+                List<Participant> participants =
+                    _parseParticipantsList(participantsData);
+
+                // Sort participants - AI participants first, then others
+                participants.sort((a, b) {
+                  if (a.type == 'ai' && b.type != 'ai') {
+                    return -1; // a comes before b
+                  } else if (a.type != 'ai' && b.type == 'ai') {
+                    return 1; // b comes before a
+                  } else {
+                    // If both same type, sort alphabetically by name
+                    return a.name.compareTo(b.name);
+                  }
+                });
+
+                final groupName = data['name'] ?? widget.group.name;
+
+                return Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Text(
+                            'Participants',
+                            style: Theme.of(context)
+                                .textTheme
+                                .headlineSmall
+                                ?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                          ),
+                          const Spacer(),
+                          IconButton(
+                            icon: const Icon(Icons.close),
+                            onPressed: () => Navigator.of(context).pop(),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Group: $groupName',
+                        style: TextStyle(
+                          color: Theme.of(context).hintColor,
+                          fontSize: 14,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(12),
+                          color: Theme.of(context).cardColor,
+                        ),
+                        constraints: BoxConstraints(
+                          maxHeight: MediaQuery.of(context).size.height * 0.5,
+                        ),
+                        child: ListView.builder(
+                          shrinkWrap: true,
+                          physics: const BouncingScrollPhysics(),
+                          itemCount: participants.length,
+                          itemBuilder: (context, index) {
+                            final participant = participants[index];
+                            return ListTile(
+                              leading: CircleAvatar(
+                                backgroundColor: Theme.of(context)
+                                    .colorScheme
+                                    .primary
+                                    .withOpacity(0.1),
+                                child: _buildParticipantAvatar(participant),
+                              ),
+                              title: Text(
+                                participant.name,
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.w500),
+                              ),
+                              subtitle: Text(
+                                participant.type == 'ai'
+                                    ? 'AI Assistant'
+                                    : 'User',
+                                style: TextStyle(
+                                  color: Theme.of(context).hintColor,
+                                  fontSize: 12,
+                                ),
+                              ),
+                              trailing: participant.type == 'ai'
+                                  ? Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 8, vertical: 4),
+                                      decoration: BoxDecoration(
+                                        color:
+                                            Colors.blueAccent.withOpacity(0.1),
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      child: const Text(
+                                        'AI',
+                                        style: TextStyle(
+                                          color: Colors.blueAccent,
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                    )
+                                  : null,
+                            );
+                          },
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      // Information text about participants
+                      Text(
+                        'Some AI participants have special knowledge about the group topic.',
+                        style: TextStyle(
+                          color: Theme.of(context).hintColor,
+                          fontSize: 12,
+                          fontStyle: FontStyle.italic,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              } catch (e) {
+                print('Error parsing participants data: $e');
+                return Padding(
+                  padding: const EdgeInsets.all(20.0),
+                  child: Center(child: Text('Error parsing data: $e')),
+                );
+              }
+            },
+          ),
+        );
+      },
+    );
+  }
+
+  // Helper method to parse participants
+  List<Participant> _parseParticipantsList(List<dynamic> participantsData) {
+    return participantsData.map((participant) {
+      if (participant is Map) {
+        return Participant.fromMap(participant.cast<String, dynamic>());
+      } else {
+        // Return a default participant if the format is unexpected
+        return Participant(uid: '', type: 'unknown', name: 'Unknown');
+      }
+    }).toList();
+  }
+
+  // Build avatar for participant
+  Widget _buildParticipantAvatar(Participant participant) {
+    // For Messi (special AI user), use Barcelona crest
+    if (participant.type == 'ai' && participant.name == 'Lionel Messi') {
+      return ClipOval(
+        child: Image.network(
+          "https://upload.wikimedia.org/wikipedia/sco/4/47/FC_Barcelona_%28crest%29.svg",
+          height: 40,
+          width: 40,
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) {
+            return const Icon(Icons.smart_toy, color: Colors.blueAccent);
+          },
+        ),
+      );
+    }
+
+    // For AI users
+    if (participant.type == 'ai') {
+      return const Icon(Icons.smart_toy, color: Colors.blueAccent);
+    }
+
+    // For regular users
+    return Text(
+      participant.name.isNotEmpty ? participant.name[0].toUpperCase() : '?',
+      style: TextStyle(
+        color: Theme.of(context).colorScheme.primary,
+        fontWeight: FontWeight.bold,
+      ),
+    );
   }
 }
 

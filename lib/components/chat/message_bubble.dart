@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:intl/intl.dart';
 import 'package:inzone/config/custom_icons.dart';
+import 'package:inzone/theme/app_colors.dart';
 import 'package:inzone/theme/light_theme.dart';
 
 class MessageBubble extends StatelessWidget {
@@ -33,30 +34,19 @@ class MessageBubble extends StatelessWidget {
         children: [
           if (!isMe && senderAvatar != null) ...[
             senderAvatar!,
-            const SizedBox(width: 8),
+            const SizedBox(width: 2),
           ],
           Flexible(
             child: Column(
               crossAxisAlignment:
                   isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
               children: [
-                if (!isMe && senderName != null)
-                  Padding(
-                    padding: const EdgeInsets.only(left: 4.0, bottom: 4.0),
-                    child: Text(
-                      senderName!,
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: Theme.of(context).textTheme.titleMedium?.color,
-                      ),
-                    ),
-                  ),
                 Container(
-                  padding: const EdgeInsets.all(15),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
                   margin: const EdgeInsets.symmetric(
                     horizontal: 10,
-                    vertical: 12,
+                    vertical: 4,
                   ),
                   decoration: BoxDecoration(
                     color: isMe
@@ -73,26 +63,48 @@ class MessageBubble extends StatelessWidget {
                           : const Radius.circular(0),
                     ),
                   ),
-                  child: Text(
-                    message,
-                    style: TextStyle(
-                      color: isMe
-                          ? Theme.of(context).myChatTextColor
-                          : Theme.of(context).otherChatTextColor,
-                    ),
+                  child: Column(
+                    crossAxisAlignment: isMe
+                        ? CrossAxisAlignment.end
+                        : CrossAxisAlignment.start,
+                    children: [
+                      if (!isMe && senderName != null)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 6.0),
+                          child: Text(
+                            senderName!,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.black,
+                            ),
+                          ),
+                        ),
+                      Text(
+                        message,
+                        style: TextStyle(
+                          color: isMe
+                              ? Theme.of(context).myChatTextColor
+                              : Theme.of(context).otherChatTextColor,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                if (timestamp != null)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 2, right: 10, left: 10),
-                    child: Text(
-                      _formatTimestamp(timestamp!),
-                      style: TextStyle(
-                        fontSize: 10,
-                        color: Theme.of(context).textTheme.bodySmall?.color,
-                      ),
-                    ),
-                  ),
+                // if (timestamp != null)
+                //   Padding(
+                //     padding: const EdgeInsets.only(top: 2, right: 10, left: 10),
+                //     child: Text(
+                //       _formatTimestamp(timestamp!),
+                //       style: TextStyle(
+                //         fontSize: 10,
+                //         color: Theme.of(context).textTheme.bodySmall?.color,
+                //       ),
+                //     ),
+                //   ),
+                const SizedBox(
+                  height: 10,
+                ),
               ],
             ),
           ),

@@ -34,7 +34,7 @@ class _AllChatsScreenState extends State<AllChatsScreen>
     super.initState();
     _isLoading = true;
     _startTime = DateTime.now();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 1, vsync: this);
     _tabController.addListener(_handleTabChange);
     _loadCurrentUser();
   }
@@ -221,7 +221,7 @@ class _AllChatsScreenState extends State<AllChatsScreen>
               dividerColor: Colors.transparent,
               tabs: const [
                 Tab(text: 'Individual Chats'),
-                Tab(text: 'Group Chats'),
+                //Tab(text: 'Group Chats'),
               ],
             ),
             // Tab Views
@@ -232,7 +232,7 @@ class _AllChatsScreenState extends State<AllChatsScreen>
                   // Individual Chats Tab
                   _buildChatsList(_chatUsers),
                   // Group Chats Tab
-                  _buildChatsList(_groupChats),
+                  // _buildChatsList(_groupChats),
                 ],
               ),
             ),

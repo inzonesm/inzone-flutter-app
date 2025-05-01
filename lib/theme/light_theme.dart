@@ -9,7 +9,7 @@ extension ChatTheme on ThemeData {
       : AppColors.darkMyChatBubble;
 
   Color get otherChatBubbleColor => brightness == Brightness.light
-      ? AppColors.lightOtherChatBubble
+      ? AppColors.white
       : AppColors.darkOtherChatBubble;
 
   Color get myChatTextColor => brightness == Brightness.light
