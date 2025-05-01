@@ -11,7 +11,133 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter_contacts/flutter_contacts.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:go_router/go_router.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
+// Contact selection dialog
+class MultiSelectContactsDialog extends StatefulWidget {
+  final List<Contact> contacts;
+
+  const MultiSelectContactsDialog({
+    super.key,
+    required this.contacts,
+  });
+
+  @override
+  State<MultiSelectContactsDialog> createState() => _MultiSelectContactsDialogState();
+}
+
+class _MultiSelectContactsDialogState extends State<MultiSelectContactsDialog> {
+  List<Contact> selectedContacts = [];
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      child: SizedBox(
+        height: MediaQuery.of(context).size.height * 0.7,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(16),
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: Theme.of(context).cardColor,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+              ),
+              child: Column(
+                children: [
+                  Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[300],
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Select Contacts to Refer',
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                ],
+              ),
+            ),
+            Divider(height: 1, color: Theme.of(context).dividerColor),
+            Expanded(
+              child: ListView.builder(
+                itemCount: widget.contacts.length,
+                itemBuilder: (context, index) {
+                  final contact = widget.contacts[index];
+                  final isSelected = selectedContacts.contains(contact);
+                  return ListTile(
+                    leading: CircleAvatar(
+                      backgroundColor: Theme.of(context)
+                          .colorScheme
+                          .primary
+                          .withOpacity(0.1),
+                      child: const Icon(Icons.person),
+                    ),
+                    title: Text(contact.displayName ?? 'No Name'),
+                    subtitle: contact.phones.isNotEmpty
+                        ? Text(contact.phones.first.number)
+                        : const Text('No phone number'),
+                    trailing: Checkbox(
+                      value: isSelected,
+                      onChanged: contact.phones.isEmpty
+                          ? null
+                          : (bool? selected) {
+                              setState(() {
+                                if (selected == true) {
+                                  selectedContacts.add(contact);
+                                } else {
+                                  selectedContacts.remove(contact);
+                                }
+                              });
+                            },
+                    ),
+                    onTap: contact.phones.isEmpty
+                        ? null
+                        : () {
+                            setState(() {
+                              if (isSelected) {
+                                selectedContacts.remove(contact);
+                              } else {
+                                selectedContacts.add(contact);
+                              }
+                            });
+                          },
+                  );
+                },
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: selectedContacts.isEmpty
+                      ? null
+                      : () {
+                          Navigator.pop(context, selectedContacts);
+                        },
+                  child: Text(
+                    selectedContacts.isEmpty
+                        ? "Select Contacts"
+                        : "Invite ${selectedContacts.length} Contact${selectedContacts.length > 1 ? 's' : ''}",
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// Main Referral Screen
 class ReferralScreen extends StatefulWidget {
   const ReferralScreen({super.key});
 
@@ -80,7 +206,6 @@ class _ReferralScreenState extends State<ReferralScreen> {
     }
   }
 
-  /* -------------------------------------*/
   Future<List<Contact>> fetchContacts() async {
     try {
       var status = await Permission.contacts.status;
@@ -99,8 +224,16 @@ class _ReferralScreenState extends State<ReferralScreen> {
       }
 
       final contacts = await FlutterContacts.getContacts(withProperties: true);
+      if (contacts.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('No contacts found.')),
+          );
+        }
+        return [];
+      }
 
-      return contacts.toList();
+      return contacts;
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -111,198 +244,69 @@ class _ReferralScreenState extends State<ReferralScreen> {
     }
   }
 
-  Future<List<Contact>> selectContacts(BuildContext context) async {
+  Future<void> _sendReferralSMS() async {
     try {
-      setState(() {
-        _isLoading = true;
-      });
+      if (_referralCode == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please generate a referral code first')),
+        );
+        return;
+      }
 
       final contacts = await fetchContacts();
-
       if (contacts.isEmpty) {
-        setState(() {
-          _isLoading = false;
-        });
-        return [];
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No contacts found')),
+        );
+        return;
       }
 
-      List<Contact> selectedContacts = [];
-
-      await showModalBottomSheet(
+      // Show dialog to select contacts
+      final selectedContacts = await showDialog<List<Contact>>(
         context: context,
-        isScrollControlled: true,
-        backgroundColor: Theme.of(context).cardColor,
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-        ),
-        builder: (context) {
-          return StatefulBuilder(
-            builder: (context, setModalState) {
-              return Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).cardColor,
-                      borderRadius:
-                          const BorderRadius.vertical(top: Radius.circular(20)),
-                    ),
-                    child: Column(
-                      children: [
-                        Container(
-                          width: 40,
-                          height: 4,
-                          decoration: BoxDecoration(
-                            color: Colors.grey[300],
-                            borderRadius: BorderRadius.circular(2),
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          'Select Contacts to Refer',
-                          style: Theme.of(context).textTheme.titleLarge,
-                        ),
-                      ],
-                    ),
-                  ),
-                  Divider(height: 1, color: Theme.of(context).dividerColor),
-                  Expanded(
-                    child: ListView.builder(
-                      itemCount: contacts.length,
-                      itemBuilder: (context, index) {
-                        final contact = contacts[index];
-                        final isSelected = selectedContacts.contains(contact);
-                        return ListTile(
-                          leading: CircleAvatar(
-                            backgroundColor: Theme.of(context)
-                                .colorScheme
-                                .primary
-                                .withOpacity(0.1),
-                            child: const Icon(Icons.person),
-                          ),
-                          title: Text(contact.displayName ?? 'No Name'),
-                          subtitle: contact.phones.isNotEmpty
-                              ? Text(contact.phones.first.number)
-                              : const Text('No phone number'),
-                          trailing: Checkbox(
-                            value: isSelected,
-                            onChanged: contact.phones.isEmpty
-                                ? null
-                                : (bool? selected) {
-                                    setModalState(() {
-                                      if (selected == true) {
-                                        selectedContacts.add(contact);
-                                      } else {
-                                        selectedContacts.remove(contact);
-                                      }
-                                    });
-                                  },
-                          ),
-                          onTap: contact.phones.isEmpty
-                              ? null
-                              : () {
-                                  setModalState(() {
-                                    if (isSelected) {
-                                      selectedContacts.remove(contact);
-                                    } else {
-                                      selectedContacts.add(contact);
-                                    }
-                                  });
-                                },
-                        );
-                      },
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: SizedBox(
-                      width: double.infinity,
-                      child: Button(
-                        text: "Invite Selected Contacts",
-                        onPressed: selectedContacts.isEmpty
-                            ? () {}
-                            : () {
-                                context.pop();
-                              },
-                      ),
-                    ),
-                  ),
-                ],
-              );
-            },
-          );
-        },
+        builder: (context) => MultiSelectContactsDialog(contacts: contacts),
       );
 
-      setState(() {
-        _isLoading = false;
-      });
+      if (selectedContacts != null && selectedContacts.isNotEmpty) {
+        // Get phone numbers from selected contacts
+        final phoneNumbers = selectedContacts
+            .where((contact) => contact.phones.isNotEmpty)
+            .map((contact) => contact.phones.first.number.replaceAll(RegExp(r'[^0-9+]'), ''))
+            .toList();
 
-      return selectedContacts;
+        // Send SMS
+        final response = await http.post(
+          Uri.parse('https://inzoneapi-912424781531.us-central1.run.app/}user/send-referral-sms'),
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: jsonEncode({
+            'userId': _monetizationService.userId,
+            'phoneNumbers': phoneNumbers,
+          }),
+        );
+
+        if (response.statusCode == 200) {
+          final data = jsonDecode(response.body);
+          if (data['success']) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('SMS sent successfully')),
+            );
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Failed to send SMS: ${data['error']}')),
+            );
+          }
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Failed to send SMS: ${response.body}')),
+          );
+        }
+      }
     } catch (e) {
-      setState(() {
-        _isLoading = false;
-      });
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error selecting contacts: $e')),
-        );
-      }
-
-      return [];
-    }
-  }
-
-  Future<void> sendReferralSMS(
-      List<Contact> contacts, String referralCode) async {
-    if (contacts.isEmpty) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content: Text('No contacts selected or referral code missing')),
-        );
-      }
-      return;
-    }
-
-    try {
-      setState(() {
-        _isLoading = true;
-      });
-
-      final HttpsCallable callable =
-          FirebaseFunctions.instance.httpsCallable('sendReferralSMS');
-
-      final phoneNumbers = contacts
-          .map((c) => c.phones.isNotEmpty ? c.phones.first.number : null)
-          .where((number) => number != null)
-          .toList();
-
-      if (phoneNumbers.isEmpty) {
-        throw Exception('No valid phone numbers found');
-      }
-
-      await callable.call({
-        'phoneNumbers': phoneNumbers,
-        'referralCode': referralCode,
-      });
-
-      setState(() {
-        _isLoading = false;
-      });
-    } catch (e) {
-      setState(() {
-        _isLoading = false;
-      });
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error sending SMS: $e')),
-        );
-      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error sending SMS: $e')),
+      );
     }
   }
 
@@ -346,7 +350,6 @@ class _ReferralScreenState extends State<ReferralScreen> {
                   style: theme.textTheme.titleLarge,
                 ),
                 const SizedBox(height: 10),
-                // const ReferralTile(photoUrl: "", name: "name", date: "date"),
                 _isLoading
                     ? _buildLoadingList()
                     : _buildReferralHistoryList(theme),
@@ -358,33 +361,8 @@ class _ReferralScreenState extends State<ReferralScreen> {
         bottomNavigationBar: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 25),
           child: Button(
-            text: _isLoading ? "Loading..." : "Sync Contacts",
-            onPressed: _isLoading
-                ? () {}
-                : () async {
-                    try {
-                      final selectedContacts = await selectContacts(context);
-
-                      if (selectedContacts.isNotEmpty &&
-                          _referralCode != null) {
-                        await sendReferralSMS(selectedContacts, _referralCode!);
-
-                        if (mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                                content:
-                                    Text('Referral SMS sent successfully!')),
-                          );
-                        }
-                      }
-                    } catch (e) {
-                      if (mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('Error: $e')),
-                        );
-                      }
-                    }
-                  },
+            text: "Sync Contacts",
+            onPressed: _sendReferralSMS,
           ),
         ),
       ),

@@ -1,11 +1,12 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
 
 class MonetizationService {
-  static const String _subscriptionId = 'InCashGold';
+  static final String _subscriptionId = Platform.isIOS ? 'InCashGold' : '2025incashgold';
   static const String baseUrl =
       'https://inzoneapi-912424781531.us-central1.run.app/';
   final InAppPurchase _inAppPurchase = InAppPurchase.instance;
@@ -13,6 +14,8 @@ class MonetizationService {
       StreamController<List<PurchaseDetails>>.broadcast();
   Stream<List<PurchaseDetails>> get purchaseStream =>
       _purchaseController.stream;
+
+  String get userId => FirebaseAuth.instance.currentUser?.uid ?? '';
 
   MonetizationService() {
     _initialize();
