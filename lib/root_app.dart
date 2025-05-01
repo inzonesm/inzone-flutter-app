@@ -112,11 +112,12 @@ class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
-    final systemUiOverlayStyle = SystemUiOverlayStyle(
-      systemNavigationBarColor: Theme.of(context).cardColor,
+    const systemUiOverlayStyle = SystemUiOverlayStyle(
+      systemNavigationBarColor: Colors.transparent,
       systemNavigationBarIconBrightness: Brightness.dark,
     );
     SystemChrome.setSystemUIOverlayStyle(systemUiOverlayStyle);
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
 
     _isKeyboardVisible = MediaQuery.of(context).viewInsets.bottom > 0;
 
@@ -192,36 +193,39 @@ class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
           duration: const Duration(milliseconds: 200),
           child: _isKeyboardVisible
               ? const SizedBox.shrink()
-              : AnimatedBottomNavigationBar.builder(
-                  key: const ValueKey('navBar'),
-                  itemCount: _bottomNavBarTitles.length,
-                  tabBuilder: (int index, bool isActive) {
-                    final String iconName =
-                        _bottomNavBarTitles[index].toLowerCase();
-                    return Center(
-                      child: Image.asset(
-                        isActive
-                            ? 'icons/nav_bar_icons/${iconName}_selected.png'
-                            : 'icons/nav_bar_icons/${iconName}_unselected.png',
-                        width: 24,
-                        height: 24,
-                      ),
-                    );
-                  },
-                  activeIndex: _currentPage,
-                  splashSpeedInMilliseconds: 0,
-                  gapLocation: GapLocation.center,
-                  notchSmoothness: NotchSmoothness.softEdge,
-                  leftCornerRadius: 32,
-                  rightCornerRadius: 32,
-                  onTap: _onItemTapped,
-                  backgroundColor: Theme.of(context).cardColor,
-                  splashColor: Colors.transparent,
-                  splashRadius: 0,
-                  shadow: const BoxShadow(
-                    color: Colors.transparent,
-                    blurRadius: 0,
-                    spreadRadius: 0,
+              : SafeArea(
+                  bottom: false,
+                  child: AnimatedBottomNavigationBar.builder(
+                    key: const ValueKey('navBar'),
+                    itemCount: _bottomNavBarTitles.length,
+                    tabBuilder: (int index, bool isActive) {
+                      final String iconName =
+                          _bottomNavBarTitles[index].toLowerCase();
+                      return Center(
+                        child: Image.asset(
+                          isActive
+                              ? 'icons/nav_bar_icons/${iconName}_selected.png'
+                              : 'icons/nav_bar_icons/${iconName}_unselected.png',
+                          width: 24,
+                          height: 24,
+                        ),
+                      );
+                    },
+                    activeIndex: _currentPage,
+                    splashSpeedInMilliseconds: 0,
+                    gapLocation: GapLocation.center,
+                    notchSmoothness: NotchSmoothness.softEdge,
+                    leftCornerRadius: 32,
+                    rightCornerRadius: 32,
+                    onTap: _onItemTapped,
+                    backgroundColor: Theme.of(context).cardColor,
+                    splashColor: Colors.transparent,
+                    splashRadius: 0,
+                    shadow: const BoxShadow(
+                      color: Colors.transparent,
+                      blurRadius: 0,
+                      spreadRadius: 0,
+                    ),
                   ),
                 ),
         ),
