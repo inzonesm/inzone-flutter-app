@@ -1,12 +1,36 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
+import 'package:in_app_purchase_storekit/in_app_purchase_storekit.dart';
 
 class MonetizationService {
-  static final String _subscriptionId = Platform.isIOS ? 'InCashGold' : '2025incashgold';
+  // Product IDs
+  static final String _subscriptionId =
+      Platform.isIOS ? 'InCashGold' : '2025incashgold';
+  static final Map<String, String> _productIds = {
+    // iOS packages
+    'gold_subscription': 'InCashGold', // Monthly subscription
+    'elite_package': 'InCashElite2025', // One-time purchase
+    'advanced_package': 'InCashAdvanced2025',
+    'basic_package': 'InCashBasic2025',
+
+    // Android packages
+    'gold_subscription_android': '2025incashgold', // Monthly subscription
+    'elite_package_android': '2025incashelite', // One-time purchase
+    'advanced_package_android': '2025incashadvanced',
+    'basic_package_android': '2025incashbasic',
+  };
+
+  // Get the appropriate product ID based on platform
+  String getProductId(String key) {
+    final platformKey = Platform.isIOS ? key : '${key}_android';
+    return _productIds[platformKey] ?? '';
+  }
+
   static const String baseUrl =
       'https://inzoneapi-912424781531.us-central1.run.app/';
   final InAppPurchase _inAppPurchase = InAppPurchase.instance;
@@ -19,9 +43,24 @@ class MonetizationService {
 
   MonetizationService() {
     _initialize();
+
+    // Enable pending purchases on Android
+    if (defaultTargetPlatform == TargetPlatform.android) {
+      // This is called in the main.dart file instead
+      // InAppPurchase.instance.getPlatformAddition<InAppPurchaseAndroidPlatformAddition>().enablePendingPurchases();
+    }
   }
 
   Future<void> _initialize() async {
+    // Check if the store is available
+    final bool isAvailable = await _inAppPurchase.isAvailable();
+    if (!isAvailable) {
+      // Store is not available, handle accordingly
+      print('Store is not available');
+      return;
+    }
+
+    // Listen to purchase updates
     final Stream<List<PurchaseDetails>> purchaseUpdated =
         _inAppPurchase.purchaseStream;
     purchaseUpdated.listen((List<PurchaseDetails> purchaseDetailsList) {
@@ -32,32 +71,77 @@ class MonetizationService {
   Future<void> _handlePurchases(
       List<PurchaseDetails> purchaseDetailsList) async {
     for (var purchaseDetails in purchaseDetailsList) {
-      if (purchaseDetails.pendingCompletePurchase) {
-        // ✅ 무조건 completePurchase() 호출해줘야 한다
-        await _inAppPurchase.completePurchase(purchaseDetails);
-      }
-
       if (purchaseDetails.status == PurchaseStatus.purchased ||
           purchaseDetails.status == PurchaseStatus.restored) {
-        // 구매 완료 처리
-        // 여기서는 딱히 별다른 작업 안 해도 된다 (이미 completePurchase했으니까)
+        // Process the purchase with our backend
+        await _registerPurchaseWithBackend(purchaseDetails);
       } else if (purchaseDetails.status == PurchaseStatus.error) {
-        // 에러 처리
+        // Error handling
         print('Purchase error: ${purchaseDetails.error}');
+      }
+
+      // Always complete the purchase
+      if (purchaseDetails.pendingCompletePurchase) {
+        await _inAppPurchase.completePurchase(purchaseDetails);
       }
     }
 
     _purchaseController.add(purchaseDetailsList);
   }
 
-  Future<void> _verifyAndDeliverProduct(PurchaseDetails purchaseDetails) async {
-    // Verify the purchase with your backend
-    if (purchaseDetails.pendingCompletePurchase) {
-      await _inAppPurchase.completePurchase(purchaseDetails);
+  Future<void> _registerPurchaseWithBackend(
+      PurchaseDetails purchaseDetails) async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) throw Exception('User not logged in');
+
+      // Get the receipt data from the purchase details
+      String receiptData;
+
+      // For iOS, we need to use serverVerificationData for backend verification
+      // For Android, localVerificationData contains the purchase token
+      if (Platform.isIOS) {
+        // On iOS, serverVerificationData contains the receipt data needed for verification
+        receiptData = purchaseDetails.verificationData.serverVerificationData;
+      } else {
+        // On Android, localVerificationData contains the purchase token
+        receiptData = purchaseDetails.verificationData.localVerificationData;
+
+        // For Android, we might need to parse the JSON to get the purchase token
+        try {
+          final Map<String, dynamic> purchaseData = json.decode(receiptData);
+          if (purchaseData.containsKey('purchaseToken')) {
+            receiptData = purchaseData['purchaseToken'];
+          }
+        } catch (e) {
+          // If parsing fails, use the original receipt data
+          print('Error parsing Android purchase data: $e');
+        }
+      }
+
+      String packageId = purchaseDetails.productID;
+      String platform = Platform.isIOS ? 'ios' : 'android';
+
+      // Send purchase information to backend
+      await purchaseInCash(packageId, platform, receiptData);
+
+      // If this is a subscription, update subscription status
+      if (packageId == _subscriptionId) {
+        await updateSubscriptionStatus(platform, packageId, receiptData);
+      }
+    } catch (e) {
+      print('Error registering purchase: $e');
     }
   }
 
   Future<List<ProductDetails>> getProducts(List<String> productIds) async {
+    // First check if the store is available
+    final bool isAvailable = await _inAppPurchase.isAvailable();
+    if (!isAvailable) {
+      print('Store is not available');
+      return [];
+    }
+
     final ProductDetailsResponse response =
         await _inAppPurchase.queryProductDetails(productIds.toSet());
     if (response.notFoundIDs.isNotEmpty) {
@@ -67,34 +151,70 @@ class MonetizationService {
   }
 
   Future<bool> purchaseProduct(ProductDetails product) async {
-    final PurchaseParam purchaseParam = PurchaseParam(
-      productDetails: product,
-      applicationUserName: null,
-    );
+    try {
+      // bool isSubscription = product.id == _subscriptionId;
 
-    return await _inAppPurchase.buyNonConsumable(purchaseParam: purchaseParam);
+      final PurchaseParam purchaseParam = PurchaseParam(
+        productDetails: product,
+        applicationUserName: userId,
+      );
+
+      return await _inAppPurchase.buyNonConsumable(
+          purchaseParam: purchaseParam);
+    } catch (e) {
+      print('Error purchasing product: $e');
+      return false;
+    }
   }
 
   Future<bool> subscribeToGoldPlan() async {
-    final List<ProductDetails> products = await getProducts([_subscriptionId]);
-    if (products.isEmpty) {
-      print('Subscription product not found');
+    try {
+      final List<ProductDetails> products =
+          await getProducts([_subscriptionId]);
+      if (products.isEmpty) {
+        print('Subscription product not found: $_subscriptionId');
+        // Print all available product IDs for debugging
+        final allProducts = await getProducts(_productIds.values.toList());
+        print('Available products: ${allProducts.map((p) => p.id).toList()}');
+        return false;
+      }
+
+      final PurchaseParam purchaseParam = PurchaseParam(
+        productDetails: products.first,
+        applicationUserName: userId,
+      );
+
+      // For both iOS and Android, subscriptions should use buyNonConsumable
+      return await _inAppPurchase.buyNonConsumable(
+          purchaseParam: purchaseParam);
+    } catch (e) {
+      print('Error subscribing to Gold plan: $e');
       return false;
     }
-
-    final PurchaseParam purchaseParam = PurchaseParam(
-      productDetails: products.first,
-      applicationUserName: null,
-    );
-
-    return await _inAppPurchase.buyConsumable(purchaseParam: purchaseParam);
   }
 
-  Future<void> restorePurchases() async {
+  Future<bool> restorePurchases() async {
     try {
+      // Check if the store is available
+      final bool isAvailable = await _inAppPurchase.isAvailable();
+      if (!isAvailable) {
+        print('Store is not available');
+        return false;
+      }
+
+      // For iOS, we need to use the StoreKit API
+      if (Platform.isIOS) {
+        final InAppPurchaseStoreKitPlatformAddition iosPlatformAddition =
+            _inAppPurchase
+                .getPlatformAddition<InAppPurchaseStoreKitPlatformAddition>();
+        await iosPlatformAddition.setDelegate(null);
+      }
+
       await _inAppPurchase.restorePurchases();
+      return true;
     } catch (e) {
       print('Error restoring purchases: $e');
+      return false;
     }
   }
 
@@ -180,21 +300,83 @@ class MonetizationService {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) throw Exception('User not logged in');
 
-    final response = await http.post(
-      Uri.parse('$baseUrl/wallet/purchase-incash'),
-      headers: {'Content-Type': 'application/json'},
-      body: json.encode({
-        'UserDocumentId': user.uid,
-        'PackageId': packageId,
-        'Platform': platform,
-        'ReceiptData': receiptData,
-      }),
-    );
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/wallet/purchase-incash'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({
+          'UserDocumentId': user.uid,
+          'PackageId': packageId,
+          'Platform': platform,
+          'ReceiptData': receiptData,
+        }),
+      );
 
-    if (response.statusCode == 200) {
-      return json.decode(response.body);
-    } else {
-      throw Exception('Failed to process purchase');
+      final responseData = json.decode(response.body);
+
+      if (response.statusCode == 200 && responseData['success'] == true) {
+        return responseData;
+      } else {
+        throw Exception(responseData['error'] ?? 'Failed to process purchase');
+      }
+    } catch (e) {
+      print('Error in purchaseInCash: $e');
+      rethrow;
+    }
+  }
+
+  // Update subscription status with the backend - public method that can be called from outside
+  Future<Map<String, dynamic>> updateSubscriptionStatus(
+      String platform, String subscriptionId, String receiptData) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) throw Exception('User not logged in');
+
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/wallet/update-subscription'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({
+          'UserDocumentId': user.uid,
+          'Platform': platform,
+          'SubscriptionId': subscriptionId,
+          'ReceiptData': receiptData,
+        }),
+      );
+
+      final responseData = json.decode(response.body);
+
+      if (response.statusCode == 200 && responseData['success'] == true) {
+        return responseData;
+      } else {
+        throw Exception(
+            responseData['error'] ?? 'Failed to update subscription status');
+      }
+    } catch (e) {
+      print('Error updating subscription status: $e');
+      rethrow;
+    }
+  }
+
+  // Check subscription status
+  Future<bool> isSubscribed({bool verify = false}) async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return false;
+
+      final response = await http.get(
+        Uri.parse(
+            '$baseUrl/wallet/subscription-status?UserDocumentId=${user.uid}&verify=${verify ? 'true' : 'false'}'),
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        return data['data']['isSubscribed'] ?? false;
+      } else {
+        return false;
+      }
+    } catch (e) {
+      print('Error checking subscription status: $e');
+      return false;
     }
   }
 }

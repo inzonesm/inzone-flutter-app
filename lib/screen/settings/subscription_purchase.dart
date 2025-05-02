@@ -3,11 +3,11 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_feather_icons/flutter_feather_icons.dart';
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:inzone/components/bottom-sheet/bottom_sheet_bar.dart';
 import 'package:inzone/components/bottom-sheet/custom_bottom_sheet.dart';
-import 'package:inzone/components/ui/appbar.dart';
 import 'package:inzone/screen/settings/subcription_tile.dart';
 import 'package:inzone/services/monetization_service.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -67,28 +67,28 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
     }
   }
 
-  Future<void> _purchasePackage(String packageId) async {
-    try {
-      // In a real app, you would get the receipt data from the platform's purchase API
-      // For now, we'll use a placeholder
-      final platform =
-          Theme.of(context).platform == TargetPlatform.iOS ? 'ios' : 'android';
-      const receiptData = 'placeholder_receipt_data';
+  // Future<void> _purchasePackage(String packageId) async {
+  //   try {
+  //     // In a real app, you would get the receipt data from the platform's purchase API
+  //     // For now, we'll use a placeholder
+  //     final platform =
+  //         Theme.of(context).platform == TargetPlatform.iOS ? 'ios' : 'android';
+  //     const receiptData = 'placeholder_receipt_data';
 
-      final response = await _monetizationService.purchaseInCash(
-          packageId, platform, receiptData);
-      if (response['success'] == true) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Purchase successful')),
-        );
-        _loadBalance(); // Refresh balance
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error purchasing package: $e')),
-      );
-    }
-  }
+  //     final response = await _monetizationService.purchaseInCash(
+  //         packageId, platform, receiptData);
+  //     if (response['success'] == true) {
+  //       ScaffoldMessenger.of(context).showSnackBar(
+  //         const SnackBar(content: Text('Purchase successful')),
+  //       );
+  //       _loadBalance(); // Refresh balance
+  //     }
+  //   } catch (e) {
+  //     ScaffoldMessenger.of(context).showSnackBar(
+  //       SnackBar(content: Text('Error purchasing package: $e')),
+  //     );
+  //   }
+  // }
 
   @override
   Widget build(BuildContext context) {
@@ -340,98 +340,94 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                   ],
                 ),
               ),
-        bottomNavigationBar: (_selectedPlan != null)
-            ? Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: GestureDetector(
-                  onTap: () async {
-                    if (_selectedPlan == "Gold") {
-                      // Gold면 CustomBottomSheet만 띄운다 (아무 결제하지 마라)
-                      // If Gold, only show the CustomBottomSheet (do not trigger a direct purchase)
-                      CustomBottomSheet.show(
-                        context: context,
-                        backgroundColor: Theme.of(context).cardColor,
-                        isNeedMargin: false,
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const BottomSheetBar(),
-                            const SizedBox(height: 16),
-                            Text(
-                              "In Cash $_selectedPlan Plan",
-                              style: GoogleFonts.outfit(
-                                  color:
-                                      Theme.of(context).colorScheme.onSurface,
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w600),
-                            ),
-                            const SizedBox(height: 10),
-                            PurchaseSubscriptionScreen(
-                              planName: "$_selectedPlan Plan",
-                              price: 9.99,
-                              coins: 2500,
-                              productId: Platform.isIOS 
-                                ? "InCashGold" 
-                                : "2025incashgold",   // Android Gold ID
-                              isSubscription: true,
-                            ),
-                            const SizedBox(height: 10),
-                          ],
-                        ),
-                      );
-                    } else {
-                      // 나머지는 바로 구매
-                      // For the others, purchase immediately
-                      final productId = _selectedPlan == "Elite"
-                          ? (Platform.isIOS
-                                ? "InCashElite2025"
-                                : "2025incashelite")     // Android Elite ID
-                          : _selectedPlan == "Advanced"
-                              ? (Platform.isIOS
-                                    ? "InCashAdvanced2025"
-                                    : "2025incashadvanced") // Android Advanced ID
-                              : (Platform.isIOS
-                                    ? "InCashBasic2025"
-                                    : "2025incashbasic");   // Android Basic ID
-                                  
-                      final products =
-                          await _monetizationService.getProducts([productId]);
-                      if (products.isNotEmpty) {
-                        await _monetizationService
-                            .purchaseProduct(products.first);
-                      } else {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Product not found')),
-                        );
-                      }
-                    }
-                  },
-                  child: Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        begin: Alignment(1.00, 0.00),
-                        end: Alignment(-1, 0),
-                        colors: [Color(0xFF125455), Color(0xFF29BABB)],
+        bottomNavigationBar: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: GestureDetector(
+            onTap: () async {
+              if (_selectedPlan == "Gold") {
+                // Gold면 CustomBottomSheet만 띄운다 (아무 결제하지 마라)
+                // If Gold, only show the CustomBottomSheet (do not trigger a direct purchase)
+                CustomBottomSheet.show(
+                  context: context,
+                  backgroundColor: Theme.of(context).cardColor,
+                  isNeedMargin: false,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const BottomSheetBar(),
+                      const SizedBox(height: 16),
+                      Text(
+                        "In Cash $_selectedPlan Plan",
+                        style: GoogleFonts.outfit(
+                            color: Theme.of(context).colorScheme.onSurface,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600),
                       ),
-                      borderRadius: BorderRadius.circular(100),
-                    ),
-                    child: Text(
-                      "Buy Now",
-                      textAlign: TextAlign.center,
-                      style: GoogleFonts.outfit(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
+                      const SizedBox(height: 10),
+                      PurchaseSubscriptionScreen(
+                        planName: "$_selectedPlan Plan",
+                        price: 9.99,
+                        coins: 2500,
+                        productId: Platform.isIOS
+                            ? "InCashGold"
+                            : "2025incashgold", // Android Gold ID
+                        isSubscription: true,
                       ),
-                    ),
+                      const SizedBox(height: 10),
+                    ],
                   ),
+                );
+              } else {
+                // 나머지는 바로 구매
+                // For the others, purchase immediately
+                final productId = _selectedPlan == "Elite"
+                    ? (Platform.isIOS
+                        ? "InCashElite2025"
+                        : "2025incashelite") // Android Elite ID
+                    : _selectedPlan == "Advanced"
+                        ? (Platform.isIOS
+                            ? "InCashAdvanced2025"
+                            : "2025incashadvanced") // Android Advanced ID
+                        : (Platform.isIOS
+                            ? "InCashBasic2025"
+                            : "2025incashbasic"); // Android Basic ID
+
+                final products =
+                    await _monetizationService.getProducts([productId]);
+                if (products.isNotEmpty) {
+                  await _monetizationService.purchaseProduct(products.first);
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Product not found')),
+                  );
+                }
+              }
+            },
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  begin: Alignment(1.00, 0.00),
+                  end: Alignment(-1, 0),
+                  colors: [Color(0xFF125455), Color(0xFF29BABB)],
                 ),
-              )
-            : null,
+                borderRadius: BorderRadius.circular(100),
+              ),
+              child: Text(
+                "Buy Now",
+                textAlign: TextAlign.center,
+                style: GoogleFonts.outfit(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -482,14 +478,10 @@ class _PurchaseSubscriptionScreenState
   @override
   void initState() {
     super.initState();
-    _subscription = _monetizationService.purchaseStream.listen(_handlePurchase);
-  }
-
-  Future<void> _initializePurchase() async {
     try {
       _subscription =
           _monetizationService.purchaseStream.listen(_handlePurchase);
-      await _loadBalance();
+      _loadBalance();
     } catch (e) {
       if (!_isDisposed) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -521,23 +513,117 @@ class _PurchaseSubscriptionScreenState
     }
   }
 
-  void _handlePurchase(List<PurchaseDetails> purchases) {
+  Future<void> _handlePurchase(List<PurchaseDetails> purchases) async {
     if (_isDisposed) return;
 
     for (var purchase in purchases) {
-      if (purchase.status == PurchaseStatus.purchased) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Purchase successful!')),
-        );
-        context.pop();
-      } else if (purchase.status == PurchaseStatus.error) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-              content: Text('Purchase failed: ${purchase.error?.message}')),
-        );
+      // Always mark purchase as complete at the end
+      bool shouldCompletePurchase = true;
+
+      try {
+        if (purchase.status == PurchaseStatus.purchased ||
+            purchase.status == PurchaseStatus.restored) {
+          // Get the receipt data for verification
+          String receiptData;
+          String platform = Platform.isIOS ? 'ios' : 'android';
+
+          if (Platform.isIOS) {
+            // For iOS, use serverVerificationData for backend verification
+            receiptData = purchase.verificationData.serverVerificationData;
+          } else {
+            // For Android, localVerificationData contains the purchase token
+            receiptData = purchase.verificationData.localVerificationData;
+
+            // For Android, we might need to parse the JSON to get the purchase token
+            try {
+              final Map<String, dynamic> purchaseData =
+                  json.decode(receiptData);
+              if (purchaseData.containsKey('purchaseToken')) {
+                receiptData = purchaseData['purchaseToken'];
+              }
+            } catch (e) {
+              // If parsing fails, use the original receipt data
+              print('Error parsing Android purchase data: $e');
+            }
+          }
+
+          // Determine if this is a subscription or one-time purchase
+          bool isSubscription = widget.isSubscription;
+
+          // Register purchase with backend
+          if (isSubscription) {
+            // For subscriptions, update subscription status using the public method
+            await _monetizationService.updateSubscriptionStatus(
+              platform,
+              purchase.productID,
+              receiptData,
+            );
+          } else {
+            // For one-time purchases, process the InCash purchase
+            await _monetizationService.purchaseInCash(
+              purchase.productID,
+              platform,
+              receiptData,
+            );
+          }
+
+          // Refresh balance and show success message
+          await _loadBalance();
+
+          if (!_isDisposed && context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(isSubscription
+                    ? 'Subscription activated successfully!'
+                    : 'Purchase successful! InCash added to your wallet.'),
+              ),
+            );
+
+            // Close the purchase dialog after a short delay
+            Future.delayed(const Duration(seconds: 1), () {
+              if (!_isDisposed && context.mounted) {
+                context.pop();
+              }
+            });
+          }
+        } else if (purchase.status == PurchaseStatus.error) {
+          // Purchase failed
+          if (!_isDisposed && context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                    'Purchase failed: ${purchase.error?.message ?? "Unknown error"}'),
+              ),
+            );
+          }
+        } else if (purchase.status == PurchaseStatus.pending) {
+          // Purchase is pending (e.g., awaiting approval)
+          shouldCompletePurchase =
+              false; // Don't complete pending purchases yet
+          if (!_isDisposed && context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Purchase is pending approval')),
+            );
+          }
+        }
+      } catch (e) {
+        // Handle any errors during the purchase process
+        print('Error processing purchase: $e');
+        if (!_isDisposed && context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error processing purchase: $e')),
+          );
+        }
+      } finally {
+        // Always complete the purchase to avoid hanging transactions
+        if (shouldCompletePurchase && purchase.pendingCompletePurchase) {
+          await InAppPurchase.instance.completePurchase(purchase);
+        }
       }
     }
-    if (!_isDisposed) {
+
+    // Update UI state
+    if (!_isDisposed && mounted) {
       setState(() {
         _isPurchasing = false;
       });
@@ -558,7 +644,18 @@ class _PurchaseSubscriptionScreenState
         throw Exception('Product not found');
       }
 
-      await _monetizationService.purchaseProduct(products.first);
+      // Initiate the purchase - the actual processing will happen in _handlePurchases in MonetizationService
+      final success =
+          await _monetizationService.purchaseProduct(products.first);
+
+      if (!success) {
+        throw Exception('Purchase failed to initiate');
+      }
+
+      // The purchase will be processed asynchronously by the purchase stream listener
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Processing purchase...')),
+      );
     } catch (e) {
       if (!_isDisposed) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -569,6 +666,7 @@ class _PurchaseSubscriptionScreenState
         });
       }
     }
+    // Note: _isPurchasing will be set to false in _handlePurchase when the purchase is completed
   }
 
   @override
@@ -825,8 +923,6 @@ class _PurchaseSubscriptionScreenState
               ),
             ],
           )
-        ]
-      )
-    );
+        ]));
   }
 }
