@@ -2,6 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart';
 import 'package:inzone/config/default_firebase_options.dart';
 import 'package:appsflyer_sdk/appsflyer_sdk.dart';
 import 'package:media_kit/media_kit.dart';
@@ -9,6 +10,7 @@ import 'package:inzone/theme/theme_manager.dart';
 import 'package:provider/provider.dart';
 import 'package:inzone/router/app_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:in_app_purchase/in_app_purchase.dart';
 
 AppsFlyerOptions appsFlyerOptions = AppsFlyerOptions(
   afDevKey: "GouQRMcXkXP2CMBgZfHdfB",
@@ -25,6 +27,11 @@ AppsflyerSdk appsflyerSdk = AppsflyerSdk(appsFlyerOptions);
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   MediaKit.ensureInitialized();
+
+  // Enable pending purchases on Android
+  if (defaultTargetPlatform == TargetPlatform.android) {
+    InAppPurchase.instance.isAvailable();
+  }
 
   // Initialize Google Fonts
   GoogleFonts.config.allowRuntimeFetching = true;
