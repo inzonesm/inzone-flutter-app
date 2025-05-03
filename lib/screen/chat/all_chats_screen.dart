@@ -4,12 +4,15 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:colorful_safe_area/colorful_safe_area.dart';
 import 'package:flutter/material.dart';
 import 'package:inzone/components/ui/appbar.dart';
-import 'package:inzone/screen/chat/chat_screen.dart';
-import 'package:inzone/screen/chat/human_chat_screen.dart';
 import 'package:inzone/services/inzone_database.dart';
 import 'package:inzone/theme/app_colors.dart';
 import 'package:random_avatar/random_avatar.dart';
 import 'package:go_router/go_router.dart';
+import 'package:inzone/data/group_data.dart';
+import 'package:inzone/screen/chat/group_chat_screen.dart';
+import 'package:inzone/router/routes.dart';
+// import 'package:inzone/screen/chat/chat_screen.dart';
+// import 'package:inzone/screen/chat/human_chat_screen.dart';
 
 class AllChatsScreen extends StatefulWidget {
   const AllChatsScreen({super.key});
@@ -34,7 +37,7 @@ class _AllChatsScreenState extends State<AllChatsScreen>
     super.initState();
     _isLoading = true;
     _startTime = DateTime.now();
-    _tabController = TabController(length: 1, vsync: this);
+    _tabController = TabController(length: 2, vsync: this);
     _tabController.addListener(_handleTabChange);
     _loadCurrentUser();
   }
@@ -105,17 +108,50 @@ class _AllChatsScreenState extends State<AllChatsScreen>
         bool isGroupChat = data['isGroupChat'] ?? false;
 
         if (isGroupChat) {
-          // Handle group chat
-          String groupName = data['groupName'] ?? 'Group Chat';
-          allChats.add(ChatUser(
-            name: groupName,
-            email: doc.id,
-            chatId: doc.id,
-            lastMessage: data['lastMessage'],
-            lastMessageTime: data['lastMessageTime'],
-            isHuman: true,
-            isGroupChat: true,
-          ));
+          // Handle group chat - fetch the actual group data to get the correct name
+          try {
+            // Get the group chat document to get the correct name
+            DocumentSnapshot groupDoc =
+                await _firestore.collection('groupChats').doc(doc.id).get();
+
+            // Try different field names for the group name
+            String groupName = 'Group Chat';
+            if (groupDoc.exists && groupDoc.data() != null) {
+              var groupData = groupDoc.data() as Map<String, dynamic>;
+              debugPrint('Group data from Firestore: $groupData');
+
+              // Try different possible field names for the group name
+              groupName = groupData['name'] ??
+                  groupData['groupName'] ??
+                  data['groupName'] ??
+                  'Group Chat';
+
+              debugPrint('Using group name in list: $groupName');
+            }
+
+            allChats.add(ChatUser(
+              name: groupName,
+              email: doc.id,
+              chatId: doc.id,
+              lastMessage: data['lastMessage'],
+              lastMessageTime: data['lastMessageTime'],
+              isHuman: true,
+              isGroupChat: true,
+            ));
+          } catch (e) {
+            debugPrint('Error fetching group details: $e');
+            // Fallback to basic info if there's an error
+            String groupName = data['groupName'] ?? 'Group Chat';
+            allChats.add(ChatUser(
+              name: groupName,
+              email: doc.id,
+              chatId: doc.id,
+              lastMessage: data['lastMessage'],
+              lastMessageTime: data['lastMessageTime'],
+              isHuman: true,
+              isGroupChat: true,
+            ));
+          }
         } else {
           List<dynamic> participants = data['participants'] ?? [];
           String? otherUserId = participants
@@ -190,7 +226,7 @@ class _AllChatsScreenState extends State<AllChatsScreen>
     // Get the count based on current tabç
     int chatCount =
         _currentTabIndex == 0 ? _chatUsers.length : _groupChats.length;
-    String subtitle = '$chatCount ${chatCount == 1 ? 'chat' : 'chats'}';
+    String subtitle = '$chatCount';
 
     return ColorfulSafeArea(
       topColor: Theme.of(context).canvasColor,
@@ -205,6 +241,7 @@ class _AllChatsScreenState extends State<AllChatsScreen>
           isChat: true,
           userPoints: "100",
           profileImageUrl: null,
+          subtitle: subtitle, // Pass the chat count as subtitle
           onSearchTap: () {},
           onProfileTap: () {},
           onPointsTap: () {},
@@ -221,7 +258,7 @@ class _AllChatsScreenState extends State<AllChatsScreen>
               dividerColor: Colors.transparent,
               tabs: const [
                 Tab(text: 'Individual Chats'),
-                //Tab(text: 'Group Chats'),
+                Tab(text: 'Group Chats'),
               ],
             ),
             // Tab Views
@@ -232,7 +269,7 @@ class _AllChatsScreenState extends State<AllChatsScreen>
                   // Individual Chats Tab
                   _buildChatsList(_chatUsers),
                   // Group Chats Tab
-                  // _buildChatsList(_groupChats),
+                  _buildChatsList(_groupChats),
                 ],
               ),
             ),
@@ -374,18 +411,114 @@ class _ChatUserCardState extends State<ChatUserCard> {
     return InkWell(
       onTap: () {
         if (widget.userData.isHuman) {
-          // Navigate to human chat
-          context.pushNamed('chat', extra: {
-            'conversationId': widget.userData.chatId ?? '',
-            'otherUserName': widget.userData.name ?? 'User',
-            'otherUserId': widget.userData.email ?? '',
-          }).then((_) {
-            // Refresh the conversation list when returning from chat
-            if (mounted) {
-              (context.findAncestorStateOfType<_AllChatsScreenState>())
-                  ?._fetchConversations();
-            }
-          });
+          if (widget.userData.isGroupChat) {
+            // Navigate to group chat
+            debugPrint('Navigating to group chat: ${widget.userData.chatId}');
+            // Show loading indicator while fetching group data
+            showDialog(
+              context: context,
+              barrierDismissible: false,
+              builder: (context) =>
+                  const Center(child: CircularProgressIndicator()),
+            );
+
+            // Fetch the group data first
+            FirebaseFirestore.instance
+                .collection('groupChats')
+                .doc(widget.userData.chatId)
+                .get()
+                .then((doc) {
+              // Close loading dialog
+              Navigator.of(context).pop();
+
+              if (doc.exists) {
+                debugPrint('Group document data: ${doc.data()}');
+
+                // Get the actual group name from the document
+                // First try to get it from the 'name' field, then from 'groupName', then fallback to userData name
+                final String groupName = doc.data()?['name'] ??
+                    doc.data()?['groupName'] ??
+                    widget.userData.name ??
+                    'Group Chat';
+
+                debugPrint('Using group name: $groupName');
+
+                // Extract avatars if available
+                List<String> avatars = [];
+                if (doc.data()?['avatars'] != null &&
+                    doc.data()?['avatars'] is List) {
+                  avatars = List<String>.from(doc.data()?['avatars']);
+                }
+
+                // Create GroupData from the document
+                final groupData = GroupData(
+                  id: widget.userData.chatId ?? '',
+                  name: groupName,
+                  description: doc.data()?['description'] ?? '',
+                  memberCount:
+                      (doc.data()?['participants'] as List?)?.length ?? 0,
+                  messageCount: doc.data()?['messageCount'] ?? 0,
+                  avatars: avatars,
+                  isMember: true,
+                );
+
+                // Navigate to the group chat screen
+                debugPrint('Navigating to group chat with data: $groupData');
+
+                // Try using Go Router first with fallback to direct navigation
+                try {
+                  context.push(Routes.groupChat, extra: groupData).then((_) {
+                    // Refresh the conversation list when returning from chat
+                    if (mounted) {
+                      (context.findAncestorStateOfType<_AllChatsScreenState>())
+                          ?._fetchConversations();
+                    }
+                  });
+                } catch (e) {
+                  debugPrint('Go Router navigation failed: $e');
+                  // Fallback to direct navigation if Go Router fails
+                  Navigator.of(context)
+                      .push(
+                    MaterialPageRoute(
+                      builder: (context) => GroupChatScreen(group: groupData),
+                    ),
+                  )
+                      .then((_) {
+                    // Refresh the conversation list when returning from chat
+                    if (mounted) {
+                      (context.findAncestorStateOfType<_AllChatsScreenState>())
+                          ?._fetchConversations();
+                    }
+                  });
+                }
+              } else {
+                // Fallback to regular chat if group data not found
+                context.pushNamed('chat', extra: {
+                  'conversationId': widget.userData.chatId ?? '',
+                  'otherUserName': widget.userData.name ?? 'Group Chat',
+                  'otherUserId': '',
+                }).then((_) {
+                  if (mounted) {
+                    (context.findAncestorStateOfType<_AllChatsScreenState>())
+                        ?._fetchConversations();
+                  }
+                });
+              }
+            });
+          } else {
+            // Navigate to human chat
+            context.pushNamed('chat', extra: {
+              'conversationId': widget.userData.chatId ?? '',
+              'otherUserName': widget.userData.name ?? 'User',
+              'otherUserId': widget.userData.email ?? '',
+            }).then((_) {
+              // Refresh the conversation list when returning from chat
+              if (mounted) {
+                (context.findAncestorStateOfType<_AllChatsScreenState>())
+                    ?._fetchConversations();
+              }
+            });
+          }
         } else {
           // Navigate to AI chat
           context.pushNamed('chat', extra: widget.userData);

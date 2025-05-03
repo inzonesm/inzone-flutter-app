@@ -363,6 +363,7 @@ def create_profile():
             "user_interests": data.get("UserInterests", []),
             "email": data.get("Email"),
             "liked_posts": [],
+            "balance": 0,
             "anonymous": anonymous,
             "followers": [],
             "following": [],
@@ -1332,6 +1333,98 @@ def verify_android_subscription(subscription_id, purchase_token):
     except Exception as e:
         print(f"Error verifying Android subscription: {e}")
         return {'is_valid': False}
+
+# Endpoint to spend InCash for various purposes (e.g., joining group chats)
+@app.route('/wallet/spend-incash', methods=['POST'])
+def spend_incash():
+    try:
+        data = request.get_json()
+        user_id = data.get('UserDocumentId')
+        amount = data.get('Amount')
+        purpose = data.get('Purpose')  # 'group_access' or other future purposes
+        group_id = data.get('GroupId')  # Only required for group_access purpose
+        
+        if not all([user_id, amount, purpose]):
+            return jsonify({"success": False, "error": "Missing required fields"}), 400
+            
+        if purpose == 'group_access' and not group_id:
+            return jsonify({"success": False, "error": "GroupId is required for group access"}), 400
+        
+        # Get user document
+        user_ref = db.collection('humanUsers').document(user_id)
+        user_doc = user_ref.get()
+        
+        if not user_doc.exists:
+            return jsonify({"success": False, "error": "User not found"}), 404
+            
+        # Get current balance
+        user_data = user_doc.to_dict()
+        current_balance = user_data.get('balance', 0)
+        
+        # Check if user has enough balance
+        if current_balance < amount:
+            return jsonify({
+                "success": False, 
+                "error": f"Insufficient balance. You have {current_balance} InCash, but {amount} is required."
+            }), 400
+        
+        # Update balance
+        new_balance = current_balance - amount
+        
+        # Record transaction history
+        transaction_history = user_data.get('transactionHistory', [])
+        transaction_history.append({
+            'type': 'spend',
+            'amount': amount,
+            'purpose': purpose,
+            'groupId': group_id if purpose == 'group_access' else None,
+            'date': datetime.now().isoformat()
+        })
+        
+        # Update user document
+        user_ref.update({
+            'balance': new_balance,
+            'transactionHistory': transaction_history
+        })
+        
+        # If purpose is group_access, add user to group participants if not already there
+        if purpose == 'group_access':
+            # Check if group exists in conversations collection
+            group_ref = db.collection('conversations').document(group_id)
+            group_doc = group_ref.get()
+            
+            if group_doc.exists:
+                group_data = group_doc.to_dict()
+                participants = group_data.get('participants', [])
+                
+                # Add user to participants if not already there
+                if user_id not in participants:
+                    participants.append(user_id)
+                    group_ref.update({
+                        'participants': participants,
+                        'lastMessageTime': firestore.SERVER_TIMESTAMP,
+                        'lastMessage': 'A new user joined the group'
+                    })
+            else:
+                # Create group document if it doesn't exist
+                group_ref.set({
+                    'isGroupChat': True,
+                    'participants': [user_id],
+                    'lastMessageTime': firestore.SERVER_TIMESTAMP,
+                    'lastMessage': 'A new user joined the group'
+                })
+        
+        return jsonify({
+            "success": True,
+            "data": {
+                "balance": new_balance,
+                "amountSpent": amount,
+                "purpose": purpose
+            }
+        })
+        
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
 
 # Endpoint to update subscription status
 @app.route('/wallet/update-subscription', methods=['POST'])

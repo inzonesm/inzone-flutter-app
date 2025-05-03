@@ -212,6 +212,7 @@ class AppRouter {
       ),
       GoRoute(
         path: Routes.groupChat,
+        name: 'groupChat',
         parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) {
           final group = state.extra as GroupData;

@@ -50,7 +50,7 @@ class MonetizationService {
     final bool isAvailable = await _inAppPurchase.isAvailable();
     if (!isAvailable) {
       // Store is not available, handle accordingly
-      print('Store is not available');
+      debugPrint('Store is not available');
       return;
     }
 
@@ -71,7 +71,7 @@ class MonetizationService {
         await _registerPurchaseWithBackend(purchaseDetails);
       } else if (purchaseDetails.status == PurchaseStatus.error) {
         // Error handling
-        print('Purchase error: ${purchaseDetails.error}');
+        debugPrint('Purchase error: ${purchaseDetails.error}');
       }
 
       // Always complete the purchase
@@ -109,7 +109,7 @@ class MonetizationService {
           }
         } catch (e) {
           // If parsing fails, use the original receipt data
-          print('Error parsing Android purchase data: $e');
+          debugPrint('Error parsing Android purchase data: $e');
         }
       }
 
@@ -124,7 +124,7 @@ class MonetizationService {
         await updateSubscriptionStatus(platform, packageId, receiptData);
       }
     } catch (e) {
-      print('Error registering purchase: $e');
+      debugPrint('Error registering purchase: $e');
     }
   }
 
@@ -132,14 +132,14 @@ class MonetizationService {
     // First check if the store is available
     final bool isAvailable = await _inAppPurchase.isAvailable();
     if (!isAvailable) {
-      print('Store is not available');
+      debugPrint('Store is not available');
       return [];
     }
 
     final ProductDetailsResponse response =
         await _inAppPurchase.queryProductDetails(productIds.toSet());
     if (response.notFoundIDs.isNotEmpty) {
-      print('Products not found: ${response.notFoundIDs}');
+      debugPrint('Products not found: ${response.notFoundIDs}');
     }
     return response.productDetails;
   }
@@ -156,7 +156,7 @@ class MonetizationService {
       return await _inAppPurchase.buyNonConsumable(
           purchaseParam: purchaseParam);
     } catch (e) {
-      print('Error purchasing product: $e');
+      debugPrint('Error purchasing product: $e');
       return false;
     }
   }
@@ -166,10 +166,11 @@ class MonetizationService {
       final List<ProductDetails> products =
           await getProducts([_subscriptionId]);
       if (products.isEmpty) {
-        print('Subscription product not found: $_subscriptionId');
+        debugPrint('Subscription product not found: $_subscriptionId');
         // Print all available product IDs for debugging
         final allProducts = await getProducts(_productIds.values.toList());
-        print('Available products: ${allProducts.map((p) => p.id).toList()}');
+        debugPrint(
+            'Available products: ${allProducts.map((p) => p.id).toList()}');
         return false;
       }
 
@@ -182,7 +183,7 @@ class MonetizationService {
       return await _inAppPurchase.buyNonConsumable(
           purchaseParam: purchaseParam);
     } catch (e) {
-      print('Error subscribing to Gold plan: $e');
+      debugPrint('Error subscribing to Gold plan: $e');
       return false;
     }
   }
@@ -192,7 +193,7 @@ class MonetizationService {
       // Check if the store is available
       final bool isAvailable = await _inAppPurchase.isAvailable();
       if (!isAvailable) {
-        print('Store is not available');
+        debugPrint('Store is not available');
         return false;
       }
 
@@ -207,7 +208,7 @@ class MonetizationService {
       await _inAppPurchase.restorePurchases();
       return true;
     } catch (e) {
-      print('Error restoring purchases: $e');
+      debugPrint('Error restoring purchases: $e');
       return false;
     }
   }
@@ -275,8 +276,9 @@ class MonetizationService {
 
   Future<Map<String, dynamic>> getBalance() async {
     final user = FirebaseAuth.instance.currentUser;
-    if (user == null || user.uid.isEmpty)
+    if (user == null || user.uid.isEmpty) {
       throw Exception('User not logged in or UID missing');
+    }
 
     final response = await http.get(
       Uri.parse('$baseUrl/wallet/balance?UserDocumentId=${user.uid}'),
@@ -314,7 +316,7 @@ class MonetizationService {
         throw Exception(responseData['error'] ?? 'Failed to process purchase');
       }
     } catch (e) {
-      print('Error in purchaseInCash: $e');
+      debugPrint('Error in purchaseInCash: $e');
       rethrow;
     }
   }
@@ -346,8 +348,39 @@ class MonetizationService {
             responseData['error'] ?? 'Failed to update subscription status');
       }
     } catch (e) {
-      print('Error updating subscription status: $e');
+      debugPrint('Error updating subscription status: $e');
       rethrow;
+    }
+  }
+
+  // Spend InCash to join a group chat
+  Future<Map<String, dynamic>> spendInCashForGroupAccess(
+      String groupId, int cost) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) throw Exception('User not logged in');
+
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/wallet/spend-incash'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({
+          'UserDocumentId': user.uid,
+          'Amount': cost,
+          'Purpose': 'group_access',
+          'GroupId': groupId,
+        }),
+      );
+
+      final responseData = json.decode(response.body);
+
+      if (response.statusCode == 200 && responseData['success'] == true) {
+        return responseData;
+      } else {
+        throw Exception(responseData['error'] ?? 'Failed to process payment');
+      }
+    } catch (e) {
+      debugPrint('Error in spendInCashForGroupAccess: $e');
+      return {'success': false, 'error': e.toString()};
     }
   }
 
@@ -369,7 +402,7 @@ class MonetizationService {
         return false;
       }
     } catch (e) {
-      print('Error checking subscription status: $e');
+      debugPrint('Error checking subscription status: $e');
       return false;
     }
   }

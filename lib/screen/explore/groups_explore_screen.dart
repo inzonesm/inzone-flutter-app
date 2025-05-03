@@ -8,6 +8,7 @@ import 'package:inzone/data/group_data_mapper.dart';
 import 'package:inzone/components/cards/group_card.dart';
 import 'package:inzone/router/routes.dart';
 import 'package:inzone/services/group_chat_service.dart';
+import 'package:inzone/services/monetization_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:inzone/components/posts/shimmering.dart';
 
@@ -20,15 +21,41 @@ class GroupsExploreScreen extends StatefulWidget {
 
 class _GroupsExploreScreenState extends State<GroupsExploreScreen> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final MonetizationService _monetizationService = MonetizationService();
   List<GroupData> _defaultGroups = [];
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _searchFocusNode = FocusNode();
   String _searchQuery = '';
+  String _userBalance = '0'; // Will be updated by _loadUserBalance method
 
   @override
   void initState() {
     super.initState();
     _loadDefaultGroups();
+    _loadUserBalance(); // Load balance from API
+  }
+
+  Future<void> _loadUserBalance() async {
+    try {
+      debugPrint('Fetching user balance...');
+      final response = await _monetizationService.getBalance();
+      debugPrint('Balance API response: $response');
+
+      if (response['success'] == true) {
+        final balance = response['data']['balance'];
+        debugPrint(
+            'Raw balance value: $balance (type: ${balance.runtimeType})');
+
+        setState(() {
+          _userBalance = balance.toString();
+          debugPrint('Updated _userBalance to: $_userBalance');
+        });
+      } else {
+        debugPrint('Balance API returned success=false: ${response['error']}');
+      }
+    } catch (e) {
+      debugPrint('Error loading balance: $e');
+    }
   }
 
   @override
@@ -121,7 +148,7 @@ class _GroupsExploreScreenState extends State<GroupsExploreScreen> {
                 flexibleSpace: CustomAppBar(
                   isHome: true,
                   isGroup: true,
-                  userPoints: "100",
+                  userPoints: _userBalance,
                   profileImageUrl: null,
                   onSearchTap: () {
                     _showCreateGroupDialog(context);
