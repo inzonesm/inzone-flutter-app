@@ -630,6 +630,9 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                 List<Participant> participants =
                     _parseParticipantsList(participantsData);
 
+                // MODIFIED: Filter to only show AI participants
+                // Original code (commented out for future use):
+                /*
                 // Sort participants - AI participants first, then others
                 participants.sort((a, b) {
                   if (a.type == 'ai' && b.type != 'ai') {
@@ -641,6 +644,13 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                     return a.name.compareTo(b.name);
                   }
                 });
+                */
+
+                // New code: Filter to only show AI participants
+                participants =
+                    participants.where((p) => p.type == 'ai').toList();
+                // Sort AI participants alphabetically by name
+                participants.sort((a, b) => a.name.compareTo(b.name));
 
                 final groupName = data['name'] ?? widget.group.name;
 
@@ -740,7 +750,8 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                       const SizedBox(height: 16),
                       // Information text about participants
                       Text(
-                        'Some AI participants have special knowledge about the group topic.',
+                        'AI participants have special knowledge about the group topic.',
+                        // Original text: 'Some AI participants have special knowledge about the group topic.'
                         style: TextStyle(
                           color: Theme.of(context).hintColor,
                           fontSize: 12,
