@@ -43,12 +43,6 @@ class MonetizationService {
 
   MonetizationService() {
     _initialize();
-
-    // Enable pending purchases on Android
-    if (defaultTargetPlatform == TargetPlatform.android) {
-      // This is called in the main.dart file instead
-      // InAppPurchase.instance.getPlatformAddition<InAppPurchaseAndroidPlatformAddition>().enablePendingPurchases();
-    }
   }
 
   Future<void> _initialize() async {
