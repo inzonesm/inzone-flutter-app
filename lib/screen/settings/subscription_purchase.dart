@@ -43,7 +43,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
   @override
   void initState() {
     super.initState();
-    _loadBalance();
+    _loadBalance(); // Load balance from API
   }
 
   Future<void> _loadBalance() async {
@@ -196,7 +196,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                               ),
                               const SizedBox(width: 5),
                               Text(
-                                _balance.toString(),
+                                _balance.toString(), // BALANCE DISPLAY LOCATION: Subscription screen balance display
                                 style: Theme.of(context)
                                     .textTheme
                                     .titleLarge!

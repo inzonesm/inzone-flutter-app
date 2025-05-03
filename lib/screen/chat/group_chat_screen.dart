@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get_connect/http/src/utils/utils.dart';
 import 'package:inzone/services/inzone_database.dart';
+import 'package:inzone/services/monetization_service.dart';
 import 'package:random_avatar/random_avatar.dart';
 import 'package:inzone/components/chat/chat_input.dart';
 import 'package:inzone/components/chat/date_header.dart';
@@ -31,6 +32,9 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
   GroupChatData? _groupChatData;
   late String _groupId;
+
+  // Define the cost to join a group chat
+  final int _joinGroupCost = 100; // Cost in InCash to join the group
 
   @override
   void initState() {
@@ -234,7 +238,14 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
               leadingWidth: 30,
               leading: IconButton(
                 icon: const Icon(Icons.arrow_back_ios_rounded),
-                onPressed: () => context.pop(),
+                onPressed: () {
+                  try {
+                    context.pop();
+                  } catch (e) {
+                    // Fallback to Navigator if Go Router fails
+                    Navigator.of(context).pop();
+                  }
+                },
               ),
               title: Row(
                 children: [
@@ -277,6 +288,47 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                 ],
               ),
               actions: [
+                // Join button to add group to user's chat list
+                StreamBuilder<DocumentSnapshot>(
+                  stream: FirebaseFirestore.instance
+                      .collection('conversations')
+                      .doc(_groupId)
+                      .snapshots(),
+                  builder: (context, snapshot) {
+                    final currentUserId =
+                        FirebaseAuth.instance.currentUser?.uid;
+                    bool isJoined = false;
+
+                    if (snapshot.hasData &&
+                        snapshot.data!.exists &&
+                        currentUserId != null) {
+                      final data =
+                          snapshot.data!.data() as Map<String, dynamic>?;
+                      if (data != null && data['participants'] is List) {
+                        final participants = data['participants'] as List;
+                        isJoined = participants.contains(currentUserId);
+                      }
+                    }
+
+                    return isJoined
+                        ? Container() // Already joined, don't show button
+                        : TextButton.icon(
+                            icon: Icon(
+                              Icons.add_circle_outline,
+                              color: Theme.of(context).primaryColor,
+                              size: 20,
+                            ),
+                            label: Text(
+                              'Join',
+                              style: TextStyle(
+                                color: Theme.of(context).primaryColor,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            onPressed: () => _joinGroup(context),
+                          );
+                  },
+                ),
                 IconButton(
                   icon: Icon(Icons.more_vert,
                       color: Theme.of(context).primaryColor),
@@ -788,6 +840,89 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   }
 
   // Build avatar for participant
+  // Method to join a group chat with InCash payment
+  Future<void> _joinGroup(BuildContext context) async {
+    final currentUserId = FirebaseAuth.instance.currentUser?.uid;
+    if (currentUserId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('You need to be logged in to join this group')),
+      );
+      return;
+    }
+
+    // Show confirmation dialog with the cost
+    final confirmed = await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: Text('Join ${widget.group.name}'),
+            content: Text(
+                'Joining this group will cost $_joinGroupCost InCash. Do you want to continue?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child: const Text('Join'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+
+    if (!confirmed) return;
+
+    try {
+      // Show loading indicator
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(child: CircularProgressIndicator()),
+      );
+
+      // Call the backend to spend InCash and join the group
+      final monetizationService = MonetizationService();
+      final response = await monetizationService.spendInCashForGroupAccess(
+          _groupId, _joinGroupCost);
+
+      // Close loading dialog
+      Navigator.of(context).pop();
+
+      if (response['success'] == true) {
+        // Create or update the conversation document to include this user
+        await FirebaseFirestore.instance
+            .collection('conversations')
+            .doc(_groupId)
+            .set({
+          'isGroupChat': true,
+          'groupName': widget.group.name,
+          'participants': FieldValue.arrayUnion([currentUserId]),
+          'lastMessage': 'You joined the group',
+          'lastMessageTime': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Successfully joined the group!')),
+        );
+      } else {
+        // Show error message
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content: Text(response['error'] ?? 'Failed to join the group')),
+        );
+      }
+    } catch (e) {
+      // Close loading dialog if still showing
+      if (context.mounted) Navigator.of(context).pop();
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error joining group: $e')),
+      );
+    }
+  }
+
   Widget _buildParticipantAvatar(Participant participant) {
     // For Messi (special AI user), use Barcelona crest
     if (participant.type == 'ai' && participant.name == 'Lionel Messi') {

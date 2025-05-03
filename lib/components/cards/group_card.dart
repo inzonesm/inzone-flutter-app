@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'dart:math';
-import 'package:go_router/go_router.dart';
 import 'package:random_avatar/random_avatar.dart';
 import 'package:image_stack/image_stack.dart';
+import 'package:go_router/go_router.dart';
 
 import 'package:inzone/data/group_data.dart';
 import 'package:inzone/screen/chat/group_chat_screen.dart';
@@ -42,7 +42,19 @@ class GroupCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(24),
           child: InkWell(
             onTap: () {
-              context.push(Routes.groupChat, extra: group);
+              debugPrint('Navigating to group chat with data: ${group.toString()}');
+              try {
+                // Try using Go Router first
+                context.push(Routes.groupChat, extra: group);
+              } catch (e) {
+                debugPrint('Go Router navigation failed: $e');
+                // Fallback to direct navigation if Go Router fails
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (context) => GroupChatScreen(group: group),
+                  ),
+                );
+              }
             },
             borderRadius: BorderRadius.circular(24),
             splashColor: Theme.of(context).colorScheme.primary.withOpacity(0.1),

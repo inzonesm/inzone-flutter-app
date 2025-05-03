@@ -1,12 +1,13 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:random_avatar/random_avatar.dart';
+import 'package:inzone/services/monetization_service.dart';
 
-class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
+class CustomAppBar extends StatefulWidget implements PreferredSizeWidget {
   final String? greeting;
   final String? title;
   final String? subtitle;
-  final String? userPoints;
+  final String? userPoints; // Keep for backward compatibility
   final String? profileImageUrl;
   final VoidCallback? onSearchTap;
   final VoidCallback? onProfileTap;
@@ -18,49 +19,70 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
   final bool isSettings;
   final String userName;
 
-  const CustomAppBar(
-      {super.key,
-      this.greeting,
-      this.title,
-      this.subtitle,
-      this.userPoints,
-      this.profileImageUrl,
-      this.onSearchTap,
-      this.onProfileTap,
-      this.onPointsTap,
-      this.isHome = false,
-      this.isGroup = false,
-      this.isChat = false,
-      this.isImage = true,
-      this.isSettings = false,
-      this.userName = "Loading"});
+  const CustomAppBar({
+    super.key,
+    this.greeting,
+    this.title,
+    this.subtitle,
+    this.userPoints,
+    this.profileImageUrl,
+    this.onSearchTap,
+    this.onProfileTap,
+    this.onPointsTap,
+    this.isHome = false,
+    this.isGroup = false,
+    this.isChat = false,
+    this.isImage = true,
+    this.isSettings = false,
+    this.userName = "Loading",
+  });
+
+  @override
+  State<CustomAppBar> createState() => _CustomAppBarState();
+
+  @override
+  Size get preferredSize => const Size.fromHeight(70);
+}
+
+class _CustomAppBarState extends State<CustomAppBar> {
+  final MonetizationService _monetizationService = MonetizationService();
+  String _userBalance = '0';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserBalance();
+  }
+
+  Future<void> _loadUserBalance() async {
+    try {
+      debugPrint('CustomAppBar: Fetching user balance...');
+      final response = await _monetizationService.getBalance();
+      debugPrint('CustomAppBar: Balance API response: $response');
+
+      if (response['success'] == true) {
+        final balance = response['data']['balance'];
+        debugPrint('CustomAppBar: Raw balance value: $balance');
+
+        if (mounted) {
+          setState(() {
+            _userBalance = balance.toString();
+            debugPrint('CustomAppBar: Updated _userBalance to: $_userBalance');
+          });
+        }
+      } else {
+        debugPrint(
+            'CustomAppBar: Balance API returned success=false: ${response['error']}');
+      }
+    } catch (e) {
+      debugPrint('CustomAppBar: Error loading balance: $e');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    GestureDetector(
-      onTap: onProfileTap,
-      child: Container(
-        width: 48,
-        height: 48,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: Colors.blue,
-          image: profileImageUrl != null
-              ? DecorationImage(
-                  image: NetworkImage(profileImageUrl!),
-                  fit: BoxFit.cover,
-                )
-              : null,
-        ),
-        child: profileImageUrl == null
-            ? const Icon(
-                Icons.person,
-                color: Colors.white,
-                size: 24,
-              )
-            : null,
-      ),
-    );
+    // Use either the passed userPoints or the dynamically loaded balance
+    final displayBalance = widget.userPoints ?? _userBalance;
 
     return Container(
       decoration: BoxDecoration(
@@ -68,11 +90,11 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
       ),
       child: Padding(
         padding: EdgeInsets.symmetric(
-            horizontal: isSettings ? 12 : 24.0, vertical: 12.0),
-        child: isHome
+            horizontal: widget.isSettings ? 12 : 24.0, vertical: 12.0),
+        child: widget.isHome
             ? Row(
                 children: [
-                  if (isSettings)
+                  if (widget.isSettings)
                     IconButton(
                       onPressed: () {
                         Navigator.of(context).pop();
@@ -80,19 +102,19 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                       icon: const Icon(CupertinoIcons.back),
                     ),
                   Text(
-                    isGroup
+                    widget.isGroup
                         ? 'Groups'
-                        : isChat
+                        : widget.isChat
                             ? 'Chats'
-                            : isSettings
-                                ? title ?? 'InZone'
+                            : widget.isSettings
+                                ? widget.title ?? 'InZone'
                                 : 'InZone',
                     style: Theme.of(context).textTheme.headlineMedium,
                   ),
                   const Spacer(),
-                  if (isGroup)
+                  if (widget.isGroup)
                     GestureDetector(
-                      onTap: onSearchTap,
+                      onTap: widget.onSearchTap,
                       child: Container(
                         width: 48,
                         height: 48,
@@ -107,11 +129,11 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                         ),
                       ),
                     ),
-                  if (isGroup) const SizedBox(width: 12),
+                  if (widget.isGroup) const SizedBox(width: 12),
                   // points display
-                  if (isGroup)
+                  if (widget.isGroup)
                     GestureDetector(
-                      onTap: onPointsTap,
+                      onTap: widget.onPointsTap,
                       child: Container(
                         height: 48,
                         padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -134,7 +156,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                             ),
                             const SizedBox(width: 8),
                             Text(
-                              userPoints ?? '0',
+                              displayBalance, // Use the dynamic balance
                               style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,
@@ -148,9 +170,9 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                         ),
                       ),
                     ),
-                  if (isChat)
+                  if (widget.isChat && widget.subtitle != null)
                     GestureDetector(
-                      onTap: onPointsTap,
+                      onTap: widget.onSearchTap,
                       child: Container(
                         height: 48,
                         padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -173,7 +195,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                             ),
                             const SizedBox(width: 8),
                             Text(
-                              '0',
+                              widget.subtitle!,
                               style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,
@@ -189,7 +211,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                     ),
                 ],
               )
-            : isGroup
+            : widget.isGroup
                 ? Row(
                     children: [
                       IconButton(
@@ -201,9 +223,9 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                           Navigator.of(context).pop();
                         },
                       ),
-                      isImage
+                      widget.isImage
                           ? GestureDetector(
-                              onTap: onProfileTap,
+                              onTap: widget.onProfileTap,
                               child: Container(
                                 width: 48,
                                 height: 48,
@@ -215,27 +237,31 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                                     width: 1.5,
                                   ),
                                 ),
-                                child: profileImageUrl != null
+                                child: widget.profileImageUrl != null
                                     ? ClipOval(
                                         child: Image.network(
-                                          profileImageUrl!,
+                                          widget.profileImageUrl!,
                                           fit: BoxFit.cover,
                                           errorBuilder:
                                               (context, error, stackTrace) {
                                             // Fallback to RandomAvatar if the image fails to load
-                                            return RandomAvatar(title ?? 'User',
-                                                height: 48, width: 48);
+                                            return RandomAvatar(
+                                                widget.title ?? 'User',
+                                                height: 48,
+                                                width: 48);
                                           },
                                         ),
                                       )
-                                    : RandomAvatar(title ?? 'User',
+                                    : RandomAvatar(widget.title ?? 'User',
                                         height: 48, width: 48),
                               ),
                             )
                           : const SizedBox(),
-                      isImage ? const SizedBox(width: 12) : const SizedBox(),
+                      widget.isImage
+                          ? const SizedBox(width: 12)
+                          : const SizedBox(),
                       Text(
-                        title ?? 'Guest',
+                        widget.title ?? 'Guest',
                         style: Theme.of(context).textTheme.titleLarge,
                       ),
                     ],
@@ -244,9 +270,6 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
       ),
     );
   }
-
-  @override
-  Size get preferredSize => const Size.fromHeight(70);
 }
 
 class CustomAppBarDelegate extends SliverPersistentHeaderDelegate {
