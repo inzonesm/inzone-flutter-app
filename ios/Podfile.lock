@@ -1218,8 +1218,6 @@ PODS:
     - Firebase/Functions (= 11.10.0)
     - firebase_core
     - Flutter
-  - contacts_service (0.2.2):
-    - Flutter
   - Firebase/Auth (11.10.0):
     - Firebase/CoreOnly
     - FirebaseAuth (~> 11.10.0)
@@ -1302,6 +1300,8 @@ PODS:
     - GoogleUtilities/Environment (~> 8.0)
     - GTMSessionFetcher/Core (< 5.0, >= 3.4)
   - Flutter (1.0.0)
+  - flutter_contacts (0.0.1):
+    - Flutter
   - flutter_inappwebview_ios (0.0.1):
     - Flutter
     - flutter_inappwebview_ios/Core (= 0.0.1)
@@ -1495,11 +1495,11 @@ DEPENDENCIES:
   - appsflyer_sdk (from `.symlinks/plugins/appsflyer_sdk/ios`)
   - cloud_firestore (from `.symlinks/plugins/cloud_firestore/ios`)
   - cloud_functions (from `.symlinks/plugins/cloud_functions/ios`)
-  - contacts_service (from `.symlinks/plugins/contacts_service/ios`)
   - firebase_auth (from `.symlinks/plugins/firebase_auth/ios`)
   - firebase_core (from `.symlinks/plugins/firebase_core/ios`)
   - firebase_storage (from `.symlinks/plugins/firebase_storage/ios`)
   - Flutter (from `Flutter`)
+  - flutter_contacts (from `.symlinks/plugins/flutter_contacts/ios`)
   - flutter_inappwebview_ios (from `.symlinks/plugins/flutter_inappwebview_ios/ios`)
   - flutter_keyboard_visibility (from `.symlinks/plugins/flutter_keyboard_visibility/ios`)
   - flutter_native_splash (from `.symlinks/plugins/flutter_native_splash/ios`)
@@ -1558,8 +1558,6 @@ EXTERNAL SOURCES:
     :path: ".symlinks/plugins/cloud_firestore/ios"
   cloud_functions:
     :path: ".symlinks/plugins/cloud_functions/ios"
-  contacts_service:
-    :path: ".symlinks/plugins/contacts_service/ios"
   firebase_auth:
     :path: ".symlinks/plugins/firebase_auth/ios"
   firebase_core:
@@ -1568,6 +1566,8 @@ EXTERNAL SOURCES:
     :path: ".symlinks/plugins/firebase_storage/ios"
   Flutter:
     :path: Flutter
+  flutter_contacts:
+    :path: ".symlinks/plugins/flutter_contacts/ios"
   flutter_inappwebview_ios:
     :path: ".symlinks/plugins/flutter_inappwebview_ios/ios"
   flutter_keyboard_visibility:
@@ -1614,7 +1614,6 @@ SPEC CHECKSUMS:
   BoringSSL-GRPC: dded2a44897e45f28f08ae87a55ee4bcd19bc508
   cloud_firestore: 07742f115155e19201e77b4cafb155011892d7b7
   cloud_functions: da1966dda871b6d4a8e9addcdec31ea540489715
-  contacts_service: 7c2ed10147f55891576c6a582f431e385d8de92d
   Firebase: 1fe1c0a7d9aaea32efe01fbea5f0ebd8d70e53a2
   firebase_auth: 34c515a8fa76a4ef678ac5ad5cfa3bb3120f5ab5
   firebase_core: 2d4534e7b489907dcede540c835b48981d890943
@@ -1632,6 +1631,7 @@ SPEC CHECKSUMS:
   FirebaseSharedSwift: d2475748a2d2a36242ed13baa34b2acda846c925
   FirebaseStorage: e83d1b9c8a5318d46ccfb2955f0d98095e0bf598
   Flutter: e0871f40cf51350855a761d2e70bf5af5b9b5de7
+  flutter_contacts: 5383945387e7ca37cf963d4be57c21f2fc15ca9f
   flutter_inappwebview_ios: b89ba3482b96fb25e00c967aae065701b66e9b99
   flutter_keyboard_visibility: 4625131e43015dbbe759d9b20daaf77e0e3f6619
   flutter_native_splash: 6cad9122ea0fad137d23137dd14b937f3e90b145

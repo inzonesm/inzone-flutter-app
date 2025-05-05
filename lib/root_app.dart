@@ -171,15 +171,23 @@ class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
         body: NotificationListener<ScrollNotification>(
           onNotification: (ScrollNotification notification) {
             if (notification is ScrollStartNotification) {
-              setState(() {
-                isUserScrolling = true;
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted) {
+                  setState(() {
+                    isUserScrolling = true;
+                  });
+                }
               });
             } else if (notification is ScrollEndNotification) {
-              setState(() {
-                isUserScrolling = false;
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted) {
+                  setState(() {
+                    isUserScrolling = false;
+                  });
+                }
               });
             }
-            return false;
+            return false; // false: allow scroll event to continue propagating
           },
           // Use IndexedStack for main tab routes, otherwise use the provided child for nested routes
           child: isMainTabRoute

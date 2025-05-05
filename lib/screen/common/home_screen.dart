@@ -420,133 +420,133 @@ class HomeScreenState extends State<HomeScreen> {
         right: false,
         top: true,
         bottom: false,
-        child: NestedScrollView(
-          controller: _scrollController,
-          headerSliverBuilder: (BuildContext context, bool innerBoxIsScrolled) {
-            return <Widget>[
-              SliverPersistentHeader(
-                floating: true,
-                pinned: false,
-                delegate: CustomAppBarDelegate(
-                  child: CustomAppBar(
-                    isHome: true,
-                    userPoints: "100",
-                    profileImageUrl: null,
-                    onSearchTap: () {},
-                    onProfileTap: () {},
-                    onPointsTap: () {},
-                  ),
-                ),
-              ),
-            ];
-          },
-          body: isLoading
-              ? SingleChildScrollView(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  child: Column(
-                    children: [
-                      // 카테고리 선택 UI (로딩 중)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 0.0, bottom: 35.0),
-                        child: CategoryLoading(context),
-                      ),
-                      ...List<Widget>.generate(
-                          5, (index) => PostLoading(context)),
-                    ],
-                  ),
-                )
-              : CustomScrollView(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  slivers: [
-                    // iOS 스타일 리프레시 컨트롤
-                    CupertinoSliverRefreshControl(
-                      onRefresh: () async {
-                        setState(() {
-                          reloadCount++;
-                        });
-                        await loadFeed(isRefresh: true);
-                      },
-                      refreshTriggerPullDistance: 120.0,
-                      refreshIndicatorExtent: 60.0,
-                      builder: (
-                        BuildContext context,
-                        RefreshIndicatorMode refreshState,
-                        double pulledExtent,
-                        double refreshTriggerPullDistance,
-                        double refreshIndicatorExtent,
-                      ) {
-                        return Center(
-                          child: Stack(
-                            alignment: Alignment.center,
-                            children: [
-                              const CupertinoActivityIndicator(radius: 14.0),
-                              Positioned(
-                                left:
-                                    MediaQuery.of(context).size.width / 2 + 20,
-                                child: Container(
-                                  width: 100,
-                                  height: 20,
-                                  decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(4),
-                                    color: Theme.of(context).cardColor,
-                                  ),
-                                  child: CategoryLoading(context),
-                                ),
-                              ),
-                            ],
-                          ),
-                        );
-                      },
+        child: isLoading
+            ? SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                child: Column(
+                  children: [
+                    const SizedBox(height: 5),
+                    CustomAppBar(
+                      isHome: true,
+                      userPoints: "100",
+                      profileImageUrl: null,
+                      onSearchTap: () {},
+                      onProfileTap: () {},
+                      onPointsTap: () {},
                     ),
-
-                    // Add Avatar Carousel above category selector bar
-
-                    SliverToBoxAdapter(
-                      child: avatarStoryComponents.isNotEmpty
-                          ? _buildAvatarStories()
-                          : const SizedBox.shrink(),
+                    Padding(
+                      padding: const EdgeInsets.only(top: 0.0, bottom: 35.0),
+                      child: CategoryLoading(context),
                     ),
-                    // SliverToBoxAdapter(
-                    //   child: Padding(
-                    //     padding: const EdgeInsets.only(top: 10.0),
-                    //     child: categoriesList.isNotEmpty
-                    //         ? Padding(
-                    //       padding: const EdgeInsets.only(bottom: 10.0),
-                    //       child: CategorySelectorBar(
-                    //         categories: categoriesList,
-                    //         onTap: (selectedCat) {
-                    //           _filterPostsByCategory(selectedCat);
-                    //         },
-                    //       ),
-                    //     )
-                    //         : CategoryLoading(context),
-                    //   ),
-                    // ),
-                    SliverList(
-                      delegate: SliverChildBuilderDelegate(
-                        (context, index) {
-                          if (index == posts.length && isLoadingMore) {
-                            return const Center(
-                                child: CupertinoActivityIndicator());
-                          } else if (index ==
-                              posts.length + (isLoadingMore ? 1 : 0)) {
-                            // Bottom padding for navigation bar
-                            return const SizedBox(height: 100);
-                          }
-                          return Padding(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 16.0, vertical: 0),
-                            child: _buildPostWidget(posts[index], index),
-                          );
-                        },
-                        childCount: posts.length +
-                            (isLoadingMore ? 1 : 0) +
-                            1, // +1 for bottom padding
-                      ),
-                    ),
+                    ...List<Widget>.generate(
+                        5, (index) => PostLoading(context)),
                   ],
                 ),
-        ),
+              )
+            : CustomScrollView(
+                controller: _scrollController,
+                physics: const AlwaysScrollableScrollPhysics(),
+                slivers: [
+                  // iOS 스타일 리프레시 컨트롤
+                  CupertinoSliverRefreshControl(
+                    onRefresh: () async {
+                      setState(() {
+                        reloadCount++;
+                      });
+                      await loadFeed(isRefresh: true);
+                    },
+                    refreshTriggerPullDistance: 120.0,
+                    refreshIndicatorExtent: 60.0,
+                    builder: (
+                      BuildContext context,
+                      RefreshIndicatorMode refreshState,
+                      double pulledExtent,
+                      double refreshTriggerPullDistance,
+                      double refreshIndicatorExtent,
+                    ) {
+                      return Center(
+                        child: Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            const CupertinoActivityIndicator(radius: 14.0),
+                            Positioned(
+                              left: MediaQuery.of(context).size.width / 2 + 20,
+                              child: Container(
+                                width: 100,
+                                height: 20,
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(4),
+                                  color: Theme.of(context).cardColor,
+                                ),
+                                child: CategoryLoading(context),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+
+                  // Add Avatar Carousel above category selector bar
+                  SliverPersistentHeader(
+                    floating: true,
+                    pinned: false,
+                    delegate: CustomAppBarDelegate(
+                      child: CustomAppBar(
+                        isHome: true,
+                        userPoints: "100",
+                        profileImageUrl: null,
+                        onSearchTap: () {},
+                        onProfileTap: () {},
+                        onPointsTap: () {},
+                      ),
+                    ),
+                  ),
+                  SliverToBoxAdapter(
+                    child: avatarStoryComponents.isNotEmpty
+                        ? _buildAvatarStories()
+                        : const SizedBox.shrink(),
+                  ),
+                  // SliverToBoxAdapter(
+                  //   child: Padding(
+                  //     padding: const EdgeInsets.only(top: 10.0),
+                  //     child: categoriesList.isNotEmpty
+                  //         ? Padding(
+                  //       padding: const EdgeInsets.only(bottom: 10.0),
+                  //       child: CategorySelectorBar(
+                  //         categories: categoriesList,
+                  //         onTap: (selectedCat) {
+                  //           _filterPostsByCategory(selectedCat);
+                  //         },
+                  //       ),
+                  //     )
+                  //         : CategoryLoading(context),
+                  //   ),
+                  // ),
+                  SliverList(
+                    delegate: SliverChildBuilderDelegate(
+                      (context, index) {
+                        if (index == posts.length && isLoadingMore) {
+                          return const Center(
+                              child: CupertinoActivityIndicator());
+                        } else if (index ==
+                            posts.length + (isLoadingMore ? 1 : 0)) {
+                          // Bottom padding for navigation bar
+                          return const SizedBox(height: 100);
+                        }
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16.0, vertical: 0),
+                          child: _buildPostWidget(posts[index], index),
+                        );
+                      },
+                      childCount: posts.length +
+                          (isLoadingMore ? 1 : 0) +
+                          1, // +1 for bottom padding
+                    ),
+                  ),
+                ],
+              ),
       ),
     );
   }

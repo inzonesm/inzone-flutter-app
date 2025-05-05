@@ -12,6 +12,7 @@ class Comment {
     required this.content,
   });
 }
+
 class ReplyClass {
   String name;
   String text;
@@ -20,19 +21,11 @@ class ReplyClass {
   ReplyClass({required this.name, required this.text, required this.uid});
 
   factory ReplyClass.fromJson(Map<String, dynamic> json) {
-    return ReplyClass(
-        name: json['name'],
-        text: json['text'],
-        uid: json['uid']
-    );
+    return ReplyClass(name: json['name'], text: json['text'], uid: json['uid']);
   }
 
   Map<String, dynamic> toJson() {
-    return {
-      'name': name,
-      'text': text,
-      'uid': uid
-    };
+    return {'name': name, 'text': text, 'uid': uid};
   }
 }
 
@@ -46,6 +39,7 @@ class CommentClass extends Comment {
   List<String>? likedBy;
   List<String>? dislikedBy;
   final List<ReplyClass> replies;
+  final String? profilePictureUrl;
 
   CommentClass({
     required this.author,
@@ -57,6 +51,7 @@ class CommentClass extends Comment {
     required this.replies,
     this.likedBy,
     this.dislikedBy,
+    this.profilePictureUrl,
   }) : super(avatar: "avatar", userName: author, content: text);
   //
   // factory CommentClass.fromJson(Map<String, dynamic> json) {
@@ -103,14 +98,14 @@ class CommentClass extends Comment {
       userId: json['userId'] ?? '',
       replies: json['replies'] != null
           ? List<ReplyClass>.from(
-          json['replies'].map((reply) => ReplyClass.fromJson(reply)))
+              json['replies'].map((reply) => ReplyClass.fromJson(reply)))
           : [],
-      likedBy: json['likedBy'] != null
-          ? List<String>.from(json['likedBy'])
-          : [],
+      likedBy:
+          json['likedBy'] != null ? List<String>.from(json['likedBy']) : [],
       dislikedBy: json['dislikedBy'] != null
           ? List<String>.from(json['dislikedBy'])
           : [],
+      profilePictureUrl: json['profilePicture'] ?? '',
     );
   }
 
@@ -127,5 +122,4 @@ class CommentClass extends Comment {
       'dislikedBy': dislikedBy,
     };
   }
-
 }
