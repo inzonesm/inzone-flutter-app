@@ -14,8 +14,12 @@ import 'package:inzone/router/routes.dart';
 // import 'package:inzone/screen/chat/chat_screen.dart';
 // import 'package:inzone/screen/chat/human_chat_screen.dart';
 
+// Global key to access AllChatsScreen state from anywhere
+final GlobalKey<_AllChatsScreenState> allChatsScreenKey =
+    GlobalKey<_AllChatsScreenState>();
+
 class AllChatsScreen extends StatefulWidget {
-  const AllChatsScreen({super.key});
+  const AllChatsScreen({Key? key}) : super(key: key);
 
   @override
   State<AllChatsScreen> createState() => _AllChatsScreenState();
@@ -328,6 +332,13 @@ class _AllChatsScreenState extends State<AllChatsScreen>
     }
     return "User";
   }
+
+  // Method to set active tab from outside
+  void setActiveTab(int index) {
+    if (index >= 0 && index < _tabController.length) {
+      _tabController.animateTo(index);
+    }
+  }
 }
 
 class ChatUser {
@@ -476,20 +487,6 @@ class _ChatUserCardState extends State<ChatUserCard> {
                   });
                 } catch (e) {
                   debugPrint('Go Router navigation failed: $e');
-                  // Fallback to direct navigation if Go Router fails
-                  Navigator.of(context)
-                      .push(
-                    MaterialPageRoute(
-                      builder: (context) => GroupChatScreen(group: groupData),
-                    ),
-                  )
-                      .then((_) {
-                    // Refresh the conversation list when returning from chat
-                    if (mounted) {
-                      (context.findAncestorStateOfType<_AllChatsScreenState>())
-                          ?._fetchConversations();
-                    }
-                  });
                 }
               } else {
                 // Fallback to regular chat if group data not found

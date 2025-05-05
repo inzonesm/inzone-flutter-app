@@ -30,7 +30,7 @@ class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
   final List<Widget> _screens = [
     const HomeScreen(),
     const GroupsExploreScreen(),
-    const AllChatsScreen(),
+    AllChatsScreen(key: allChatsScreenKey),
     const UserProfileScreen(),
   ];
 

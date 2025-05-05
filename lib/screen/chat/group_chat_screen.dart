@@ -15,6 +15,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:inzone/theme/light_theme.dart'; // Import for ChatTheme extension
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
+import 'package:inzone/router/routes.dart'; // Import for Routes
+import 'package:inzone/screen/chat/all_chats_screen.dart'; // Import for allChatsScreenKey
 
 class GroupChatScreen extends StatefulWidget {
   final GroupData group;
@@ -888,7 +890,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
           _groupId, _joinGroupCost);
 
       // Close loading dialog
-      Navigator.of(context).pop();
+      context.pop();
 
       if (response['success'] == true) {
         // Create or update the conversation document to include this user
@@ -902,6 +904,34 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
           'lastMessage': 'You joined the group',
           'lastMessageTime': FieldValue.serverTimestamp(),
         }, SetOptions(merge: true));
+
+        // Update the current group data
+        setState(() {
+          widget.group.isMember = true;
+        });
+
+        // Refresh the screen by recreating it with GoRouter
+        try {
+          if (context.mounted) {
+            // Use GoRouter to navigate to the same screen with updated data
+            context.pop(); // Pop current screen
+            print("HAHAHAHHAHA");
+
+            // Navigate to the chats tab (third tab in bottom navigation)
+            context.go(Routes.chats);
+
+            // Use a small delay to ensure the screen is loaded before accessing the tab controller
+            Future.delayed(const Duration(milliseconds: 100), () {
+              // Set the active tab to Group Chats (index 1)
+              if (allChatsScreenKey.currentState != null) {
+                allChatsScreenKey.currentState!.setActiveTab(1);
+              }
+            });
+          }
+        } catch (navError) {
+          print('GoRouter navigation error: $navError');
+          // The joining was successful even if navigation failed
+        }
 
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Successfully joined the group!')),
