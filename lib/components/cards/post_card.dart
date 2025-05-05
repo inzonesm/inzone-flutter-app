@@ -42,6 +42,7 @@ class _PostCardState extends State<PostCard> {
   bool imageSuccess = false;
 
   String username = '';
+  String profileImageUrl = '';
   CommentClass? comment;
   final PageController _mediaPageController = PageController(
     viewportFraction: 0.9,
@@ -67,10 +68,21 @@ class _PostCardState extends State<PostCard> {
     return false;
   }
 
+  Future<void> _loadUserProfileImage() async {
+    final userData =
+        await InZoneDatabase.getUserProfile(widget.post.userReference);
+    if (userData != null && mounted) {
+      setState(() {
+        profileImageUrl = userData['profilePicture'] ?? "";
+      });
+    }
+  }
+
   @override
   void initState() {
     super.initState();
     _loadLikedState(); // Load the liked state when the widget is initialized
+    _loadUserProfileImage();
   }
 
   @override
@@ -174,42 +186,54 @@ class _PostCardState extends State<PostCard> {
             children: [
               Row(
                 children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(20),
+                    child: profileImageUrl.isNotEmpty
+                        ? Image.network(
+                            profileImageUrl,
+                            width: 40,
+                            height: 40,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) =>
+                                const Icon(Icons.account_circle, size: 40),
+                          )
+                        : const Icon(Icons.account_circle, size: 40),
+                  ),
                   // Image.asset(post.profilePicturePath),
-                  RandomAvatar(widget.post.userName, height: 40, width: 40),
+                  // RandomAvatar(widget.post.userName, height: 40, width: 40),
                   const SizedBox(
                     width: 10,
                   ),
                   Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        GestureDetector(
-                          onTap: () {
-                            if (widget.post.isAi) {
-                              print(widget.post.userName);
-                              context.push(
-                                  Routes.aiProfilePath(widget.post.userName));
-                            } else {
-                              context.push(Routes.regularProfilePath(
-                                  widget.post.userReference));
-                            }
-                          },
-                          child: SingleChildScrollView(
-                            scrollDirection: Axis.horizontal,
-                            child: Text(
-                              widget.post.userName,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                color: Theme.of(context)
-                                    .textTheme
-                                    .titleLarge
-                                    ?.color,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 20,
-                              ),
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      GestureDetector(
+                        onTap: () {
+                          if (widget.post.isAi) {
+                            print(widget.post.userName);
+                            context.push(
+                                Routes.aiProfilePath(widget.post.userName));
+                          } else {
+                            context.push(Routes.regularProfilePath(
+                                widget.post.userReference));
+                          }
+                        },
+                        child: SizedBox(
+                          width: 230,
+                          child: Text(
+                            widget.post.userName,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color:
+                                  Theme.of(context).textTheme.titleLarge?.color,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 20,
                             ),
                           ),
                         ),
-                      ]),
+                      ),
+                    ],
+                  ),
                   const Spacer(),
                   GestureDetector(
                     onTap: () {
