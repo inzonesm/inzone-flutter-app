@@ -47,13 +47,7 @@ class GroupCard extends StatelessWidget {
                 // Try using Go Router first
                 context.push(Routes.groupChat, extra: group);
               } catch (e) {
-                debugPrint('Go Router navigation failed: $e');
-                // Fallback to direct navigation if Go Router fails
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (context) => GroupChatScreen(group: group),
-                  ),
-                );
+
               }
             },
             borderRadius: BorderRadius.circular(24),

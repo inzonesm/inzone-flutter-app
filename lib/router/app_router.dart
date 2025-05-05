@@ -215,7 +215,20 @@ class AppRouter {
         name: 'groupChat',
         parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) {
-          final group = state.extra as GroupData;
+          final group = state.extra as GroupData?;
+          if (group == null) {
+            return GroupChatScreen(
+              group: GroupData(
+                id: 'group_chat_default',
+                name: 'Group Chat',
+                description: '',
+                memberCount: 0,
+                messageCount: 0,
+                avatars: [],
+                isMember: true,
+              ),
+            );
+          }
           return GroupChatScreen(group: group);
         },
       ),
