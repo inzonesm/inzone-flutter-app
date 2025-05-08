@@ -77,7 +77,12 @@ class _IntroductionScreenState extends State<IntroductionScreen> {
     _showLoadingDialog();
 
     try {
-      await AuthWork().signinWithApple();
+      final result = await AuthWork().signinWithApple();
+      if (result == null) {
+        // User cancelled or sign-in failed
+        _dismissLoadingDialog();
+        return;
+      }
       await _checkLoginStatus();
     } catch (e) {
       debugPrint("Apple Sign-In Error: $e");
@@ -89,7 +94,12 @@ class _IntroductionScreenState extends State<IntroductionScreen> {
     _showLoadingDialog();
 
     try {
-      await AuthWork().signinWithGoogle();
+      final result = await AuthWork().signinWithGoogle();
+      if (result == null) {
+        // User cancelled or sign-in failed
+        _dismissLoadingDialog();
+        return;
+      }
       await _checkLoginStatus();
     } catch (e) {
       debugPrint("Google Sign-In Error: $e");
@@ -113,10 +123,9 @@ class _IntroductionScreenState extends State<IntroductionScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: Colors.transparent,
       body: ColorfulSafeArea(
-        bottom: true,
-        bottomColor: Colors.black,
+        bottom: false,
         child: Stack(
           children: [
             Positioned.fill(
@@ -162,7 +171,7 @@ class _IntroductionScreenState extends State<IntroductionScreen> {
                   ),
                   const SizedBox(height: 12),
                   Padding(
-                    padding: const EdgeInsets.only(bottom: 16),
+                    padding: const EdgeInsets.only(bottom: 30),
                     child: RichText(
                       textAlign: TextAlign.center,
                       text: TextSpan(

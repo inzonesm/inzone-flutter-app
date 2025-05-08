@@ -3,6 +3,7 @@ import 'package:comment_tree/widgets/comment_tree_widget.dart';
 import 'package:comment_tree/widgets/tree_theme_data.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:inzone/components/posts/shimmering.dart';
 import 'package:inzone/components/video/video_widget.dart';
@@ -237,6 +238,7 @@ class _PostCardState extends State<PostCard> {
                   const Spacer(),
                   GestureDetector(
                     onTap: () {
+                      HapticFeedback.lightImpact();
                       _showOptionsBottomSheet(context);
                     },
                     child: Padding(
@@ -466,51 +468,53 @@ class _PostCardState extends State<PostCard> {
   }
 
   void _showOptionsBottomSheet(BuildContext context) {
-    showModalBottomSheet(
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      context: context,
-      builder: (context) => Container(
-        decoration: BoxDecoration(
-          color: Theme.of(context).cardColor,
-          borderRadius: const BorderRadius.only(
-            topRight: Radius.circular(30),
-            topLeft: Radius.circular(30),
+    Future.microtask(() {
+      showModalBottomSheet(
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        context: context,
+        builder: (context) => Container(
+          decoration: BoxDecoration(
+            color: Theme.of(context).cardColor,
+            borderRadius: const BorderRadius.only(
+              topRight: Radius.circular(30),
+              topLeft: Radius.circular(30),
+            ),
           ),
-        ),
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 5),
-              child: Center(
-                child: Container(
-                  width: 50,
-                  height: 5,
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).dividerColor,
-                    borderRadius: BorderRadius.circular(10),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 5),
+                child: Center(
+                  child: Container(
+                    width: 50,
+                    height: 5,
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).dividerColor,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
                   ),
                 ),
               ),
-            ),
-            const SizedBox(height: 15),
-            _optionItem(
-              CustomIcons.notInterested,
-              "Flag this post",
-              "not_interested",
-            ),
-            _optionItem(
-              CustomIcons.dontShow,
-              "Block ${widget.post.userName}",
-              "dont_show",
-            ),
-            const SizedBox(height: 15),
-          ],
+              const SizedBox(height: 15),
+              _optionItem(
+                CustomIcons.notInterested,
+                "Flag this post",
+                "not_interested",
+              ),
+              _optionItem(
+                CustomIcons.dontShow,
+                "Block ${widget.post.userName}",
+                "dont_show",
+              ),
+              const SizedBox(height: 15),
+            ],
+          ),
         ),
-      ),
-    );
+      );
+    });
   }
 
   Widget _buildVideoWidget(String videoUrl, double aspectRatio) {
