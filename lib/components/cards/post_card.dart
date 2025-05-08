@@ -265,184 +265,197 @@ class _PostCardState extends State<PostCard> {
                                 Theme.of(context).textTheme.bodyMedium?.color),
                       ),
                     ),
-              const SizedBox(
-                height: 10,
-              ),
+              (widget.post.imageContent.isNotEmpty ||
+                      widget.post.videoContent.isNotEmpty)
+                  ? const SizedBox(
+                      height: 30,
+                    )
+                  : const SizedBox(height: 10),
               (widget.post.imageContent.isNotEmpty) ||
                       (widget.post.videoContent.isNotEmpty ?? false)
-                  ? Column(
-                      children: [
-                        Container(
-                          constraints: BoxConstraints(
-                            minHeight: 330,
-                            maxHeight: MediaQuery.of(context).size.height * 0.6,
-                          ),
-                          child: PageView.builder(
-                            controller: _mediaPageController,
-                            itemCount: widget.post.imageContent.length +
-                                widget.post.videoContent.length,
-                            physics: const PageScrollPhysics(),
-                            itemBuilder: (context, index) {
-                              Widget mediaWidget;
+                  ? SizedBox(
+                      width: MediaQuery.of(context).size.width - 30,
+                      child: SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          children: [
+                            // Display all images first
+                            if (widget.post.imageContent.isNotEmpty)
+                              ...widget.post.imageContent.map((imageUrl) {
+                                return imageUrl.isNotEmpty
+                                    ? Padding(
+                                        padding:
+                                            const EdgeInsets.only(right: 5.0),
+                                        child: ClipRRect(
+                                          borderRadius:
+                                              BorderRadius.circular(8.0),
+                                          child: Image.network(
+                                            imageUrl,
+                                            fit: BoxFit.fitWidth,
+                                            loadingBuilder: (context, child,
+                                                loadingProgress) {
+                                              if (loadingProgress == null) {
+                                                return child; // The image has loaded
+                                              } else {
+                                                return Container(
+                                                  width: MediaQuery.of(context)
+                                                          .size
+                                                          .width -
+                                                      60,
+                                                  height:
+                                                      200, // Adjust to the approximate expected height
+                                                  color: Colors.grey[
+                                                      300], // Placeholder color
+                                                  child: const Center(
+                                                    child:
+                                                        CircularProgressIndicator(),
+                                                  ),
+                                                );
+                                              }
+                                            },
+                                            width: MediaQuery.of(context)
+                                                    .size
+                                                    .width -
+                                                60,
+                                            errorBuilder:
+                                                (context, object, st) {
+                                              return const SizedBox();
+                                            },
+                                          ),
+                                        ),
+                                      )
+                                    : const SizedBox();
+                              }),
 
-                              if (index < widget.post.imageContent.length) {
-                                final imageUrl =
-                                    widget.post.imageContent[index];
-                                mediaWidget = ClipRRect(
-                                  borderRadius: BorderRadius.circular(12),
-                                  child: Image.network(
-                                    imageUrl,
-                                    fit: BoxFit.contain,
-                                    loadingBuilder:
-                                        (context, child, loadingProgress) {
-                                      if (loadingProgress == null) return child;
-                                      return Center(
-                                          child: ImageLoading2(context));
-                                    },
-                                    errorBuilder:
-                                        (context, error, stackTrace) =>
-                                            const SizedBox(),
-                                  ),
-                                );
-                              } else {
-                                final videoUrl = widget.post.videoContent[
-                                    index - widget.post.imageContent.length];
-
-                                final isVerticalVideo =
-                                    videoUrl.contains("youtube") ||
-                                        videoUrl.contains("vertical");
-
-                                final aspectRatio =
-                                    isVerticalVideo ? 9 / 16 : 16 / 9;
-
-                                mediaWidget = ClipRRect(
-                                  borderRadius: BorderRadius.circular(12),
-                                  child: AspectRatio(
-                                    aspectRatio: aspectRatio,
-                                    child: Container(
-                                      color: Colors.black,
-                                      child: Center(
-                                        child: VideoWidget(videoUrl: videoUrl),
-                                      ),
+                            // Display all videos after images
+                            if (widget.post.videoContent.isNotEmpty &&
+                                widget.post.videoContent.first.length > 3)
+                              ...widget.post.videoContent.map((videoUrl) {
+                                return Padding(
+                                  padding: const EdgeInsets.only(right: 5.0),
+                                  child: SizedBox(
+                                    width:
+                                        MediaQuery.of(context).size.width - 60,
+                                    child: ClipRRect(
+                                      borderRadius: BorderRadius.circular(8.0),
+                                      child: VideoWidget(
+                                          key: ValueKey(videoUrl),
+                                          videoUrl: videoUrl),
                                     ),
                                   ),
                                 );
-                              }
-
-                              return Padding(
-                                padding:
-                                    const EdgeInsets.symmetric(horizontal: 6),
-                                child: mediaWidget,
-                              );
-                            },
-                          ),
+                              }),
+                          ],
                         ),
-                        const SizedBox(height: 10),
-                        if ((widget.post.imageContent.length +
-                                widget.post.videoContent.length) >
-                            1)
-                          SmoothPageIndicator(
-                            controller: _mediaPageController,
-                            count: widget.post.imageContent.length +
-                                widget.post.videoContent.length,
-                            effect: ScrollingDotsEffect(
-                              activeDotColor: Theme.of(context).primaryColor,
-                              dotColor: AppColors.lightGrey,
-                              dotHeight: 8,
-                              dotWidth: 8,
-                              activeDotScale: 1.4,
-                              spacing: 8,
-                              maxVisibleDots: 5,
-                            ),
-                          ),
-                        if ((widget.post.imageContent.length +
-                                widget.post.videoContent.length) >
-                            1)
-                          const SizedBox(height: 10),
-                      ],
+                      ),
                     )
                   : const SizedBox(),
               const SizedBox(
                 height: 10,
               ),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
+              Column(
                 children: [
-                  GestureDetector(
-                    onTap: handleLike, // Toggle like/unlike when tapped
-                    child: SizedBox(
-                      height: 22,
-                      width: 22,
-                      child: SvgPicture.asset(
-                        isLiked
-                            ? CustomIcons.like
-                            : CustomIcons
-                                .notlike, // Show correct icon based on state
+                  if ((widget.post.imageContent.length +
+                          widget.post.videoContent.length) >
+                      1)
+                    SmoothPageIndicator(
+                      controller: _mediaPageController,
+                      count: widget.post.imageContent.length +
+                          widget.post.videoContent.length,
+                      effect: ScrollingDotsEffect(
+                        activeDotColor: Theme.of(context).primaryColor,
+                        dotColor: AppColors.lightGrey,
+                        dotHeight: 8,
+                        dotWidth: 8,
+                        activeDotScale: 1.4,
+                        spacing: 8,
+                        maxVisibleDots: 5,
                       ),
                     ),
+                  if ((widget.post.imageContent.length +
+                          widget.post.videoContent.length) >
+                      1)
+                    const SizedBox(height: 10),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: [
+                      GestureDetector(
+                        onTap: handleLike, // Toggle like/unlike when tapped
+                        child: SizedBox(
+                          height: 22,
+                          width: 22,
+                          child: SvgPicture.asset(
+                            isLiked
+                                ? CustomIcons.like
+                                : CustomIcons
+                                    .notlike, // Show correct icon based on state
+                          ),
+                        ),
+                      ),
+                      const SizedBox(
+                        width: 10,
+                      ),
+                      // InkWell(
+                      //     onTap: () {
+                      //       filterSheetModel();
+                      //     },
+                      //     child: SizedBox(height: 35, width: 35, child: SvgPicture.asset(CustomIcons.comment))),
+                      // if (isCommentPresentbool == true)
+                      GestureDetector(
+                          onTap: () {
+                            filterSheetModel();
+                          },
+                          child: isCommentPresentbool
+                              ? SizedBox(
+                                  height: 25,
+                                  width: 25,
+                                  child: SvgPicture.asset(
+                                    CustomIcons
+                                        .comment, // Show correct icon based on state
+                                  ),
+                                )
+                              : SizedBox(
+                                  height: 25,
+                                  width: 25,
+                                  child: SvgPicture.asset(
+                                    CustomIcons
+                                        .uncomment, // Show correct icon based on state
+                                  ),
+                                )),
+                      // if (isCommentPresentbool == false)
+                      //   InkWell(
+                      //       onTap: () {
+                      //         filterSheetModel();
+                      //       },
+                      //       child: SizedBox(
+                      //           height: 35,
+                      //           width: 35,
+                      //           child: Image.asset(CustomIcons.uncomment))),
+                      const SizedBox(
+                        width: 10,
+                      ),
+                      // GestureDetector(
+                      //     onTap: () {
+                      //       // Navigator.push(context,
+                      //       //     MaterialPageRoute(builder: (context) {
+                      //       //   return CommentScreen();
+                      //       // }));
+                      //       // showSlidingBottomSheet(context,
+                      //       //     builder: (context) => SlidingSheetDialog(
+                      //       //       cornerRadius: 30,
+                      //       //       snapSpec: const SnapSpec(snappings: [0.7, 0.9]),
+                      //       //       builder: (context, state) {
+                      //       //
+                      //       //         // return CommentPage(
+                      //       //         //   post: widget.post,
+                      //       //         // );
+                      //       //       },
+                      //       //     ));
+                      //     },
+                      //     child: SvgPicture.asset(CustomIcons.send)),
+                      const Spacer(),
+                    ],
                   ),
-                  const SizedBox(
-                    width: 10,
-                  ),
-                  // InkWell(
-                  //     onTap: () {
-                  //       filterSheetModel();
-                  //     },
-                  //     child: SizedBox(height: 35, width: 35, child: SvgPicture.asset(CustomIcons.comment))),
-                  // if (isCommentPresentbool == true)
-                  GestureDetector(
-                      onTap: () {
-                        filterSheetModel();
-                      },
-                      child: isCommentPresentbool
-                          ? SizedBox(
-                              height: 25,
-                              width: 25,
-                              child: SvgPicture.asset(
-                                CustomIcons
-                                    .comment, // Show correct icon based on state
-                              ),
-                            )
-                          : SizedBox(
-                              height: 25,
-                              width: 25,
-                              child: SvgPicture.asset(
-                                CustomIcons
-                                    .uncomment, // Show correct icon based on state
-                              ),
-                            )),
-                  // if (isCommentPresentbool == false)
-                  //   InkWell(
-                  //       onTap: () {
-                  //         filterSheetModel();
-                  //       },
-                  //       child: SizedBox(
-                  //           height: 35,
-                  //           width: 35,
-                  //           child: Image.asset(CustomIcons.uncomment))),
-                  const SizedBox(
-                    width: 10,
-                  ),
-                  // GestureDetector(
-                  //     onTap: () {
-                  //       // Navigator.push(context,
-                  //       //     MaterialPageRoute(builder: (context) {
-                  //       //   return CommentScreen();
-                  //       // }));
-                  //       // showSlidingBottomSheet(context,
-                  //       //     builder: (context) => SlidingSheetDialog(
-                  //       //       cornerRadius: 30,
-                  //       //       snapSpec: const SnapSpec(snappings: [0.7, 0.9]),
-                  //       //       builder: (context, state) {
-                  //       //
-                  //       //         // return CommentPage(
-                  //       //         //   post: widget.post,
-                  //       //         // );
-                  //       //       },
-                  //       //     ));
-                  //     },
-                  //     child: SvgPicture.asset(CustomIcons.send)),
-                  const Spacer(),
                 ],
               )
             ],

@@ -69,7 +69,7 @@ class _VideoWidgetState extends State<VideoWidget> {
       _youtubePlayerController = YoutubePlayerController(
         initialVideoId: _youtubeVideoId!,
         flags: const YoutubePlayerFlags(
-          autoPlay: false,
+          autoPlay: true,
           mute: false,
           enableCaption: true,
           hideControls: false,
@@ -307,7 +307,10 @@ class _VideoWidgetState extends State<VideoWidget> {
         key: Key('youtube-${widget.videoUrl}'),
         onVisibilityChanged: (info) {
           if (mounted && _youtubePlayerController != null) {
-            if (info.visibleFraction == 0 &&
+            if (info.visibleFraction > 0.7) {
+              // Auto-play when video becomes visible
+              _youtubePlayerController!.play();
+            } else if (info.visibleFraction == 0 &&
                 _youtubePlayerController!.value.isPlaying) {
               _youtubePlayerController!.pause();
             }
@@ -356,7 +359,23 @@ class _VideoWidgetState extends State<VideoWidget> {
       onVisibilityChanged: (info) {
         if (!mounted) return;
 
-        if (info.visibleFraction == 0) {
+        if (info.visibleFraction > 0.7) {
+          // Auto-play when video becomes sufficiently visible
+          if (_useMediaKit && _mediaKitPlayer != null) {
+            _mediaKitPlayer!.play();
+            // Hide controls after starting playback
+            setState(() {
+              _showControls = false;
+            });
+          } else if (_videoPlayerController != null) {
+            _videoPlayerController!.play();
+            // Hide controls after starting playback
+            setState(() {
+              _showControls = false;
+            });
+          }
+        } else if (info.visibleFraction == 0) {
+          // Pause when video is not visible
           if (_useMediaKit && _mediaKitPlayer != null) {
             _mediaKitPlayer!.pause();
           } else if (_videoPlayerController != null &&
