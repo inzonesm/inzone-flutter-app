@@ -13,6 +13,8 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:inzone/services/appsflyer_service.dart';
 
 // Contact selection dialog
 class MultiSelectContactsDialog extends StatefulWidget {
@@ -24,7 +26,8 @@ class MultiSelectContactsDialog extends StatefulWidget {
   });
 
   @override
-  State<MultiSelectContactsDialog> createState() => _MultiSelectContactsDialogState();
+  State<MultiSelectContactsDialog> createState() =>
+      _MultiSelectContactsDialogState();
 }
 
 class _MultiSelectContactsDialogState extends State<MultiSelectContactsDialog> {
@@ -44,7 +47,8 @@ class _MultiSelectContactsDialogState extends State<MultiSelectContactsDialog> {
               alignment: Alignment.center,
               decoration: BoxDecoration(
                 color: Theme.of(context).cardColor,
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+                borderRadius:
+                    const BorderRadius.vertical(top: Radius.circular(20)),
               ),
               child: Column(
                 children: [
@@ -187,14 +191,12 @@ class _ReferralScreenState extends State<ReferralScreen> {
     }
   }
 
-  Future<void> _copyReferralLink() async {
-    if (_referralLink != null) {
-      await Clipboard.setData(ClipboardData(text: _referralLink!));
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Referral link copied to clipboard')),
-        );
-      }
+  Future<void> _copyReferralLink(String link) async {
+    await Clipboard.setData(ClipboardData(text: link));
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Referral link copied to clipboard')),
+      );
     }
   }
 
@@ -248,7 +250,8 @@ class _ReferralScreenState extends State<ReferralScreen> {
     try {
       if (_referralCode == null) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Please generate a referral code first')),
+          const SnackBar(
+              content: Text('Please generate a referral code first')),
         );
         return;
       }
@@ -271,12 +274,14 @@ class _ReferralScreenState extends State<ReferralScreen> {
         // Get phone numbers from selected contacts
         final phoneNumbers = selectedContacts
             .where((contact) => contact.phones.isNotEmpty)
-            .map((contact) => contact.phones.first.number.replaceAll(RegExp(r'[^0-9+]'), ''))
+            .map((contact) =>
+                contact.phones.first.number.replaceAll(RegExp(r'[^0-9+]'), ''))
             .toList();
 
         // Send SMS
         final response = await http.post(
-          Uri.parse('https://inzoneapi-912424781531.us-central1.run.app/}user/send-referral-sms'),
+          Uri.parse(
+              'https://inzoneapi-912424781531.us-central1.run.app/}user/send-referral-sms'),
           headers: {
             'Content-Type': 'application/json',
           },
@@ -427,6 +432,11 @@ class _ReferralScreenState extends State<ReferralScreen> {
   }
 
   Widget _buildReferralLinkSection(ThemeData theme) {
+    String? userUid = FirebaseAuth.instance.currentUser?.uid;
+    String referralLink = userUid != null
+        ? AppsFlyerService().generateReferralLink(userUid)
+        : "Login to generate your referral link";
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10),
       decoration: BoxDecoration(
@@ -438,7 +448,7 @@ class _ReferralScreenState extends State<ReferralScreen> {
         children: [
           Expanded(
             child: Text(
-              _referralLink ?? "Loading...",
+              referralLink,
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: theme.textTheme.bodySmall?.color,
               ),
@@ -447,7 +457,7 @@ class _ReferralScreenState extends State<ReferralScreen> {
             ),
           ),
           IconButton(
-            onPressed: _copyReferralLink,
+            onPressed: () => _copyReferralLink(referralLink),
             icon: const Icon(Icons.copy),
             color: theme.colorScheme.primary,
           ),

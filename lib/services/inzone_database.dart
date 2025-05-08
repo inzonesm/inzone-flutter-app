@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:http/http.dart' as http;
 import 'package:inzone/data/inzone_post.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:inzone/services/appsflyer_service.dart';
 
 import '../main.dart';
 
@@ -94,8 +95,8 @@ class InZoneDatabase {
     }
   }
 
-  static Future<String?> sendMessageToAI(
-      String userMessage, String aiUsername, String? chatID, List<Set> chatHistory) async {
+  static Future<String?> sendMessageToAI(String userMessage, String aiUsername,
+      String? chatID, List<Set> chatHistory) async {
     String url;
     if (aiUsername.contains('.')) {
       url = 'https://ai-apis-912424781531.us-east1.run.app/chat/aiUser';
@@ -111,16 +112,16 @@ class InZoneDatabase {
         currentUserUID = value;
       }
     });
-    // Convert each Set to a List (or call toJson() if it’s a custom object)
+    // Convert each Set to a List (or call toJson() if it's a custom object)
     final chatHistoryJson = chatHistory.map((s) => s.toList()).toList();
     if (currentUserUID != null) {
       try {
         Map<String, dynamic> requestBody = {
           'message': userMessage,
           'ai_id': aiUsername,
-          'chat_history' : chatHistoryJson
+          'chat_history': chatHistoryJson
         };
-        print("Sending this: ${requestBody}");
+        print("Sending this: $requestBody");
 
         if (chatID != null) {
           requestBody['ConversationId'] = chatID;
@@ -839,7 +840,9 @@ class InZoneDatabase {
   static Future<bool?> logEvent(String eventName, Map? eventValues) async {
     bool? result;
     try {
-      result = await appsflyerSdk.logEvent(eventName, eventValues);
+      final appsFlyerService = AppsFlyerService();
+      result = await appsFlyerService.logEvent(
+          eventName, eventValues as Map<String, dynamic>?);
     } on Exception {}
     return null;
   }
