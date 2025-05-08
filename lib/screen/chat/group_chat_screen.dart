@@ -102,7 +102,8 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     if (!hasPaid) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-            content: Text('You need to join this group before sending messages')),
+            content:
+                Text('You need to join this group before sending messages')),
       );
       return;
     }
@@ -891,7 +892,12 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     final confirmed = await showDialog<bool>(
           context: context,
           builder: (context) => AlertDialog(
-            title: Text('Join ${widget.group.name}'),
+            title: Text(
+              'Join ${widget.group.name}',
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+            ),
             content: Text(
                 'Joining this group will cost $_joinGroupCost InCash. Do you want to continue?'),
             actions: [
@@ -944,7 +950,11 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
         );
       } else {
         // Show insufficient InCash popup if the error is about insufficient balance
-        if (response['error']?.toString().toLowerCase().contains('insufficient balance') == true) {
+        if (response['error']
+                ?.toString()
+                .toLowerCase()
+                .contains('insufficient balance') ==
+            true) {
           showDialog(
             context: context,
             builder: (context) => AlertDialog(
