@@ -4,25 +4,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart';
 import 'package:inzone/config/default_firebase_options.dart';
-import 'package:appsflyer_sdk/appsflyer_sdk.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:inzone/theme/theme_manager.dart';
 import 'package:provider/provider.dart';
 import 'package:inzone/router/app_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
-
-AppsFlyerOptions appsFlyerOptions = AppsFlyerOptions(
-  afDevKey: "GouQRMcXkXP2CMBgZfHdfB",
-  appId: "6478089068",
-  showDebug: false, // timeToWaitForATTUserAuthorization: 50, // for iOS 14.5
-  // appInviteOneLink: oneLinkID, // Optional field
-  // disableAdvertisingIdentifier: false, // Optional field
-  // disableCollectASA: false, //Optional field
-  // manualStart: true,
-); // Optional field
-
-AppsflyerSdk appsflyerSdk = AppsflyerSdk(appsFlyerOptions);
+import 'package:inzone/services/appsflyer_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -40,12 +28,11 @@ void main() async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
-  await appsflyerSdk.initSdk(
-      registerConversionDataCallback: true,
-      registerOnAppOpenAttributionCallback: true,
-      registerOnDeepLinkingCallback: true);
+  // Initialize AppsFlyerService
+  final appsFlyerService = AppsFlyerService();
+  await appsFlyerService.initialize();
 
-  String? advertisingId = await appsflyerSdk.getAppsFlyerUID();
+  String? advertisingId = await appsFlyerService.getAdvertisingId();
   print("The advertising ID is $advertisingId");
 
   SystemChrome.setPreferredOrientations([
