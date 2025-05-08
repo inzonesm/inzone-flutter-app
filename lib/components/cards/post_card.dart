@@ -272,8 +272,11 @@ class _PostCardState extends State<PostCard> {
                       (widget.post.videoContent.isNotEmpty ?? false)
                   ? Column(
                       children: [
-                        SizedBox(
-                          height: 300,
+                        Container(
+                          constraints: BoxConstraints(
+                            minHeight: 330,
+                            maxHeight: MediaQuery.of(context).size.height * 0.6,
+                          ),
                           child: PageView.builder(
                             controller: _mediaPageController,
                             itemCount: widget.post.imageContent.length +
@@ -289,7 +292,7 @@ class _PostCardState extends State<PostCard> {
                                   borderRadius: BorderRadius.circular(12),
                                   child: Image.network(
                                     imageUrl,
-                                    fit: BoxFit.cover,
+                                    fit: BoxFit.contain,
                                     loadingBuilder:
                                         (context, child, loadingProgress) {
                                       if (loadingProgress == null) return child;
