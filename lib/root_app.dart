@@ -8,6 +8,12 @@ import 'package:inzone/screen/common/home_screen.dart';
 import 'package:inzone/screen/explore/groups_explore_screen.dart';
 import 'package:inzone/screen/chat/all_chats_screen.dart';
 import 'package:inzone/screen/profile/user_profile_screen.dart';
+import 'package:iconify_flutter/iconify_flutter.dart';
+import 'package:iconify_flutter/icons/ri.dart';
+import 'package:iconify_flutter/icons/mdi.dart';
+import 'package:iconify_flutter/icons/heroicons_outline.dart';
+import 'package:iconify_flutter/icons/ph.dart';
+import 'package:iconify_flutter/icons/heroicons_solid.dart';
 
 class RootApp extends StatefulWidget {
   final Widget child;
@@ -121,6 +127,13 @@ class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
     return _bottomNavBarTitles[page];
   }
 
+  final List<String> _iconifyPaths = [
+    Ri.home_5_fill,
+    Mdi.account_group,
+    HeroiconsSolid.chat_bubble_oval_left_ellipsis,
+    Ph.user,
+  ];
+
   @override
   Widget build(BuildContext context) {
     const systemUiOverlayStyle = SystemUiOverlayStyle(
@@ -218,15 +231,25 @@ class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
                     key: const ValueKey('navBar'),
                     itemCount: _bottomNavBarTitles.length,
                     tabBuilder: (int index, bool isActive) {
-                      final String iconName =
-                          _bottomNavBarTitles[index].toLowerCase();
                       return Center(
-                        child: Image.asset(
-                          isActive
-                              ? 'icons/nav_bar_icons/${iconName}_selected.png'
-                              : 'icons/nav_bar_icons/${iconName}_unselected.png',
-                          width: 24,
-                          height: 24,
+                        child: SizedBox(
+                          width: 26,
+                          height: 26,
+                          child: FittedBox(
+                            fit: BoxFit.contain,
+                            child: ColorFiltered(
+                              colorFilter: ColorFilter.mode(
+                                isActive
+                                    ? Theme.of(context).colorScheme.primary
+                                    : Theme.of(context).unselectedWidgetColor,
+                                BlendMode.srcIn,
+                              ),
+                              child: Iconify(
+                                _iconifyPaths[index],
+                                size: 100, // 실제 크기는 FittedBox가 제어함
+                              ),
+                            ),
+                          ),
                         ),
                       );
                     },
