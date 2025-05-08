@@ -15,8 +15,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:inzone/theme/light_theme.dart'; // Import for ChatTheme extension
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
-import 'package:inzone/router/routes.dart'; // Import for Routes
-import 'package:inzone/screen/chat/all_chats_screen.dart'; // Import for allChatsScreenKey
 
 class GroupChatScreen extends StatefulWidget {
   final GroupData group;
@@ -56,6 +54,32 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     }
   }
 
+  // Method to check if user has paid for the group chat
+  Future<bool> _hasPaidForGroup() async {
+    try {
+      final currentUserId = FirebaseAuth.instance.currentUser?.uid;
+      if (currentUserId == null) return false;
+
+      // Check if user is in the conversations collection for this group
+      final docSnapshot = await FirebaseFirestore.instance
+          .collection('conversations')
+          .doc(_groupId)
+          .get();
+
+      if (docSnapshot.exists) {
+        final data = docSnapshot.data();
+        if (data != null && data['participants'] is List) {
+          final participants = data['participants'] as List;
+          return participants.contains(currentUserId);
+        }
+      }
+      return false;
+    } catch (e) {
+      print('Error checking if user has paid for group: $e');
+      return false;
+    }
+  }
+
   void _sendMessage() async {
     if (_msgController.text.trim().isEmpty) return;
 
@@ -69,6 +93,16 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
             content: Text('You need to be logged in to send messages')),
+      );
+      return;
+    }
+
+    // Check if user has paid for the group chat
+    final hasPaid = await _hasPaidForGroup();
+    if (!hasPaid) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('You need to join this group before sending messages')),
       );
       return;
     }
@@ -890,7 +924,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
           _groupId, _joinGroupCost);
 
       // Close loading dialog
-      context.pop();
+      Navigator.of(context).pop();
 
       if (response['success'] == true) {
         // Create or update the conversation document to include this user
@@ -905,43 +939,44 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
           'lastMessageTime': FieldValue.serverTimestamp(),
         }, SetOptions(merge: true));
 
-        // Update the current group data
-        setState(() {
-          widget.group.isMember = true;
-        });
-
-        // Refresh the screen by recreating it with GoRouter
-        try {
-          if (context.mounted) {
-            // Use GoRouter to navigate to the same screen with updated data
-            context.pop(); // Pop current screen
-            print("HAHAHAHHAHA");
-
-            // Navigate to the chats tab (third tab in bottom navigation)
-            context.go(Routes.chats);
-
-            // Use a small delay to ensure the screen is loaded before accessing the tab controller
-            Future.delayed(const Duration(milliseconds: 100), () {
-              // Set the active tab to Group Chats (index 1)
-              if (allChatsScreenKey.currentState != null) {
-                allChatsScreenKey.currentState!.setActiveTab(1);
-              }
-            });
-          }
-        } catch (navError) {
-          print('GoRouter navigation error: $navError');
-          // The joining was successful even if navigation failed
-        }
-
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Successfully joined the group!')),
         );
       } else {
-        // Show error message
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-              content: Text(response['error'] ?? 'Failed to join the group')),
-        );
+        // Show insufficient InCash popup if the error is about insufficient balance
+        if (response['error']?.toString().toLowerCase().contains('insufficient balance') == true) {
+          showDialog(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: const Text("You don't have enough InCash"),
+              content: const Text(
+                "You need InCash to join this group chat. Get more InCash or refer a friend to earn some!",
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                    context.push('/subscription_purchase');
+                  },
+                  child: const Text("Get more"),
+                ),
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                    context.push('/referral');
+                  },
+                  child: const Text("Refer a friend"),
+                ),
+              ],
+            ),
+          );
+        } else {
+          // Show generic error message for other errors
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+                content: Text(response['error'] ?? 'Failed to join the group')),
+          );
+        }
       }
     } catch (e) {
       // Close loading dialog if still showing
