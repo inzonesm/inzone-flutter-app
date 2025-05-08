@@ -27,12 +27,7 @@ class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
   final FocusNode _rootFocusNode = FocusNode();
 
   // List of screens for the IndexedStack
-  final List<Widget> _screens = [
-    const HomeScreen(),
-    const GroupsExploreScreen(),
-    AllChatsScreen(key: allChatsScreenKey),
-    const UserProfileScreen(),
-  ];
+  late final List<Widget> _screens;
 
   final List<String> _bottomNavBarTitles = [
     'Home',
@@ -51,6 +46,14 @@ class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
   @override
   void initState() {
     super.initState();
+
+    // Initialize screens with the controller
+    _screens = [
+      HomeScreen(controller: _homeScrollController),
+      const GroupsExploreScreen(),
+      AllChatsScreen(key: allChatsScreenKey),
+      const UserProfileScreen(),
+    ];
   }
 
   @override
@@ -61,11 +64,19 @@ class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
   }
 
   void _onItemTapped(int index) {
+    HapticFeedback.lightImpact();
+
     if (_currentPage == index) {
       // If same tab is tapped again, do any special handling here
       if (index == 0) {
-        // For home tab, could implement scroll to top functionality
-        // or other refresh logic
+        // For home tab, check if controller is attached before scrolling to top
+        if (_homeScrollController.hasClients) {
+          _homeScrollController.animateTo(
+            0,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeInOut,
+          );
+        }
       }
     }
 

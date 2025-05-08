@@ -465,34 +465,43 @@ class AuthWork {
           '912424781531-vru85aelna5oro0lrnkl11jd49oc74ss.apps.googleusercontent.com',
     );
 
-    final GoogleSignInAccount? gUser = await googleSignIn.signIn();
+    try {
+      final GoogleSignInAccount? gUser = await googleSignIn.signIn();
 
-    if (gUser == null) {
-      return;
-    }
-
-    final GoogleSignInAuthentication gAuth = await gUser.authentication;
-
-    final credential = GoogleAuthProvider.credential(
-      accessToken: gAuth.accessToken,
-      idToken: gAuth.idToken,
-    );
-
-    await auth.signInWithCredential(credential);
-
-    final currentUser = auth.currentUser;
-    if (currentUser != null) {
-      final userDoc =
-          await firestore.collection('humanUsers').doc(currentUser.uid).get();
-      if (!userDoc.exists) {
-        await firestore.collection('humanUsers').doc(currentUser.uid).set({
-          'uid': currentUser.uid,
-          'email': currentUser.email,
-          'username': currentUser.email,
-          'createdAt': FieldValue.serverTimestamp(),
-          'interests': [],
-        });
+      if (gUser == null) {
+        // User cancelled sign-in
+        print("❌ Google Sign-In cancelled by user");
+        return null;
       }
+
+      final GoogleSignInAuthentication gAuth = await gUser.authentication;
+
+      final credential = GoogleAuthProvider.credential(
+        accessToken: gAuth.accessToken,
+        idToken: gAuth.idToken,
+      );
+
+      final userCredential = await auth.signInWithCredential(credential);
+
+      final currentUser = auth.currentUser;
+      if (currentUser != null) {
+        final userDoc =
+            await firestore.collection('humanUsers').doc(currentUser.uid).get();
+        if (!userDoc.exists) {
+          await firestore.collection('humanUsers').doc(currentUser.uid).set({
+            'uid': currentUser.uid,
+            'email': currentUser.email,
+            'username': currentUser.email,
+            'createdAt': FieldValue.serverTimestamp(),
+            'interests': [],
+          });
+        }
+      }
+
+      return userCredential;
+    } catch (e) {
+      print("❌ Google Sign-In failed: $e");
+      return null;
     }
   }
 
