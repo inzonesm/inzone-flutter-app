@@ -143,7 +143,7 @@ class _InterestSelectionScreenState extends State<InterestSelectionScreen> {
     } catch (e) {
       // 로딩 다이얼로그 닫기
       if (mounted) {
-        Navigator.of(context).pop();
+        context.pop();
       }
 
       print("InterestScreen - Error completing signup: $e");
