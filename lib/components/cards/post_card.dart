@@ -46,7 +46,7 @@ class _PostCardState extends State<PostCard> {
   String profileImageUrl = '';
   CommentClass? comment;
   final PageController _mediaPageController = PageController(
-    viewportFraction: 0.9,
+    viewportFraction: 1,
   );
 
   bool isLiked = false;
@@ -273,83 +273,12 @@ class _PostCardState extends State<PostCard> {
                       height: 30,
                     )
                   : const SizedBox(height: 10),
-              (widget.post.imageContent.isNotEmpty) ||
-                      (widget.post.videoContent.isNotEmpty ?? false)
-                  ? SizedBox(
-                      width: MediaQuery.of(context).size.width - 30,
-                      child: SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        child: Row(
-                          children: [
-                            // Display all images first
-                            if (widget.post.imageContent.isNotEmpty)
-                              ...widget.post.imageContent.map((imageUrl) {
-                                return imageUrl.isNotEmpty
-                                    ? Padding(
-                                        padding:
-                                            const EdgeInsets.only(right: 5.0),
-                                        child: ClipRRect(
-                                          borderRadius:
-                                              BorderRadius.circular(8.0),
-                                          child: Image.network(
-                                            imageUrl,
-                                            fit: BoxFit.fitWidth,
-                                            loadingBuilder: (context, child,
-                                                loadingProgress) {
-                                              if (loadingProgress == null) {
-                                                return child; // The image has loaded
-                                              } else {
-                                                return Container(
-                                                  width: MediaQuery.of(context)
-                                                          .size
-                                                          .width -
-                                                      60,
-                                                  height:
-                                                      200, // Adjust to the approximate expected height
-                                                  color: Colors.grey[
-                                                      300], // Placeholder color
-                                                  child: const Center(
-                                                    child:
-                                                        CircularProgressIndicator(),
-                                                  ),
-                                                );
-                                              }
-                                            },
-                                            width: MediaQuery.of(context)
-                                                    .size
-                                                    .width -
-                                                60,
-                                            errorBuilder:
-                                                (context, object, st) {
-                                              return const SizedBox();
-                                            },
-                                          ),
-                                        ),
-                                      )
-                                    : const SizedBox();
-                              }),
-
-                            // Display all videos after images
-                            if (widget.post.videoContent.isNotEmpty &&
-                                widget.post.videoContent.first.length > 3)
-                              ...widget.post.videoContent.map((videoUrl) {
-                                return Padding(
-                                  padding: const EdgeInsets.only(right: 5.0),
-                                  child: SizedBox(
-                                    width:
-                                        MediaQuery.of(context).size.width - 60,
-                                    child: ClipRRect(
-                                      borderRadius: BorderRadius.circular(8.0),
-                                      child: VideoWidget(
-                                          key: ValueKey(videoUrl),
-                                          videoUrl: videoUrl),
-                                    ),
-                                  ),
-                                );
-                              }),
-                          ],
-                        ),
-                      ),
+              (widget.post.imageContent.isNotEmpty ||
+                      widget.post.videoContent.isNotEmpty)
+                  ? _DynamicPageView(
+                      images: widget.post.imageContent,
+                      videos: widget.post.videoContent,
+                      controller: _mediaPageController,
                     )
                   : const SizedBox(),
               const SizedBox(
@@ -1101,6 +1030,144 @@ class _PostCardState extends State<PostCard> {
             ),
           );
         },
+      ),
+    );
+  }
+}
+
+class _DynamicPageView extends StatefulWidget {
+  final List<String> images;
+  final List<String> videos;
+  final PageController controller;
+
+  const _DynamicPageView({
+    super.key,
+    required this.images,
+    required this.videos,
+    required this.controller,
+  });
+
+  @override
+  State<_DynamicPageView> createState() => _DynamicPageViewState();
+}
+
+class _DynamicPageViewState extends State<_DynamicPageView> {
+  double _currentHeight = 200;
+  final Map<int, double> _heights = {};
+  final Set<String> _loadedItems = {};
+  int _currentIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.controller.addListener(() {
+      int newIndex = widget.controller.page?.round() ?? 0;
+      if (newIndex != _currentIndex) {
+        _currentIndex = newIndex;
+        double newHeight = _heights[_currentIndex] ?? 200;
+        setState(() {
+          _currentHeight = newHeight;
+        });
+      }
+    });
+  }
+
+  void _updateHeightOnce(String key, int index, double newHeight) {
+    final id = '$key-$index';
+    if (_loadedItems.contains(id)) return;
+    _loadedItems.add(id);
+    _heights[index] = newHeight;
+
+    if (_currentIndex == index && mounted) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        setState(() {
+          _currentHeight = newHeight;
+        });
+      });
+    }
+  }
+
+  bool _isValidUrl(String url) {
+    return url.isNotEmpty &&
+        (url.startsWith('http://') || url.startsWith('https://'));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final totalItems = widget.images.length + widget.videos.length;
+
+    return Center(
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.fastEaseInToSlowEaseOut,
+        height: _currentHeight,
+        decoration: BoxDecoration(
+          color: Theme.of(context).cardColor,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        clipBehavior: Clip.hardEdge,
+        child: PageView.builder(
+          controller: widget.controller,
+          itemCount: totalItems,
+          itemBuilder: (context, index) {
+            if (index < widget.images.length) {
+              final imageUrl = widget.images[index];
+              if (!_isValidUrl(imageUrl)) return const SizedBox();
+
+              return LayoutBuilder(
+                builder: (context, constraints) {
+                  return ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: Image.network(
+                      imageUrl,
+                      fit: BoxFit.contain,
+                      loadingBuilder: (context, child, loadingProgress) {
+                        if (loadingProgress == null) {
+                          final image = NetworkImage(imageUrl);
+                          image.resolve(const ImageConfiguration()).addListener(
+                            ImageStreamListener((imageInfo, _) {
+                              double calculatedHeight = imageInfo.image.height *
+                                  (constraints.maxWidth /
+                                      imageInfo.image.width);
+                              WidgetsBinding.instance.addPostFrameCallback((_) {
+                                _updateHeightOnce(
+                                    imageUrl, index, calculatedHeight);
+                              });
+                            }),
+                          );
+                          return child;
+                        } else {
+                          return Center(child: ImageLoading(context));
+                        }
+                      },
+                      errorBuilder: (context, error, stackTrace) =>
+                          const SizedBox(),
+                    ),
+                  );
+                },
+              );
+            } else {
+              final videoIndex = index - widget.images.length;
+              final videoUrl = widget.videos[videoIndex];
+              if (!_isValidUrl(videoUrl)) return const SizedBox();
+
+              return LayoutBuilder(
+                builder: (context, constraints) {
+                  final videoHeight = constraints.maxWidth * 9 / 16;
+
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    _updateHeightOnce(videoUrl, index, videoHeight);
+                  });
+                  return ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: VideoWidget(videoUrl: videoUrl),
+                  );
+                },
+              );
+            }
+          },
+        ),
       ),
     );
   }

@@ -70,7 +70,7 @@ class _IntroductionScreenState extends State<IntroductionScreen> {
   }
 
   void _dismissLoadingDialog() {
-    if (mounted) Navigator.of(context).pop();
+    if (mounted) context.pop();
   }
 
   Future<void> _handleAppleLogin() async {

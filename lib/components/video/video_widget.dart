@@ -8,7 +8,13 @@ import 'package:visibility_detector/visibility_detector.dart';
 import 'package:youtube_player_flutter/youtube_player_flutter.dart';
 //import 'package:ffmpeg_kit_flutter_full/ffprobe_kit.dart';
 
+// This variable tracks if a YouTube fullscreen player is currently active
+// to prevent multiple instances from being created simultaneously
 bool _isYoutubeFullscreenActive = false;
+
+// This keeps track of which YouTube players are currently initialized
+// to prevent recreation of views with the same ID
+final Map<String, bool> _activeYoutubeViews = {};
 
 class VideoWidget extends StatefulWidget {
   final String videoUrl;
@@ -32,6 +38,7 @@ class _VideoWidgetState extends State<VideoWidget> {
   bool _isYoutubeVideo = false;
   Timer? _hideControlsTimer;
   String? _youtubeVideoId;
+  final String _uniqueViewId = UniqueKey().toString();
 
   @override
   void initState() {
@@ -66,6 +73,17 @@ class _VideoWidgetState extends State<VideoWidget> {
     _youtubeVideoId = _getYoutubeVideoId(url);
 
     if (_youtubeVideoId != null) {
+      // Check if this view is already active
+      if (_activeYoutubeViews[_youtubeVideoId] == true) {
+        // Wait a bit and try again to avoid view ID collision
+        Future.delayed(const Duration(milliseconds: 500), () {
+          if (mounted) {
+            _initializeYoutubePlayer(url);
+          }
+        });
+        return;
+      }
+
       _youtubePlayerController = YoutubePlayerController(
         initialVideoId: _youtubeVideoId!,
         flags: const YoutubePlayerFlags(
@@ -76,6 +94,9 @@ class _VideoWidgetState extends State<VideoWidget> {
           forceHD: true,
         ),
       );
+
+      // Mark this YouTube view as active
+      _activeYoutubeViews[_youtubeVideoId!] = true;
 
       setState(() {
         _isYoutubeVideo = true;
@@ -237,8 +258,14 @@ class _VideoWidgetState extends State<VideoWidget> {
       // Set the global flag to prevent multiple instances
       _isYoutubeFullscreenActive = true;
 
+      // Pause the current player to avoid having multiple active players
+      if (_youtubePlayerController != null) {
+        _youtubePlayerController!.pause();
+      }
+
       // Store the current position before navigating
-      final Duration currentPosition = _youtubePlayerController!.value.position;
+      final Duration currentPosition =
+          _youtubePlayerController?.value.position ?? Duration.zero;
 
       Navigator.of(context)
           .push(
@@ -252,6 +279,16 @@ class _VideoWidgetState extends State<VideoWidget> {
           .then((_) {
         // Reset the flag when returning from fullscreen
         _isYoutubeFullscreenActive = false;
+
+        // Resume normal playback if the widget is still mounted
+        if (mounted && _youtubePlayerController != null) {
+          // Wait a short delay to ensure the fullscreen player is fully disposed
+          Future.delayed(const Duration(milliseconds: 300), () {
+            if (mounted && _youtubePlayerController != null) {
+              _youtubePlayerController!.play();
+            }
+          });
+        }
       });
     }
   }
@@ -445,9 +482,11 @@ class _VideoWidgetState extends State<VideoWidget> {
     _hideControlsTimer?.cancel();
 
     // Dispose of the YouTube player controller
-    if (_youtubePlayerController != null) {
+    if (_youtubePlayerController != null && _youtubeVideoId != null) {
       _youtubePlayerController!.pause();
       _youtubePlayerController!.dispose();
+      // Remove this view from active views
+      _activeYoutubeViews.remove(_youtubeVideoId);
       _youtubePlayerController = null;
     }
 
@@ -487,6 +526,7 @@ class FullscreenYoutubePlayer extends StatefulWidget {
 class _FullscreenYoutubePlayerState extends State<FullscreenYoutubePlayer>
     with WidgetsBindingObserver {
   late YoutubePlayerController _controller;
+  bool _isControllerInitialized = false;
 
   @override
   void initState() {
@@ -506,16 +546,27 @@ class _FullscreenYoutubePlayerState extends State<FullscreenYoutubePlayer>
       SystemUiMode.immersiveSticky,
     );
 
-    _controller = YoutubePlayerController(
-      initialVideoId: widget.videoId,
-      flags: YoutubePlayerFlags(
-        autoPlay: true,
-        mute: false,
-        hideControls: false,
-        enableCaption: true,
-        startAt: widget.startAt.inSeconds,
-      ),
-    );
+    // Wait a short delay before initializing the controller to avoid view ID conflicts
+    Future.delayed(const Duration(milliseconds: 300), () {
+      if (mounted) {
+        _controller = YoutubePlayerController(
+          initialVideoId: widget.videoId,
+          flags: YoutubePlayerFlags(
+            autoPlay: true,
+            mute: false,
+            hideControls: false,
+            enableCaption: true,
+            startAt: widget.startAt.inSeconds,
+          ),
+        );
+
+        if (mounted) {
+          setState(() {
+            _isControllerInitialized = true;
+          });
+        }
+      }
+    });
   }
 
   @override
@@ -526,10 +577,20 @@ class _FullscreenYoutubePlayerState extends State<FullscreenYoutubePlayer>
         DeviceOrientation.portraitUp,
         DeviceOrientation.portraitDown,
       ]);
+    } else if (state == AppLifecycleState.paused) {
+      // Pause video when app goes to background
+      if (_isControllerInitialized) {
+        _controller.pause();
+      }
     }
   }
 
   void _exitFullscreen() async {
+    // Pause the player
+    if (_isControllerInitialized) {
+      _controller.pause();
+    }
+
     // Reset orientation and show system UI before popping
     await SystemChrome.setPreferredOrientations(DeviceOrientation.values);
     await SystemChrome.setEnabledSystemUIMode(
@@ -557,26 +618,30 @@ class _FullscreenYoutubePlayerState extends State<FullscreenYoutubePlayer>
             children: [
               // Center the YouTube player to achieve a reels-like experience
               Center(
-                child: SizedBox(
-                  // Use screen width for a full portrait view like reels
-                  width: MediaQuery.of(context).size.width,
-                  // Match the YouTube video player height with aspect ratio
-                  height: MediaQuery.of(context).size.width * (16 / 9),
-                  child: YoutubePlayer(
-                    controller: _controller,
-                    showVideoProgressIndicator: true,
-                    progressIndicatorColor: Colors.red,
-                    progressColors: const ProgressBarColors(
-                      playedColor: Colors.red,
-                      handleColor: Colors.redAccent,
-                    ),
-                    onEnded: (metaData) {
-                      if (mounted) {
-                        _controller.pause();
-                      }
-                    },
-                  ),
-                ),
+                child: _isControllerInitialized
+                    ? SizedBox(
+                        // Use screen width for a full portrait view like reels
+                        width: MediaQuery.of(context).size.width,
+                        // Match the YouTube video player height with aspect ratio
+                        height: MediaQuery.of(context).size.width * (16 / 9),
+                        child: YoutubePlayer(
+                          controller: _controller,
+                          showVideoProgressIndicator: true,
+                          progressIndicatorColor: Colors.red,
+                          progressColors: const ProgressBarColors(
+                            playedColor: Colors.red,
+                            handleColor: Colors.redAccent,
+                          ),
+                          onEnded: (metaData) {
+                            if (mounted) {
+                              _controller.pause();
+                            }
+                          },
+                        ),
+                      )
+                    : const Center(
+                        child: CircularProgressIndicator(),
+                      ),
               ),
               Positioned(
                 top: 16,
@@ -613,12 +678,17 @@ class _FullscreenYoutubePlayerState extends State<FullscreenYoutubePlayer>
     // Remove observer
     WidgetsBinding.instance.removeObserver(this);
 
+    // Dispose controller if initialized
+    if (_isControllerInitialized) {
+      _controller.dispose();
+    }
+
     // Restore orientation and system UI when leaving
     SystemChrome.setPreferredOrientations(DeviceOrientation.values);
     SystemChrome.setEnabledSystemUIMode(
       SystemUiMode.edgeToEdge,
     );
-    _controller.dispose();
+
     super.dispose();
   }
 }

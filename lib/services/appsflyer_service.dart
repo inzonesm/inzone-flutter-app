@@ -45,25 +45,31 @@ class AppsFlyerService {
   }
 
   void setupDeepLinkListeners() {
-    // Listen for deep link attribution (when app is opened via deep link)
-    appsflyerSdk.onAppOpenAttribution((Map<String, dynamic> data) {
-      _attributionData = data;
+    appsflyerSdk.onAppOpenAttribution((dynamic data) {
+      try {
+        final Map<String, dynamic> mapData = Map<String, dynamic>.from(data);
+        _attributionData = mapData;
 
-      // Handle referral data
-      final referrerId = data['deep_link_sub1'];
-      if (referrerId != null) {
-        _handleReferral(referrerId, data);
+        final referrerId = mapData['deep_link_sub1'];
+        if (referrerId != null) {
+          _handleReferral(referrerId, mapData);
+        }
+      } catch (e) {
+        log('Error parsing onAppOpenAttribution data: $e');
       }
     });
 
-    // Listen for first install attribution
-    appsflyerSdk.onInstallConversionData((Map<String, dynamic> data) {
-      _conversionData = data;
+    appsflyerSdk.onInstallConversionData((dynamic data) {
+      try {
+        final Map<String, dynamic> mapData = Map<String, dynamic>.from(data);
+        _conversionData = mapData;
 
-      // Check if this is coming from a referral
-      final referrerId = data['deep_link_sub1'];
-      if (referrerId != null) {
-        _handleReferral(referrerId, data);
+        final referrerId = mapData['deep_link_sub1'];
+        if (referrerId != null) {
+          _handleReferral(referrerId, mapData);
+        }
+      } catch (e) {
+        log('Error parsing onInstallConversionData data: $e');
       }
     });
 

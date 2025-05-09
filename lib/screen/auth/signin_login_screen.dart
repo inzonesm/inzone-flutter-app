@@ -30,7 +30,6 @@ class _SignInLoginScreenState extends State<SignInLoginScreen> {
 
   bool _isLoading = false;
   String? _errorMessage;
-  final bool _isSignUp = false; // Default to login mode
 
   // Regular expressions for validation
   final RegExp _upperCase = RegExp(r'(?=.*[A-Z])');
@@ -54,6 +53,7 @@ class _SignInLoginScreenState extends State<SignInLoginScreen> {
         FocusScope.of(context).requestFocus(_emailFocusNode);
       });
     });
+    _checkLoginStatus();
   }
 
   @override
@@ -126,48 +126,99 @@ class _SignInLoginScreenState extends State<SignInLoginScreen> {
     }
 
     try {
-      if (_isSignUp) {
-        // Register new user
-        await FirebaseAuth.instance.createUserWithEmailAndPassword(
-          email: _emailController.text.trim(),
-          password: _passwordController.text,
-        );
+      final result = await AuthWork.loginOrSignUpWithEmail(
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
+      );
 
+      // result가 null이면 로그인 성공, 'signed-up'이면 회원가입 성공, 그 외는 에러
+      if (result == null) {
+        // 로그인 성공
+        if (mounted) {
+          // 홈 화면으로 이동
+          context.go(Routes.home);
+        }
+      } else if (result == 'signed-up') {
+        // 회원가입 성공
         final user = FirebaseAuth.instance.currentUser;
         final docRef =
             FirebaseFirestore.instance.collection('humanUsers').doc(user?.uid);
         await docRef.set({
           'email': _emailController.text.trim(),
-          'createdAt':
-              null, // Set to null initially, will be set after completing profile
+          'createdAt': null, // 프로필 설정 후 업데이트될 값
         });
 
         if (mounted) {
-          // Navigate to profile setup screen
+          // 프로필 설정 화면으로 이동
           context.push(Routes.profileWithEmail(_emailController.text.trim()));
         }
       } else {
-        // Login existing user
-        await FirebaseAuth.instance.signInWithEmailAndPassword(
-          email: _emailController.text.trim(),
-          password: _passwordController.text,
-        );
-
-        if (mounted) {
-          // Navigate to home screen
-          context.go(Routes.home);
-        }
+        // 에러 발생
+        setState(() {
+          _isLoading = false;
+          _errorMessage = _getUserFriendlyErrorMessage(
+            FirebaseAuthException(code: result),
+          );
+        });
       }
-    } on FirebaseAuthException catch (e) {
-      setState(() {
-        _isLoading = false;
-        _errorMessage = _getUserFriendlyErrorMessage(e);
-      });
     } catch (e) {
       setState(() {
         _isLoading = false;
         _errorMessage = "An unexpected error occurred. Please try again.";
       });
+    }
+  }
+
+  Future<void> _checkLoginStatus() async {
+    _showLoadingDialog();
+    final user = FirebaseAuth.instance.currentUser;
+
+    if (user == null) {
+      _dismissLoadingDialog();
+      return;
+    }
+
+    final docRef =
+        FirebaseFirestore.instance.collection('humanUsers').doc(user.uid);
+    var doc = await docRef.get();
+
+    if (!doc.exists) {
+      await docRef.set({
+        'email': user.email ?? '',
+        'createdAt': null, // 아직 프로필 설정 안 했으면 createdAt 비워둬야 구분 가능
+      });
+      doc = await docRef.get();
+    }
+
+    bool isProfileCompleted = doc.data()?['createdAt'] != null;
+
+    _dismissLoadingDialog();
+    if (isProfileCompleted) {
+      context.go(Routes.home);
+    } else {
+      context.go(Routes.profileWithEmail(user.email ?? ""));
+    }
+  }
+
+  void _showLoadingDialog() {
+    setState(() {
+      _isLoading = true;
+    });
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return const LoadingScreen();
+      },
+    );
+  }
+
+  void _dismissLoadingDialog() {
+    setState(() {
+      _isLoading = false;
+    });
+    if (mounted && Navigator.of(context).canPop()) {
+      Navigator.of(context).pop();
     }
   }
 
@@ -328,7 +379,7 @@ class _SignInLoginScreenState extends State<SignInLoginScreen> {
               ),
             ),
             Text(
-              "Sign in or Sign up",
+              "Sign In or Sign Up",
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.titleLarge,
             ),
