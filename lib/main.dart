@@ -11,7 +11,35 @@ import 'package:inzone/router/app_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
 import 'package:inzone/services/appsflyer_service.dart';
+import 'package:purchases_flutter/models/purchases_configuration.dart' show PurchasesConfiguration;
+import 'dart:io' show Platform;
 
+import 'package:purchases_flutter/purchases_flutter.dart' show LogLevel, Purchases;
+
+
+
+Future<void> initPlatformState() async {
+  await Purchases.setLogLevel(LogLevel.debug);
+
+  PurchasesConfiguration configuration;
+  if (Platform.isAndroid) {
+    if (FirebaseAuth.instance.currentUser!=null) {
+      await Purchases.configure(
+          PurchasesConfiguration('appl_veaMcyjzStDagTGHzLYMJiDVkWO')
+            ..appUserID = FirebaseAuth.instance.currentUser!.uid
+      );
+    }
+  } else if (Platform.isIOS) {
+    if (FirebaseAuth.instance.currentUser!=null){
+      await Purchases.configure(
+          PurchasesConfiguration('appl_veaMcyjzStDagTGHzLYMJiDVkWO')
+            ..appUserID = FirebaseAuth.instance.currentUser!.uid
+      );
+    }
+
+  }
+
+}
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   MediaKit.ensureInitialized();

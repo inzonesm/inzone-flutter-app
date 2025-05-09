@@ -41,7 +41,18 @@ class AppsFlyerService {
     User? currentUser = FirebaseAuth.instance.currentUser;
     if (currentUser != null) {
       setCustomerUserId(currentUser.uid);
+      // Check if there's a pending referral for this user and save it
+      await checkAndSavePendingReferral();
     }
+
+    // Add auth state listener to detect sign-in
+    FirebaseAuth.instance.authStateChanges().listen((User? user) {
+      if (user != null) {
+        // User signed in, set customer ID and check pending referrals
+        setCustomerUserId(user.uid);
+        checkAndSavePendingReferral();
+      }
+    });
   }
 
   void setupDeepLinkListeners() {
@@ -96,33 +107,76 @@ class AppsFlyerService {
 
   void _handleReferral(
       String referrerId, Map<String, dynamic>? attributionData) async {
-    // Store the referrerId using SharedPreferences
+    // Store the referrerId and attribution data using SharedPreferences
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('referrer_id', referrerId);
-
-    // Save referral data to Firestore
-    _saveReferralToFirestore(referrerId, attributionData);
+    
+    // Store attribution data as a string
+    if (attributionData != null) {
+      await prefs.setString('attribution_data', attributionData.toString());
+    }
+    
+    // If user is already logged in, save the referral data to Firestore
+    User? currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser != null) {
+      await _saveReferralToFirestore(referrerId, attributionData, currentUser);
+    } else {
+      log('User not signed in yet. Referral data saved locally and will be sent after login.');
+    }
 
     // Log referral event
     logEvent('referral_received', {'referrer_id': referrerId});
   }
 
-  Future<void> _saveReferralToFirestore(
-      String referrerId, Map<String, dynamic>? attributionData) async {
+  Future<void> checkAndSavePendingReferral() async {
     try {
-      // Get current user info if available
-      User? currentUser = FirebaseAuth.instance.currentUser;
-      String? installerId = currentUser?.uid;
-      String? installerEmail = currentUser?.email;
+      final prefs = await SharedPreferences.getInstance();
+      final referrerId = prefs.getString('referrer_id');
+      
+      if (referrerId != null) {
+        // We have a stored referral, get the current user
+        User? currentUser = FirebaseAuth.instance.currentUser;
+        if (currentUser != null) {
+          // Get stored attribution data if available
+          String? attributionDataString = prefs.getString('attribution_data');
+          Map<String, dynamic>? attributionData;
+          if (attributionDataString != null && attributionDataString.isNotEmpty) {
+            // Convert string representation back to map (simple approach)
+            // This is a simple implementation and may need improvement for complex objects
+            attributionData = {'stored_data': attributionDataString};
+          }
+          
+          // Save to Firestore with complete user details
+          await _saveReferralToFirestore(referrerId, attributionData, currentUser);
+          
+          // Optionally clear the stored referral after saving to avoid duplicates
+          // await prefs.remove('referrer_id');
+          // await prefs.remove('attribution_data');
+          log('Saved pending referral data for signed-in user');
+        }
+      }
+    } catch (e) {
+      log('Error checking for pending referrals: $e');
+    }
+  }
 
+  Future<void> _saveReferralToFirestore(
+      String referrerId, Map<String, dynamic>? attributionData, User user) async {
+    try {
       // Get AppsFlyer ID
       String? appsFlyerId = await getAdvertisingId();
 
-      // Create the document data
+      // Create the document data with complete user details
       Map<String, dynamic> referralData = {
         'referrerId': referrerId,
-        'installerId': installerId ?? 'anonymous',
-        'installerEmail': installerEmail,
+        'installerId': user.uid,
+        'installerEmail': user.email,
+        'installerDisplayName': user.displayName,
+        'installerPhoneNumber': user.phoneNumber,
+        'installerPhotoURL': user.photoURL,
+        'installerEmailVerified': user.emailVerified,
+        'installerCreationTime': user.metadata.creationTime?.millisecondsSinceEpoch,
+        'installerLastSignInTime': user.metadata.lastSignInTime?.millisecondsSinceEpoch,
         'appsFlyerId': appsFlyerId,
         'attributionData': attributionData ?? {},
         'installTimestamp': FieldValue.serverTimestamp(),
@@ -136,7 +190,7 @@ class AppsFlyerService {
       // Add a new document to the 'test' collection
       await firestore.collection('test').add(referralData);
 
-      log('Successfully saved referral data to Firestore');
+      log('Successfully saved referral data to Firestore with complete user details');
     } catch (e) {
       log('Error saving referral data to Firestore: $e');
     }
