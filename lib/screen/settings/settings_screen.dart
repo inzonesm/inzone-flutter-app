@@ -12,6 +12,7 @@ import 'package:inzone/screen/settings/referral_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:go_router/go_router.dart';
 import 'package:inzone/router/routes.dart';
+import 'package:purchases_flutter/purchases_flutter.dart' show LogLevel, Purchases;
 
 class SettingsScreen extends StatelessWidget {
   SettingsScreen({super.key});
@@ -216,6 +217,7 @@ class SettingsScreen extends StatelessWidget {
       },
       () {
         try {
+          Purchases.logOut();
           FirebaseAuth.instance.signOut().then((value) {
             GoRouter.of(context).go(Routes.login);
           });

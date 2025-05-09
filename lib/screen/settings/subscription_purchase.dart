@@ -13,7 +13,7 @@ import 'package:inzone/services/monetization_service.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
 import 'package:go_router/go_router.dart';
-
+import 'package:purchases_flutter/purchases_flutter.dart';
 class SubscriptionScreen extends StatefulWidget {
   const SubscriptionScreen({super.key});
 
