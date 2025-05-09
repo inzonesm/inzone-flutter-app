@@ -841,9 +841,19 @@ class InZoneDatabase {
     bool? result;
     try {
       final appsFlyerService = AppsFlyerService();
-      result = await appsFlyerService.logEvent(
-          eventName, eventValues as Map<String, dynamic>?);
-    } on Exception {}
+
+      final safeEventValues =
+          eventValues == null ? null : Map<String, dynamic>.from(eventValues);
+
+      result = await appsFlyerService.logEvent(eventName, safeEventValues);
+      return result;
+    } on Exception catch (e) {
+      // Handle any exceptions that occur during the logging process
+      print('Error logging event: $e');
+    } catch (e) {
+      // Handle any other exceptions
+      print('Unexpected error: $e');
+    }
     return null;
   }
 

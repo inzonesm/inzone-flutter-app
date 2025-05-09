@@ -86,11 +86,11 @@ class _ChatScreenState extends State<ChatScreen> {
     return Scaffold(
       backgroundColor: Theme.of(context).canvasColor,
       appBar: ChatAppBar(
-        title: widget.userData.name!,
-        avatarId: widget.userData.name!,
+        title: widget.userData.name ?? "  ",
+        avatarId: widget.userData.name ?? "  ",
         avatarUrl: widget.userData.profilePictureURL,
         onBack: () {
-          context.pop();
+          if (mounted) context.pop();
         },
       ),
       body: SafeArea(
