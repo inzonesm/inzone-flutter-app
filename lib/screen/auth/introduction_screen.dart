@@ -70,7 +70,9 @@ class _IntroductionScreenState extends State<IntroductionScreen> {
   }
 
   void _dismissLoadingDialog() {
-    if (mounted) context.pop();
+    if (mounted && GoRouter.of(context).canPop()) {
+      context.pop();
+    }
   }
 
   Future<void> _handleAppleLogin() async {

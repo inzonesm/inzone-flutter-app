@@ -562,7 +562,8 @@ class AuthWork {
     } on FirebaseAuthException catch (e) {
       print("❌ Login failed: ${e.code}");
 
-      if (e.code == 'user-not-found') {
+      // ✅ 여기 수정
+      if (e.code == 'user-not-found' || e.code == 'invalid-credential') {
         try {
           final credential = await auth.createUserWithEmailAndPassword(
             email: email,

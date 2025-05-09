@@ -48,12 +48,14 @@ class _SignInLoginScreenState extends State<SignInLoginScreen> {
   void initState() {
     super.initState();
     _passwordController.addListener(_validatePassword);
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       Future.delayed(const Duration(milliseconds: 300), () {
         FocusScope.of(context).requestFocus(_emailFocusNode);
       });
+
+      _checkLoginStatus();
     });
-    _checkLoginStatus();
   }
 
   @override
@@ -82,28 +84,57 @@ class _SignInLoginScreenState extends State<SignInLoginScreen> {
     );
   }
 
-  String _getUserFriendlyErrorMessage(FirebaseAuthException e) {
-    switch (e.code) {
+  String _getUserFriendlyErrorMessage(dynamic error) {
+    final code = error is FirebaseAuthException ? error.code : error.toString();
+
+    switch (code) {
       case 'invalid-email':
-        return 'The email address is not valid.';
+      case 'auth/invalid-email':
+        return 'The email address is invalid.';
       case 'user-disabled':
+      case 'auth/user-disabled':
         return 'This account has been disabled.';
       case 'user-not-found':
+      case 'auth/user-not-found':
         return 'No account found with this email.';
       case 'wrong-password':
-        return 'Incorrect password. Please try again.';
+      case 'auth/wrong-password':
+        return 'Incorrect password.';
+      case 'email-already-in-use':
+      case 'auth/email-already-in-use':
+        return 'This email is already associated with another account.';
+      case 'weak-password':
+      case 'auth/weak-password':
+        return 'Password must be at least 6 characters.';
       case 'too-many-requests':
+      case 'auth/too-many-requests':
         return 'Too many login attempts. Please try again later.';
       case 'network-request-failed':
-        return 'Network error. Please check your connection.';
+      case 'auth/network-request-failed':
+        return 'Network error. Please check your internet connection.';
       case 'invalid-credential':
-        return 'Invalid login credentials. Please check your email and password.';
-      case 'email-already-in-use':
-        return 'This email is already associated with an account.';
-      case 'weak-password':
-        return 'Password should be at least 6 characters long.';
+      case 'auth/invalid-credential':
+        return 'Invalid login credentials.';
+      case 'auth/id-token-expired':
+        return 'Your session has expired. Please sign in again.';
+      case 'auth/id-token-revoked':
+        return 'Your session has been revoked. Please log in again.';
+      case 'auth/operation-not-allowed':
+        return 'This operation is currently not allowed.';
+      case 'auth/internal-error':
+        return 'Internal error. Please try again later.';
+      case 'auth/unauthorized-continue-uri':
+        return 'Invalid redirect URL.';
+      case 'auth/phone-number-already-exists':
+        return 'This phone number is already associated with another account.';
+      case 'auth/uid-already-exists':
+        return 'This UID is already in use.';
+      case 'auth/claims-too-large':
+        return 'Too many claims. Contact support.';
+      case 'auth/invalid-password':
+        return 'Password must be a string with at least 6 characters.';
       default:
-        return e.message ?? 'Login failed. Please try again.';
+        return 'Login failed: $code';
     }
   }
 
@@ -156,9 +187,7 @@ class _SignInLoginScreenState extends State<SignInLoginScreen> {
         // 에러 발생
         setState(() {
           _isLoading = false;
-          _errorMessage = _getUserFriendlyErrorMessage(
-            FirebaseAuthException(code: result),
-          );
+          _errorMessage = _getUserFriendlyErrorMessage(result);
         });
       }
     } catch (e) {
@@ -204,6 +233,7 @@ class _SignInLoginScreenState extends State<SignInLoginScreen> {
     setState(() {
       _isLoading = true;
     });
+
     showDialog(
       context: context,
       barrierDismissible: false,
