@@ -88,7 +88,7 @@ class _VideoWidgetState extends State<VideoWidget> {
         initialVideoId: _youtubeVideoId!,
         flags: const YoutubePlayerFlags(
           autoPlay: true,
-          mute: false,
+          mute: true,
           enableCaption: true,
           hideControls: false,
           forceHD: true,
@@ -559,6 +559,13 @@ class _FullscreenYoutubePlayerState extends State<FullscreenYoutubePlayer>
             startAt: widget.startAt.inSeconds,
           ),
         );
+
+        // 컨트롤러 초기화 후 unmute
+        _controller.addListener(() {
+          if (_controller.value.hasPlayed && _controller.value.volume == 0) {
+            _controller.unMute();
+          }
+        });
 
         if (mounted) {
           setState(() {
