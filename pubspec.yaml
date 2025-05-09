@@ -60,7 +60,7 @@ dependencies:
   youtube_player_flutter: ^9.1.1
   animated_bottom_navigation_bar: ^1.4.0
   flutter_feather_icons: ^2.0.0
-
+  purchases_flutter: ^8.8.0
 
 
   path_provider: any
@@ -81,6 +81,7 @@ dependencies:
   cloud_functions: ^5.5.0
   iconify_flutter: ^0.0.7
   carousel_slider: ^5.0.0
+  purchases_ui_flutter: ^8.8.0
 dev_dependencies:
   flutter_test:
     sdk: flutter
