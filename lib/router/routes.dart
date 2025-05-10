@@ -16,6 +16,7 @@ class Routes {
   // Feature routes
   static const String post = '/post';
   static const String editProfile = '/edit-profile';
+  static const String editField = '/edit-field';
   static const String postChat = '/post-chat';
   static const String groupDetails = '/group/:id';
   static const String chatDetails = '/chat/:id';

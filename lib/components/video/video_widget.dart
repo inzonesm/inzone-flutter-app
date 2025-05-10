@@ -486,15 +486,15 @@ class _VideoWidgetState extends State<VideoWidget> {
       _youtubePlayerController!.pause();
       _youtubePlayerController!.dispose();
       // Remove this view from active views
-      _activeYoutubeViews.remove(_youtubeVideoId);
       _youtubePlayerController = null;
+      _activeYoutubeViews.remove(_youtubeVideoId);
     }
 
     // Dispose of the video player controllers
     if (_videoPlayerController != null) {
       _videoPlayerController!.pause();
-      _videoPlayerController!.dispose();
       _videoPlayerController = null;
+      _videoPlayerController!.dispose();
     }
 
     // Dispose of the media kit player

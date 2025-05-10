@@ -6,11 +6,15 @@ import 'package:flutter/material.dart';
 import 'package:inzone/components/ui/appbar.dart';
 import 'package:inzone/services/inzone_database.dart';
 import 'package:inzone/theme/app_colors.dart';
-import 'package:random_avatar/random_avatar.dart';
 import 'package:go_router/go_router.dart';
 import 'package:inzone/data/group_data.dart';
 import 'package:inzone/screen/chat/group_chat_screen.dart';
 import 'package:inzone/router/routes.dart';
+import 'package:flutter/cupertino.dart';
+// import 'package:inzone/components/ui/inzone_text_field.dart';
+// import 'package:inzone/components/ui/my_button.dart';
+// import 'package:inzone/models/chat_model.dart';
+// import 'package:inzone/models/user_model.dart';
 // import 'package:inzone/screen/chat/chat_screen.dart';
 // import 'package:inzone/screen/chat/human_chat_screen.dart';
 
@@ -19,7 +23,7 @@ final GlobalKey<_AllChatsScreenState> allChatsScreenKey =
     GlobalKey<_AllChatsScreenState>();
 
 class AllChatsScreen extends StatefulWidget {
-  const AllChatsScreen({Key? key}) : super(key: key);
+  const AllChatsScreen({super.key});
 
   @override
   State<AllChatsScreen> createState() => _AllChatsScreenState();
@@ -398,6 +402,38 @@ class ChatUserCard extends StatefulWidget {
 }
 
 class _ChatUserCardState extends State<ChatUserCard> {
+  String? _profileImageUrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadProfileImage();
+  }
+
+  Future<void> _loadProfileImage() async {
+    if (widget.userData.profilePictureURL == null ||
+        widget.userData.profilePictureURL!.isEmpty) {
+      try {
+        // Skip for group chats
+        if (widget.userData.isGroupChat) return;
+
+        final String userId = widget.userData.email ?? '';
+        if (userId.isEmpty) return;
+
+        final userData = await InZoneDatabase.getUserProfile(userId);
+        if (userData != null && mounted) {
+          setState(() {
+            _profileImageUrl = userData['profilePicture'] ?? "";
+          });
+        }
+      } catch (e) {
+        print('Error loading profile image: $e');
+      }
+    } else {
+      _profileImageUrl = widget.userData.profilePictureURL;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     String formattedTime = '';
@@ -534,21 +570,21 @@ class _ChatUserCardState extends State<ChatUserCard> {
             ),
             shape: BoxShape.circle,
           ),
-          child: widget.userData.profilePictureURL != null &&
-                  widget.userData.profilePictureURL!.isNotEmpty
-              ? ClipOval(
-                  child: Image.network(
-                    widget.userData.profilePictureURL!,
+          child: ClipOval(
+            child: _profileImageUrl != null && _profileImageUrl!.isNotEmpty
+                ? Image.network(
+                    _profileImageUrl!,
+                    width: 50,
+                    height: 50,
                     fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) {
-                      // Fallback to RandomAvatar if the image fails to load
-                      return RandomAvatar(widget.userData.name.toString(),
-                          height: 30, width: 30);
-                    },
-                  ),
-                )
-              : RandomAvatar(widget.userData.name.toString(),
-                  height: 30, width: 30),
+                    errorBuilder: (context, error, stackTrace) => const Icon(
+                        Icons.account_circle,
+                        size: 30,
+                        color: Colors.grey),
+                  )
+                : const Icon(Icons.account_circle,
+                    size: 30, color: Colors.grey),
+          ),
         ),
         title: Text(
           widget.userData.name ?? 'Unknown',

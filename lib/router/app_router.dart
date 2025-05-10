@@ -18,6 +18,7 @@ import 'package:inzone/screen/chat/all_chats_screen.dart';
 import 'package:inzone/screen/profile/user_profile_screen.dart';
 import 'package:inzone/screen/profile/profile_screen.dart';
 import 'package:inzone/screen/profile/edit_profile_screen.dart';
+import 'package:inzone/screen/profile/edit_field_screen.dart';
 import 'package:inzone/screen/post/post_screen.dart';
 import 'package:inzone/screen/chat/group_chat_screen.dart';
 import 'package:inzone/screen/chat/chat_screen.dart';
@@ -191,6 +192,19 @@ class AppRouter {
             initialName: extra['initialName'] as String,
             initialUsername: extra['initialUsername'] as String,
             initialBio: extra['initialBio'] as String,
+          );
+        },
+      ),
+      GoRoute(
+        path: Routes.editField,
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) {
+          final Map<String, dynamic> extra =
+              state.extra as Map<String, dynamic>;
+          return EditFieldScreen(
+            userId: extra['userId'] as String,
+            initialValue: extra['initialValue'] as String,
+            fieldType: extra['fieldType'] as FieldType,
           );
         },
       ),

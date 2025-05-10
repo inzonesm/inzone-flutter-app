@@ -13,7 +13,6 @@ import 'package:inzone/data/inzone_post.dart';
 import 'package:inzone/services/inzone_database.dart';
 import 'package:inzone/screen/profile/profile_screen.dart';
 import 'package:inzone/theme/app_colors.dart';
-import 'package:random_avatar/random_avatar.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:smooth_page_indicator/smooth_page_indicator.dart';
 import 'package:go_router/go_router.dart';
@@ -874,21 +873,20 @@ class _PostCardState extends State<PostCard> {
                                           postId: "",
                                           userId: ""),
                                       const [],
-                                      treeThemeData: const TreeThemeData(
-                                          lineColor: Colors.blue, lineWidth: 3),
+                                      // treeThemeData: const TreeThemeData(
+                                      //     lineColor: Colors.transparent,
+                                      //     lineWidth: 0),
                                       avatarRoot: (context, data) =>
-                                          PreferredSize(
-                                        preferredSize:
-                                            const Size.fromRadius(12),
-                                        child: RandomAvatar(comment!.author,
-                                            height: 40, width: 40),
+                                          const PreferredSize(
+                                        preferredSize: Size.fromRadius(12),
+                                        child: Icon(Icons.account_circle,
+                                            size: 40),
                                       ),
                                       avatarChild: (context, data) =>
-                                          PreferredSize(
-                                        preferredSize:
-                                            const Size.fromRadius(12),
-                                        child: RandomAvatar(comment!.author,
-                                            height: 40, width: 40),
+                                          const PreferredSize(
+                                        preferredSize: Size.fromRadius(12),
+                                        child: Icon(Icons.account_circle,
+                                            size: 40),
                                       ),
                                       contentChild: (context, data) {
                                         return Column(
