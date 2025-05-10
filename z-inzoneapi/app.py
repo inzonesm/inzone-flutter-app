@@ -1,5 +1,5 @@
 from flask import Flask, request, jsonify
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from dotenv import load_dotenv
 from flask_cors import CORS
 from openai import OpenAI
@@ -14,7 +14,10 @@ import os
 import subprocess
 import sys
 import math
+import threading
 from firebase_admin import credentials, initialize_app, firestore
+from functools import lru_cache
+from queue import Queue
 
 """
 Commands
@@ -22,20 +25,8 @@ gcloud builds submit --tag gcr.io/inzone-f93e4/inzoneapi
 gcloud run deploy --image gcr.io/inzone-f93e4/inzoneapi --set-env-vars OPENAI_API_KEY='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'
 
 """
-try:
-    from rapidfuzz import fuzz
-except ImportError:
-    print("rapidfuzz not found. Installing...")
-    subprocess.check_call([sys.executable, "-m", "pip", "install", "rapidfuzz"])
-    from rapidfuzz import fuzz
-
-subprocess.check_call([sys.executable, "-m", "pip", "install", "flask-jwt-extended"])
-from flask_jwt_extended import jwt_required, get_jwt_identity
-
-subprocess.check_call([sys.executable, "-m", "pip", "install", "twilio"])
 
 load_dotenv()
-
 
 OPENAI_API_KEY=os.environ.get("OPENAI_API_KEY")
 if OPENAI_API_KEY is None:
@@ -43,7 +34,6 @@ if OPENAI_API_KEY is None:
 
 
 client = OpenAI(api_key=OPENAI_API_KEY)
-
 
 # Create Flask app
 # Initialize Firebase Admin
@@ -353,7 +343,17 @@ def create_profile():
         if not data:
             return jsonify({"success": False, "error": "Post content is required", "code": "INVALID_POST_CONTENT"}), 400
 
-        anonymous = data.get("Email") if data.get("Email") else False
+        # Check if email already exists
+        email = data.get("Email")
+        if email:
+            existing_user = db.collection('humanUsers').where("email", "==", email).limit(1).get()
+            if existing_user:
+                return jsonify({
+                    "success": False, 
+                    "error": "Email already exists",
+                    "code": "DUPLICATE_EMAIL"
+                }), 400
+
        
         user_data = {
             "name": data.get("Name"),
@@ -361,14 +361,13 @@ def create_profile():
             "bio": data.get("Bio"),
             "blockout": [],
             "user_interests": data.get("UserInterests", []),
-            "email": data.get("Email"),
+            "email": email,
             "liked_posts": [],
             "balance": 0,
-            "anonymous": anonymous,
             "followers": [],
             "following": [],
             "gender": data.get("Gender"),
-            "profile_picture": data.get("ProfilePicture"),
+            "profilePicture": data.get("ProfilePicture"),
             "date_created": firestore.SERVER_TIMESTAMP,
             "uid": data.get("UID"),
             "username": data.get("UserName")
@@ -394,22 +393,77 @@ def create_profile():
         }
         return jsonify(response), 500
 
-@app.route('/user/update-profile', methods=['POST'])
-def update_profile():
+@app.route('/user/update-name', methods=['POST'])
+def update_name():
     try:
         data = request.get_json()
-        user_id = data.get("UserId")
-        update_data = {
-            "name": data.get("Name"),
-            "username": data.get("Username"),
-            "bio": data.get("Bio"),
-        }
+        user_id = data.get("UID")
+        name = data.get("Name")
+        
+        if not user_id or not name:
+            return jsonify({"success": False, "error": "User Id and Name are required"}), 400
 
         # Update the document in Firestore
-        db.collection('humanUsers').document(user_id).update(update_data)
+        db.collection('humanUsers').document(user_id).update({"name": name})
         return jsonify({"success": True}), 200
     except Exception as ex:
-        logger.error("Error updating profile: %s", ex)
+        logger.error("Error updating name: %s", ex)
+        return jsonify({"success": False, "error": str(ex)}), 500
+
+@app.route('/user/update-username', methods=['POST'])
+def update_username():
+    try:
+        data = request.get_json()
+        user_id = data.get("UID")
+        username = data.get("Username")
+        
+        if not user_id or not username:
+            return jsonify({"success": False, "error": "User Id and Username are required"}), 400
+
+        # Check if username already exists
+        existing_user = db.collection('humanUsers').where("username", "==", username).limit(1).get()
+        if existing_user and existing_user[0].id != user_id:
+            return jsonify({"success": False, "error": "Username already exists"}), 400
+
+        # Update the document in Firestore
+        db.collection('humanUsers').document(user_id).update({"username": username})
+        return jsonify({"success": True}), 200
+    except Exception as ex:
+        logger.error("Error updating username: %s", ex)
+        return jsonify({"success": False, "error": str(ex)}), 500
+
+@app.route('/user/update-profile-picture', methods=['POST'])
+def update_profile_picture():
+    try:
+        data = request.get_json()
+        user_id = data.get("UID")
+        profile_picture = data.get("ProfilePicture")
+        
+        if not user_id or not profile_picture:
+            return jsonify({"success": False, "error": "User Id and ProfilePicture are required"}), 400
+
+        # Update the document in Firestore
+        db.collection('humanUsers').document(user_id).update({"profilePicture": profile_picture})
+        return jsonify({"success": True}), 200
+    except Exception as ex:
+        logger.error("Error updating profile picture: %s", ex)
+        return jsonify({"success": False, "error": str(ex)}), 500
+
+@app.route('/user/update-bio', methods=['POST'])
+def update_bio():
+    try:
+        data = request.get_json()
+        user_id = data.get("UID")
+        bio = data.get("Bio")
+        
+        if not user_id or not bio:
+            return jsonify({"success": False, "error": "User Id and Bio are required"}), 400
+
+        # Update the document in Firestore
+        db.collection('humanUsers').document(user_id).update({"bio": bio})
+        return jsonify({"success": True}), 200
+    except Exception as ex:
+        logger.error("Error updating bio: %s", ex)
         return jsonify({"success": False, "error": str(ex)}), 500
 
 @app.route('/user/get-profile', methods=['GET'])
@@ -605,80 +659,6 @@ def unfollow():
     except Exception as ex:
         logger.error("Error removing follow relationship: %s", ex)
         return jsonify({"success": False, "error": str(ex)}), 500
-
-# @app.route('/user/get-followers', methods=['POST'])
-# def get_followers():
-#     try:
-#         data = request.get_json()
-#         user_id = data.get("UserId")
-#         user_type = data.get("UserType", "human")  # "human" or "ai"
-
-#         # Determine the correct collection based on user type
-#         collection = 'aiUsers' if user_type == 'ai' else 'humanUsers'
-        
-#         # For AI users, the document ID is the username
-#         doc_id = user_id
-
-#         user_doc = db.collection(collection).document(doc_id).get()
-#         if not user_doc.exists:
-#             return jsonify({"success": False, "error": "User not found"}), 404
-
-#         user_data = user_doc.to_dict()
-#         followers = user_data.get("followers", [])
-        
-#         # Format response to include type information if not already present
-#         formatted_followers = []
-#         for follower in followers:
-#             if isinstance(follower, dict):
-#                 formatted_followers.append(follower)
-#             else:
-#                 # Legacy format - assume type based on collection
-#                 formatted_followers.append({
-#                     "id": follower,
-#                     "type": "human" if collection == "humanUsers" else "ai"
-#                 })
-        
-#         return jsonify({"success": True, "followers": formatted_followers}), 200
-#     except Exception as ex:
-#         logger.error("Error getting followers: %s", ex)
-#         return jsonify({"success": False, "error": str(ex)}), 500
-
-# @app.route('/user/get-following', methods=['POST'])
-# def get_following():
-#     try:
-#         data = request.get_json()
-#         user_id = data.get("UserId")
-#         user_type = data.get("UserType", "human")  # "human" or "ai"
-
-#         # Determine the correct collection based on user type
-#         collection = 'aiUsers' if user_type == 'ai' else 'humanUsers'
-        
-#         # For AI users, the document ID is the username
-#         doc_id = user_id
-
-#         user_doc = db.collection(collection).document(doc_id).get()
-#         if not user_doc.exists:
-#             return jsonify({"success": False, "error": "User not found"}), 404
-
-#         user_data = user_doc.to_dict()
-#         following = user_data.get("following", [])
-        
-#         # Format response to include type information if not already present
-#         formatted_following = []
-#         for follow in following:
-#             if isinstance(follow, dict):
-#                 formatted_following.append(follow)
-#             else:
-#                 # Legacy format - assume type based on collection
-#                 formatted_following.append({
-#                     "id": follow,
-#                     "type": "human" if collection == "humanUsers" else "ai"
-#                 })
-        
-#         return jsonify({"success": True, "following": formatted_following}), 200
-#     except Exception as ex:
-#         logger.error("Error getting following: %s", ex)
-#         return jsonify({"success": False, "error": str(ex)}), 500
 
 @app.route('/user/remove-from-following', methods=['POST'])
 def remove_from_following():
@@ -990,94 +970,6 @@ def apply_referral():
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
 
-from twilio.rest import Client
-
-twilio_client = Client(os.environ.get("TWILIO_ACCOUNT_SID"), os.environ.get("TWILIO_AUTH_TOKEN"))
-
-def send_referral_sms(referral_code, phone_numbers, user_id):
-    try:
-        # Get user's current SMS history
-        user_ref = db.collection('humanUsers').document(user_id)
-        user_doc = user_ref.get()
-        user_data = user_doc.to_dict()
-        
-        # Initialize SMS history if it doesn't exist
-        sms_history = user_data.get('sms', [])
-        
-        # Add new messages to history
-        for number in phone_numbers:
-            message = twilio_client.messages.create(
-                body=f"Get 1000 InCash when you join InZone! Use my referral code: {referral_code}",
-                from_=os.environ.get("TWILIO_PHONE_NUMBER"),
-                to=number
-            )
-            
-            sms_history.append({
-                "account_sid": message.account_sid,
-                "api_version": message.api_version,
-                "body": message.body,
-                "date_created": message.date_created,
-                "date_sent": message.date_sent,
-                "date_updated": message.date_updated,
-                "direction": message.direction,
-                "error_code": message.error_code,
-                "error_message": message.error_message,
-                "from": message.from_,
-                "messaging_service_sid": message.messaging_service_sid,
-                "num_media": message.num_media,
-                "num_segments": message.num_segments,
-                "price": message.price,
-                "price_unit": message.price_unit,
-                "sid": message.sid,
-                "status": message.status,
-                "subresource_uris": message.subresource_uris,
-                "tags": message.tags,
-                "to": message.to,
-                "uri": message.uri,
-                "timestamp": firestore.SERVER_TIMESTAMP
-            })
-        
-        # Update user's document with the complete SMS history
-        user_ref.update({
-            "sms": sms_history
-        })
-
-        return sms_history
-    except Exception as e:
-        raise Exception(f"Failed to send SMS: {str(e)}")
-
-@app.route('/user/send-referral-sms', methods=['POST'])
-def send_referral_sms_endpoint():
-    try:
-        data = request.get_json()
-        user_id = data.get("userId")
-        phone_numbers = data.get("phoneNumbers")
-
-        if not user_id or not phone_numbers:
-            return jsonify({"success": False, "error": "User ID and phone numbers are required"}), 400
-
-        # Get user's referral code
-        user_ref = db.collection('humanUsers').document(user_id)
-        user_doc = user_ref.get()
-        if not user_doc.exists:
-            return jsonify({"success": False, "error": "User not found"}), 404
-
-        referral_code = user_doc.to_dict().get("referral_code")
-        if not referral_code:
-            return jsonify({"success": False, "error": "User does not have a referral code"}), 400
-
-        # Send SMS to all phone numbers
-        messages = send_referral_sms(referral_code, phone_numbers, user_id)
-
-        return jsonify({
-            "success": True,
-            "message": "SMS sent successfully",
-            "sms": messages
-        }), 200
-
-    except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 500
-
 def grant_referral_rewards(referrer_id, referee_id):
     """Grant InCash rewards to both referrer and referee"""
     try:
@@ -1334,7 +1226,6 @@ def verify_android_subscription(subscription_id, purchase_token):
         print(f"Error verifying Android subscription: {e}")
         return {'is_valid': False}
 
-# Endpoint to spend InCash for various purposes (e.g., joining group chats)
 @app.route('/wallet/spend-incash', methods=['POST'])
 def spend_incash():
     try:
@@ -1687,40 +1578,6 @@ def process_subscription_rewards():
             'error': str(e)
         }), 500
 
-# def verify_apple_purchase(receipt_data):
-#     """Verify iOS purchase receipt with Apple servers"""
-#     try:
-#         APPLE_VERIFY_URL = "https://buy.itunes.apple.com/verifyReceipt"
-#         payload = {
-#             "receipt-data": receipt_data,
-#             "password": os.getenv("APPLE_SHARED_SECRET")
-#         }
-#         response = requests.post(APPLE_VERIFY_URL, json=payload)
-#         result = response.json()
-#         return {
-#             "success": result.get("status") == 0,
-#             "new_balance": result.get("latest_receipt_info", [{}])[0].get("balance", 0)
-#         }
-#     except Exception as e:
-#         logger.error(f"Error verifying Apple purchase: {e}")
-#         return {"success": False, "error": str(e)}
-        
-# def verify_google_purchase(purchase_token, product_id):
-#     """Verify Android purchase with Google Play"""
-#     try:
-#         PACKAGE = os.getenv("PACKAGE_NAME")
-#         GOOGLE_VERIFY_URL = f"https://androidpublisher.googleapis.com/androidpublisher/v3/applications/{PACKAGE}/purchases/products/{product_id}/tokens/{purchase_token}"
-#         headers = {"Authorization": f"Bearer {os.getenv('GOOGLE_ACCESS_TOKEN')}"}
-#         response = requests.get(GOOGLE_VERIFY_URL, headers=headers)
-#         result = response.json()
-#         return {
-#             "success": result.get("purchaseState") == 0,
-#             "new_balance": result.get("balance", 0)
-#         }
-#     except Exception as e:
-#         logger.error(f"Error verifying Google purchase: {e}")
-#         return {"success": False, "error": str(e)}
-
 # ---------------------------
 # Asset Store Endpoints
 # ---------------------------
@@ -2062,278 +1919,10 @@ def get_feed():
 
         posts.sort(key=lambda x: x['date_posted'], reverse=True)
 
-        return jsonify(posts[:limit]), 200
+        return jsonify(posts[:15]), 200
     except Exception as ex:
         logger.error("Error getting feed: %s", ex)
         return jsonify({"success": False, "error": str(ex)}), 500
-
-# @app.route('/feed/posts-flow', methods=['GET'])
-# def posts_flow():
-#     try:
-#         collections = ['aiPosts', 'humanPosts', 'reposts']
-#         all_posts = []
-
-#         # Fetch all posts
-#         for collection in collections:
-#             posts_ref = db.collection(collection).order_by('date_posted', direction=firestore.Query.DESCENDING).limit(25)
-#             snapshot = posts_ref.stream()
-#             all_posts.extend([doc.to_dict() for doc in snapshot if doc.exists])
-
-#         # Fetch AI users
-#         ai_users_ref = db.collection('aiUsers')
-#         ai_users_snapshot = ai_users_ref.stream()
-#         ai_usernames = {doc.id for doc in ai_users_snapshot}
-
-#         # Fetch human users
-#         human_users_ref = db.collection('humanUsers')
-#         human_users_snapshot = human_users_ref.stream()
-#         human_user_uids = {doc.id for doc in human_users_snapshot}
-
-#         # Categorize posts
-#         ai_text_posts = [post for post in all_posts if post.get("username") in ai_usernames and not post.get("post", {}).get("video_content")]
-#         ai_video_posts = [post for post in all_posts if post.get("username") in ai_usernames and post.get("post", {}).get("video_content")]
-#         human_text_posts = [post for post in all_posts if post.get("user_document_id") in human_user_uids and not post.get("post", {}).get("video_content")]
-#         human_video_posts = [post for post in all_posts if post.get("user_document_id") in human_user_uids and post.get("post", {}).get("video_content")]
-#         reposts = [post for post in all_posts if post.get("aiChatContent") or post.get("aiName") or post.get("aiProfileImageURL")]
-
-#         # Distribution of posts
-#         # Human posts 42%: no videos 21%, videos 21%
-#         # AI posts 42%: no videos 21%,  videos 21%,
-#         # Reposts 16%
-#         total_posts = len(all_posts)
-#         num_human_text_posts = int(total_posts * 0.21)
-#         num_human_video_posts = int(total_posts * 0.21)
-#         num_ai_text_posts = int(total_posts * 0.21)
-#         num_ai_video_posts = int(total_posts * 0.21)
-#         num_reposts = int(total_posts * 0.16)
-
-#         human_text_posts_sorted = sorted(human_text_posts, key=lambda x: x['date_posted'], reverse=True)
-#         human_video_posts_sorted = sorted(human_video_posts, key=lambda x: x['date_posted'], reverse=True)
-#         ai_text_posts_sorted = sorted(ai_text_posts, key=lambda x: x['date_posted'], reverse=True)
-#         ai_video_posts_sorted = sorted(ai_video_posts, key=lambda x: x['date_posted'], reverse=True)
-#         reposts_sorted = sorted(reposts, key=lambda x: x['date_posted'], reverse=True)
-
-#         selected_posts = {
-#             "aiPosts": sorted(ai_text_posts_sorted[:num_ai_text_posts] + ai_video_posts_sorted[:num_ai_video_posts], key=lambda x: x.get('date_posted', datetime.min), reverse=True),
-#             "humanPosts": sorted(human_text_posts_sorted[:num_human_text_posts] + human_video_posts_sorted[:num_human_video_posts], key=lambda x: x.get('date_posted', datetime.min), reverse=True),
-#             "reposts": sorted(reposts_sorted[:num_reposts], key=lambda x: x.get('date_posted', datetime.min), reverse=True),
-#         }
-
-#         return jsonify(selected_posts), 200
-#     except Exception as ex:
-#         logger.error("Error getting posts flow: %s", ex)
-#         return jsonify({"success": False, "error": str(ex)}), 500
-
-# Helper function to check if a post's category matches any category in a given list.
-def category_matches(post, categories):
-    category_field = post.get("category", "")
-    if isinstance(category_field, str):
-        return category_field.lower() in categories
-    elif isinstance(category_field, list):
-        return any(isinstance(cat, str) and cat.lower() in categories for cat in category_field)
-    return False
-
-# Compute similarity between two category strings using rapidfuzz.
-def similarity_score(cat1, cat2):
-    return fuzz.ratio(cat1.lower(), cat2.lower())
-
-# Given preferred categories and a set of all distinct categories, find similar ones.
-def compute_similar_categories(preferred, all_categories, threshold=60):
-    similar = set()
-    for pref in preferred:
-        for candidate in all_categories:
-            if candidate not in preferred:
-                score = similarity_score(pref, candidate)
-                if score >= threshold:
-                    similar.add(candidate)
-    return similar
-
-# Also track when user log in and log out/delete app in humanUsers collection
-
-# Add to recommendation system add posts to feed based on user's actions like 
-# - liking a post
-# - liking a certain number of posts from the same user
-
-
-# @app.route('/feed/posts-flow', methods=['GET'])
-# def posts_flow():
-#     try:
-#         user_id = request.args.get('user_id')
-#         page = request.args.get('page', default=1, type=int)
-#         posts_per_page = 30
-
-#         user_doc = db.collection('humanUsers').document(user_id).get()
-#         if user_doc.exists:
-#             preferred = [cat.strip().lower() for cat in user_doc.to_dict().get('user_interests', []) if cat.strip()]
-#         else:
-#             preferred = []
-#         print(f"User {user_id} preferred interests: {preferred}")
-
-#         ratios = {
-#             "ai_text": 0.21,
-#             "ai_video": 0.21,
-#             "human_text": 0.21,
-#             "human_video": 0.21,
-#             "reposts": 0.16
-#         }
-#         num_posts = {key: int(posts_per_page * ratio) for key, ratio in ratios.items()}
-#         total_calculated = sum(num_posts.values())
-#         if total_calculated < posts_per_page:
-#             num_posts["ai_text"] += (posts_per_page - total_calculated)
-#         print(f"Posts per type distribution (for logging): {num_posts}")
-
-#         # Fetch all posts from each collection
-#         ai_posts_all = [doc.to_dict() for doc in db.collection('aiPosts').stream()]
-#         human_posts_all = [doc.to_dict() for doc in db.collection('humanPosts').stream()]
-#         reposts_all = [doc.to_dict() for doc in db.collection('reposts').stream()]
-
-#         all_categories = set()
-#         for posts in [ai_posts_all, human_posts_all, reposts_all]:
-#             for post in posts:
-#                 cats = post.get("category", [])
-#                 if isinstance(cats, str) and cats:
-#                     all_categories.add(cats.lower())
-#                 elif isinstance(cats, list):
-#                     all_categories.update(cat.lower() for cat in cats if isinstance(cat, str))
-#         print(f"All categories from posts: {list(all_categories)}")
-
-#         # If user has no interests, use all categories
-#         if not preferred or page >= 2:
-#             preferred = list(all_categories)
-#             print("No user interests found; using all categories.")
-
-#         # filter posts by preferred categories
-#         def filter_posts(posts, categories):
-#             return [post for post in posts if category_matches(post, categories)]
-
-#         ai_filtered = filter_posts(ai_posts_all, preferred)
-#         human_filtered = filter_posts(human_posts_all, preferred)
-#         reposts_filtered = filter_posts(reposts_all, preferred)
-
-#         # Log counts per category
-#         def log_posts_by_category(posts, label):
-#             cat_dict = {}
-#             for post in posts:
-#                 cats = post.get("category", [])
-#                 if isinstance(cats, str):
-#                     cats = [cats.lower()]
-#                 elif isinstance(cats, list):
-#                     cats = [cat.lower() for cat in cats if isinstance(cat, str)]
-#                 else:
-#                     cats = []
-#                 for cat in cats:
-#                     cat_dict.setdefault(cat, 0)
-#                     cat_dict[cat] += 1
-#             for cat, count in cat_dict.items():
-#                 print(f"{label} - Category '{cat}': {count} posts.")
-#         log_posts_by_category(ai_filtered, "AI posts (filtered)")
-#         log_posts_by_category(human_filtered, "Human posts (filtered)")
-#         log_posts_by_category(reposts_filtered, "Reposts (filtered)")
-
-#         def separate_text_video(posts):
-#             text_posts = [p for p in posts if not p.get("post", {}).get("video_content")]
-#             video_posts = [p for p in posts if p.get("post", {}).get("video_content")]
-#             return text_posts, video_posts
-
-#         ai_text, ai_video = separate_text_video(ai_filtered)
-#         human_text, human_video = separate_text_video(human_filtered)
-
-#         def parse_date(date_str):
-#             try:
-#                 return datetime.strptime(date_str, "%a, %d %b %Y %H:%M:%S %Z")
-#             except Exception:
-#                 return datetime.min
-
-#         def sort_posts(posts):
-#             return sorted(posts, key=lambda x: parse_date(x.get('date_posted', '')), reverse=True)
-
-#         ai_text = sort_posts(ai_text)
-#         ai_video = sort_posts(ai_video)
-#         human_text = sort_posts(human_text)
-#         human_video = sort_posts(human_video)
-#         reposts_filtered = sort_posts(reposts_filtered)
-
-#         for post in ai_text:
-#             post['post_type'] = 'ai_post'
-#         for post in ai_video:
-#             post['post_type'] = 'ai_post'
-#         for post in human_text:
-#             post['post_type'] = 'human_post'
-#         for post in human_video:
-#             post['post_type'] = 'human_post'
-#         for post in reposts_filtered:
-#             post['post_type'] = 'repost'
-
-#         combined_posts = ai_text + ai_video + human_text + human_video + reposts_filtered
-
-#         unique_posts = []
-#         seen_ids = set()
-#         for post in combined_posts:
-#             post_id = post.get('id')
-#             if post_id and post_id not in seen_ids:
-#                 unique_posts.append(post)
-#                 seen_ids.add(post_id)
-#         print(f"After deduplication, found {len(unique_posts)} unique posts.")
-
-#         # If we don't have enough posts, try to fetch additional posts using similar categories
-#         if len(unique_posts) < posts_per_page:
-#             missing = posts_per_page - len(unique_posts)
-#             print(f"Final feed has {len(unique_posts)} unique posts; need {missing} more.")
-#             additional_cats = compute_similar_categories(preferred, all_categories)
-#             print(f"Additional similar categories computed: {additional_cats}")
-#             similar_categories = list(set(preferred).union(additional_cats))
-
-#             additional_ai = filter_posts(ai_posts_all, similar_categories)
-#             additional_human = filter_posts(human_posts_all, similar_categories)
-#             additional_reposts = filter_posts(reposts_all, similar_categories)
-
-#             additional_ai = sort_posts(additional_ai)
-#             additional_human = sort_posts(additional_human)
-#             additional_reposts = sort_posts(additional_reposts)
-
-#             for post in additional_ai:
-#                 post['post_type'] = 'ai_post'
-#             for post in additional_human:
-#                 post['post_type'] = 'human_post'
-#             for post in additional_reposts:
-#                 post['post_type'] = 'repost'
-
-#             additional_posts = additional_ai + additional_human + additional_reposts
-#             for post in additional_posts:
-#                 post_id = post.get('id')
-#                 if post_id and post_id not in seen_ids:
-#                     unique_posts.append(post)
-#                     seen_ids.add(post_id)
-#                     if len(unique_posts) >= posts_per_page:
-#                         break
-
-#         unique_posts = sort_posts(unique_posts)
-#         print(f"Total unique posts after filling: {len(unique_posts)}")
-
-#         # Global pagination: slice the deduplicated, sorted list
-#         random.shuffle(unique_posts)
-#         offset = (page - 1) * posts_per_page
-#         final_feed = unique_posts[offset:offset + posts_per_page]
-#         print(f"Final feed has {len(final_feed)} posts for page {page}.")
-        
-#         def log_final_counts(posts):
-#             cat_dict = {}
-#             for post in posts:
-#                 cats = post.get("category", [])
-#                 if isinstance(cats, str):
-#                     cats = [cats.lower()]
-#                 elif isinstance(cats, list):
-#                     cats = [cat.lower() for cat in cats if isinstance(cat, str)]
-#                 for cat in cats:
-#                     cat_dict[cat] = cat_dict.get(cat, 0) + 1
-#             for cat, count in cat_dict.items():
-#                 print(f"Final feed - Category '{cat}': {count} posts.")
-#         log_final_counts(final_feed)
-
-#         return jsonify({'posts': final_feed}), 200
-#     except Exception as ex:
-#         logger.error("Error getting posts flow: %s", ex)
-#         return jsonify({"success": False, "error": str(ex)}), 500
 
 @app.route('/feed/posts-flow', methods=['GET'])
 def posts_flow():
@@ -2342,30 +1931,20 @@ def posts_flow():
         page = request.args.get('page', default=1, type=int)
         posts_per_page = 30
 
-        user_doc = db.collection('humanUsers').document(user_id).get()
-        preferred = [cat.strip().lower() for cat in user_doc.to_dict().get('user_interests', [])] if user_doc.exists else []
+        print(f"Processing posts flow for user {user_id}, page {page}")
 
-        # content_ratios = {
-        #     "ai_text": 0.06,
-        #     "ai_video": 0.20,
-        #     "ai_image": 0.15,
-        #     "human_text": 0.10,
-        #     "human_video": 0.20,
-        #     "human_image": 0.15,
-        #     "reposts": 0.14
-        # }
-        # post_counts = {k: int(posts_per_page * v) for k, v in content_ratios.items()}
-        # post_counts["ai_text"] += posts_per_page - sum(post_counts.values())
+        user_doc = db.collection('humanUsers').document(user_id).get()
 
         # Helper Functions
         def parse_date(date_str):
             try:
-                return datetime.strptime(date_str, "%a, %d %b %Y %H:%M:%S %Z")
+                naive_dt = datetime.strptime(date_str, "%a, %d %b %Y %H:%M:%S %Z")
+                return naive_dt.replace(tzinfo=timezone.utc)
             except Exception:
-                return datetime.min
+                return datetime.min.replace(tzinfo=timezone.utc)
 
         def compute_freshness_score(post_date):
-            now = datetime.utcnow()
+            now = datetime.now(timezone.utc)
             seconds_since = (now - post_date).total_seconds()
             return 1 / math.log(seconds_since + 2)
 
@@ -2385,7 +1964,7 @@ def posts_flow():
 
         def compute_repost_adjustment(post):
             if post.get("post_type") == "repost":
-                return 0.8 if post.get("viral", False) or post.get("friend_endorsed", False) else -0.2
+                return 0.8
             return 0.0
 
         def compute_final_score(post):
@@ -2397,19 +1976,27 @@ def posts_flow():
             human = compute_human_score(post)
             repost_adj = compute_repost_adjustment(post)
 
+            # Base score calculation
             if post.get("has_video"):
-                score = (0.35 * freshness +
+                base_score = (0.35 * freshness +
                          0.30 * engagement +
                          0.15 * media +
                          0.10 * human +
                          0.10 * repost_adj)
             else:
-                score = (0.20 * freshness +
+                base_score = (0.20 * freshness +
                          0.20 * engagement +
                          0.10 * media +
                          0.15 * human +
                          0.35 * repost_adj)
-            return score
+
+            # Apply penalties and boosts
+            human_boost = 0.07 if post.get("post_type") == "human_post" else 0.0
+            repost_boost = 0.2 if post.get("post_type") == "repost" else 0.0
+            text_boost = 0.19 if not post.get("has_video") and not post.get("has_image") else 0.0
+
+            final_score = base_score + human_boost + repost_boost + text_boost
+            return final_score
 
         # Fetch and Filter Posts
         def fetch_posts(collection_name, filters=None):
@@ -2425,6 +2012,8 @@ def posts_flow():
         human_posts_all = fetch_posts('humanPosts')
         reposts_all = fetch_posts('reposts')
 
+        print(f"Total posts fetched - AI: {len(ai_posts_all)}, Human: {len(human_posts_all)}, Reposts: {len(reposts_all)}")
+
         # Separate Posts by Type
         def separate_posts(posts):
             text_posts = [p for p in posts if not p.get("has_video") and not p.get("has_image")]
@@ -2435,6 +2024,9 @@ def posts_flow():
         ai_text, ai_video, ai_image = separate_posts(ai_posts_all)
         human_text, human_video, human_image = separate_posts(human_posts_all)
 
+        print(f"Separated posts - AI: Text={len(ai_text)}, Video={len(ai_video)}, Image={len(ai_image)}")
+        print(f"Separated posts - Human: Text={len(human_text)}, Video={len(human_video)}, Image={len(human_image)}")
+
         # Assign Post Types
         for post in ai_text + ai_video + ai_image:
             post['post_type'] = 'ai_post'
@@ -2443,34 +2035,53 @@ def posts_flow():
         for post in reposts_all:
             post['post_type'] = 'repost'
 
-        # Combine Posts by Type and Apply Scoring
-        combined_posts = ai_text + ai_video + ai_image + human_text + human_video + human_image + reposts_all
-        for post in combined_posts:
+        # Combine all posts
+        all_posts = human_posts_all + reposts_all + ai_posts_all
+
+        # Compute scores for all posts
+        for post in all_posts:
             post['final_score'] = compute_final_score(post)
 
         # Sort Posts by Final Score
-        sorted_posts = sorted(combined_posts, key=lambda x: x['final_score'], reverse=True)
+        sorted_posts = sorted(all_posts, key=lambda x: x['final_score'], reverse=True)
+        print(f"Posts after sorting: {len(sorted_posts)}")
 
         # Deduplication
         seen_ids = set()
         unique_posts = []
-        
         for post in sorted_posts:
             post_id = post.get('id')
             if post_id and post_id not in seen_ids:
                 unique_posts.append(post)
                 seen_ids.add(post_id)
+        print(f"Unique posts after deduplication: {len(unique_posts)}")
 
-        random.shuffle(unique_posts)
-        # Pagination
+        # Pagination - no random shuffle to maintain consistent ordering
         offset = (page - 1) * posts_per_page
         final_feed = unique_posts[offset:offset + posts_per_page]
+        
+        # Count post types in final feed
+        post_types = {'ai_post': 0, 'human_post': 0, 'repost': 0}
+        media_types = {'text': 0, 'video': 0, 'image': 0}
+        for post in final_feed:
+            post_types[post.get('post_type', 'unknown')] += 1
+            if post.get('has_video'):
+                media_types['video'] += 1
+            elif post.get('has_image'):
+                media_types['image'] += 1
+            else:
+                media_types['text'] += 1
+        
+        print(f"Final feed composition:")
+        print(f"Post types: {post_types}")
+        print(f"Media types: {media_types}")
+        print(f"Total posts in feed: {len(final_feed)}")
+        print(f"Showing posts {offset + 1} to {offset + len(final_feed)} of {len(unique_posts)} total unique posts")
 
-        # Return Paginated Feed
         return jsonify({'posts': final_feed}), 200
 
     except Exception as ex:
-        logger.error(f"Error generating posts flow: {ex}")
+        print(f"Error generating posts flow: {ex}")
         return jsonify({"success": False, "error": str(ex)}), 500
 
 @app.route('/feed/test-feed-quality', methods=['GET'])
@@ -2478,12 +2089,13 @@ def test_feed_quality():
     try:
         user_id = request.args.get('user_id')
         page = request.args.get('page', default=1, type=int)
-        pages_to_test = request.args.get('pages', default=3, type=int)
+        pages_to_test = request.args.get('pages', default=10, type=int)
         
         all_posts = []
         issues = {
             "repeating_posts": [],
-            "consecutive_user_posts": []
+            "consecutive_user_posts": [],
+            "cross_page_duplicates": []
         }
         
         # Collect posts from multiple pages
@@ -2565,6 +2177,39 @@ def test_feed_quality():
                     "username": current_username,
                     "post_ids": [all_posts[i - 1].get('id'), all_posts[i].get('id')]
                 })
+
+        # Test for cross-page duplicates
+        posts_by_page = {}
+        for p in range(page, page + pages_to_test):
+            page_posts = all_posts[(p-page)*30:(p-page+1)*30]  # Get posts for this page
+            posts_by_page[p] = page_posts
+
+        # Compare each page with all other pages
+        for page1 in range(page, page + pages_to_test):
+            for page2 in range(page1 + 1, page + pages_to_test):
+                page1_posts = posts_by_page[page1]
+                page2_posts = posts_by_page[page2]
+                
+                for post1 in page1_posts:
+                    if not isinstance(post1, dict):
+                        continue
+                    post1_id = post1.get('id')
+                    if not post1_id:
+                        continue
+                        
+                    for post2 in page2_posts:
+                        if not isinstance(post2, dict):
+                            continue
+                        post2_id = post2.get('id')
+                        if not post2_id:
+                            continue
+                            
+                        if post1_id == post2_id:
+                            issues["cross_page_duplicates"].append({
+                                "post_id": post1_id,
+                                "username": post1.get('user_name', 'unknown'),
+                                "duplicate_pages": [page1, page2]
+                            })
         
         # Collect statistics about the feed quality
         stats = {
@@ -2574,7 +2219,8 @@ def test_feed_quality():
             "unique_users": len(set(post.get('user_name') for post in all_posts if isinstance(post, dict) and post.get('user_name'))),
             "pages_analyzed": pages_to_test,
             "repeating_posts_count": len(issues["repeating_posts"]),
-            "consecutive_user_posts_count": len(issues["consecutive_user_posts"])
+            "consecutive_user_posts_count": len(issues["consecutive_user_posts"]),
+            "cross_page_duplicates_count": len(issues["cross_page_duplicates"])
         }
         
         print(f"Feed quality test results: {stats}")
@@ -2582,6 +2228,10 @@ def test_feed_quality():
             print(f"Found {len(issues['repeating_posts'])} repeating posts")
         if issues["consecutive_user_posts"]:
             print(f"Found {len(issues['consecutive_user_posts'])} instances of consecutive posts by the same user")
+        if issues["cross_page_duplicates"]:
+            print(f"Found {len(issues['cross_page_duplicates'])} posts that appear on multiple pages")
+            for dup in issues["cross_page_duplicates"]:
+                print(f"Post {dup['post_id']} by {dup['username']} appears on pages {dup['duplicate_pages']}")
         
         return jsonify({
             "stats": stats,
@@ -2590,7 +2240,6 @@ def test_feed_quality():
     except Exception as ex:
         logger.error("Error testing feed quality: %s", ex)
         return jsonify({"success": False, "error": str(ex)}), 500
-
 
 @app.route('/feed/update-post', methods=['POST'])
 def update_post():
