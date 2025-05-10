@@ -114,7 +114,7 @@ class _ReferralScreenState extends State<ReferralScreen>
     }
   }
 
-  String _getMessageInfo(String code, String link) {
+  String _getMessageInfo(String link) {
     return "Hey! 👋\n\nJoin me on InZone using this link: $link";
   }
 
@@ -153,20 +153,24 @@ class _ReferralScreenState extends State<ReferralScreen>
 
         if (_selectedContact?.phoneNumbers?.isNotEmpty == true) {
           final phoneNumber = _selectedContact!.phoneNumbers![0].toString();
-          final message =
-              _getMessageInfo(_referralCode ?? '', _referralLink ?? '');
+          final userUid = FirebaseAuth.instance.currentUser?.uid;
+          if (userUid != null) {
+            final referralLink =
+                AppsFlyerService().generateReferralLink(userUid);
+            final message = _getMessageInfo(referralLink);
 
-          // Send SMS
-          await sendSMS(message, phoneNumber);
+            // Send SMS
+            await sendSMS(message, phoneNumber);
 
-          // Add to referral history
-          await _addToReferralHistory(contact);
+            // Add to referral history
+            await _addToReferralHistory(contact);
 
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                  content: Text('Referral message sent successfully!')),
-            );
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                    content: Text('Referral message sent successfully!')),
+              );
+            }
           }
         }
       }
