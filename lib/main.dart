@@ -35,6 +35,7 @@ Future<void> initPlatformState() async {
           PurchasesConfiguration('appl_veaMcyjzStDagTGHzLYMJiDVkWO')
             ..appUserID = FirebaseAuth.instance.currentUser!.uid
       );
+      print("CONFIGURED");
     }
 
   }
@@ -45,9 +46,7 @@ void main() async {
   MediaKit.ensureInitialized();
 
   // Enable pending purchases on Android
-  if (defaultTargetPlatform == TargetPlatform.android) {
-    InAppPurchase.instance.isAvailable();
-  }
+
 
   // Initialize Google Fonts
   GoogleFonts.config.allowRuntimeFetching = true;
@@ -59,7 +58,7 @@ void main() async {
   // Initialize AppsFlyerService
   final appsFlyerService = AppsFlyerService();
   await appsFlyerService.initialize();
-
+await initPlatformState();
   String? advertisingId = await appsFlyerService.getAdvertisingId();
   print("The advertising ID is $advertisingId");
 
