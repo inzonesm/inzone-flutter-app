@@ -67,6 +67,7 @@ class _UserProfileScreenState
     if (currentUserId == null) {
       setState(() {
         name = "Not logged in";
+        username = "Not logged in";
         bio = "Please log in to view your profile";
         isLoading = false;
       });
@@ -118,8 +119,7 @@ class _UserProfileScreenState
                 extra: {
                   'userId': currentUserId!,
                   'initialName': name,
-                  'initialUsername': FirebaseAuth.instance.currentUser!
-                      .displayName, // Using name as username for now
+                  'initialUsername': username,
                   'initialBio': bio,
                 },
               ).then((updated) {

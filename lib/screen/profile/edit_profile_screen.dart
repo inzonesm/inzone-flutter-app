@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:colorful_safe_area/colorful_safe_area.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:inzone/components/ui/appbar.dart';
