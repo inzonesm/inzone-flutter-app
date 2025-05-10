@@ -145,7 +145,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                 await InZoneDatabase.getUserProfile(currentUser.uid);
             if (userProfile != null) {
               displayName =
-                  userProfile["Name"] ?? userProfile["name"] ?? 'User';
+                  userProfile["username"] ?? userProfile["username"] ?? 'User';
               // currentUser.updateDisplayName(displayName);
             }
           } catch (e) {

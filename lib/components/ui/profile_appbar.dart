@@ -86,6 +86,13 @@ class ProfileAppbar extends StatelessWidget {
                       style: theme.textTheme.titleLarge,
                     ),
                   ),
+                  // Padding(
+                  //   padding: const EdgeInsets.only(left: 24, right: 0),
+                  //   child: Text(
+                  //     username,
+                  //     style: theme.textTheme.titleLarge,
+                  //   ),
+                  // ),
                   const SizedBox(height: 8), // name과 bio 사이 간격
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 24),

@@ -116,12 +116,12 @@ class AppsFlyerService {
     // Store the referrerId and attribution data using SharedPreferences
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('referrer_id', referrerId);
-    
+
     // Store attribution data as a string
     if (attributionData != null) {
       await prefs.setString('attribution_data', attributionData.toString());
     }
-    
+
     // If user is already logged in, save the referral data to Firestore
     User? currentUser = FirebaseAuth.instance.currentUser;
     if (currentUser != null) {
@@ -138,7 +138,7 @@ class AppsFlyerService {
     try {
       final prefs = await SharedPreferences.getInstance();
       final referrerId = prefs.getString('referrer_id');
-      
+
       if (referrerId != null) {
         // We have a stored referral, get the current user
         User? currentUser = FirebaseAuth.instance.currentUser;
@@ -146,15 +146,17 @@ class AppsFlyerService {
           // Get stored attribution data if available
           String? attributionDataString = prefs.getString('attribution_data');
           Map<String, dynamic>? attributionData;
-          if (attributionDataString != null && attributionDataString.isNotEmpty) {
+          if (attributionDataString != null &&
+              attributionDataString.isNotEmpty) {
             // Convert string representation back to map (simple approach)
             // This is a simple implementation and may need improvement for complex objects
             attributionData = {'stored_data': attributionDataString};
           }
-          
+
           // Save to Firestore with complete user details
-          await _saveReferralToFirestore(referrerId, attributionData, currentUser);
-          
+          await _saveReferralToFirestore(
+              referrerId, attributionData, currentUser);
+
           // Optionally clear the stored referral after saving to avoid duplicates
           // await prefs.remove('referrer_id');
           // await prefs.remove('attribution_data');
@@ -166,8 +168,8 @@ class AppsFlyerService {
     }
   }
 
-  Future<void> _saveReferralToFirestore(
-      String referrerId, Map<String, dynamic>? attributionData, User user) async {
+  Future<void> _saveReferralToFirestore(String referrerId,
+      Map<String, dynamic>? attributionData, User user) async {
     try {
       // Get AppsFlyer ID
       String? appsFlyerId = await getAdvertisingId();
@@ -181,8 +183,10 @@ class AppsFlyerService {
         'installerPhoneNumber': user.phoneNumber,
         'installerPhotoURL': user.photoURL,
         'installerEmailVerified': user.emailVerified,
-        'installerCreationTime': user.metadata.creationTime?.millisecondsSinceEpoch,
-        'installerLastSignInTime': user.metadata.lastSignInTime?.millisecondsSinceEpoch,
+        'installerCreationTime':
+            user.metadata.creationTime?.millisecondsSinceEpoch,
+        'installerLastSignInTime':
+            user.metadata.lastSignInTime?.millisecondsSinceEpoch,
         'appsFlyerId': appsFlyerId,
         'attributionData': attributionData ?? {},
         'installTimestamp': FieldValue.serverTimestamp(),
