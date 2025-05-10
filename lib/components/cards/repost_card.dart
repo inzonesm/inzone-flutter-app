@@ -63,7 +63,7 @@ class _RepostCardState extends State<RepostCard> {
         // Navigator.push(context, MaterialPageRoute(builder: (context)=>MeScreen()));
       },
       child: Padding(
-        padding: const EdgeInsets.only(bottom: 20.0),
+        padding: const EdgeInsets.symmetric(vertical: 15.0, horizontal: 15.0),
         child: Container(
           constraints: BoxConstraints(
             minHeight: imageSuccess ? 350 : 190,
