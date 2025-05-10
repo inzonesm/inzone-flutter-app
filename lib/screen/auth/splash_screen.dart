@@ -40,9 +40,7 @@ class _SplashScreenState extends State<SplashScreen> {
     return Scaffold(
       body: Center(
         child: SvgPicture.asset(
-          'assets/splash.svg',
-          width: 255,
-          height: 255,
+          'assets/splash.png',
         ),
       ),
     );

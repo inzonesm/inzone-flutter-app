@@ -99,12 +99,14 @@ dev_dependencies:
 
 flutter_native_splash:
   color: "#E8F5FE"
+  image: assets/splash.png
   color_dark: "#121212"
   android_12:
     color: "#E8F5FE"
     color_dark: "#121212"
-    icon_background_color: "#E8F5FE"
-    icon_background_color_dark: "#121212"
+    image: assets/splash.png
+    icon_background_color: null     
+    icon_background_color_dark: null
   android: true
   ios: true
   web: false
