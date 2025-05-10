@@ -1,145 +1,23 @@
+import 'dart:io';
+
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:colorful_safe_area/colorful_safe_area.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_native_contact_picker/flutter_native_contact_picker.dart';
+import 'package:flutter_native_contact_picker/model/contact.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:inzone/components/ui/appbar.dart';
 import 'package:inzone/components/ui/button.dart';
 import 'package:inzone/services/monetization_service.dart';
 import 'package:inzone/screen/settings/referral_tile.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:flutter_contacts/flutter_contacts.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:inzone/services/appsflyer_service.dart';
-
-// Contact selection dialog
-class MultiSelectContactsDialog extends StatefulWidget {
-  final List<Contact> contacts;
-
-  const MultiSelectContactsDialog({
-    super.key,
-    required this.contacts,
-  });
-
-  @override
-  State<MultiSelectContactsDialog> createState() =>
-      _MultiSelectContactsDialogState();
-}
-
-class _MultiSelectContactsDialogState extends State<MultiSelectContactsDialog> {
-  List<Contact> selectedContacts = [];
-
-  @override
-  Widget build(BuildContext context) {
-    return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      child: SizedBox(
-        height: MediaQuery.of(context).size.height * 0.7,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(16),
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: Theme.of(context).cardColor,
-                borderRadius:
-                    const BorderRadius.vertical(top: Radius.circular(20)),
-              ),
-              child: Column(
-                children: [
-                  Container(
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: Colors.grey[300],
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Select Contacts to Refer',
-                    style: Theme.of(context).textTheme.titleLarge,
-                  ),
-                ],
-              ),
-            ),
-            Divider(height: 1, color: Theme.of(context).dividerColor),
-            Expanded(
-              child: ListView.builder(
-                itemCount: widget.contacts.length,
-                itemBuilder: (context, index) {
-                  final contact = widget.contacts[index];
-                  final isSelected = selectedContacts.contains(contact);
-                  return ListTile(
-                    leading: CircleAvatar(
-                      backgroundColor: Theme.of(context)
-                          .colorScheme
-                          .primary
-                          .withOpacity(0.1),
-                      child: const Icon(Icons.person),
-                    ),
-                    title: Text(contact.displayName ?? 'No Name'),
-                    subtitle: contact.phones.isNotEmpty
-                        ? Text(contact.phones.first.number)
-                        : const Text('No phone number'),
-                    trailing: Checkbox(
-                      value: isSelected,
-                      onChanged: contact.phones.isEmpty
-                          ? null
-                          : (bool? selected) {
-                              setState(() {
-                                if (selected == true) {
-                                  selectedContacts.add(contact);
-                                } else {
-                                  selectedContacts.remove(contact);
-                                }
-                              });
-                            },
-                    ),
-                    onTap: contact.phones.isEmpty
-                        ? null
-                        : () {
-                            setState(() {
-                              if (isSelected) {
-                                selectedContacts.remove(contact);
-                              } else {
-                                selectedContacts.add(contact);
-                              }
-                            });
-                          },
-                  );
-                },
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: selectedContacts.isEmpty
-                      ? null
-                      : () {
-                          Navigator.pop(context, selectedContacts);
-                        },
-                  child: Text(
-                    selectedContacts.isEmpty
-                        ? "Select Contacts"
-                        : "Invite ${selectedContacts.length} Contact${selectedContacts.length > 1 ? 's' : ''}",
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
 
 // Main Referral Screen
 class ReferralScreen extends StatefulWidget {
@@ -149,16 +27,22 @@ class ReferralScreen extends StatefulWidget {
   State<ReferralScreen> createState() => _ReferralScreenState();
 }
 
-class _ReferralScreenState extends State<ReferralScreen> {
+class _ReferralScreenState extends State<ReferralScreen>
+    with TickerProviderStateMixin {
   final MonetizationService _monetizationService = MonetizationService();
+  final FlutterNativeContactPicker _contactPicker =
+      FlutterNativeContactPicker();
+  Contact? _selectedContact;
   String? _referralCode;
   String? _referralLink;
   List<Map<String, dynamic>> _referralHistory = [];
   bool _isLoading = true;
+  final String _userName = 'User'; // Default name
 
   @override
   void initState() {
     super.initState();
+
     _loadReferralData();
   }
 
@@ -167,8 +51,10 @@ class _ReferralScreenState extends State<ReferralScreen> {
       final generateResponse =
           await _monetizationService.generateReferralCode();
       if (generateResponse['success'] == true) {
-        _referralCode = generateResponse['data']['referral_code'];
-        _referralLink = 'https://inzone.ai/referral?code=$_referralCode';
+        setState(() {
+          _referralCode = generateResponse['data']['referral_code'];
+          _referralLink = 'https://inzone.ai/referral?code=$_referralCode';
+        });
       }
 
       final stats = await _monetizationService.getReferralStats();
@@ -208,110 +94,87 @@ class _ReferralScreenState extends State<ReferralScreen> {
     }
   }
 
-  Future<List<Contact>> fetchContacts() async {
+  Future<void> sendSMS(String message, String number) async {
     try {
-      var status = await Permission.contacts.status;
-
-      if (!status.isGranted) {
-        status = await Permission.contacts.request();
-        if (!status.isGranted) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                  content: Text('Permission denied. Cannot access contacts.')),
-            );
-          }
-          return [];
-        }
+      if (Platform.isAndroid) {
+        String uri = 'sms:$number?body=${Uri.encodeComponent(message)}';
+        await launchUrl(Uri.parse(uri));
+      } else if (Platform.isIOS) {
+        String uri = 'sms:$number&body=${Uri.encodeComponent(message)}';
+        await launchUrl(Uri.parse(uri));
       }
-
-      final contacts = await FlutterContacts.getContacts(withProperties: true);
-      if (contacts.isEmpty) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('No contacts found.')),
-          );
-        }
-        return [];
-      }
-
-      return contacts;
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error fetching contacts: $e')),
+          SnackBar(content: Text('Error sending SMS: $e')),
         );
       }
-      return [];
+      rethrow;
     }
   }
 
-  Future<void> _sendReferralSMS() async {
+  String _getMessageInfo(String code, String link) {
+    return "Hey! 👋\n\nJoin me on InZone using this link: $link";
+  }
+
+  Future<void> _addToReferralHistory(Contact contact) async {
     try {
-      if (_referralCode == null) {
+      final newReferral = {
+        'name': contact.fullName ?? 'Referred User',
+        'photo_url': '', // You can add a default avatar if needed
+        'date':
+            DateTime.now().toString().split(' ')[0], // Only keep the date part
+        'phone': contact.phoneNumbers?.first.toString() ?? '',
+      };
+
+      setState(() {
+        _referralHistory.insert(0, newReferral);
+      });
+
+      // You might want to sync this with your backend
+      // await _monetizationService.addReferral(newReferral);
+    } catch (e) {
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content: Text('Please generate a referral code first')),
+          SnackBar(content: Text('Error adding to referral history: $e')),
         );
-        return;
       }
+    }
+  }
 
-      final contacts = await fetchContacts();
-      if (contacts.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('No contacts found')),
-        );
-        return;
-      }
+  Future<void> _handleContactSelection() async {
+    try {
+      final contact = await _contactPicker.selectContact();
+      if (contact != null) {
+        setState(() {
+          _selectedContact = contact;
+        });
 
-      // Show dialog to select contacts
-      final selectedContacts = await showDialog<List<Contact>>(
-        context: context,
-        builder: (context) => MultiSelectContactsDialog(contacts: contacts),
-      );
+        if (_selectedContact?.phoneNumbers?.isNotEmpty == true) {
+          final phoneNumber = _selectedContact!.phoneNumbers![0].toString();
+          final message =
+              _getMessageInfo(_referralCode ?? '', _referralLink ?? '');
 
-      if (selectedContacts != null && selectedContacts.isNotEmpty) {
-        // Get phone numbers from selected contacts
-        final phoneNumbers = selectedContacts
-            .where((contact) => contact.phones.isNotEmpty)
-            .map((contact) =>
-                contact.phones.first.number.replaceAll(RegExp(r'[^0-9+]'), ''))
-            .toList();
+          // Send SMS
+          await sendSMS(message, phoneNumber);
 
-        // Send SMS
-        final response = await http.post(
-          Uri.parse(
-              'https://inzoneapi-912424781531.us-central1.run.app/}user/send-referral-sms'),
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: jsonEncode({
-            'userId': _monetizationService.userId,
-            'phoneNumbers': phoneNumbers,
-          }),
-        );
+          // Add to referral history
+          await _addToReferralHistory(contact);
 
-        if (response.statusCode == 200) {
-          final data = jsonDecode(response.body);
-          if (data['success']) {
+          if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('SMS sent successfully')),
-            );
-          } else {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Failed to send SMS: ${data['error']}')),
+              const SnackBar(
+                  content: Text('Referral message sent successfully!')),
             );
           }
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Failed to send SMS: ${response.body}')),
-          );
         }
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error sending SMS: $e')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error selecting contact: $e')),
+        );
+      }
     }
   }
 
@@ -367,7 +230,10 @@ class _ReferralScreenState extends State<ReferralScreen> {
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 25),
           child: Button(
             text: "Sync Contacts",
-            onPressed: _sendReferralSMS,
+            onPressed: () async {
+              HapticFeedback.mediumImpact();
+              await _handleContactSelection();
+            },
           ),
         ),
       ),
