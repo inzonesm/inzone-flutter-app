@@ -1,8 +1,7 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter_feather_icons/flutter_feather_icons.dart';
 import 'package:inzone/screen/settings/settings_screen.dart';
-import 'package:random_avatar/random_avatar.dart';
 
 class ProfileAppbar extends StatelessWidget {
   final String name;
@@ -64,7 +63,7 @@ class ProfileAppbar extends StatelessWidget {
                 child: profileImageUrl.isEmpty
                     ? ClipRRect(
                         borderRadius: BorderRadius.circular(20),
-                        child: RandomAvatar(name, height: 80, width: 80),
+                        child: const Icon(Icons.account_circle, size: 80),
                       )
                     : null,
               ),

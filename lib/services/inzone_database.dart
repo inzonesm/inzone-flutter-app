@@ -1325,6 +1325,11 @@ class InZoneDatabase {
         "Bio": profileData['bio'],
       };
 
+      // Add profile picture if provided
+      if (profileData.containsKey('profilePicture')) {
+        requestBody["ProfilePicture"] = profileData['profilePicture'];
+      }
+
       // Remove null values from the request body
       requestBody.removeWhere((key, value) => value == null);
 

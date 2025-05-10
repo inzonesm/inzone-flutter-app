@@ -7,7 +7,6 @@ import 'package:inzone/components/chat/message_bubble.dart';
 import 'package:inzone/services/inzone_database.dart';
 import 'package:inzone/theme/light_theme.dart';
 import 'package:intl/intl.dart';
-import 'package:random_avatar/random_avatar.dart';
 import 'package:flutter/foundation.dart';
 import 'package:go_router/go_router.dart';
 
@@ -35,11 +34,13 @@ class _HumanChatScreenState extends State<HumanChatScreen> {
   String? currentUserId;
   String currentUserName = "Me";
   bool isLoading = true;
+  String _otherUserProfileImageUrl = '';
 
   @override
   void initState() {
     super.initState();
     _loadCurrentUser();
+    _loadOtherUserProfileImage();
   }
 
   Future<void> _loadCurrentUser() async {
@@ -63,6 +64,19 @@ class _HumanChatScreenState extends State<HumanChatScreen> {
 
     // Scroll to bottom when messages load
     _scrollToEnd();
+  }
+
+  Future<void> _loadOtherUserProfileImage() async {
+    try {
+      final userData = await InZoneDatabase.getUserProfile(widget.otherUserId);
+      if (userData != null && mounted) {
+        setState(() {
+          _otherUserProfileImageUrl = userData['profilePicture'] ?? "";
+        });
+      }
+    } catch (e) {
+      print('Error loading other user profile image: $e');
+    }
   }
 
   void _sendMessage() async {
@@ -141,7 +155,7 @@ class _HumanChatScreenState extends State<HumanChatScreen> {
       appBar: ChatAppBar(
         title: widget.otherUserName,
         avatarId: widget.otherUserId,
-        avatarUrl: widget.otherUserName,
+        avatarUrl: _otherUserProfileImageUrl,
         onBack: () => context.pop(),
       ),
       body: Column(
@@ -264,11 +278,7 @@ class _HumanChatScreenState extends State<HumanChatScreen> {
                                   width: 35,
                                   height: 35,
                                   color: Theme.of(context).cardColor,
-                                  child: RandomAvatar(
-                                    senderId,
-                                    height: 35,
-                                    width: 35,
-                                  ),
+                                  child: const Icon(Icons.account_circle),
                                 ),
                               ),
                       ),

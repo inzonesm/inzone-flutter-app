@@ -12,7 +12,6 @@ import 'package:inzone/data/comment_class.dart';
 import 'package:inzone/data/inzone_avatar.dart';
 import 'package:inzone/data/inzone_post.dart';
 import 'package:inzone/services/inzone_database.dart';
-import 'package:random_avatar/random_avatar.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:inzone/router/routes.dart';
 
@@ -85,7 +84,8 @@ class _RepostCardState extends State<RepostCard> {
               Row(
                 children: [
                   // Image.asset(post.profilePicturePath),
-                  RandomAvatar(widget.post.userName, height: 40, width: 40),
+                  const Icon(Icons.account_circle,
+                      size: 40, color: Colors.grey),
                   const SizedBox(
                     width: 10,
                   ),
@@ -706,18 +706,16 @@ class _RepostCardState extends State<RepostCard> {
                                       treeThemeData: const TreeThemeData(
                                           lineColor: Colors.blue, lineWidth: 3),
                                       avatarRoot: (context, data) =>
-                                          PreferredSize(
-                                        preferredSize:
-                                            const Size.fromRadius(12),
-                                        child: RandomAvatar(comment!.author,
-                                            height: 40, width: 40),
+                                          const PreferredSize(
+                                        preferredSize: Size.fromRadius(12),
+                                        child: Icon(Icons.account_circle,
+                                            size: 40, color: Colors.grey),
                                       ),
                                       avatarChild: (context, data) =>
-                                          PreferredSize(
-                                        preferredSize:
-                                            const Size.fromRadius(12),
-                                        child: RandomAvatar(comment!.author,
-                                            height: 40, width: 40),
+                                          const PreferredSize(
+                                        preferredSize: Size.fromRadius(12),
+                                        child: Icon(Icons.account_circle,
+                                            size: 40, color: Colors.grey),
                                       ),
                                       contentChild: (context, data) {
                                         return Column(

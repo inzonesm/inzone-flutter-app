@@ -9,7 +9,6 @@ import 'package:inzone/services/inzone_database.dart';
 import 'package:inzone/screen/chat/all_chats_screen.dart';
 import 'package:inzone/screen/chat/post_chat_screen.dart';
 import 'package:inzone/theme/light_theme.dart'; // Import for ChatTheme extension
-import 'package:random_avatar/random_avatar.dart';
 import 'package:go_router/go_router.dart';
 import 'package:inzone/router/routes.dart';
 
@@ -59,6 +58,7 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   addMessage(text, isMe) {
+    if (!mounted) return;
     setState(() {
       messageCards.add(
         MessageBubble(
@@ -116,8 +116,7 @@ class _ChatScreenState extends State<ChatScreen> {
                         ),
                         const SizedBox(height: 20),
                         widget.userData.profilePictureURL == null
-                            ? RandomAvatar(widget.userData.name!,
-                                width: 200, height: 200)
+                            ? const Icon(Icons.account_circle, size: 200)
                             : Padding(
                                 padding:
                                     const EdgeInsets.only(right: 5.0, left: 5),
@@ -129,7 +128,8 @@ class _ChatScreenState extends State<ChatScreen> {
                                     width:
                                         MediaQuery.of(context).size.width - 60,
                                     errorBuilder: (context, object, st) {
-                                      return const SizedBox();
+                                      return const Icon(Icons.account_circle,
+                                          size: 200);
                                     },
                                   ),
                                 ),
