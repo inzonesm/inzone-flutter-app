@@ -64,16 +64,6 @@ class _EditFieldScreenState extends State<EditFieldScreen> {
             "You are not currently logged in. Please sign in again.");
       }
 
-      // Update Firebase Auth display name if this is the name field
-      if (widget.fieldType == FieldType.name) {
-        try {
-          await currentUser.updateDisplayName(_controller.text);
-        } catch (e) {
-          print('Error updating Firebase Auth display name: $e');
-          // Continue with Firestore update even if Auth update fails
-        }
-      }
-
       // Create profile data map based on field type
       Map<String, dynamic> profileData = {};
 

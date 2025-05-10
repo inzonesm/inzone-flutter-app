@@ -90,9 +90,9 @@ class InZoneDatabase {
       if (user != null) {
         // Try to refresh the token to make sure it's still valid
         try {
-          await user.reload();
+          // await user.reload();
           // Get a fresh token
-          await user.getIdToken(true);
+          // await user.getIdToken(true);
           // Return the UID of the logged-in user
           return user.uid;
         } catch (e) {
@@ -295,6 +295,8 @@ class InZoneDatabase {
           // Return the normalized user data from the "data" field
           Map<String, dynamic> userData =
               responseData["data"] as Map<String, dynamic>;
+          print("SDSDSDSDSDSDSDSDSD");
+          print(userData);
           return normalizeUserProfile(userData);
         } else {
           return null;
@@ -312,34 +314,45 @@ class InZoneDatabase {
   // Normalizes user profile data to ensure both lowercase and uppercase fields exist
   static Map<String, dynamic> normalizeUserProfile(
       Map<String, dynamic> profile) {
-    Map<String, dynamic> normalizedProfile = Map.from(profile);
+    Map<String, dynamic> normalizedProfile = {};
 
-    // Ensure both lowercase and uppercase versions exist for key fields
-    if (profile.containsKey('name') && !profile.containsKey('Name')) {
-      normalizedProfile['Name'] = profile['name'];
-    } else if (profile.containsKey('Name') && !profile.containsKey('name')) {
-      normalizedProfile['name'] = profile['Name'];
+    // Only include keys that are present in the sample profile
+    if (profile.containsKey('balance')) {
+      normalizedProfile['balance'] = profile['balance'];
     }
-
-    if (profile.containsKey('username') && !profile.containsKey('Username')) {
-      normalizedProfile['Username'] = profile['username'];
-    } else if (profile.containsKey('Username') &&
-        !profile.containsKey('username')) {
-      normalizedProfile['username'] = profile['Username'];
+    if (profile.containsKey('bio')) {
+      normalizedProfile['bio'] = profile['bio'];
     }
-
-    if (profile.containsKey('bio') && !profile.containsKey('Bio')) {
-      normalizedProfile['Bio'] = profile['bio'];
-    } else if (profile.containsKey('Bio') && !profile.containsKey('bio')) {
-      normalizedProfile['bio'] = profile['Bio'];
+    if (profile.containsKey('createdAt')) {
+      normalizedProfile['createdAt'] = profile['createdAt'];
     }
-
-    if (profile.containsKey('profilePicture') &&
-        !profile.containsKey('ProfilePicture')) {
-      normalizedProfile['ProfilePicture'] = profile['profilePicture'];
-    } else if (profile.containsKey('ProfilePicture') &&
-        !profile.containsKey('profilePicture')) {
-      normalizedProfile['profilePicture'] = profile['ProfilePicture'];
+    if (profile.containsKey('email')) {
+      normalizedProfile['email'] = profile['email'];
+    }
+    if (profile.containsKey('interests')) {
+      normalizedProfile['interests'] = profile['interests'];
+    }
+    if (profile.containsKey('name')) {
+      normalizedProfile['name'] = profile['name'];
+    }
+    if (profile.containsKey('profilePicture')) {
+      normalizedProfile['profilePicture'] = profile['profilePicture'];
+    }
+    if (profile.containsKey('referral_code')) {
+      normalizedProfile['referral_code'] = profile['referral_code'];
+    }
+    if (profile.containsKey('referral_count')) {
+      normalizedProfile['referral_count'] = profile['referral_count'];
+    }
+    if (profile.containsKey('total_referral_earnings')) {
+      normalizedProfile['total_referral_earnings'] =
+          profile['total_referral_earnings'];
+    }
+    if (profile.containsKey('uid')) {
+      normalizedProfile['uid'] = profile['uid'];
+    }
+    if (profile.containsKey('username')) {
+      normalizedProfile['username'] = profile['username'];
     }
 
     return normalizedProfile;
@@ -884,7 +897,6 @@ class InZoneDatabase {
 
         return null;
       } else {
-        // Handle failure and return null
         return null;
       }
     } catch (e) {
@@ -917,6 +929,7 @@ class InZoneDatabase {
     String? username,
     String? bio,
     String? profilePicture,
+    String? name,
   }) async {
     try {
       // Verify authentication status
@@ -926,28 +939,58 @@ class InZoneDatabase {
         return false;
       }
 
-      // Try to refresh token
-      try {
-        await currentUser.getIdToken(true);
-      } catch (tokenError) {
-        print('Error refreshing authentication token: $tokenError');
-        // Continue with the request anyway
+      bool allSuccessful = true;
+      List<Future<bool>> updateRequests = [];
+
+      // Update name if provided
+      if (name != null) {
+        updateRequests.add(updateUserName(userId, name));
       }
 
-      const String url =
-          'https://inzoneapi-912424781531.us-central1.run.app/user/update-profile';
+      // Update username if provided
+      if (username != null) {
+        updateRequests.add(updateUserUsername(userId, username));
+      }
 
-      // Build the request body with only the fields that are provided
-      Map<String, dynamic> requestBody = {
-        "UserId": userId,
-      };
+      // Update bio if provided
+      if (bio != null) {
+        updateRequests.add(updateUserBio(userId, bio));
+      }
 
-      // Add optional fields if they are provided - ensure proper capitalization to match API
-      if (username != null) requestBody["Username"] = username;
-      if (bio != null) requestBody["Bio"] = bio;
-      if (profilePicture != null)
-        requestBody["ProfilePicture"] = profilePicture;
+      // Update profile picture if provided
+      if (profilePicture != null) {
+        updateRequests.add(updateUserProfilePicture(userId, profilePicture));
+      }
 
+      // Wait for all requests to complete
+      final results = await Future.wait(updateRequests);
+
+      // Check if any request failed
+      for (bool result in results) {
+        if (!result) {
+          allSuccessful = false;
+          break;
+        }
+      }
+
+      return allSuccessful;
+    } catch (e) {
+      print('Error in updateUserProfile: $e');
+      return false;
+    }
+  }
+
+  // Helper method to update user name
+  static Future<bool> updateUserName(String userId, String name) async {
+    const String url =
+        'https://inzoneapi-912424781531.us-central1.run.app/user/update-name';
+
+    Map<String, dynamic> requestBody = {
+      "UID": userId,
+      "Name": name,
+    };
+
+    try {
       final http.Response response = await http.post(
         Uri.parse(url),
         headers: <String, String>{
@@ -958,26 +1001,112 @@ class InZoneDatabase {
 
       if (response.statusCode == 200) {
         final Map<String, dynamic> responseData = jsonDecode(response.body);
-
-        // Check if the update was successful
-        if (responseData.containsKey("success") &&
-            responseData["success"] == true) {
-          return true;
-        } else {
-          print(
-              'API returned success: false - ${responseData["error"] ?? "Unknown error"}');
-          return false;
-        }
-      } else if (response.statusCode == 401 || response.statusCode == 403) {
-        // Authentication issue
-        print('Authentication failed when updating profile');
-        return false;
+        return responseData["success"] == true;
       } else {
-        print('Failed to update profile. Status code: ${response.statusCode}');
+        print('Failed to update name. Status code: ${response.statusCode}');
         return false;
       }
     } catch (e) {
-      print('Error in updateUserProfile: $e');
+      print('Error updating name: $e');
+      return false;
+    }
+  }
+
+  // Helper method to update username
+  static Future<bool> updateUserUsername(String userId, String username) async {
+    const String url =
+        'https://inzoneapi-912424781531.us-central1.run.app/user/update-username';
+
+    Map<String, dynamic> requestBody = {
+      "UID": userId,
+      "Username": username,
+    };
+
+    try {
+      final http.Response response = await http.post(
+        Uri.parse(url),
+        headers: <String, String>{
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode(requestBody),
+      );
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> responseData = jsonDecode(response.body);
+        FirebaseAuth.instance.currentUser?.updateProfile(displayName: username);
+        return responseData["success"] == true;
+      } else {
+        print('Failed to update username. Status code: ${response.statusCode}');
+        return false;
+      }
+    } catch (e) {
+      print('Error updating username: $e');
+      return false;
+    }
+  }
+
+  // Helper method to update bio
+  static Future<bool> updateUserBio(String userId, String bio) async {
+    const String url =
+        'https://inzoneapi-912424781531.us-central1.run.app/user/update-bio';
+
+    Map<String, dynamic> requestBody = {
+      "UID": userId,
+      "Bio": bio,
+    };
+
+    try {
+      final http.Response response = await http.post(
+        Uri.parse(url),
+        headers: <String, String>{
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode(requestBody),
+      );
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> responseData = jsonDecode(response.body);
+        return responseData["success"] == true;
+      } else {
+        print('Failed to update bio. Status code: ${response.statusCode}');
+        return false;
+      }
+    } catch (e) {
+      print('Error updating bio: $e');
+      return false;
+    }
+  }
+
+  // Helper method to update profile picture
+  static Future<bool> updateUserProfilePicture(
+      String userId, String profilePicture) async {
+    const String url =
+        'https://inzoneapi-912424781531.us-central1.run.app/user/update-profile-picture';
+
+    Map<String, dynamic> requestBody = {
+      "UID": userId,
+      "ProfilePicture": profilePicture,
+    };
+
+    try {
+      final http.Response response = await http.post(
+        Uri.parse(url),
+        headers: <String, String>{
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode(requestBody),
+      );
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> responseData = jsonDecode(response.body);
+        return responseData["success"] == true;
+      } else {
+        print(
+            'Failed to update profile picture. Status code: ${response.statusCode}');
+        return false;
+      }
+    } catch (e) {
+      print('Error updating profile picture: $e');
       return false;
     }
   }
@@ -1404,69 +1533,38 @@ class InZoneDatabase {
         throw Exception('User not authenticated');
       }
 
-      // Force token refresh if needed
-      try {
-        await currentUser.getIdToken(true);
-      } catch (tokenError) {
-        print('Error refreshing authentication token: $tokenError');
-        // Continue with the request anyway, as the token might still be valid
-      }
+      List<Future<bool>> updateRequests = [];
 
-      // Convert the profile data to match the API's expected format
-      Map<String, dynamic> requestBody = {
-        "UserId": userId,
-      };
-
-      // Map lowercase field names to the API's expected format (uppercase first letter)
+      // Send separate update requests for each field
       if (profileData.containsKey('name')) {
-        requestBody["Name"] = profileData['name'];
+        updateRequests.add(updateUserName(userId, profileData['name']));
       }
 
       if (profileData.containsKey('username')) {
-        requestBody["Username"] = profileData['username'];
+        updateRequests.add(updateUserUsername(userId, profileData['username']));
       }
 
       if (profileData.containsKey('bio')) {
-        requestBody["Bio"] = profileData['bio'];
+        updateRequests.add(updateUserBio(userId, profileData['bio']));
       }
 
       if (profileData.containsKey('profilePicture')) {
-        requestBody["ProfilePicture"] = profileData['profilePicture'];
+        updateRequests.add(
+            updateUserProfilePicture(userId, profileData['profilePicture']));
       }
 
-      // Remove null values from the request body
-      requestBody.removeWhere((key, value) => value == null);
+      // Wait for all requests to complete
+      final results = await Future.wait(updateRequests);
 
-      const String url =
-          'https://inzoneapi-912424781531.us-central1.run.app/user/update-profile';
-
-      final http.Response response = await http.post(
-        Uri.parse(url),
-        headers: <String, String>{
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode(requestBody),
-      );
-
-      if (response.statusCode == 200) {
-        final Map<String, dynamic> responseData = jsonDecode(response.body);
-
-        if (responseData.containsKey("success") &&
-            responseData["success"] == true) {
-          return; // Success, no need to throw exception
-        } else {
-          // API returned success: false
-          String errorMessage = responseData["error"] ?? "Unknown error";
-          throw Exception('API returned success: false - $errorMessage');
+      // Check if any request failed
+      for (bool result in results) {
+        if (!result) {
+          throw Exception('Failed to update one or more profile fields');
         }
-      } else if (response.statusCode == 401 || response.statusCode == 403) {
-        // Authentication issue - token may be expired
-        throw Exception('Authentication failed. Please sign in again.');
-      } else {
-        // Other HTTP errors
-        throw Exception(
-            'Failed to update profile. Status code: ${response.statusCode}');
       }
+
+      // Success, all updates completed
+      return;
     } catch (e) {
       print('Error in updateUserProfileData: $e');
       rethrow; // Rethrow to handle in UI

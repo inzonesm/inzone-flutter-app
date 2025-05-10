@@ -16,7 +16,7 @@ class Routes {
   // Feature routes
   static const String post = '/post';
   static const String editProfile = '/edit-profile';
-  static const String editField = '/edit-field';
+  static const String editField = '/edit-field/:fieldType';
   static const String postChat = '/post-chat';
   static const String groupDetails = '/group/:id';
   static const String chatDetails = '/chat/:id';
@@ -44,4 +44,5 @@ class Routes {
       '/auth/interests?email=$email';
   static String aiProfilePath(String username) => '/ai-profile/$username';
   static String regularProfilePath(String uid) => '/profile/$uid';
+  static String editFieldPath(String fieldType) => '/edit-field/$fieldType';
 }

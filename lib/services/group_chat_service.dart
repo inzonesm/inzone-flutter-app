@@ -80,14 +80,14 @@ class GroupChatService {
 
       // Create participant object
       String displayName = currentUser.displayName ?? 't';
-      if ( displayName.length < 2) {
+      if (displayName.length < 2) {
         try {
           // Try to get user profile from Firebase
           Map<String, dynamic>? userProfile =
               await InZoneDatabase.getUserProfile(currentUser.uid);
           if (userProfile != null) {
             displayName = userProfile["Name"] ?? userProfile["name"] ?? 'User';
-            currentUser.updateDisplayName(displayName);
+            // currentUser.updateDisplayName(displayName);
           }
         } catch (e) {
           print('Error fetching user name from database: $e');
