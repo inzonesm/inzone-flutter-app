@@ -364,9 +364,19 @@ class AppRouter {
       // ),
       GoRoute(
         path: Routes.referral,
+        name: 'referral',
         parentNavigatorKey: rootNavigatorKey,
-        builder: (context, state) => const ReferralScreen(),
+        pageBuilder: (context, state) => const CupertinoPage(
+          fullscreenDialog: true,
+          child: ReferralScreen(),
+        ),
       ),
+
+      // GoRoute(
+      //   path: Routes.referral,
+      //   parentNavigatorKey: rootNavigatorKey,
+      //   builder: (context, state) => const ReferralScreen(),
+      // ),
     ],
   );
 }

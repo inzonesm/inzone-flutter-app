@@ -12,8 +12,10 @@ import 'package:inzone/screen/settings/referral_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:go_router/go_router.dart';
 import 'package:inzone/router/routes.dart';
-import 'package:purchases_flutter/purchases_flutter.dart' show LogLevel, Purchases;
+import 'package:purchases_flutter/purchases_flutter.dart'
+    show LogLevel, Purchases;
 import 'package:purchases_ui_flutter/purchases_ui_flutter.dart';
+
 class SettingsScreen extends StatelessWidget {
   SettingsScreen({super.key});
   Future<void> _launchInBrowser(String url) async {
@@ -30,11 +32,9 @@ class SettingsScreen extends StatelessWidget {
   }
 
   void presentPaywall() async {
-
     final paywallResult = await RevenueCatUI.presentPaywall();
 
     print('Paywall result: $paywallResult ${paywallResult.name}');
-
   }
 
   Future<void> _deleteAccount(BuildContext context) async {
@@ -139,7 +139,7 @@ class SettingsScreen extends StatelessWidget {
     "You can select different content",
     "Manage your InCash subscription"
   ];
-  List<VoidCallback> personalOnPressedList(BuildContext context){
+  List<VoidCallback> personalOnPressedList(BuildContext context) {
     return [
       () {
         try {

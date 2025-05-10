@@ -18,6 +18,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:inzone/services/appsflyer_service.dart';
+import 'package:flutter_feather_icons/flutter_feather_icons.dart';
 
 // Main Referral Screen
 class ReferralScreen extends StatefulWidget {
@@ -186,45 +187,64 @@ class _ReferralScreenState extends State<ReferralScreen>
       color: theme.canvasColor,
       child: Scaffold(
         backgroundColor: theme.canvasColor,
-        appBar: PreferredSize(
-          preferredSize: const Size.fromHeight(100),
-          child: Padding(
-            padding: const EdgeInsets.only(top: 2),
-            child: CustomAppBar(
-              isHome: true,
-              isSettings: true,
-              isImage: false,
-              title: "Referral",
-              userPoints: "100",
-              onSearchTap: () {},
-              onProfileTap: () {},
-              onPointsTap: () {},
-            ),
-          ),
-        ),
-        body: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SizedBox(height: 10),
-                _buildTopBanner(theme),
-                const SizedBox(height: 20),
-                _buildReferralLinkSection(theme),
-                const SizedBox(height: 20),
-                Text(
-                  "Your Referrals",
-                  style: theme.textTheme.titleLarge,
+        body: Stack(
+          children: [
+            SingleChildScrollView(
+              child: Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(height: 80),
+                    _buildTopBanner(theme),
+                    const SizedBox(height: 20),
+                    _buildReferralLinkSection(theme),
+                    const SizedBox(height: 20),
+                    Text(
+                      "Your Referrals",
+                      style: theme.textTheme.titleLarge,
+                    ),
+                    const SizedBox(height: 10),
+                    _isLoading
+                        ? _buildLoadingList()
+                        : _buildReferralHistoryList(theme),
+                    const SizedBox(height: 30),
+                  ],
                 ),
-                const SizedBox(height: 10),
-                _isLoading
-                    ? _buildLoadingList()
-                    : _buildReferralHistoryList(theme),
-                const SizedBox(height: 30),
-              ],
+              ),
             ),
-          ),
+            Positioned(
+              top: 10,
+              left: 0,
+              right: 0,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const SizedBox(width: 40), // Placeholder for balance
+                    Text(
+                      "Referral",
+                      style: theme.textTheme.titleLarge,
+                    ),
+                    GestureDetector(
+                      onTap: () => context.pop(),
+                      child: Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).cardColor,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(FeatherIcons.x, size: 20),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
         ),
         bottomNavigationBar: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 25),
