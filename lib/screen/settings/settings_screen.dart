@@ -49,12 +49,16 @@ class SettingsScreen extends StatelessWidget {
           final productId = entitlement.productIdentifier;
           if (productId == '2025incashgold') {
             print("User bought: InCash Gold Plan");
+            //TODO
           } else if (productId == '2025incashadvanced') {
             print("User bought: InCash Advanced Pack");
+            //TODO
           } else if (productId == '2025incashelite') {
             print("User bought: InCash Elite Pack");
+            //TODO
           } else if (productId == '2025incashbasic') {
             print("User bought: InCash Basic Pack");
+            //TODO
           } else {
             print("Unknown product ID: $productId");
           }
