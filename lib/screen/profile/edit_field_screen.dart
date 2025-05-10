@@ -57,10 +57,21 @@ class _EditFieldScreenState extends State<EditFieldScreen> {
     });
 
     try {
+      // Verify authentication status first
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser == null) {
+        throw Exception(
+            "You are not currently logged in. Please sign in again.");
+      }
+
       // Update Firebase Auth display name if this is the name field
       if (widget.fieldType == FieldType.name) {
-        await FirebaseAuth.instance.currentUser
-            ?.updateDisplayName(_controller.text);
+        try {
+          await currentUser.updateDisplayName(_controller.text);
+        } catch (e) {
+          print('Error updating Firebase Auth display name: $e');
+          // Continue with Firestore update even if Auth update fails
+        }
       }
 
       // Create profile data map based on field type
@@ -91,8 +102,21 @@ class _EditFieldScreenState extends State<EditFieldScreen> {
       }
     } catch (e) {
       if (mounted) {
+        String errorMessage = 'Error updating: ';
+
+        // Handle specific error types
+        if (e.toString().contains('not authenticated') ||
+            e.toString().contains('Authentication failed')) {
+          errorMessage =
+              'Authentication error. Please log out and sign in again.';
+        } else if (e.toString().contains('network')) {
+          errorMessage = 'Network error. Please check your connection.';
+        } else {
+          errorMessage += e.toString().replaceAll('Exception: ', '');
+        }
+
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error updating: $e')),
+          SnackBar(content: Text(errorMessage)),
         );
       }
     } finally {

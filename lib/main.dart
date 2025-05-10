@@ -18,6 +18,38 @@ import 'dart:io' show Platform;
 import 'package:purchases_flutter/purchases_flutter.dart'
     show LogLevel, Purchases;
 
+Future<void> validateFirebaseSession() async {
+  final user = FirebaseAuth.instance.currentUser;
+
+  if (user != null) {
+    try {
+      // Try to reload the user to make sure their token is still valid
+      await user.reload();
+      print('User session validated: ${user.uid}');
+
+      // Try to refresh the ID token in case it's about to expire
+      await user.getIdToken(true);
+
+      // Configure RevenueCat with user ID if needed
+      if (Platform.isAndroid || Platform.isIOS) {
+        await Purchases.configure(
+            PurchasesConfiguration('appl_veaMcyjzStDagTGHzLYMJiDVkWO')
+              ..appUserID = user.uid);
+        print("RevenueCat configured for user: ${user.uid}");
+      }
+    } catch (e) {
+      print('Error validating user session: $e');
+      // Token is invalid, sign the user out
+      try {
+        await FirebaseAuth.instance.signOut();
+        print('User signed out due to invalid session');
+      } catch (signOutError) {
+        print('Error signing out: $signOutError');
+      }
+    }
+  }
+}
+
 Future<void> initPlatformState() async {
   await Purchases.setLogLevel(LogLevel.debug);
 
@@ -50,6 +82,9 @@ void main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+
+  // Validate Firebase session on app start
+  await validateFirebaseSession();
 
   // Initialize AppsFlyerService
   final appsFlyerService = AppsFlyerService();

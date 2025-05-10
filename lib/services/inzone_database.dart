@@ -84,13 +84,28 @@ class InZoneDatabase {
 //   }
 
   static Future<String?> getCurrentUserUid() async {
-    User? user = FirebaseAuth.instance.currentUser;
+    try {
+      User? user = FirebaseAuth.instance.currentUser;
 
-    if (user != null) {
-      // Return the UID of the logged-in user
-      return user.uid;
-    } else {
-      // User is not signed in, handle accordingly
+      if (user != null) {
+        // Try to refresh the token to make sure it's still valid
+        try {
+          await user.reload();
+          // Get a fresh token
+          await user.getIdToken(true);
+          // Return the UID of the logged-in user
+          return user.uid;
+        } catch (e) {
+          // If token refresh fails, log and return null
+          print('Error refreshing user authentication: $e');
+          return null;
+        }
+      } else {
+        // User is not signed in
+        return null;
+      }
+    } catch (e) {
+      print('Error in getCurrentUserUid: $e');
       return null;
     }
   }
@@ -238,8 +253,10 @@ class InZoneDatabase {
         // Check if the response has the expected structure
         if (responseData.containsKey("success") &&
             responseData["success"] == true) {
-          // Return the user data from the "data" field
-          return responseData["data"] as Map<String, dynamic>;
+          // Return the normalized user data from the "data" field
+          Map<String, dynamic> userData =
+              responseData["data"] as Map<String, dynamic>;
+          return normalizeUserProfile(userData);
         } else {
           return null;
         }
@@ -275,8 +292,10 @@ class InZoneDatabase {
         // Check if the response has the expected structure
         if (responseData.containsKey("success") &&
             responseData["success"] == true) {
-          // Return the user data from the "data" field
-          return responseData["data"] as Map<String, dynamic>;
+          // Return the normalized user data from the "data" field
+          Map<String, dynamic> userData =
+              responseData["data"] as Map<String, dynamic>;
+          return normalizeUserProfile(userData);
         } else {
           return null;
         }
@@ -288,6 +307,42 @@ class InZoneDatabase {
       // Handle any exceptions (network issues, parsing errors, etc.)
       return null;
     }
+  }
+
+  // Normalizes user profile data to ensure both lowercase and uppercase fields exist
+  static Map<String, dynamic> normalizeUserProfile(
+      Map<String, dynamic> profile) {
+    Map<String, dynamic> normalizedProfile = Map.from(profile);
+
+    // Ensure both lowercase and uppercase versions exist for key fields
+    if (profile.containsKey('name') && !profile.containsKey('Name')) {
+      normalizedProfile['Name'] = profile['name'];
+    } else if (profile.containsKey('Name') && !profile.containsKey('name')) {
+      normalizedProfile['name'] = profile['Name'];
+    }
+
+    if (profile.containsKey('username') && !profile.containsKey('Username')) {
+      normalizedProfile['Username'] = profile['username'];
+    } else if (profile.containsKey('Username') &&
+        !profile.containsKey('username')) {
+      normalizedProfile['username'] = profile['Username'];
+    }
+
+    if (profile.containsKey('bio') && !profile.containsKey('Bio')) {
+      normalizedProfile['Bio'] = profile['bio'];
+    } else if (profile.containsKey('Bio') && !profile.containsKey('bio')) {
+      normalizedProfile['bio'] = profile['Bio'];
+    }
+
+    if (profile.containsKey('profilePicture') &&
+        !profile.containsKey('ProfilePicture')) {
+      normalizedProfile['ProfilePicture'] = profile['profilePicture'];
+    } else if (profile.containsKey('ProfilePicture') &&
+        !profile.containsKey('profilePicture')) {
+      normalizedProfile['profilePicture'] = profile['ProfilePicture'];
+    }
+
+    return normalizedProfile;
   }
 
   static Future<List<Map<String, dynamic>>?> getFollowers(
@@ -863,20 +918,36 @@ class InZoneDatabase {
     String? bio,
     String? profilePicture,
   }) async {
-    const String url =
-        'https://inzoneapi-912424781531.us-central1.run.app/user/update-profile';
-
-    // Build the request body with only the fields that are provided
-    Map<String, dynamic> requestBody = {
-      "UserId": userId,
-    };
-
-    // Add optional fields if they are provided
-    if (username != null) requestBody["Username"] = username;
-    if (bio != null) requestBody["Bio"] = bio;
-    if (profilePicture != null) requestBody["ProfilePicture"] = profilePicture;
-
     try {
+      // Verify authentication status
+      User? currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser == null) {
+        print('Error: Not authenticated');
+        return false;
+      }
+
+      // Try to refresh token
+      try {
+        await currentUser.getIdToken(true);
+      } catch (tokenError) {
+        print('Error refreshing authentication token: $tokenError');
+        // Continue with the request anyway
+      }
+
+      const String url =
+          'https://inzoneapi-912424781531.us-central1.run.app/user/update-profile';
+
+      // Build the request body with only the fields that are provided
+      Map<String, dynamic> requestBody = {
+        "UserId": userId,
+      };
+
+      // Add optional fields if they are provided - ensure proper capitalization to match API
+      if (username != null) requestBody["Username"] = username;
+      if (bio != null) requestBody["Bio"] = bio;
+      if (profilePicture != null)
+        requestBody["ProfilePicture"] = profilePicture;
+
       final http.Response response = await http.post(
         Uri.parse(url),
         headers: <String, String>{
@@ -893,12 +964,20 @@ class InZoneDatabase {
             responseData["success"] == true) {
           return true;
         } else {
+          print(
+              'API returned success: false - ${responseData["error"] ?? "Unknown error"}');
           return false;
         }
+      } else if (response.statusCode == 401 || response.statusCode == 403) {
+        // Authentication issue
+        print('Authentication failed when updating profile');
+        return false;
       } else {
+        print('Failed to update profile. Status code: ${response.statusCode}');
         return false;
       }
     } catch (e) {
+      print('Error in updateUserProfile: $e');
       return false;
     }
   }
@@ -1298,8 +1377,10 @@ class InZoneDatabase {
         // Check if the response has the expected structure
         if (responseData.containsKey("success") &&
             responseData["success"] == true) {
-          // Return the user data from the "data" field
-          return responseData["data"] as Map<String, dynamic>;
+          // Return the normalized user data from the "data" field
+          Map<String, dynamic> userData =
+              responseData["data"] as Map<String, dynamic>;
+          return normalizeUserProfile(userData);
         } else {
           return null;
         }
@@ -1317,15 +1398,38 @@ class InZoneDatabase {
   static Future<void> updateUserProfileData(
       String userId, Map<String, dynamic> profileData) async {
     try {
+      // Verify the user is still authenticated
+      User? currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser == null) {
+        throw Exception('User not authenticated');
+      }
+
+      // Force token refresh if needed
+      try {
+        await currentUser.getIdToken(true);
+      } catch (tokenError) {
+        print('Error refreshing authentication token: $tokenError');
+        // Continue with the request anyway, as the token might still be valid
+      }
+
       // Convert the profile data to match the API's expected format
       Map<String, dynamic> requestBody = {
         "UserId": userId,
-        "Name": profileData['name'],
-        "Username": profileData['username'],
-        "Bio": profileData['bio'],
       };
 
-      // Add profile picture if provided
+      // Map lowercase field names to the API's expected format (uppercase first letter)
+      if (profileData.containsKey('name')) {
+        requestBody["Name"] = profileData['name'];
+      }
+
+      if (profileData.containsKey('username')) {
+        requestBody["Username"] = profileData['username'];
+      }
+
+      if (profileData.containsKey('bio')) {
+        requestBody["Bio"] = profileData['bio'];
+      }
+
       if (profileData.containsKey('profilePicture')) {
         requestBody["ProfilePicture"] = profileData['profilePicture'];
       }
@@ -1349,15 +1453,22 @@ class InZoneDatabase {
 
         if (responseData.containsKey("success") &&
             responseData["success"] == true) {
+          return; // Success, no need to throw exception
         } else {
-          throw Exception(
-              'API returned success: false - ${responseData["error"] ?? "Unknown error"}');
+          // API returned success: false
+          String errorMessage = responseData["error"] ?? "Unknown error";
+          throw Exception('API returned success: false - $errorMessage');
         }
+      } else if (response.statusCode == 401 || response.statusCode == 403) {
+        // Authentication issue - token may be expired
+        throw Exception('Authentication failed. Please sign in again.');
       } else {
+        // Other HTTP errors
         throw Exception(
             'Failed to update profile. Status code: ${response.statusCode}');
       }
     } catch (e) {
+      print('Error in updateUserProfileData: $e');
       rethrow; // Rethrow to handle in UI
     }
   }

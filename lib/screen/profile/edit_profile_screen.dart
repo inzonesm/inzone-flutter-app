@@ -175,10 +175,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       final userData = await InZoneDatabase.getUserProfile(widget.userId);
       if (userData != null && mounted) {
         setState(() {
-          _name = userData['name'] ?? _name;
-          _username = userData['username'] ?? _username;
-          _bio = userData['bio'] ?? _bio;
-          _profileImageUrl = userData['profilePicture'] ?? _profileImageUrl;
+          _name = userData['name'] ?? userData['Name'] ?? _name;
+          _username = userData['username'] ?? userData['Username'] ?? _username;
+          _bio = userData['bio'] ?? userData['Bio'] ?? _bio;
+          _profileImageUrl = userData['profilePicture'] ??
+              userData['ProfilePicture'] ??
+              _profileImageUrl;
         });
       }
     }
