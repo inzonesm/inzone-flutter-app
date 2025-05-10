@@ -162,8 +162,8 @@ class _ProfileScreenState extends BaseProfileScreenState<ProfileScreen> {
 
       setState(() {
         // Access the fields directly from the user data object
-        name = userProfile!["Name"] ?? userProfile["name"] ?? "Unknown";
-        bio = userProfile["Bio"] ?? userProfile["bio"] ?? "";
+        name = userProfile!["name"] ?? userProfile["Name"] ?? "Unknown";
+        bio = userProfile["bio"] ?? userProfile["Bio"] ?? "";
 
         // Get followers and following counts from the profile data if available
         followersCount = userProfile["followers_count"] ?? followers.length;
