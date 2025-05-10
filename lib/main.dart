@@ -55,13 +55,10 @@ Future<void> initPlatformState() async {
 
   PurchasesConfiguration configuration;
   if (Platform.isAndroid) {
-
-    if (FirebaseAuth.instance.currentUser!=null) {
+    if (FirebaseAuth.instance.currentUser != null) {
       await Purchases.configure(
           PurchasesConfiguration('goog_TMTKRzQNQBHDOwdGzYeRqHhbDPB')
-            ..appUserID = FirebaseAuth.instance.currentUser!.uid
-      );
-
+            ..appUserID = FirebaseAuth.instance.currentUser!.uid);
     }
   } else if (Platform.isIOS) {
     if (FirebaseAuth.instance.currentUser != null) {
@@ -70,16 +67,14 @@ Future<void> initPlatformState() async {
             ..appUserID = FirebaseAuth.instance.currentUser!.uid);
       print("CONFIGURED");
     }
-
   }
-
 }
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   MediaKit.ensureInitialized();
 
   // Enable pending purchases on Android
-
 
   // Initialize Google Fonts
   GoogleFonts.config.allowRuntimeFetching = true;
@@ -94,7 +89,7 @@ void main() async {
   // Initialize AppsFlyerService
   final appsFlyerService = AppsFlyerService();
   await appsFlyerService.initialize();
-await initPlatformState();
+  await initPlatformState();
   String? advertisingId = await appsFlyerService.getAdvertisingId();
   print("The advertising ID is $advertisingId");
 
@@ -128,5 +123,4 @@ class MyApp extends StatelessWidget {
       routerConfig: AppRouter.router,
     );
   }
-
 }

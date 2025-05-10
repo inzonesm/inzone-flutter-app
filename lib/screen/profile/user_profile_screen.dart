@@ -1,4 +1,6 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter_feather_icons/flutter_feather_icons.dart';
 import 'package:inzone/components/cards/post_card.dart';
 import 'package:inzone/components/profile/avatar_card.dart';
@@ -116,7 +118,8 @@ class _UserProfileScreenState
                 extra: {
                   'userId': currentUserId!,
                   'initialName': name,
-                  'initialUsername': name, // Using name as username for now
+                  'initialUsername': FirebaseAuth.instance.currentUser!
+                      .displayName, // Using name as username for now
                   'initialBio': bio,
                 },
               ).then((updated) {
@@ -305,76 +308,72 @@ class _UserProfileScreenState
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      extendBody: true,
-      body: SafeArea(
+    return CupertinoPageScaffold(
+      child: SafeArea(
         bottom: false,
-        child: NestedScrollView(
-          headerSliverBuilder: (BuildContext context, bool innerBoxIsScrolled) {
-            return [
-              // 상단 여백 (앱바 대신 사용)
-              const SliverToBoxAdapter(
-                child: SizedBox(height: 0),
-              ),
-
-              // Profile header
-              SliverToBoxAdapter(
-                child: Container(
-                  color: Theme.of(context).cardColor,
-                  child: ProfileAppbar(
-                    name: name,
-                    bio: bio,
-                    profileImageUrl: profileImageUrl,
-                    username: username,
-                    postCount: postCount,
-                    followingCount: followingCount,
-                    followersCount: followersCount,
-                    actionButtons: buildActionButtons(),
-                    isProfilePage: true,
-                  ),
+        child: CustomScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          slivers: [
+            CupertinoSliverRefreshControl(
+              onRefresh: () async {
+                await fetchUserProfile();
+                await fetchUserStats();
+              },
+            ),
+            SliverToBoxAdapter(
+              child: Container(
+                color: Theme.of(context).cardColor,
+                child: ProfileAppbar(
+                  name: name,
+                  bio: bio,
+                  profileImageUrl: profileImageUrl,
+                  username: username,
+                  postCount: postCount,
+                  followingCount: followingCount,
+                  followersCount: followersCount,
+                  actionButtons: buildActionButtons(),
+                  isProfilePage: true,
                 ),
               ),
-
-              // Tab bar
-              SliverPersistentHeader(
-                delegate: _SliverAppBarDelegate(
-                  Container(
-                    height: 54.0, // 명시적 높이 설정
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).cardColor,
-                      borderRadius: const BorderRadius.only(
-                        bottomLeft: Radius.circular(30),
-                        bottomRight: Radius.circular(30),
-                      ),
+            ),
+            SliverPersistentHeader(
+              delegate: _SliverAppBarDelegate(
+                Container(
+                  height: 54.0,
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).cardColor,
+                    borderRadius: const BorderRadius.only(
+                      bottomLeft: Radius.circular(30),
+                      bottomRight: Radius.circular(30),
                     ),
-                    child: Center(
-                      // Center로 감싸서 위치 고정
-                      child: TabBar(
-                        controller: _scrollTabController,
-                        tabs: getTabLabels()
-                            .map((label) => Tab(text: label))
-                            .toList(),
-                        indicatorColor: Theme.of(context).primaryColor,
-                        labelColor: Theme.of(context).primaryColor,
-                        unselectedLabelColor: Theme.of(context).hintColor,
-                        indicatorWeight: 3.0,
-                      ),
+                  ),
+                  child: Center(
+                    child: TabBar(
+                      controller: _scrollTabController,
+                      tabs: getTabLabels()
+                          .map((label) => Tab(text: label))
+                          .toList(),
+                      indicatorColor: Theme.of(context).primaryColor,
+                      labelColor: Theme.of(context).primaryColor,
+                      unselectedLabelColor: Theme.of(context).hintColor,
+                      indicatorWeight: 3.0,
                     ),
                   ),
                 ),
-                pinned: true,
               ),
-
-              // Add space
-              const SliverToBoxAdapter(
-                child: SizedBox(height: 5),
+              pinned: true,
+            ),
+            SliverToBoxAdapter(
+              child: SizedBox(
+                height: MediaQuery.of(context).size.height -
+                    200, // Adjust this value as needed
+                child: TabBarView(
+                  controller: _scrollTabController,
+                  children: getTabViews(),
+                ),
               ),
-            ];
-          },
-          body: TabBarView(
-            controller: _scrollTabController,
-            children: getTabViews(),
-          ),
+            ),
+          ],
         ),
       ),
     );
