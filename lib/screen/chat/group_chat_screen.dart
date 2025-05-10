@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:get/get_connect/http/src/utils/utils.dart';
 import 'package:inzone/services/inzone_database.dart';
 import 'package:inzone/services/monetization_service.dart';
-import 'package:random_avatar/random_avatar.dart';
 import 'package:inzone/components/chat/chat_input.dart';
 import 'package:inzone/components/chat/date_header.dart';
 import 'package:inzone/components/chat/message_bubble.dart';
@@ -208,8 +207,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
             // Default values from the group data passed to constructor
             String groupName = widget.group.name;
             String memberCount = '${widget.group.memberCount} members';
-            Widget groupAvatar =
-                RandomAvatar(widget.group.name, height: 40, width: 40);
+            Widget groupAvatar = const Icon(Icons.account_circle, size: 40);
 
             // If we have Firebase data, use it instead
             if (snapshot.hasData && snapshot.data!.exists) {
@@ -258,7 +256,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                         errorBuilder: (context, error, stackTrace) {
                           print('Error loading group image: $error');
                           // Fallback to RandomAvatar if image fails to load
-                          return RandomAvatar(groupName, height: 40, width: 40);
+                          return const Icon(Icons.account_circle, size: 40);
                         },
                       ),
                     );
@@ -638,33 +636,27 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   Widget _buildSenderAvatar(MessageSender sender) {
     // For Messi (special AI user), use Barcelona crest
     if (sender.type == 'ai' && sender.name == 'Lionel Messi') {
-      return Image.network(
-        "https://upload.wikimedia.org/wikipedia/sco/4/47/FC_Barcelona_%28crest%29.svg",
-        fit: BoxFit.cover,
-        height: 35,
-        width: 35,
-        errorBuilder: (context, error, stackTrace) {
-          print('Error loading Messi avatar: $error');
-          return RandomAvatar(sender.uid, height: 35, width: 35);
-        },
-      );
+      return const Icon(Icons.smart_toy, color: Colors.blueAccent, size: 35);
     }
 
     // For other AI users, check if group has an image
     if (sender.type == 'ai' && _groupChatData?.imageUrl.isNotEmpty == true) {
-      return Image.network(
-        _groupChatData!.imageUrl,
-        fit: BoxFit.cover,
-        height: 35,
-        width: 35,
-        errorBuilder: (context, error, stackTrace) {
-          return RandomAvatar(sender.uid, height: 35, width: 35);
-        },
+      return ClipOval(
+        child: Image.network(
+          _groupChatData!.imageUrl,
+          fit: BoxFit.cover,
+          height: 35,
+          width: 35,
+          errorBuilder: (context, error, stackTrace) {
+            return const Icon(Icons.account_circle,
+                color: Colors.blueAccent, size: 35);
+          },
+        ),
       );
     }
 
     // For regular users, use a random avatar based on UID
-    return RandomAvatar(sender.uid, height: 35, width: 35);
+    return const Icon(Icons.account_circle, color: Colors.blueAccent, size: 35);
   }
 
   String _formatMessageTime(DateTime dateTime) {
@@ -1001,22 +993,12 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   Widget _buildParticipantAvatar(Participant participant) {
     // For Messi (special AI user), use Barcelona crest
     if (participant.type == 'ai' && participant.name == 'Lionel Messi') {
-      return ClipOval(
-        child: Image.network(
-          "https://upload.wikimedia.org/wikipedia/sco/4/47/FC_Barcelona_%28crest%29.svg",
-          height: 40,
-          width: 40,
-          fit: BoxFit.cover,
-          errorBuilder: (context, error, stackTrace) {
-            return const Icon(Icons.smart_toy, color: Colors.blueAccent);
-          },
-        ),
-      );
+      return const Icon(Icons.smart_toy, color: Colors.blueAccent, size: 40);
     }
 
     // For AI users
     if (participant.type == 'ai') {
-      return const Icon(Icons.smart_toy, color: Colors.blueAccent);
+      return const Icon(Icons.smart_toy, color: Colors.blueAccent, size: 40);
     }
 
     // For regular users
