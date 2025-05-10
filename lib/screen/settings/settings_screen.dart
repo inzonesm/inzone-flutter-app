@@ -34,7 +34,45 @@ class SettingsScreen extends StatelessWidget {
   void presentPaywall() async {
     final paywallResult = await RevenueCatUI.presentPaywall();
 
-    print('Paywall result: $paywallResult ${paywallResult.name}');
+    print('Paywall result: ${paywallResult.name}');
+
+    if (paywallResult == PaywallResult.purchased) {
+      print("User completed a purchase");
+
+      final customerInfo = await Purchases.getCustomerInfo();
+      final entitlements = customerInfo.entitlements.active;
+
+      if (entitlements.isNotEmpty) {
+        entitlements.forEach((key, entitlement) {
+          print("Entitlement ID: $key");
+          print("Product Identifier: ${entitlement.productIdentifier}");
+          final productId = entitlement.productIdentifier;
+          if (productId == '2025incashgold') {
+            print("User bought: InCash Gold Plan");
+          } else if (productId == '2025incashadvanced') {
+            print("User bought: InCash Advanced Pack");
+          } else if (productId == '2025incashelite') {
+            print("User bought: InCash Elite Pack");
+          } else if (productId == '2025incashbasic') {
+            print("User bought: InCash Basic Pack");
+          } else {
+            print("Unknown product ID: $productId");
+          }
+        });
+      } else {
+        print("No active entitlements found.");
+      }
+
+    } else if (paywallResult == PaywallResult.restored) {
+      print("User restored their purchases");
+      // Handle restoration if needed
+
+    } else if (paywallResult == PaywallResult.cancelled) {
+      print("User closed the paywall without purchasing");
+
+    } else if (paywallResult == PaywallResult.error) {
+      print("An error occurred while presenting the paywall");
+    }
   }
 
   Future<void> _deleteAccount(BuildContext context) async {
