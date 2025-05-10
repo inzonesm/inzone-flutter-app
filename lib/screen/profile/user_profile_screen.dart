@@ -274,11 +274,14 @@ class _UserProfileScreenState
 
       // ✅ 데이터 업데이트
       setState(() {
-        name = userProfile["name"] ?? "Unknown"; // 이름
-        username = userProfile["username"] ?? "Unknown"; // 유저네임
-        bio = userProfile["bio"] ?? ""; // 바이오
-        profileImageUrl =
-            userProfile["profilePicture"] ?? ""; // ✅ 프로필 이미지 URL 추가
+        name = userProfile["name"] ?? userProfile["Name"] ?? "Unknown"; // name
+        username = userProfile["username"] ??
+            userProfile["Username"] ??
+            "Unknown"; // user name
+        bio = userProfile["bio"] ?? userProfile["Bio"] ?? ""; // bio
+        profileImageUrl = userProfile["profilePicture"] ??
+            userProfile["ProfilePicture"] ??
+            ""; // profile image url
         followersCount = followers.length;
         followingCount = following.length;
         _communityTabData = {

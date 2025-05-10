@@ -11,12 +11,44 @@ import 'package:inzone/router/app_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
 import 'package:inzone/services/appsflyer_service.dart';
-import 'package:purchases_flutter/models/purchases_configuration.dart' show PurchasesConfiguration;
+import 'package:purchases_flutter/models/purchases_configuration.dart'
+    show PurchasesConfiguration;
 import 'dart:io' show Platform;
 
-import 'package:purchases_flutter/purchases_flutter.dart' show LogLevel, Purchases;
+import 'package:purchases_flutter/purchases_flutter.dart'
+    show LogLevel, Purchases;
 
+Future<void> validateFirebaseSession() async {
+  final user = FirebaseAuth.instance.currentUser;
 
+  if (user != null) {
+    try {
+      // Try to reload the user to make sure their token is still valid
+      await user.reload();
+      print('User session validated: ${user.uid}');
+
+      // Try to refresh the ID token in case it's about to expire
+      await user.getIdToken(true);
+
+      // Configure RevenueCat with user ID if needed
+      if (Platform.isAndroid || Platform.isIOS) {
+        await Purchases.configure(
+            PurchasesConfiguration('appl_veaMcyjzStDagTGHzLYMJiDVkWO')
+              ..appUserID = user.uid);
+        print("RevenueCat configured for user: ${user.uid}");
+      }
+    } catch (e) {
+      print('Error validating user session: $e');
+      // Token is invalid, sign the user out
+      try {
+        await FirebaseAuth.instance.signOut();
+        print('User signed out due to invalid session');
+      } catch (signOutError) {
+        print('Error signing out: $signOutError');
+      }
+    }
+  }
+}
 
 Future<void> initPlatformState() async {
   await Purchases.setLogLevel(LogLevel.debug);
@@ -32,11 +64,10 @@ Future<void> initPlatformState() async {
 
     }
   } else if (Platform.isIOS) {
-    if (FirebaseAuth.instance.currentUser!=null){
+    if (FirebaseAuth.instance.currentUser != null) {
       await Purchases.configure(
           PurchasesConfiguration('appl_veaMcyjzStDagTGHzLYMJiDVkWO')
-            ..appUserID = FirebaseAuth.instance.currentUser!.uid
-      );
+            ..appUserID = FirebaseAuth.instance.currentUser!.uid);
       print("CONFIGURED");
     }
 
@@ -56,6 +87,9 @@ void main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+
+  // Validate Firebase session on app start
+  await validateFirebaseSession();
 
   // Initialize AppsFlyerService
   final appsFlyerService = AppsFlyerService();
