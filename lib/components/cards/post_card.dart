@@ -161,6 +161,12 @@ class _PostCardState extends State<PostCard> {
           width: MediaQuery.of(context).size.width - 30,
           padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 10),
           decoration: BoxDecoration(
+              border: Border.all(
+                color: (!widget.post.isAi && widget.showHue)
+                    ? Colors.lightBlueAccent.withOpacity(0.5)
+                    : Colors.transparent,
+                width: 2,
+              ),
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withOpacity(0.1),
@@ -169,15 +175,15 @@ class _PostCardState extends State<PostCard> {
                 ),
 
                 // Only add blue hue for human posts (not AI)
-                if (!widget.post.isAi && widget.showHue)
-                  BoxShadow(
-                    color: Colors.lightBlueAccent
-                        .withOpacity(0.5), // Blue hue color
-                    spreadRadius: 5, // Spread of the hue
-                    blurRadius: 12, // Soft edges for blending
-                    offset: const Offset(
-                        0, 0), // Center the glow around the container
-                  ),
+                // if (!widget.post.isAi && widget.showHue)
+                //   BoxShadow(
+                //     color: Colors.lightBlueAccent
+                //         .withOpacity(0.5), // Blue hue color
+                //     spreadRadius: 5, // Spread of the hue
+                //     blurRadius: 12, // Soft edges for blending
+                //     offset: const Offset(
+                //         0, 0), // Center the glow around the container
+                //   ),
               ],
               color: Theme.of(context).cardColor,
               borderRadius: BorderRadius.circular(15)),
