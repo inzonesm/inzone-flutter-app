@@ -173,7 +173,7 @@ class _PostCardState extends State<PostCard> {
                   blurRadius: 8,
                   offset: const Offset(0, 4),
                 ),
-
+                // Uncomment the following lines if you want to add a blue hue effect
                 // Only add blue hue for human posts (not AI)
                 // if (!widget.post.isAi && widget.showHue)
                 //   BoxShadow(
