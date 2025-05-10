@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'dart:math';
-import 'package:random_avatar/random_avatar.dart';
 import 'package:image_stack/image_stack.dart';
 import 'package:go_router/go_router.dart';
 
@@ -16,17 +15,17 @@ class GroupCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // 아바타 이미지 리스트 생성
+    // Create avatar image list
     final List<String> avatarImages = [];
 
-    // 아바타가 있으면 사용, 없으면 기본 아바타 생성
+    // Use avatars if they exist, otherwise use default avatars
     if (group.avatars.isNotEmpty) {
       for (var avatar in group.avatars) {
-        // 아바타 이미지 URL 추가
+        // Add avatar image URL
         avatarImages.add(avatar);
       }
     } else {
-      // 기본 아바타 추가
+      // Add default avatars
       avatarImages.addAll([
         'person1',
         'person2',
@@ -147,11 +146,37 @@ class GroupCard extends StatelessWidget {
                                 const TextStyle(),
                         children: List.generate(
                           min(3, avatarImages.length),
-                          (index) => RandomAvatar(
-                            avatarImages[index],
-                            height: 40,
-                            width: 40,
-                          ),
+                          (index) {
+                            // Check if avatarImages[index] is a valid URL and try to display it
+                            final avatar = avatarImages[index];
+                            if (avatar.startsWith('http') ||
+                                avatar.startsWith('https')) {
+                              return ClipRRect(
+                                borderRadius: BorderRadius.circular(40),
+                                child: Image.network(
+                                  avatar,
+                                  width: 40,
+                                  height: 40,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (context, error, stackTrace) {
+                                    // Fallback to icon if the image fails to load
+                                    return const Icon(
+                                      Icons.account_circle,
+                                      size: 40,
+                                      color: Colors.grey,
+                                    );
+                                  },
+                                ),
+                              );
+                            } else {
+                              // Fallback for non-URL avatar strings
+                              return const Icon(
+                                Icons.account_circle,
+                                size: 40,
+                                color: Colors.grey,
+                              );
+                            }
+                          },
                         ),
                       ),
                     ),

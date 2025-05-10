@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:random_avatar/random_avatar.dart';
 
 class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
   final String title;
@@ -51,11 +50,11 @@ class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
                       height: 40,
                       fit: BoxFit.cover,
                       errorBuilder: (context, error, stackTrace) {
-                        return RandomAvatar(avatarId, width: 40, height: 40);
+                        return const Icon(Icons.account_circle, size: 40);
                       },
                     ),
                   )
-                : RandomAvatar(avatarId, width: 40, height: 40),
+                : const Icon(Icons.account_circle, size: 40),
           ),
           const SizedBox(width: 10),
           Expanded(

@@ -4,7 +4,6 @@ import 'package:inzone/config/custom_icons.dart';
 import 'package:inzone/data/comment_class.dart';
 import 'package:inzone/data/inzone_post.dart';
 import 'package:inzone/services/inzone_database.dart';
-import 'package:random_avatar/random_avatar.dart';
 import 'package:go_router/go_router.dart';
 import 'package:inzone/theme/light_theme.dart'; // Import for ChatTheme extension
 
@@ -347,9 +346,11 @@ class _RepostPostCardState extends State<RepostPostCard> {
                     width: MediaQuery.of(context).size.width - 30,
                     child: Center(
                       child: widget.profileImageURL == null
-                          ? Align(
-                              alignment: Alignment.center,
-                              child: RandomAvatar(widget.name))
+                          ? Icon(
+                              Icons.account_circle,
+                              size: 40,
+                              color: theme.colorScheme.primary,
+                            )
                           : ClipRRect(
                               borderRadius: BorderRadius.circular(8.0),
                               child: Image.network(
@@ -357,7 +358,11 @@ class _RepostPostCardState extends State<RepostPostCard> {
                                 fit: BoxFit.fitWidth,
                                 width: MediaQuery.of(context).size.width - 60,
                                 errorBuilder: (context, object, st) {
-                                  return const SizedBox();
+                                  return Icon(
+                                    Icons.account_circle,
+                                    size: 40,
+                                    color: theme.colorScheme.primary,
+                                  );
                                 },
                               ),
                             ),

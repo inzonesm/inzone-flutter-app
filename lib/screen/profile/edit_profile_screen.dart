@@ -1,11 +1,16 @@
+import 'dart:io';
 import 'package:colorful_safe_area/colorful_safe_area.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:inzone/components/ui/appbar.dart';
-import 'package:random_avatar/random_avatar.dart';
+import 'package:inzone/screen/profile/edit_field_screen.dart';
 import 'package:inzone/services/inzone_database.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:inzone/router/routes.dart';
+import 'package:inzone/theme/app_colors.dart';
 
 class EditProfileScreen extends StatefulWidget {
   final String userId;
@@ -26,65 +31,106 @@ class EditProfileScreen extends StatefulWidget {
 }
 
 class _EditProfileScreenState extends State<EditProfileScreen> {
-  late TextEditingController _nameController;
-  late TextEditingController _usernameController;
-  late TextEditingController _bioController;
-  bool _isSaving = false;
-  String _currentUsername = '';
+  late String _name;
+  late String _username;
+  late String _bio;
+  bool _isImageLoading = false;
+  String _profileImageUrl = '';
+  File? _imageFile;
+  final ImagePicker _picker = ImagePicker();
+  final FirebaseStorage _storage = FirebaseStorage.instance;
 
   @override
   void initState() {
     super.initState();
-    _nameController = TextEditingController(text: widget.initialName);
-    _usernameController = TextEditingController(text: widget.initialUsername);
-    _bioController = TextEditingController(text: widget.initialBio);
-    _currentUsername = widget.initialUsername;
+    _name = widget.initialName;
+    _username = widget.initialUsername;
+    _bio = widget.initialBio;
+    _loadUserProfileImage();
+  }
 
-    // Remove the listener as we'll use onChanged instead
+  Future<void> _loadUserProfileImage() async {
+    final userData = await InZoneDatabase.getUserProfile(widget.userId);
+    if (userData != null && mounted) {
+      setState(() {
+        _profileImageUrl = userData['profilePicture'] ?? "";
+      });
+    }
   }
 
   @override
   void dispose() {
-    _nameController.dispose();
-    _usernameController.dispose();
-    _bioController.dispose();
     super.dispose();
   }
 
-  Future<void> _saveProfile() async {
-    if (_nameController.text.isEmpty || _usernameController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Name and username cannot be empty')),
-      );
-      return;
-    }
+  Future<void> _pickImage() async {
+    final XFile? image = await _picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 80,
+    );
+    if (image != null) {
+      setState(() {
+        _imageFile = File(image.path);
+        _isImageLoading = true;
+      });
 
-    setState(() {
-      _isSaving = true;
-    });
+      // 이미지가 선택되면 즉시 저장
+      await _saveProfileImage();
+    }
+  }
+
+  Future<String?> _uploadProfileImage() async {
+    if (_imageFile == null) return null;
 
     try {
-      // Update Firebase Auth display name
-      await FirebaseAuth.instance.currentUser
-          ?.updateDisplayName(_nameController.text);
+      // Get file extension
+      final ext = _imageFile!.path.split('.').last;
 
-      // Create profile data map
-      Map<String, dynamic> profileData = {
-        'name': _nameController.text,
-        'username': _usernameController.text,
-        'bio': _bioController.text,
-      };
+      // Create a unique filename
+      final String fileName =
+          '${widget.userId}_${DateTime.now().millisecondsSinceEpoch}.$ext';
 
-      // Update profile in database
-      await InZoneDatabase.updateUserProfileData(widget.userId, profileData);
+      // Create reference to storage location
+      final ref = _storage.ref().child('profile_pictures/$fileName');
 
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Profile updated successfully')),
-        );
+      // Upload file
+      await ref.putFile(
+          _imageFile!, SettableMetadata(contentType: 'image/$ext'));
 
-        // Return true to indicate successful update and trigger profile refresh
-        context.pop(true);
+      // Get download URL
+      final imageUrl = await ref.getDownloadURL();
+      return imageUrl;
+    } catch (e) {
+      print('Error uploading profile image: $e');
+      return null;
+    }
+  }
+
+  Future<void> _saveProfileImage() async {
+    try {
+      // 이미지 업로드
+      String? newProfileImageUrl = await _uploadProfileImage();
+
+      if (newProfileImageUrl != null) {
+        // 프로필 이미지만 업데이트
+        Map<String, dynamic> profileData = {
+          'profilePicture': newProfileImageUrl,
+        };
+
+        // 데이터베이스에 프로필 업데이트
+        await InZoneDatabase.updateUserProfileData(widget.userId, profileData);
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+                content: Text('Profile picture updated successfully')),
+          );
+
+          setState(() {
+            _profileImageUrl = newProfileImageUrl;
+            _imageFile = null;
+          });
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -95,221 +141,377 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     } finally {
       if (mounted) {
         setState(() {
-          _isSaving = false;
+          _isImageLoading = false;
         });
       }
     }
   }
 
-  Widget buildCupertinoInput(
-      {required String label,
-      String? placeholder,
-      TextEditingController? controller,
-      int maxLines = 1,
-      int? maxLength,
-      required ValueChanged<String> onChanged}) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
+  Future<void> _editField(FieldType type) async {
+    String initialValue = '';
+    switch (type) {
+      case FieldType.name:
+        initialValue = _name;
+        break;
+      case FieldType.username:
+        initialValue = _username;
+        break;
+      case FieldType.bio:
+        initialValue = _bio;
+        break;
+    }
+
+    final result = await context.push<bool>(
+      Routes.editField,
+      extra: {
+        'userId': widget.userId,
+        'initialValue': initialValue,
+        'fieldType': type,
+      },
+    );
+
+    if (result == true) {
+      // Refresh user data
+      final userData = await InZoneDatabase.getUserProfile(widget.userId);
+      if (userData != null && mounted) {
+        setState(() {
+          _name = userData['name'] ?? _name;
+          _username = userData['username'] ?? _username;
+          _bio = userData['bio'] ?? _bio;
+          _profileImageUrl = userData['profilePicture'] ?? _profileImageUrl;
+        });
+      }
+    }
+  }
+
+  Widget _buildProfilePicture() {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final textColor =
+        isDarkMode ? AppColors.darkTextColor : AppColors.lightTextColor;
+    const accentColor = AppColors.primaryBlue;
+    final borderColor =
+        isDarkMode ? Colors.grey.shade700 : Colors.grey.shade300;
+    final surfaceColor =
+        isDarkMode ? AppColors.darkSurfaceColor : AppColors.lightSurfaceColor;
+
+    return Container(
+      padding: const EdgeInsets.only(top: 20, bottom: 10),
+      margin: const EdgeInsets.only(bottom: 10),
+      child: Column(
+        children: [
+          Container(
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  blurRadius: 10,
+                  spreadRadius: 1,
+                ),
+              ],
+            ),
+            child: GestureDetector(
+              onTap: _isImageLoading ? null : _pickImage,
+              child: Stack(
+                alignment: Alignment.bottomRight,
+                children: [
+                  Container(
+                    width: 120,
+                    height: 120,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(color: borderColor, width: 1),
+                      color: isDarkMode ? Colors.grey[800] : Colors.grey[200],
+                    ),
+                    child: _isImageLoading
+                        ? Stack(
+                            children: [
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(60),
+                                child: _imageFile != null
+                                    ? Image.file(
+                                        _imageFile!,
+                                        fit: BoxFit.cover,
+                                      )
+                                    : _profileImageUrl.isNotEmpty
+                                        ? Image.network(
+                                            _profileImageUrl,
+                                            fit: BoxFit.cover,
+                                            errorBuilder:
+                                                (context, error, stackTrace) =>
+                                                    Icon(Icons.account_circle,
+                                                        size: 120,
+                                                        color: Colors.grey
+                                                            .withOpacity(0.5)),
+                                          )
+                                        : Icon(Icons.account_circle,
+                                            size: 120,
+                                            color:
+                                                Colors.grey.withOpacity(0.5)),
+                              ),
+                              Positioned(
+                                right: 10,
+                                top: 10,
+                                child: Container(
+                                  width: 24,
+                                  height: 24,
+                                  decoration: BoxDecoration(
+                                    color: Colors.black.withOpacity(0.5),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const CircularProgressIndicator(
+                                    color: Colors.white,
+                                    strokeWidth: 2,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          )
+                        : ClipRRect(
+                            borderRadius: BorderRadius.circular(60),
+                            child: _imageFile != null
+                                ? Image.file(
+                                    _imageFile!,
+                                    fit: BoxFit.cover,
+                                  )
+                                : _profileImageUrl.isNotEmpty
+                                    ? Image.network(
+                                        _profileImageUrl,
+                                        fit: BoxFit.cover,
+                                        loadingBuilder:
+                                            (context, child, loadingProgress) {
+                                          if (loadingProgress == null)
+                                            return child;
+                                          return Stack(
+                                            children: [
+                                              Opacity(
+                                                opacity: 0.5,
+                                                child: Container(
+                                                  color: Colors.grey[800],
+                                                  width: 120,
+                                                  height: 120,
+                                                ),
+                                              ),
+                                              Positioned(
+                                                right: 10,
+                                                top: 10,
+                                                child: Container(
+                                                  width: 24,
+                                                  height: 24,
+                                                  decoration: BoxDecoration(
+                                                    color: Colors.black
+                                                        .withOpacity(0.5),
+                                                    shape: BoxShape.circle,
+                                                  ),
+                                                  child:
+                                                      CircularProgressIndicator(
+                                                    color: Colors.white,
+                                                    strokeWidth: 2,
+                                                    value: loadingProgress
+                                                                .expectedTotalBytes !=
+                                                            null
+                                                        ? loadingProgress
+                                                                .cumulativeBytesLoaded /
+                                                            loadingProgress
+                                                                .expectedTotalBytes!
+                                                        : null,
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          );
+                                        },
+                                        errorBuilder:
+                                            (context, error, stackTrace) =>
+                                                Icon(Icons.account_circle,
+                                                    size: 120,
+                                                    color: Colors.grey
+                                                        .withOpacity(0.5)),
+                                      )
+                                    : Icon(Icons.account_circle,
+                                        size: 120,
+                                        color: Colors.grey.withOpacity(0.5)),
+                          ),
+                  ),
+                  if (!_isImageLoading)
+                    Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: accentColor,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: surfaceColor, width: 3),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.1),
+                            blurRadius: 3,
+                            spreadRadius: 1,
+                          ),
+                        ],
+                      ),
+                      child: const Icon(
+                        Icons.photo_camera,
+                        color: Colors.white,
+                        size: 18,
+                      ),
+                    ),
+                ],
+              ),
+            ),
           ),
+          const SizedBox(height: 12),
+          GestureDetector(
+            onTap: _isImageLoading ? null : _pickImage,
+            child: Text(
+              "Change Profile Photo",
+              style: TextStyle(
+                color: _isImageLoading ? Colors.grey : accentColor,
+                fontWeight: FontWeight.w600,
+                fontSize: 15,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildProfileItem({
+    required String label,
+    required String value,
+    required FieldType type,
+    int maxLines = 1,
+  }) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final textColor =
+        isDarkMode ? AppColors.darkTextColor : AppColors.lightTextColor;
+    final surfaceColor =
+        isDarkMode ? AppColors.darkSurfaceColor : AppColors.lightSurfaceColor;
+    final dividerColor =
+        isDarkMode ? AppColors.darkDividerColor : AppColors.lightDividerColor;
+
+    return GestureDetector(
+      onTap: () => _editField(type),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 16),
+        decoration: BoxDecoration(
+          color: surfaceColor,
+          borderRadius: BorderRadius.circular(15),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.03),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
         ),
-        const SizedBox(height: 8),
-        Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            border: Border.all(color: Colors.grey[100] ?? Colors.grey),
-            borderRadius: BorderRadius.circular(10),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.grey.withOpacity(0.2),
-                spreadRadius: 2,
-                blurRadius: 5,
-                offset: const Offset(0, 3),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          child: Row(
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      color: textColor.withOpacity(0.7),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Text(
+                        value.isEmpty ? "Not set" : value,
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
+                          color: value.isEmpty ? Colors.grey : textColor,
+                        ),
+                        maxLines: maxLines,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              const Spacer(),
+              Icon(
+                Icons.chevron_right,
+                color: Colors.grey.withOpacity(0.7),
+                size: 22,
               ),
             ],
           ),
-          padding: const EdgeInsets.all(10),
-          constraints: maxLines > 1
-              ? const BoxConstraints(minHeight: 120)
-              : const BoxConstraints(),
-          child: CupertinoTextField.borderless(
-            controller: controller,
-            placeholder: placeholder,
-            placeholderStyle: const TextStyle(color: Colors.grey),
-            style: const TextStyle(color: Colors.black),
-            cursorColor: Colors.black,
-            maxLines: maxLines,
-            maxLength: maxLength,
-            clearButtonMode: OverlayVisibilityMode.editing,
-            onChanged: (value) {
-              if (controller != null) {
-                // Trigger rebuild to update length counter if needed
-                (controller as dynamic).notifyListeners();
-              }
-              onChanged(value);
-            },
-          ),
         ),
-      ],
+      ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final backgroundColor =
+        isDarkMode ? AppColors.darkBackground : AppColors.lightBackground;
+    final surfaceColor =
+        isDarkMode ? AppColors.darkSurfaceColor : AppColors.lightSurfaceColor;
+    final textColor =
+        isDarkMode ? AppColors.darkTextColor : AppColors.lightTextColor;
+    const accentColor = AppColors.primaryBlue;
+    final dividerColor =
+        isDarkMode ? AppColors.darkDividerColor : AppColors.lightDividerColor;
+
     return ColorfulSafeArea(
-      topColor: Theme.of(context).canvasColor,
+      topColor: surfaceColor,
       left: false,
       right: false,
       top: true,
       bottom: false,
       child: Scaffold(
-        backgroundColor: Theme.of(context).canvasColor,
-        appBar: PreferredSize(
-          preferredSize: const Size.fromHeight(100),
-          child: Padding(
-            padding: const EdgeInsets.only(top: 2),
-            child: CustomAppBar(
-              isImage: false,
-              isSettings: true,
-              isHome: true,
-              title: "Edit Profile",
-              userPoints: "100",
-              onSearchTap: () {},
-              onProfileTap: () {},
-              onPointsTap: () {},
-            ),
+        backgroundColor: backgroundColor,
+        appBar: AppBar(
+          backgroundColor: surfaceColor,
+          elevation: 0,
+          leading: IconButton(
+            icon: Icon(Icons.arrow_back, color: textColor),
+            onPressed: () => context.pop(false),
           ),
+          title: Text(
+            'Edit Profile',
+            style: TextStyle(color: textColor, fontWeight: FontWeight.bold),
+          ),
+          centerTitle: true,
         ),
         body: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.all(20.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                // Avatar that changes based on username
-                Center(
-                  child: Column(
-                    children: [
-                      CircleAvatar(
-                        radius: 80,
-                        child: RandomAvatar(
-                          _currentUsername.isNotEmpty
-                              ? _currentUsername
-                              : 'user',
-                          height: 160,
-                          width: 160,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      const Text(
-                        "Avatar changes based on username",
-                        style: TextStyle(
-                          color: Colors.grey,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
-                  ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              _buildProfilePicture(),
+              Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  children: [
+                    _buildProfileItem(
+                      label: "Name",
+                      value: _name,
+                      type: FieldType.name,
+                    ),
+                    _buildProfileItem(
+                      label: "Username",
+                      value: _username,
+                      type: FieldType.username,
+                    ),
+                    _buildProfileItem(
+                      label: "Bio",
+                      value: _bio,
+                      type: FieldType.bio,
+                      maxLines: 2,
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 20),
-                buildCupertinoInput(
-                  label: "Name",
-                  placeholder: "Enter your name",
-                  controller: _nameController,
-                  maxLines: 1,
-                  onChanged: (value) {
-                    // Update avatar on every keystroke
-                    setState(() {
-                      _currentUsername = value;
-                    });
-                  },
-                ),
-                const SizedBox(height: 20),
-                buildCupertinoInput(
-                  label: "User Name",
-                  placeholder: "Enter your message",
-                  controller: _usernameController,
-                  maxLines: 1,
-                  onChanged: (value) {
-                    // Update avatar on every keystroke
-                    setState(() {
-                      _currentUsername = value;
-                    });
-                  },
-                ),
-
-                const SizedBox(height: 20),
-                buildCupertinoInput(
-                  label: "Bio",
-                  placeholder: "Enter your bio",
-                  controller: _bioController,
-                  maxLines: 4,
-                  onChanged: (value) {
-                    // Update avatar on every keystroke
-                    setState(() {
-                      _currentUsername = value;
-                    });
-                  },
-                ),
-                const SizedBox(height: 40),
-                // // Save button
-                // SizedBox(
-                //   width: double.infinity,
-                //   height: 50,
-                //   child: ElevatedButton(
-                //     onPressed: _isSaving ? null : _saveProfile,
-                //     style: ElevatedButton.styleFrom(
-                //       backgroundColor: Colors.blue,
-                //       foregroundColor: Colors.white,
-                //       shape: RoundedRectangleBorder(
-                //         borderRadius: BorderRadius.circular(10),
-                //       ),
-                //     ),
-                //     child: _isSaving
-                //         ? const CircularProgressIndicator(color: Colors.white)
-                //         : const Text(
-                //             'Save Changes',
-                //             style: TextStyle(
-                //               fontSize: 16,
-                //               fontWeight: FontWeight.bold,
-                //             ),
-                //           ),
-                //   ),
-                // ),
-              ],
-            ),
-          ),
-        ),
-        bottomNavigationBar: Padding(
-          padding:
-              const EdgeInsets.only(left: 15, right: 15, bottom: 30, top: 15),
-          child: GestureDetector(
-            onTap: _isSaving ? null : _saveProfile,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              height: 60,
-              width: MediaQuery.of(context).size.width - 80,
-              decoration: BoxDecoration(
-                  color: Colors.blueAccent,
-                  borderRadius: BorderRadius.circular(20)),
-              child: const Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    'DONE',
-                    style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white),
-                  ),
-                ],
               ),
-            ),
+            ],
           ),
         ),
       ),

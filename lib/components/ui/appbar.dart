@@ -1,6 +1,5 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:random_avatar/random_avatar.dart';
 import 'package:inzone/services/monetization_service.dart';
 
 class CustomAppBar extends StatefulWidget implements PreferredSizeWidget {
@@ -244,16 +243,18 @@ class _CustomAppBarState extends State<CustomAppBar> {
                                           fit: BoxFit.cover,
                                           errorBuilder:
                                               (context, error, stackTrace) {
-                                            // Fallback to RandomAvatar if the image fails to load
-                                            return RandomAvatar(
-                                                widget.title ?? 'User',
-                                                height: 48,
-                                                width: 48);
+                                            // Replace RandomAvatar with Icon
+                                            return const Icon(
+                                              Icons.account_circle,
+                                              size: 48,
+                                            );
                                           },
                                         ),
                                       )
-                                    : RandomAvatar(widget.title ?? 'User',
-                                        height: 48, width: 48),
+                                    : const Icon(
+                                        Icons.account_circle,
+                                        size: 48,
+                                      ),
                               ),
                             )
                           : const SizedBox(),

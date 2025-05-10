@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:inzone/components/ui/inzone_searchbar.dart';
-import 'package:random_avatar/random_avatar.dart';
 import 'package:inzone/services/inzone_database.dart';
 import 'package:inzone/screen/profile/profile_screen.dart';
 import 'package:inzone/router/routes.dart';
@@ -29,6 +28,8 @@ class _FollowersFollowingTabState extends State<FollowersFollowingTab> {
     "followers": [],
     "following": []
   };
+  // Store profile images for users
+  final Map<String, String> _userProfileImages = {};
 
   @override
   void initState() {
@@ -42,9 +43,59 @@ class _FollowersFollowingTabState extends State<FollowersFollowingTab> {
     };
 
     updateMessageShown();
+    _loadUserProfileImages();
+  }
+
+  Future<void> _loadUserProfileImages() async {
     setState(() {
-      isLoading = false;
+      isLoading = true;
     });
+
+    try {
+      // Process followers
+      for (var user in displayUserList["followers"] ?? []) {
+        final userId = user['id'] ?? user['uid'] ?? '';
+        if (userId.isNotEmpty) {
+          await _loadSingleUserProfileImage(userId);
+        }
+      }
+
+      // Process following
+      for (var user in displayUserList["following"] ?? []) {
+        final userId = user['id'] ?? user['uid'] ?? '';
+        if (userId.isNotEmpty) {
+          await _loadSingleUserProfileImage(userId);
+        }
+      }
+    } catch (e) {
+      print('Error loading profile images: $e');
+    } finally {
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _loadSingleUserProfileImage(String userId) async {
+    if (_userProfileImages.containsKey(userId)) return; // Already loaded
+
+    try {
+      final userData = await InZoneDatabase.getUserProfile(userId);
+      if (userData != null && userData.containsKey('profilePicture')) {
+        final profilePicture = userData['profilePicture'];
+        if (profilePicture != null && profilePicture.toString().isNotEmpty) {
+          if (mounted) {
+            setState(() {
+              _userProfileImages[userId] = profilePicture.toString();
+            });
+          }
+        }
+      }
+    } catch (e) {
+      print('Error loading profile image for $userId: $e');
+    }
   }
 
   Future<void> fetchFollowersAndFollowing() async {
@@ -55,6 +106,7 @@ class _FollowersFollowingTabState extends State<FollowersFollowingTab> {
     try {
       // We're not making API calls anymore, just refreshing the UI with existing data
       updateMessageShown();
+      _loadUserProfileImages();
     } catch (e) {
       // Show error message
       ScaffoldMessenger.of(context).showSnackBar(
@@ -232,16 +284,27 @@ class _FollowersFollowingTabState extends State<FollowersFollowingTab> {
         final userName = user['username'] ?? '';
         final userType = user['type'] ?? 'human';
 
+        // Get profile image if available
+        final profileImageUrl = _userProfileImages[userId] ?? '';
+
         return FutureBuilder<String?>(
             future: InZoneDatabase.getCurrentUserUid(),
             builder: (context, snapshot) {
               final isCurrentUser = snapshot.hasData && userId == snapshot.data;
 
               return ListTile(
-                leading: RandomAvatar(
-                  userId,
-                  height: 50,
-                  width: 50,
+                leading: ClipRRect(
+                  borderRadius: BorderRadius.circular(20),
+                  child: profileImageUrl.isNotEmpty
+                      ? Image.network(
+                          profileImageUrl,
+                          width: 40,
+                          height: 40,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) =>
+                              const Icon(Icons.account_circle),
+                        )
+                      : const Icon(Icons.account_circle),
                 ),
                 title: Text(
                   userName,
