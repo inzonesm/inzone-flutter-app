@@ -146,7 +146,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
             if (userProfile != null) {
               displayName =
                   userProfile["Name"] ?? userProfile["name"] ?? 'User';
-              currentUser.updateDisplayName(displayName);
+              // currentUser.updateDisplayName(displayName);
             }
           } catch (e) {
             print('Error fetching user name from database: $e');
