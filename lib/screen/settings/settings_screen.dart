@@ -31,7 +31,8 @@ class SettingsScreen extends StatelessWidget {
 
   void presentPaywall() async {
     final paywallResult = await RevenueCatUI.presentPaywall();
-    print('Paywall result: $paywallResult');
+    print('Paywall result: $paywallResult ${paywallResult.name}');
+
   }
 
   Future<void> _deleteAccount(BuildContext context) async {
