@@ -160,13 +160,32 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         initialValue = _bio;
         break;
     }
+    print("HALALALALAL");
+    print(widget.userId);
+    print(initialValue);
+    print(type);
+    print("HALALALALAL");
+
+    // Convert enum to string for path parameter
+    String fieldTypeStr;
+    switch (type) {
+      case FieldType.username:
+        fieldTypeStr = 'username';
+        break;
+      case FieldType.bio:
+        fieldTypeStr = 'bio';
+        break;
+      case FieldType.name:
+      default:
+        fieldTypeStr = 'name';
+        break;
+    }
 
     final result = await context.push<bool>(
-      Routes.editField,
+      Routes.editFieldPath(fieldTypeStr),
       extra: {
         'userId': widget.userId,
         'initialValue': initialValue,
-        'fieldType': type,
       },
     );
 

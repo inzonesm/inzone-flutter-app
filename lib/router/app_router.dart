@@ -1,7 +1,9 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:go_router/go_router.dart';
+import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:inzone/router/auth_notifier.dart';
 
@@ -34,6 +36,45 @@ import 'package:inzone/data/group_data.dart';
 // Routes
 import 'package:inzone/router/routes.dart';
 
+/// A custom codec that can handle Map<String, Object> extras
+class MapExtraCodec extends Codec<Object?, Object?> {
+  const MapExtraCodec();
+
+  @override
+  Converter<Object?, Object?> get decoder => const _MapExtraDecoder();
+
+  @override
+  Converter<Object?, Object?> get encoder => const _MapExtraEncoder();
+}
+
+class _MapExtraDecoder extends Converter<Object?, Object?> {
+  const _MapExtraDecoder();
+
+  @override
+  Object? convert(Object? input) {
+    if (input == null) return null;
+
+    // If input is already a Map<String, dynamic>, just return it
+    if (input is Map<String, dynamic>) {
+      return input;
+    }
+
+    return input;
+  }
+}
+
+class _MapExtraEncoder extends Converter<Object?, Object?> {
+  const _MapExtraEncoder();
+
+  @override
+  Object? convert(Object? input) {
+    if (input == null) return null;
+
+    // Return input as is, GoRouter will handle serialization
+    return input;
+  }
+}
+
 class AppRouter {
   static final rootNavigatorKey = GlobalKey<NavigatorState>();
   static final _shellNavigatorKey = GlobalKey<NavigatorState>();
@@ -44,6 +85,8 @@ class AppRouter {
     navigatorKey: rootNavigatorKey,
     debugLogDiagnostics: true,
     refreshListenable: authNotifier,
+    // Add custom codec to handle Map<String, Object> extras
+    extraCodec: const MapExtraCodec(),
     redirect: (BuildContext context, GoRouterState state) {
       final bool isLoading = authNotifier.isLoading;
       final bool isLoggedIn = authNotifier.isLoggedIn;
@@ -185,8 +228,11 @@ class AppRouter {
         path: Routes.editProfile,
         parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) {
-          final Map<String, dynamic> extra =
-              state.extra as Map<String, dynamic>;
+          final Map<String, dynamic>? extra =
+              state.extra as Map<String, dynamic>?;
+          if (extra == null) {
+            throw Exception('Extra data is missing for this route.');
+          }
           return EditProfileScreen(
             userId: extra['userId'] as String,
             initialName: extra['initialName'] as String,
@@ -201,10 +247,28 @@ class AppRouter {
         builder: (context, state) {
           final Map<String, dynamic> extra =
               state.extra as Map<String, dynamic>;
+          final String fieldTypeStr =
+              state.pathParameters['fieldType'] ?? 'name';
+
+          // Convert string to enum
+          FieldType fieldType;
+          switch (fieldTypeStr) {
+            case 'username':
+              fieldType = FieldType.username;
+              break;
+            case 'bio':
+              fieldType = FieldType.bio;
+              break;
+            case 'name':
+            default:
+              fieldType = FieldType.name;
+              break;
+          }
+
           return EditFieldScreen(
             userId: extra['userId'] as String,
             initialValue: extra['initialValue'] as String,
-            fieldType: extra['fieldType'] as FieldType,
+            fieldType: fieldType,
           );
         },
       ),
