@@ -289,15 +289,15 @@ class AppRouter {
         parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) => const ContentSelectionSettingsScreen(),
       ),
-      GoRoute(
-        path: Routes.subscription,
-        parentNavigatorKey: rootNavigatorKey,
-        pageBuilder: (context, state) => CupertinoPage(
-          key: state.pageKey,
-          fullscreenDialog: true,
-          child: const SubscriptionScreen(),
-        ),
-      ),
+      // GoRoute(
+      //   path: Routes.subscription,
+      //   parentNavigatorKey: rootNavigatorKey,
+      //   pageBuilder: (context, state) => CupertinoPage(
+      //     key: state.pageKey,
+      //     fullscreenDialog: true,
+      //     child: const SubscriptionScreen(),
+      //   ),
+      // ),
       GoRoute(
         path: Routes.referral,
         parentNavigatorKey: rootNavigatorKey,

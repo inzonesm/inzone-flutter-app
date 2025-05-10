@@ -23,11 +23,13 @@ Future<void> initPlatformState() async {
 
   PurchasesConfiguration configuration;
   if (Platform.isAndroid) {
+
     if (FirebaseAuth.instance.currentUser!=null) {
       await Purchases.configure(
-          PurchasesConfiguration('appl_veaMcyjzStDagTGHzLYMJiDVkWO')
+          PurchasesConfiguration('goog_TMTKRzQNQBHDOwdGzYeRqHhbDPB')
             ..appUserID = FirebaseAuth.instance.currentUser!.uid
       );
+
     }
   } else if (Platform.isIOS) {
     if (FirebaseAuth.instance.currentUser!=null){

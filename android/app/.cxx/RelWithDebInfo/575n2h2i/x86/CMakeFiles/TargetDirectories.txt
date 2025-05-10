@@ -1,0 +1,2 @@
+/Users/aadeshkheria/Desktop/inzone/inzone/android/app/.cxx/RelWithDebInfo/575n2h2i/x86/CMakeFiles/edit_cache.dir
+/Users/aadeshkheria/Desktop/inzone/inzone/android/app/.cxx/RelWithDebInfo/575n2h2i/x86/CMakeFiles/rebuild_cache.dir
