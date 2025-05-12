@@ -8,7 +8,10 @@ import 'package:inzone/screen/auth/introduction_screen.dart';
 import 'package:inzone/screen/settings/content_select_screen.dart';
 import 'package:inzone/screen/settings/subscription_purchase.dart';
 import 'package:inzone/screen/settings/referral_screen.dart';
+import 'package:purchases_flutter/models/store_transaction.dart'
+    show StoreTransaction;
 // ignore: unused_import
+import 'dart:io' show Platform;
 import 'package:url_launcher/url_launcher.dart';
 import 'package:go_router/go_router.dart';
 import 'package:inzone/router/routes.dart';
@@ -34,48 +37,46 @@ class SettingsScreen extends StatelessWidget {
   void presentPaywall() async {
     final paywallResult = await RevenueCatUI.presentPaywall();
 
-    print('Paywall result: ${paywallResult.name}');
-
-    if (paywallResult == PaywallResult.purchased) {
-      print("User completed a purchase");
-
+    print('Paywall result: $paywallResult ${paywallResult.name}');
+    if (paywallResult == PaywallResult.purchased ||
+        paywallResult == PaywallResult.restored) {
+      // Retrieve the latest customer information
       final customerInfo = await Purchases.getCustomerInfo();
-      final entitlements = customerInfo.entitlements.active;
+      final transactions =
+          List<StoreTransaction>.from(customerInfo.nonSubscriptionTransactions);
+      if (transactions.isNotEmpty) {
+        // Sort transactions by purchase date in descending order
+        print(transactions);
+        transactions.sort((a, b) => b.purchaseDate.compareTo(a.purchaseDate));
 
-      if (entitlements.isNotEmpty) {
-        entitlements.forEach((key, entitlement) {
-          print("Entitlement ID: $key");
-          print("Product Identifier: ${entitlement.productIdentifier}");
-          final productId = entitlement.productIdentifier;
-          if (productId == '2025incashgold') {
-            print("User bought: InCash Gold Plan");
-            //TODO
-          } else if (productId == '2025incashadvanced') {
-            print("User bought: InCash Advanced Pack");
-            //TODO
-          } else if (productId == '2025incashelite') {
-            print("User bought: InCash Elite Pack");
-            //TODO
-          } else if (productId == '2025incashbasic') {
-            print("User bought: InCash Basic Pack");
-            //TODO
-          } else {
-            print("Unknown product ID: $productId");
-          }
+        transactions.forEach((item) {
+          print(item.productIdentifier);
+          print(item.purchaseDate);
+          print("\n\n");
         });
-      } else {
-        print("No active entitlements found.");
+
+        if (Platform.isAndroid) {
+          if (transactions.first.productIdentifier == "2025incashadvanced") {
+          } else if (transactions.first.productIdentifier ==
+              "2025incashelite") {
+          } else if (transactions.first.productIdentifier ==
+              "2025incashbasic") {
+          } else if (transactions.first.productIdentifier ==
+              " 2025incashgold:2025incashgold") {}
+        } else if (Platform.isAndroid) {
+          if (transactions.first.productIdentifier == "InCashGold") {
+          } else if (transactions.first.productIdentifier ==
+              "InCashAdvanced2025") {
+          } else if (transactions.first.productIdentifier ==
+              "InCashElite2025") {
+          } else if (transactions.first.productIdentifier ==
+              "InCashBasic2025") {}
+        }
       }
-
-    } else if (paywallResult == PaywallResult.restored) {
-      print("User restored their purchases");
-      // Handle restoration if needed
-
     } else if (paywallResult == PaywallResult.cancelled) {
-      print("User closed the paywall without purchasing");
-
+      print("User closed the paywall without making a purchase.");
     } else if (paywallResult == PaywallResult.error) {
-      print("An error occurred while presenting the paywall");
+      print("An error occurred while presenting the paywall.");
     }
   }
 
