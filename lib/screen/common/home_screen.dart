@@ -445,9 +445,8 @@ class HomeScreenState extends State<HomeScreen> {
               )
             : CustomScrollView(
                 controller: _scrollController,
-                physics: const AlwaysScrollableScrollPhysics(),
+                physics: const BouncingScrollPhysics(),
                 slivers: [
-                  // iOS 스타일 리프레시 컨트롤
                   CupertinoSliverRefreshControl(
                     onRefresh: () async {
                       setState(() {
