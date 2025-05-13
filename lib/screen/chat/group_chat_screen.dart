@@ -247,7 +247,14 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                       data['imageUrl'] != null &&
                       data['imageUrl'].toString().isNotEmpty) {
                     final imageUrl = data['imageUrl'] as String;
-                    groupAvatar = ClipOval(
+                    groupAvatar = Container(
+                      width: 40,
+                      height: 40,
+                      clipBehavior: Clip.antiAlias,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Theme.of(context).cardColor,
+                      ),
                       child: Image.network(
                         imageUrl,
                         height: 40,
@@ -255,11 +262,42 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                         fit: BoxFit.cover,
                         errorBuilder: (context, error, stackTrace) {
                           print('Error loading group image: $error');
-                          // Fallback to RandomAvatar if image fails to load
-                          return const Icon(Icons.account_circle, size: 40);
+                          // Fallback to icon if image fails to load
+                          return const Center(
+                            child: Icon(Icons.account_circle, size: 40),
+                          );
                         },
                       ),
                     );
+                  } else if (data.containsKey('avatars') &&
+                      data['avatars'] is List) {
+                    // If there's no group image but there are member avatars, try to use the first one
+                    final avatars = data['avatars'] as List;
+                    if (avatars.isNotEmpty &&
+                        avatars[0] is String &&
+                        avatars[0].toString().isNotEmpty &&
+                        avatars[0].toString().startsWith('http')) {
+                      groupAvatar = Container(
+                        width: 40,
+                        height: 40,
+                        clipBehavior: Clip.antiAlias,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Theme.of(context).cardColor,
+                        ),
+                        child: Image.network(
+                          avatars[0].toString(),
+                          height: 40,
+                          width: 40,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) {
+                            return const Center(
+                              child: Icon(Icons.account_circle, size: 40),
+                            );
+                          },
+                        ),
+                      );
+                    }
                   }
                 }
               } catch (e) {
@@ -289,12 +327,9 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                     height: 40,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      border: Border.all(
-                        color: const Color(0xffFFE2A9),
-                        width: 1.5,
-                      ),
+                      color: Theme.of(context).cardColor,
                     ),
-                    child: groupAvatar,
+                    child: Center(child: groupAvatar),
                   ),
                   const SizedBox(width: 10),
                   Expanded(
@@ -621,13 +656,15 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       isMe: isMe,
       timestamp: message.timestamp,
       senderName: message.sender.name,
-      senderAvatar: ClipOval(
-        child: Container(
-          width: 35,
-          height: 35,
+      senderAvatar: Container(
+        width: 35,
+        height: 35,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
           color: Theme.of(context).cardColor,
-          child: _buildSenderAvatar(message.sender),
         ),
+        clipBehavior: Clip.antiAlias,
+        child: _buildSenderAvatar(message.sender),
       ),
     );
   }
@@ -636,7 +673,9 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   Widget _buildSenderAvatar(MessageSender sender) {
     // For Messi (special AI user), use Barcelona crest
     if (sender.type == 'ai' && sender.name == 'Lionel Messi') {
-      return const Icon(Icons.smart_toy, color: Colors.blueAccent, size: 35);
+      return const Center(
+        child: Icon(Icons.smart_toy, color: Colors.blueAccent, size: 35),
+      );
     }
 
     // For other AI users, check if group has an image
@@ -648,15 +687,66 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
           height: 35,
           width: 35,
           errorBuilder: (context, error, stackTrace) {
-            return const Icon(Icons.account_circle,
-                color: Colors.blueAccent, size: 35);
+            return const Center(
+              child: Icon(Icons.account_circle,
+                  color: Colors.blueAccent, size: 35),
+            );
           },
         ),
       );
     }
 
-    // For regular users, use a random avatar based on UID
-    return const Icon(Icons.account_circle, color: Colors.blueAccent, size: 35);
+    // For human users, try to load their profile image from Firebase
+    if (sender.type != 'ai' && sender.uid.isNotEmpty) {
+      return FutureBuilder<DocumentSnapshot>(
+        future: FirebaseFirestore.instance
+            .collection('humanUsers')
+            .doc(sender.uid)
+            .get(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(
+              child: Icon(Icons.account_circle,
+                  color: Colors.blueAccent, size: 35),
+            );
+          }
+
+          if (snapshot.hasData && snapshot.data!.exists) {
+            final userData = snapshot.data!.data() as Map<String, dynamic>?;
+            final profileImage =
+                userData?['profilePicture'] ?? userData?['profileImage'];
+
+            if (profileImage != null && profileImage.toString().isNotEmpty) {
+              return ClipOval(
+                child: Image.network(
+                  profileImage.toString(),
+                  fit: BoxFit.cover,
+                  height: 35,
+                  width: 35,
+                  errorBuilder: (context, error, stackTrace) {
+                    return const Center(
+                      child: Icon(Icons.account_circle,
+                          color: Colors.blueAccent, size: 35),
+                    );
+                  },
+                ),
+              );
+            }
+          }
+
+          // Fallback to icon if no profile image is found
+          return const Center(
+            child:
+                Icon(Icons.account_circle, color: Colors.blueAccent, size: 35),
+          );
+        },
+      );
+    }
+
+    // Fallback to icon
+    return const Center(
+      child: Icon(Icons.account_circle, color: Colors.blueAccent, size: 35),
+    );
   }
 
   String _formatMessageTime(DateTime dateTime) {
@@ -993,20 +1083,26 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   Widget _buildParticipantAvatar(Participant participant) {
     // For Messi (special AI user), use Barcelona crest
     if (participant.type == 'ai' && participant.name == 'Lionel Messi') {
-      return const Icon(Icons.smart_toy, color: Colors.blueAccent, size: 40);
+      return const Center(
+        child: Icon(Icons.smart_toy, color: Colors.blueAccent, size: 24),
+      );
     }
 
     // For AI users
     if (participant.type == 'ai') {
-      return const Icon(Icons.smart_toy, color: Colors.blueAccent, size: 40);
+      return const Center(
+        child: Icon(Icons.smart_toy, color: Colors.blueAccent, size: 24),
+      );
     }
 
     // For regular users
-    return Text(
-      participant.name.isNotEmpty ? participant.name[0].toUpperCase() : '?',
-      style: TextStyle(
-        color: Theme.of(context).colorScheme.primary,
-        fontWeight: FontWeight.bold,
+    return Center(
+      child: Text(
+        participant.name.isNotEmpty ? participant.name[0].toUpperCase() : '?',
+        style: TextStyle(
+          color: Theme.of(context).colorScheme.primary,
+          fontWeight: FontWeight.bold,
+        ),
       ),
     );
   }

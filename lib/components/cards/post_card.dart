@@ -69,12 +69,44 @@ class _PostCardState extends State<PostCard> {
   }
 
   Future<void> _loadUserProfileImage() async {
-    final userData =
-        await InZoneDatabase.getUserProfile(widget.post.userReference);
-    if (userData != null && mounted) {
-      setState(() {
-        profileImageUrl = userData['profilePicture'] ?? "";
-      });
+    try {
+      // First try to get image from API
+      final userData =
+          await InZoneDatabase.getUserProfile(widget.post.userReference);
+
+      if (userData != null &&
+          userData['profilePicture'] != null &&
+          userData['profilePicture'].toString().isNotEmpty) {
+        if (mounted) {
+          setState(() {
+            profileImageUrl = userData['profilePicture'];
+          });
+        }
+        return;
+      }
+
+      // If API doesn't return a profile image or returns empty, try Firestore directly
+      if (widget.post.userReference.isNotEmpty) {
+        final userDoc = await FirebaseFirestore.instance
+            .collection('humanUsers')
+            .doc(widget.post.userReference)
+            .get();
+
+        if (userDoc.exists && userDoc.data() != null) {
+          final userDocData = userDoc.data()!;
+          final profilePic = userDocData['profilePicture'] ??
+              userDocData['profileImage'] ??
+              "";
+
+          if (mounted && profilePic.toString().isNotEmpty) {
+            setState(() {
+              profileImageUrl = profilePic.toString();
+            });
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('Error loading user profile image: $e');
     }
   }
 

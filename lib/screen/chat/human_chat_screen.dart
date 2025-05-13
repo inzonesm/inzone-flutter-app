@@ -68,11 +68,36 @@ class _HumanChatScreenState extends State<HumanChatScreen> {
 
   Future<void> _loadOtherUserProfileImage() async {
     try {
+      if (widget.otherUserId.isEmpty) return;
+
+      // First try from API
       final userData = await InZoneDatabase.getUserProfile(widget.otherUserId);
-      if (userData != null && mounted) {
+      if (userData != null &&
+          userData['profilePicture'] != null &&
+          userData['profilePicture'].toString().isNotEmpty &&
+          mounted) {
         setState(() {
-          _otherUserProfileImageUrl = userData['profilePicture'] ?? "";
+          _otherUserProfileImageUrl = userData['profilePicture'];
         });
+        return;
+      }
+
+      // If API doesn't return a profile image or returns empty, try Firestore directly
+      final userDoc = await FirebaseFirestore.instance
+          .collection('humanUsers')
+          .doc(widget.otherUserId)
+          .get();
+
+      if (userDoc.exists && userDoc.data() != null) {
+        final userDocData = userDoc.data()!;
+        final profilePic =
+            userDocData['profilePicture'] ?? userDocData['profileImage'] ?? "";
+
+        if (mounted && profilePic.toString().isNotEmpty) {
+          setState(() {
+            _otherUserProfileImageUrl = profilePic.toString();
+          });
+        }
       }
     } catch (e) {
       print('Error loading other user profile image: $e');
@@ -273,13 +298,32 @@ class _HumanChatScreenState extends State<HumanChatScreen> {
                         senderName: isMe ? null : senderName,
                         senderAvatar: isMe
                             ? null
-                            : ClipOval(
-                                child: Container(
-                                  width: 35,
-                                  height: 35,
+                            : Container(
+                                width: 35,
+                                height: 35,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
                                   color: Theme.of(context).cardColor,
-                                  child: const Icon(Icons.account_circle),
                                 ),
+                                clipBehavior: Clip.antiAlias,
+                                child: _otherUserProfileImageUrl.isNotEmpty
+                                    ? Image.network(
+                                        _otherUserProfileImageUrl,
+                                        width: 35,
+                                        height: 35,
+                                        fit: BoxFit.cover,
+                                        errorBuilder:
+                                            (context, error, stackTrace) {
+                                          return const Center(
+                                            child: Icon(Icons.account_circle,
+                                                size: 35),
+                                          );
+                                        },
+                                      )
+                                    : const Center(
+                                        child: Icon(Icons.account_circle,
+                                            size: 35),
+                                      ),
                               ),
                       ),
                     );
