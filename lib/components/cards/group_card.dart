@@ -147,39 +147,49 @@ class GroupCard extends StatelessWidget {
                         children: List.generate(
                           min(3, avatarImages.length),
                           (index) {
-                            // Check if avatarImages[index] is a valid URL and try to display it
                             final avatar = avatarImages[index];
-                            if (avatar.startsWith('http') ||
-                                avatar.startsWith('https')) {
-                              return ClipRRect(
-                                borderRadius: BorderRadius.circular(40),
-                                child: Image.network(
-                                  avatar,
-                                  width: 40,
-                                  height: 40,
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (context, error, stackTrace) {
-                                    // Fallback to icon if the image fails to load
-                                    return const Icon(
-                                      Icons.account_circle,
-                                      size: 40,
-                                      color: Colors.grey,
-                                    );
-                                  },
-                                ),
-                              );
-                            } else {
-                              // Fallback for non-URL avatar strings
-                              return const Icon(
-                                Icons.account_circle,
-                                size: 40,
-                                color: Colors.grey,
-                              );
-                            }
+                            return ClipRRect(
+                              borderRadius: BorderRadius.circular(40),
+                              child: (avatar.startsWith('http') ||
+                                      avatar.startsWith('https'))
+                                  ? Image.network(
+                                      avatar,
+                                      width: 40,
+                                      height: 40,
+                                      fit: BoxFit.cover,
+                                      errorBuilder:
+                                          (context, error, stackTrace) {
+                                        return Container(
+                                          width: 40,
+                                          height: 40,
+                                          color: Colors.grey.shade100,
+                                          child: const FittedBox(
+                                            fit: BoxFit.cover,
+                                            child: Icon(
+                                              Icons.account_circle,
+                                              color: Colors.grey,
+                                            ),
+                                          ),
+                                        );
+                                      },
+                                    )
+                                  : Container(
+                                      width: 40,
+                                      height: 40,
+                                      color: Colors.grey.shade100,
+                                      child: const FittedBox(
+                                        fit: BoxFit.cover,
+                                        child: Icon(
+                                          Icons.account_circle,
+                                          color: Colors.grey,
+                                        ),
+                                      ),
+                                    ),
+                            );
                           },
                         ),
                       ),
-                    ),
+                    )
                   ],
                 ),
               ),

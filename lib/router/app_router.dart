@@ -322,6 +322,26 @@ class AppRouter {
           } else if (state.extra is Map<String, dynamic>) {
             final Map<String, dynamic> params =
                 state.extra as Map<String, dynamic>;
+
+            // Check if this is a serialized ChatUser (has name, email fields but no conversationId)
+            if (params.containsKey('name') &&
+                params.containsKey('email') &&
+                !params.containsKey('conversationId') &&
+                !params.containsKey('otherUserId')) {
+              // Create ChatUser from the map
+              return ChatScreen(
+                  userData: ChatUser(
+                name: params['name'] as String?,
+                email: params['email'] as String?,
+                chatId: params['chatId'] as String?,
+                profilePictureURL: params['profilePictureURL'] as String?,
+                lastMessage: params['lastMessage'] as String?,
+                isHuman: params['isHuman'] as bool? ?? false,
+                isGroupChat: params['isGroupChat'] as bool? ?? false,
+              ));
+            }
+
+            // Regular human chat
             return HumanChatScreen(
               conversationId: params['conversationId'] as String,
               otherUserName: params['otherUserName'] as String,

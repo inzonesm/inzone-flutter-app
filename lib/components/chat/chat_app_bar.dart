@@ -36,25 +36,24 @@ class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
             height: 40,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              border: Border.all(
-                color: const Color(0xffFFE2A9),
-                width: 1.5,
-              ),
+              color: Theme.of(context).cardColor,
             ),
+            clipBehavior: Clip.antiAlias,
             child: avatarUrl != null && avatarUrl!.isNotEmpty
-                ? ClipRRect(
-                    borderRadius: BorderRadius.circular(40),
-                    child: Image.network(
-                      avatarUrl!,
-                      width: 40,
-                      height: 40,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) {
-                        return const Icon(Icons.account_circle, size: 40);
-                      },
-                    ),
+                ? Image.network(
+                    avatarUrl!,
+                    width: 40,
+                    height: 40,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) {
+                      return const Center(
+                        child: Icon(Icons.account_circle, size: 40),
+                      );
+                    },
                   )
-                : const Icon(Icons.account_circle, size: 40),
+                : const Center(
+                    child: Icon(Icons.account_circle, size: 40),
+                  ),
           ),
           const SizedBox(width: 10),
           Expanded(

@@ -29,7 +29,6 @@ Future<void> validateFirebaseSession() async {
 
       // Try to refresh the ID token in case it's about to expire
       await user.getIdToken(true);
-
     } catch (e) {
       print('Error validating user session: $e');
       // Token is invalid, sign the user out

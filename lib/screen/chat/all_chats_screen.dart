@@ -385,6 +385,19 @@ class ChatUser {
       return null;
     }
   }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'name': name,
+      'email': email,
+      'chatId': chatId,
+      'profilePictureURL': profilePictureURL,
+      'lastMessage': lastMessage,
+      'lastMessageTime': lastMessageTime?.millisecondsSinceEpoch,
+      'isHuman': isHuman,
+      'isGroupChat': isGroupChat,
+    };
+  }
 }
 
 class ChatUserCard extends StatefulWidget {
@@ -420,11 +433,35 @@ class _ChatUserCardState extends State<ChatUserCard> {
         final String userId = widget.userData.email ?? '';
         if (userId.isEmpty) return;
 
+        // First try from API
         final userData = await InZoneDatabase.getUserProfile(userId);
-        if (userData != null && mounted) {
+        if (userData != null &&
+            userData['profilePicture'] != null &&
+            userData['profilePicture'].toString().isNotEmpty &&
+            mounted) {
           setState(() {
-            _profileImageUrl = userData['profilePicture'] ?? "";
+            _profileImageUrl = userData['profilePicture'];
           });
+          return;
+        }
+
+        // If API doesn't return a profile image or returns empty, try Firestore directly
+        final userDoc = await FirebaseFirestore.instance
+            .collection('humanUsers')
+            .doc(userId)
+            .get();
+
+        if (userDoc.exists && userDoc.data() != null) {
+          final userDocData = userDoc.data()!;
+          final profilePic = userDocData['profilePicture'] ??
+              userDocData['profileImage'] ??
+              "";
+
+          if (mounted && profilePic.toString().isNotEmpty) {
+            setState(() {
+              _profileImageUrl = profilePic.toString();
+            });
+          }
         }
       } catch (e) {
         print('Error loading profile image: $e');

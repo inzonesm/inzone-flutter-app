@@ -466,7 +466,7 @@ class _ProfileScreenState extends BaseProfileScreenState<ProfileScreen> {
                       name: name,
                       email: targetUserId,
                       chatId: null,
-                    ));
+                    ).toJson());
               } else {
                 List<String> sortedIds = [currentUserId, targetUserId]..sort();
                 String conversationId = "${sortedIds[0]}_${sortedIds[1]}";
