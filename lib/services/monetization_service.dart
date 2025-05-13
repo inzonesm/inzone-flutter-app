@@ -384,26 +384,26 @@ class MonetizationService {
     }
   }
 
-  // Check subscription status
-  Future<bool> isSubscribed({bool verify = false}) async {
-    try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user == null) return false;
+//   // Check subscription status
+//   Future<bool> isSubscribed({bool verify = false}) async {
+//     try {
+//       final user = FirebaseAuth.instance.currentUser;
+//       if (user == null) return false;
 
-      final response = await http.get(
-        Uri.parse(
-            '$baseUrl/wallet/subscription-status?UserDocumentId=${user.uid}&verify=${verify ? 'true' : 'false'}'),
-      );
+//       final response = await http.get(
+//         Uri.parse(
+//             '$baseUrl/wallet/subscription-status?UserDocumentId=${user.uid}&verify=${verify ? 'true' : 'false'}'),
+//       );
 
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        return data['data']['isSubscribed'] ?? false;
-      } else {
-        return false;
-      }
-    } catch (e) {
-      debugPrint('Error checking subscription status: $e');
-      return false;
-    }
-  }
+//       if (response.statusCode == 200) {
+//         final data = json.decode(response.body);
+//         return data['data']['isSubscribed'] ?? false;
+//       } else {
+//         return false;
+//       }
+//     } catch (e) {
+//       debugPrint('Error checking subscription status: $e');
+//       return false;
+//     }
+//   }
 }

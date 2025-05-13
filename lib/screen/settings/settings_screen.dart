@@ -3,24 +3,21 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:inzone/components/settings/settings_tile.dart';
 import 'package:inzone/components/ui/appbar.dart';
-import 'package:inzone/router/app_router.dart';
-import 'package:inzone/screen/auth/introduction_screen.dart';
-import 'package:inzone/screen/settings/content_select_screen.dart';
-import 'package:inzone/screen/settings/subscription_purchase.dart';
-import 'package:inzone/screen/settings/referral_screen.dart';
-import 'package:purchases_flutter/models/store_transaction.dart'
-    show StoreTransaction;
-// ignore: unused_import
 import 'dart:io' show Platform;
 import 'package:url_launcher/url_launcher.dart';
 import 'package:go_router/go_router.dart';
 import 'package:inzone/router/routes.dart';
-import 'package:purchases_flutter/purchases_flutter.dart'
-    show LogLevel, Purchases;
+import 'package:inzone/router/app_router.dart';
+import 'package:purchases_flutter/models/store_transaction.dart'
+    show StoreTransaction;
+import 'package:purchases_flutter/purchases_flutter.dart' show Purchases;
 import 'package:purchases_ui_flutter/purchases_ui_flutter.dart';
+import 'package:inzone/services/monetization_service.dart';
 
 class SettingsScreen extends StatelessWidget {
   SettingsScreen({super.key});
+
+  final MonetizationService _monetizationService = MonetizationService();
   Future<void> _launchInBrowser(String url) async {
     if (await canLaunch(url)) {
       await launch(
@@ -49,28 +46,56 @@ class SettingsScreen extends StatelessWidget {
         print(transactions);
         transactions.sort((a, b) => b.purchaseDate.compareTo(a.purchaseDate));
 
-        transactions.forEach((item) {
+        for (var item in transactions) {
           print(item.productIdentifier);
           print(item.purchaseDate);
           print("\n\n");
-        });
+        }
 
-        if (Platform.isAndroid) {
-          if (transactions.first.productIdentifier == "2025incashadvanced") {
-          } else if (transactions.first.productIdentifier ==
-              "2025incashelite") {
-          } else if (transactions.first.productIdentifier ==
-              "2025incashbasic") {
-          } else if (transactions.first.productIdentifier ==
-              " 2025incashgold:2025incashgold") {}
-        } else if (Platform.isAndroid) {
-          if (transactions.first.productIdentifier == "InCashGold") {
-          } else if (transactions.first.productIdentifier ==
-              "InCashAdvanced2025") {
-          } else if (transactions.first.productIdentifier ==
-              "InCashElite2025") {
-          } else if (transactions.first.productIdentifier ==
-              "InCashBasic2025") {}
+        try {
+          // Get the most recent transaction
+          final latestTransaction = transactions.first;
+          final String productId = latestTransaction.productIdentifier;
+          final String platform = Platform.isIOS ? 'ios' : 'android';
+
+          // Get receipt data from the transaction
+          final String receiptData = latestTransaction.transactionIdentifier;
+
+          // Process the purchase with our backend
+          if (Platform.isAndroid) {
+            if (productId == "2025incashadvanced") {
+              await _monetizationService.purchaseInCash(
+                  productId, platform, receiptData);
+            } else if (productId == "2025incashelite") {
+              await _monetizationService.purchaseInCash(
+                  productId, platform, receiptData);
+            } else if (productId == "2025incashbasic") {
+              await _monetizationService.purchaseInCash(
+                  productId, platform, receiptData);
+            } else if (productId == "2025incashgold" ||
+                productId == "2025incashgold:2025incashgold") {
+              // For subscription, we also need to update subscription status
+              await _monetizationService.purchaseInCash(
+                  productId, platform, receiptData);
+            }
+          } else if (Platform.isIOS) {
+            if (productId == "InCashGold") {
+              // For subscription, we also need to update subscription status
+              await _monetizationService.purchaseInCash(
+                  productId, platform, receiptData);
+            } else if (productId == "InCashAdvanced2025") {
+              await _monetizationService.purchaseInCash(
+                  productId, platform, receiptData);
+            } else if (productId == "InCashElite2025") {
+              await _monetizationService.purchaseInCash(
+                  productId, platform, receiptData);
+            } else if (productId == "InCashBasic2025") {
+              await _monetizationService.purchaseInCash(
+                  productId, platform, receiptData);
+            }
+          }
+        } catch (e) {
+          print('Error processing purchase: $e');
         }
       }
     } else if (paywallResult == PaywallResult.cancelled) {
