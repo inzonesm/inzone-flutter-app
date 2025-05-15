@@ -21,6 +21,7 @@ import 'package:inzone/router/routes.dart';
 class PostCard extends StatefulWidget {
   InZonePost post;
   final Function(String)? onTap;
+  final String? profileImageUrl;
   final bool showHue;
 
   InZonePost getPost() {
@@ -32,6 +33,7 @@ class PostCard extends StatefulWidget {
     required this.post,
     this.onTap,
     this.showHue = true,
+    this.profileImageUrl,
   });
 
   @override
@@ -240,16 +242,25 @@ class _PostCardState extends State<PostCard> {
                 children: [
                   ClipRRect(
                     borderRadius: BorderRadius.circular(20),
-                    child: profileImageUrl.isNotEmpty
+                    child: widget.profileImageUrl != null
                         ? Image.network(
-                            profileImageUrl,
+                            widget.profileImageUrl!,
                             width: 40,
                             height: 40,
                             fit: BoxFit.cover,
                             errorBuilder: (context, error, stackTrace) =>
                                 const Icon(Icons.account_circle, size: 40),
                           )
-                        : const Icon(Icons.account_circle, size: 40),
+                        : profileImageUrl.isNotEmpty
+                            ? Image.network(
+                                profileImageUrl,
+                                width: 40,
+                                height: 40,
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) =>
+                                    const Icon(Icons.account_circle, size: 40),
+                              )
+                            : const Icon(Icons.account_circle, size: 40),
                   ),
                   // Image.asset(post.profilePicturePath),
                   // RandomAvatar(widget.post.userName, height: 40, width: 40),

@@ -98,6 +98,7 @@ class _UserProfileScreenState
     return [
       UserPostsTab(
         userId: currentUserId!,
+        profileImageUrl: profileImageUrl,
         ai: false,
       ),
     ];
