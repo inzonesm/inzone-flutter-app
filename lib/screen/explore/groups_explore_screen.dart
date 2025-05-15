@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:colorful_safe_area/colorful_safe_area.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -11,6 +13,9 @@ import 'package:inzone/services/group_chat_service.dart';
 import 'package:inzone/services/monetization_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:inzone/components/posts/shimmering.dart';
+import 'package:purchases_flutter/purchases_flutter.dart';
+import 'package:purchases_ui_flutter/paywall_result.dart';
+import 'package:purchases_ui_flutter/purchases_ui_flutter.dart';
 
 class GroupsExploreScreen extends StatefulWidget {
   const GroupsExploreScreen({super.key});
@@ -123,6 +128,80 @@ class _GroupsExploreScreenState extends State<GroupsExploreScreen> {
     return groups;
   }
 
+  void presentPaywall() async {
+    final paywallResult = await RevenueCatUI.presentPaywall();
+
+    print('Paywall result: $paywallResult ${paywallResult.name}');
+    if (paywallResult == PaywallResult.purchased ||
+        paywallResult == PaywallResult.restored) {
+      // Retrieve the latest customer information
+      final customerInfo = await Purchases.getCustomerInfo();
+      final transactions =
+          List<StoreTransaction>.from(customerInfo.nonSubscriptionTransactions);
+      if (transactions.isNotEmpty) {
+        // Sort transactions by purchase date in descending order
+        print(transactions);
+        transactions.sort((a, b) => b.purchaseDate.compareTo(a.purchaseDate));
+
+        for (var item in transactions) {
+          print(item.productIdentifier);
+          print(item.purchaseDate);
+          print("\n\n");
+        }
+
+        try {
+          // Get the most recent transaction
+          final latestTransaction = transactions.first;
+          final String productId = latestTransaction.productIdentifier;
+          final String platform = Platform.isIOS ? 'ios' : 'android';
+
+          // Get receipt data from the transaction
+          final String receiptData = latestTransaction.transactionIdentifier;
+
+          // Process the purchase with our backend
+          if (Platform.isAndroid) {
+            if (productId == "2025incashadvanced") {
+              await _monetizationService.purchaseInCash(
+                  productId, platform, receiptData);
+            } else if (productId == "2025incashelite") {
+              await _monetizationService.purchaseInCash(
+                  productId, platform, receiptData);
+            } else if (productId == "2025incashbasic") {
+              await _monetizationService.purchaseInCash(
+                  productId, platform, receiptData);
+            } else if (productId == "2025incashgold" ||
+                productId == "2025incashgold:2025incashgold") {
+              // For subscription, we also need to update subscription status
+              await _monetizationService.purchaseInCash(
+                  productId, platform, receiptData);
+            }
+          } else if (Platform.isIOS) {
+            if (productId == "InCashGold") {
+              // For subscription, we also need to update subscription status
+              await _monetizationService.purchaseInCash(
+                  productId, platform, receiptData);
+            } else if (productId == "InCashAdvanced2025") {
+              await _monetizationService.purchaseInCash(
+                  productId, platform, receiptData);
+            } else if (productId == "InCashElite2025") {
+              await _monetizationService.purchaseInCash(
+                  productId, platform, receiptData);
+            } else if (productId == "InCashBasic2025") {
+              await _monetizationService.purchaseInCash(
+                  productId, platform, receiptData);
+            }
+          }
+        } catch (e) {
+          print('Error processing purchase: $e');
+        }
+      }
+    } else if (paywallResult == PaywallResult.cancelled) {
+      print("User closed the paywall without making a purchase.");
+    } else if (paywallResult == PaywallResult.error) {
+      print("An error occurred while presenting the paywall.");
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return ColorfulSafeArea(
@@ -155,7 +234,16 @@ class _GroupsExploreScreenState extends State<GroupsExploreScreen> {
                   },
                   onProfileTap: () {},
                   onPointsTap: () {
-                    context.push(Routes.subscription);
+                    try {
+                      // context.push(Routes.subscription);
+                      presentPaywall();
+                    } catch (e) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                            content:
+                                Text('Error navigating to subscription: $e')),
+                      );
+                    }
                   },
                 ),
               ),
