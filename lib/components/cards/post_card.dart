@@ -181,6 +181,20 @@ class _PostCardState extends State<PostCard> {
   Widget build(BuildContext context) {
     checkComment();
 
+    final validImages = widget.post.imageContent
+        .where((url) =>
+            url.isNotEmpty &&
+            (url.startsWith('http') || url.startsWith('https')))
+        .toList();
+
+    final validVideos = widget.post.videoContent
+        .where((url) =>
+            url.isNotEmpty &&
+            (url.startsWith('http') || url.startsWith('https')))
+        .toList();
+
+    final totalMediaCount = validImages.length + validVideos.length;
+
     return GestureDetector(
       onDoubleTap: handleLike, // Handle like on double tap
 
@@ -239,6 +253,7 @@ class _PostCardState extends State<PostCard> {
                   ),
                   // Image.asset(post.profilePicturePath),
                   // RandomAvatar(widget.post.userName, height: 40, width: 40),
+
                   const SizedBox(
                     width: 10,
                   ),
@@ -304,17 +319,13 @@ class _PostCardState extends State<PostCard> {
                                 Theme.of(context).textTheme.bodyMedium?.color),
                       ),
                     ),
-              (widget.post.imageContent.isNotEmpty ||
-                      widget.post.videoContent.isNotEmpty)
-                  ? const SizedBox(
-                      height: 30,
-                    )
+              (validImages.isNotEmpty || validVideos.isNotEmpty)
+                  ? const SizedBox(height: 30)
                   : const SizedBox(height: 10),
-              (widget.post.imageContent.isNotEmpty ||
-                      widget.post.videoContent.isNotEmpty)
+              (validImages.isNotEmpty || validVideos.isNotEmpty)
                   ? _DynamicPageView(
-                      images: widget.post.imageContent,
-                      videos: widget.post.videoContent,
+                      images: validImages,
+                      videos: validVideos,
                       controller: _mediaPageController,
                     )
                   : const SizedBox(),
@@ -323,13 +334,10 @@ class _PostCardState extends State<PostCard> {
               ),
               Column(
                 children: [
-                  if ((widget.post.imageContent.length +
-                          widget.post.videoContent.length) >
-                      1)
+                  if (totalMediaCount > 1)
                     SmoothPageIndicator(
                       controller: _mediaPageController,
-                      count: widget.post.imageContent.length +
-                          widget.post.videoContent.length,
+                      count: totalMediaCount,
                       effect: ScrollingDotsEffect(
                         activeDotColor: Theme.of(context).primaryColor,
                         dotColor: AppColors.lightGrey,
@@ -340,10 +348,7 @@ class _PostCardState extends State<PostCard> {
                         maxVisibleDots: 5,
                       ),
                     ),
-                  if ((widget.post.imageContent.length +
-                          widget.post.videoContent.length) >
-                      1)
-                    const SizedBox(height: 10),
+                  if (totalMediaCount > 1) const SizedBox(height: 10),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceAround,
                     children: [
@@ -1131,7 +1136,8 @@ class _DynamicPageViewState extends State<_DynamicPageView> {
 
   @override
   Widget build(BuildContext context) {
-    final totalItems = widget.images.length + widget.videos.length;
+    final validImages = widget.images.where((url) => _isValidUrl(url)).toList();
+    final totalItems = validImages.length + widget.videos.length;
 
     return Center(
       child: AnimatedContainer(
@@ -1147,10 +1153,8 @@ class _DynamicPageViewState extends State<_DynamicPageView> {
           controller: widget.controller,
           itemCount: totalItems,
           itemBuilder: (context, index) {
-            if (index < widget.images.length) {
-              final imageUrl = widget.images[index];
-              if (!_isValidUrl(imageUrl)) return const SizedBox();
-
+            if (index < validImages.length) {
+              final imageUrl = validImages[index];
               return LayoutBuilder(
                 builder: (context, constraints) {
                   return ClipRRect(
@@ -1162,36 +1166,38 @@ class _DynamicPageViewState extends State<_DynamicPageView> {
                         if (loadingProgress == null) {
                           final image = NetworkImage(imageUrl);
                           image.resolve(const ImageConfiguration()).addListener(
-                            ImageStreamListener((imageInfo, _) {
-                              double calculatedHeight = imageInfo.image.height *
-                                  (constraints.maxWidth /
-                                      imageInfo.image.width);
-                              WidgetsBinding.instance.addPostFrameCallback((_) {
-                                _updateHeightOnce(
-                                    imageUrl, index, calculatedHeight);
-                              });
-                            }),
-                          );
+                                ImageStreamListener((imageInfo, _) {
+                                  double calculatedHeight =
+                                      imageInfo.image.height *
+                                          (constraints.maxWidth /
+                                              imageInfo.image.width);
+                                  _updateHeightOnce(
+                                      imageUrl, index, calculatedHeight);
+                                }, onError: (error, stackTrace) {
+                                  debugPrint('Image load error: $error');
+                                }),
+                              );
                           return child;
                         } else {
                           return Center(child: ImageLoading(context));
                         }
                       },
-                      errorBuilder: (context, error, stackTrace) =>
-                          const SizedBox(),
+                      errorBuilder: (context, error, stackTrace) {
+                        debugPrint("Failed to load image: $imageUrl");
+                        return const Icon(Icons.broken_image, size: 48);
+                      },
                     ),
                   );
                 },
               );
             } else {
-              final videoIndex = index - widget.images.length;
+              final videoIndex = index - validImages.length;
               final videoUrl = widget.videos[videoIndex];
               if (!_isValidUrl(videoUrl)) return const SizedBox();
 
               return LayoutBuilder(
                 builder: (context, constraints) {
                   final videoHeight = constraints.maxWidth * 9 / 16;
-
                   WidgetsBinding.instance.addPostFrameCallback((_) {
                     _updateHeightOnce(videoUrl, index, videoHeight);
                   });

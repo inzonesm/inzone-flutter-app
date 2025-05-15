@@ -70,45 +70,45 @@ class _VideoWidgetState extends State<VideoWidget> {
   }
 
   void _initializeYoutubePlayer(String url) {
-    _youtubeVideoId = _getYoutubeVideoId(url);
+    final videoId = _getYoutubeVideoId(url);
 
-    if (_youtubeVideoId != null) {
-      // Check if this view is already active
-      if (_activeYoutubeViews[_youtubeVideoId] == true) {
-        // Wait a bit and try again to avoid view ID collision
-        Future.delayed(const Duration(milliseconds: 500), () {
-          if (mounted) {
-            _initializeYoutubePlayer(url);
-          }
-        });
-        return;
-      }
-
-      _youtubePlayerController = YoutubePlayerController(
-        initialVideoId: _youtubeVideoId!,
-        flags: const YoutubePlayerFlags(
-          autoPlay: true,
-          mute: true,
-          enableCaption: true,
-          hideControls: false,
-          forceHD: true,
-        ),
-      );
-
-      // Mark this YouTube view as active
-      _activeYoutubeViews[_youtubeVideoId!] = true;
-
-      setState(() {
-        _isYoutubeVideo = true;
-        _isInitialized = true;
-        _isLoading = false;
-      });
-    } else {
+    if (videoId == null) {
       setState(() {
         _isPlayable = false;
         _isLoading = false;
       });
+      return;
     }
+
+    if (_activeYoutubeViews[videoId] == true) {
+      debugPrint(
+          "YouTube player for $videoId is already active. Skipping initialization.");
+      setState(() {
+        _isPlayable = false;
+        _isLoading = false;
+      });
+      return;
+    }
+
+    _youtubeVideoId = videoId;
+    _activeYoutubeViews[videoId] = true;
+
+    _youtubePlayerController = YoutubePlayerController(
+      initialVideoId: videoId,
+      flags: const YoutubePlayerFlags(
+        autoPlay: true,
+        mute: true,
+        enableCaption: true,
+        hideControls: false,
+        forceHD: true,
+      ),
+    );
+
+    setState(() {
+      _isYoutubeVideo = true;
+      _isInitialized = true;
+      _isLoading = false;
+    });
   }
 
   Future<void> _analyzeAndInitializeVideo() async {
@@ -358,6 +358,7 @@ class _VideoWidgetState extends State<VideoWidget> {
           child: Stack(
             children: [
               YoutubePlayer(
+                key: ValueKey('youtube_$_youtubeVideoId'),
                 controller: _youtubePlayerController!,
                 showVideoProgressIndicator: true,
                 progressIndicatorColor: Colors.red,
@@ -486,15 +487,16 @@ class _VideoWidgetState extends State<VideoWidget> {
       _youtubePlayerController!.pause();
       _youtubePlayerController!.dispose();
       // Remove this view from active views
-      _youtubePlayerController = null;
+
       _activeYoutubeViews.remove(_youtubeVideoId);
+      _youtubePlayerController = null;
     }
 
     // Dispose of the video player controllers
     if (_videoPlayerController != null) {
       _videoPlayerController!.pause();
-      _videoPlayerController = null;
       _videoPlayerController!.dispose();
+      _videoPlayerController = null;
     }
 
     // Dispose of the media kit player
@@ -550,7 +552,7 @@ class _FullscreenYoutubePlayerState extends State<FullscreenYoutubePlayer>
     Future.delayed(const Duration(milliseconds: 300), () {
       if (mounted) {
         _controller = YoutubePlayerController(
-          initialVideoId: widget.videoId,
+          initialVideoId: widget.videoId.toString(),
           flags: YoutubePlayerFlags(
             autoPlay: true,
             mute: false,
