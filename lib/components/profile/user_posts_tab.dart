@@ -5,9 +5,15 @@ import 'package:inzone/services/inzone_database.dart';
 
 class UserPostsTab extends StatefulWidget {
   final String userId;
+  final String profileImageUrl;
   final bool ai;
 
-  const UserPostsTab({super.key, required this.userId, required this.ai});
+  const UserPostsTab({
+    super.key,
+    required this.userId,
+    required this.ai,
+    required this.profileImageUrl,
+  });
 
   @override
   State<UserPostsTab> createState() => _UserPostsTabState();
@@ -58,6 +64,7 @@ class _UserPostsTabState extends State<UserPostsTab> {
               // Return a PostCard widget
               postWidgets.add(PostCard(
                 post: post,
+                profileImageUrl: widget.profileImageUrl,
                 showHue: false,
                 onTap: (postId) {},
               ));

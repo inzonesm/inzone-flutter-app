@@ -203,7 +203,11 @@ class _ProfileScreenState extends BaseProfileScreenState<ProfileScreen> {
   List<Widget> getTabViews() {
     return [
       // Posts tab
-      UserPostsTab(userId: getUserId(), ai: widget.isAI),
+      UserPostsTab(
+        userId: getUserId(),
+        ai: widget.isAI,
+        profileImageUrl: profileImageUrl,
+      ),
 
       // Community tab - 스크롤 문제를 해결하기 위한 래핑
       Scaffold(
