@@ -70,7 +70,16 @@ class ProfileAppbar extends StatelessWidget {
             ),
           ],
         ),
-        const SizedBox(height: 50), // 사진 공간 확보
+        Padding(
+          padding: const EdgeInsets.only(right: 10, top: 5),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              actionButtons,
+            ],
+          ),
+        ),
+        const SizedBox(height: 30),
         Row(
           crossAxisAlignment: CrossAxisAlignment.center, // 핵심: center로
           mainAxisAlignment: MainAxisAlignment.start,
@@ -101,43 +110,40 @@ class ProfileAppbar extends StatelessWidget {
                       style: theme.textTheme.bodyMedium,
                     ),
                   ),
+                  const SizedBox(height: 5),
+                  Padding(
+                    padding: const EdgeInsets.only(left: 24, right: 0),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        _buildStatColumn(
+                            postCount.toString(), "Posts", context),
+                        const SizedBox(width: 20),
+                        _buildStatColumn(
+                            followingCount.toString(), "Following", context),
+                        const SizedBox(width: 20),
+                        _buildStatColumn(
+                            followersCount.toString(), "Followers", context),
+                      ],
+                    ),
+                  ),
                 ],
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.only(right: 24),
-              child: Align(
-                alignment: Alignment.center,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    _buildStatColumn(postCount.toString(), "Posts", context),
-                    const SizedBox(width: 20),
-                    _buildStatColumn(
-                        followingCount.toString(), "Following", context),
-                    const SizedBox(width: 20),
-                    _buildStatColumn(
-                        followersCount.toString(), "Followers", context),
-                  ],
-                ),
               ),
             ),
           ],
         ),
-
-        const SizedBox(height: 16),
-        actionButtons,
       ],
     );
   }
 
   Widget _buildStatColumn(String value, String label, BuildContext context) {
-    return Column(
+    return Row(
       children: [
         Text(
           value,
           style: Theme.of(context).textTheme.titleMedium,
         ),
+        const SizedBox(width: 5),
         Text(
           label,
           style: Theme.of(context).textTheme.bodySmall,

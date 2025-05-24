@@ -122,10 +122,33 @@ class _UserProfileScreenState extends State<UserProfileScreen>
 
     return Row(
       children: [
+        GestureDetector(
+          onTap: () {
+            context.push(
+              Routes.settings,
+            );
+          },
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+            decoration: BoxDecoration(
+              color: Theme.of(context).brightness == Brightness.light
+                  ? Colors.grey[300]
+                  : Colors.grey[800],
+              borderRadius: BorderRadius.circular(30),
+            ),
+            child: Icon(
+              FeatherIcons.settings,
+              size: 18,
+              color: theme.textTheme.bodyMedium?.color,
+            ),
+          ),
+        ),
         Padding(
-          padding: const EdgeInsets.only(left: 16),
+          padding: const EdgeInsets.only(left: 10),
           child: GestureDetector(
             onTap: () {
+              if (currentUserId == null) return;
+
               context.push(
                 Routes.editProfile,
                 extra: {
@@ -142,72 +165,24 @@ class _UserProfileScreenState extends State<UserProfileScreen>
               });
             },
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
-                color: Colors.transparent,
+                color: Theme.of(context).brightness == Brightness.light
+                    ? Colors.grey[900]
+                    : Colors.grey[100],
                 border: Border.all(
                   color: theme.dividerColor,
                   width: 1,
                 ),
                 borderRadius: BorderRadius.circular(30),
               ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    FeatherIcons.user,
-                    size: 18,
-                    color: theme.textTheme.bodyMedium?.color,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Edit Profile',
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: theme.textTheme.bodyMedium?.color,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.only(left: 10),
-          child: GestureDetector(
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => SettingsScreen(),
+              child: Text(
+                'Edit Profile',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: Theme.of(context).brightness == Brightness.light
+                      ? Colors.white
+                      : Colors.black,
                 ),
-              );
-            },
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              decoration: BoxDecoration(
-                color: Colors.transparent,
-                border: Border.all(
-                  color: theme.dividerColor,
-                  width: 1,
-                ),
-                borderRadius: BorderRadius.circular(30),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    FeatherIcons.settings,
-                    size: 18,
-                    color: theme.textTheme.bodyMedium?.color,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Settings',
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: theme.textTheme.bodyMedium?.color,
-                    ),
-                  ),
-                ],
               ),
             ),
           ),
