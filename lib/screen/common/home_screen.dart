@@ -359,6 +359,7 @@ class HomeScreenState extends State<HomeScreen> {
           return PostCard(
             post: postObj,
             onTap: (postId) {},
+            isAd: true,
           );
 
         case 'human_post':

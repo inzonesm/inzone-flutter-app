@@ -81,6 +81,7 @@ dependencies:
   iconify_flutter: ^0.0.7
   carousel_slider: ^5.0.0
   purchases_ui_flutter: ^8.8.0
+  google_mobile_ads: ^6.0.0
 dev_dependencies:
   flutter_test:
     sdk: flutter

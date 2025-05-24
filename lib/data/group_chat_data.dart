@@ -98,7 +98,7 @@ class GroupChatData {
           
           final message = ChatMessage.fromMap(map);
           messages.add(message);
-          print('Successfully parsed message $i');
+
         } catch (e) {
           print('Error parsing message at index $i: $e');
           // Continue to next message instead of failing the whole list
@@ -106,7 +106,7 @@ class GroupChatData {
         }
       }
       
-      print('Successfully parsed ${messages.length} out of ${messagesData.length} messages');
+
       return messages;
     } catch (e) {
       print('Error in _parseMessages: $e');
@@ -157,7 +157,6 @@ class ChatMessage {
       if (map['sender'] is Map) {
         senderMap = (map['sender'] as Map).cast<String, dynamic>();
       } else {
-        print('Sender is not a Map: ${map['sender']}');
         senderMap = {};
       }
     
@@ -171,8 +170,7 @@ class ChatMessage {
             : null,
       );
     } catch (e) {
-      print('Error parsing ChatMessage: $e');
-      print('Message data was: $map');
+
       
       // Return a placeholder message instead of failing
       return ChatMessage(
@@ -205,7 +203,6 @@ class MessageSender {
         name: map['name'] ?? '',
       );
     } catch (e) {
-      print('Error parsing MessageSender: $e');
       return MessageSender(
         uid: '',
         type: 'unknown',

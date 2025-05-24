@@ -96,5 +96,7 @@
 		<false/>
 		<key>UIUserInterfaceStyle</key>
 		<string>Automatic</string>
+		<key>GADApplicationIdentifier</key>
+        <string>ca-app-pub-4474122990542651~2508616366</string>
 	</dict>
 </plist>
