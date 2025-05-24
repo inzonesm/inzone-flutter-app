@@ -29,6 +29,7 @@ import 'package:inzone/screen/chat/post_chat_screen.dart';
 import 'package:inzone/screen/settings/content_select_screen.dart';
 import 'package:inzone/screen/settings/subscription_purchase.dart';
 import 'package:inzone/screen/settings/referral_screen.dart';
+import 'package:inzone/screen/settings/settings_screen.dart';
 
 // Models
 import 'package:inzone/data/group_data.dart';
@@ -392,11 +393,11 @@ class AppRouter {
         ),
       ),
 
-      // GoRoute(
-      //   path: Routes.referral,
-      //   parentNavigatorKey: rootNavigatorKey,
-      //   builder: (context, state) => const ReferralScreen(),
-      // ),
+      GoRoute(
+        path: Routes.settings,
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) => SettingsScreen(),
+      ),
     ],
   );
 }

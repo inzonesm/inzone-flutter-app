@@ -7,12 +7,14 @@ class UserPostsTab extends StatefulWidget {
   final String userId;
   final String profileImageUrl;
   final bool ai;
+  final bool isUser;
 
   const UserPostsTab({
     super.key,
     required this.userId,
     required this.ai,
     required this.profileImageUrl,
+    this.isUser = false,
   });
 
   @override
