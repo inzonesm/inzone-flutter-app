@@ -18,6 +18,7 @@ import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:purchases_flutter/purchases_flutter.dart'
     show LogLevel, Purchases;
 
+
 Future<void> validateFirebaseSession() async {
   final user = FirebaseAuth.instance.currentUser;
 
