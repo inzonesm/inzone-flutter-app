@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_feather_icons/flutter_feather_icons.dart';
-import 'package:inzone/components/profile/base_profile_screen.dart';
 import 'package:inzone/components/profile/user_posts_tab.dart';
 import 'package:inzone/components/profile/followers_following_tab.dart';
 import 'package:inzone/components/ui/profile_appbar.dart';
@@ -9,11 +8,10 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:inzone/screen/chat/chat_screen.dart';
 import 'package:inzone/screen/chat/human_chat_screen.dart';
 import 'package:inzone/screen/chat/all_chats_screen.dart'; // For ChatUser class
-
 import 'package:inzone/services/inzone_database.dart';
 import 'package:go_router/go_router.dart';
 
-class ProfileScreen extends BaseProfileScreen {
+class ProfileScreen extends StatefulWidget {
   final String uid;
   final bool isAI;
 
@@ -23,18 +21,44 @@ class ProfileScreen extends BaseProfileScreen {
   State<ProfileScreen> createState() => _ProfileScreenState();
 }
 
-class _ProfileScreenState extends BaseProfileScreenState<ProfileScreen> {
+class _ProfileScreenState extends State<ProfileScreen>
+    with TickerProviderStateMixin {
+  // State variables that were previously in BaseProfileScreenState
+  int currentPage = 0;
+  String name = "Loading";
+  String bio = 'Loading';
+  String username = 'Loading';
+  String profileImageUrl = "";
+  int postCount = 0;
+  int followingCount = 0;
+  int followersCount = 0;
+  bool isLoading = true;
+
+  // Additional state for this specific screen
   bool isFollowing = false;
+  late TabController _tabController;
   late TabController _scrollTabController;
+
+  // Store the community tab data
+  Map<String, List<Map<String, dynamic>>> _communityTabData = {
+    "followers": [],
+    "following": []
+  };
 
   @override
   void initState() {
     super.initState();
+    // Initialize tab controllers
+    _tabController = TabController(length: getTabLabels().length, vsync: this);
+    _tabController.addListener(() {
+      setState(() {
+        currentPage = _tabController.index;
+      });
+    });
+
     // Create a separate controller for our scrollable UI
     _scrollTabController =
         TabController(length: getTabLabels().length, vsync: this);
-
-    // Keep the controllers in sync
     _scrollTabController.addListener(() {
       if (_scrollTabController.index != currentPage) {
         setState(() {
@@ -49,18 +73,199 @@ class _ProfileScreenState extends BaseProfileScreenState<ProfileScreen> {
 
   @override
   void dispose() {
+    _tabController.dispose();
     _scrollTabController.dispose();
     super.dispose();
   }
 
-  @override
+  // Methods previously from BaseProfileScreen
+  String getUserId() {
+    return widget.uid;
+  }
+
+  List<String> getTabLabels() {
+    // Both AI and human users show Posts and Community tabs
+    return const ['Posts', 'Community'];
+  }
+
+  List<Widget> getTabViews() {
+    return [
+      // Posts tab
+      UserPostsTab(
+        userId: getUserId(),
+        ai: widget.isAI,
+        profileImageUrl: profileImageUrl,
+      ),
+
+      // Community tab - 스크롤 문제를 해결하기 위한 래핑
+      Scaffold(
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        body: FollowersFollowingTab(
+          userList: _communityTabData,
+          userId: getUserId(),
+        ),
+      ),
+    ];
+  }
+
+  Widget buildActionButtons() {
+    final theme = Theme.of(context);
+
+    return Row(
+      children: [
+        // Follow/Following Button
+        Padding(
+          padding: const EdgeInsets.only(left: 16),
+          child: GestureDetector(
+            onTap: toggleFollow,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                color: isFollowing
+                    ? Colors.transparent
+                    : theme.colorScheme.primary,
+                border: Border.all(
+                  color: isFollowing
+                      ? theme.dividerColor
+                      : theme.colorScheme.primary,
+                  width: 1,
+                ),
+                borderRadius: BorderRadius.circular(30),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    isFollowing ? FeatherIcons.check : FeatherIcons.userPlus,
+                    size: 18,
+                    color: isFollowing
+                        ? theme.textTheme.bodyMedium?.color
+                        : theme.colorScheme.onPrimary,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    isFollowing ? 'Following' : 'Follow',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: isFollowing
+                          ? theme.textTheme.bodyMedium?.color
+                          : theme.colorScheme.onPrimary,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+
+        // Message Button
+        Padding(
+          padding: const EdgeInsets.only(left: 10),
+          child: GestureDetector(
+            onTap: () async {
+              String? currentUserId = await InZoneDatabase.getCurrentUserUid();
+              if (currentUserId == null) return;
+
+              String targetUserId = getUserId();
+              bool isAiUser = widget.isAI;
+
+              if (isAiUser) {
+                context.pushNamed('chat',
+                    extra: ChatUser(
+                      name: name,
+                      email: targetUserId,
+                      chatId: null,
+                    ).toJson());
+              } else {
+                List<String> sortedIds = [currentUserId, targetUserId]..sort();
+                String conversationId = "${sortedIds[0]}_${sortedIds[1]}";
+
+                try {
+                  final conversationDoc = await FirebaseFirestore.instance
+                      .collection('conversations')
+                      .doc(conversationId)
+                      .get();
+
+                  if (!conversationDoc.exists) {
+                    String currentUserName =
+                        await _getCurrentUserName(currentUserId);
+
+                    await FirebaseFirestore.instance
+                        .collection('conversations')
+                        .doc(conversationId)
+                        .set({
+                      'participants': [currentUserId, targetUserId],
+                      'participantNames': {
+                        currentUserId: currentUserName,
+                        targetUserId: name,
+                      },
+                      'createdAt': FieldValue.serverTimestamp(),
+                      'lastUpdated': FieldValue.serverTimestamp(),
+                      'lastMessageTime': FieldValue.serverTimestamp(),
+                    });
+                  }
+
+                  context.pushNamed('chat', extra: {
+                    'conversationId': conversationId,
+                    'otherUserName': name,
+                    'otherUserId': targetUserId,
+                  });
+                } catch (e) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                          'Failed to open conversation. Please try again.'),
+                    ),
+                  );
+                }
+              }
+            },
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.transparent,
+                border: Border.all(
+                  color: theme.dividerColor,
+                  width: 1,
+                ),
+                borderRadius: BorderRadius.circular(30),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    FeatherIcons.messageCircle,
+                    size: 18,
+                    color: theme.textTheme.bodyMedium?.color,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Message',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: theme.textTheme.bodyMedium?.color,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // Data fetching methods
   Future<void> fetchUserProfile() async {
-    await super.fetchUserProfile();
-
-    // Additional profile data specific to viewing another user's profile
     String userId = getUserId();
-    if (userId.isEmpty) return;
+    if (userId.isEmpty) {
+      setState(() {
+        isLoading = false;
+      });
+      return;
+    }
 
+    // First, get basic user profile data
     Map<String, dynamic>? userProfile;
 
     // Use different API endpoints based on whether the user is an AI user or not
@@ -77,9 +282,9 @@ class _ProfileScreenState extends BaseProfileScreenState<ProfileScreen> {
 
           if (userDoc.exists && userDoc.data() != null) {
             userProfile = userDoc.data() as Map<String, dynamic>;
-          } else {}
+          }
         } catch (e) {}
-      } else {}
+      }
     } else {
       // For human users, use the regular user profile endpoint
       userProfile = await InZoneDatabase.getUserProfile(userId);
@@ -94,7 +299,7 @@ class _ProfileScreenState extends BaseProfileScreenState<ProfileScreen> {
 
           if (userDoc.exists && userDoc.data() != null) {
             userProfile = userDoc.data() as Map<String, dynamic>;
-          } else {}
+          }
         } catch (e) {}
       }
     }
@@ -164,6 +369,11 @@ class _ProfileScreenState extends BaseProfileScreenState<ProfileScreen> {
         // Access the fields directly from the user data object
         name = userProfile!["name"] ?? userProfile["Name"] ?? "Unknown";
         bio = userProfile["bio"] ?? userProfile["Bio"] ?? "";
+        username =
+            userProfile["username"] ?? userProfile["Username"] ?? "Unknown";
+        profileImageUrl = userProfile["profilePicture"] ??
+            userProfile["ProfilePicture"] ??
+            "";
 
         // Get followers and following counts from the profile data if available
         followersCount = userProfile["followers_count"] ?? followers.length;
@@ -193,33 +403,38 @@ class _ProfileScreenState extends BaseProfileScreenState<ProfileScreen> {
     await checkFollowStatus();
   }
 
-  // Store the community tab data
-  Map<String, List<Map<String, dynamic>>> _communityTabData = {
-    "followers": [],
-    "following": []
-  };
+  Future<void> fetchUserStats([bool isAi = false]) async {
+    String userId = getUserId();
+    if (userId.isEmpty) {
+      setState(() {
+        isLoading = false;
+      });
+      return;
+    }
 
-  @override
-  List<Widget> getTabViews() {
-    return [
-      // Posts tab
-      UserPostsTab(
-        userId: getUserId(),
-        ai: widget.isAI,
-        profileImageUrl: profileImageUrl,
-      ),
+    // Fetch post count from user posts
+    List posts = [];
+    if (isAi) {
+      final result = await InZoneDatabase.getAIUserPosts(userId);
+      if (result != null) {
+        posts = result;
+      }
+    } else {
+      final result = await InZoneDatabase.getUserPosts(userId);
+      if (result != null) {
+        posts = result;
+      }
+    }
+    setState(() {
+      postCount = posts.length;
+    });
 
-      // Community tab - 스크롤 문제를 해결하기 위한 래핑
-      Scaffold(
-        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-        body: FollowersFollowingTab(
-          userList: _communityTabData,
-          userId: getUserId(),
-        ),
-      ),
-    ];
+    setState(() {
+      isLoading = false;
+    });
   }
 
+  // Follow functionality
   Future<void> checkFollowStatus() async {
     String userId = getUserId();
     if (userId.isEmpty) return;
@@ -363,193 +578,6 @@ class _ProfileScreenState extends BaseProfileScreenState<ProfileScreen> {
     }
   }
 
-  @override
-  Future<void> fetchUserStats([bool isAi = false]) async {
-    String userId = getUserId();
-    if (userId.isEmpty) {
-      setState(() {
-        isLoading = false;
-      });
-      return;
-    }
-
-    // Fetch post count from user posts
-    List? posts = [];
-    if (isAi) {
-      posts = await InZoneDatabase.getAIUserPosts(userId);
-    } else {
-      posts = await InZoneDatabase.getUserPosts(userId);
-    }
-    if (posts != null) {
-      setState(() {
-        postCount = posts!.length;
-      });
-    }
-
-    setState(() {
-      isLoading = false;
-    });
-  }
-
-  @override
-  String getUserId() {
-    return widget.uid;
-  }
-
-  @override
-  List<String> getTabLabels() {
-    // Both AI and human users show Posts and Community tabs
-    return const ['Posts', 'Community'];
-  }
-
-  @override
-  Widget buildActionButtons() {
-    final theme = Theme.of(context);
-
-    return Row(
-      children: [
-        // Follow/Following Button
-        Padding(
-          padding: const EdgeInsets.only(left: 16),
-          child: GestureDetector(
-            onTap: toggleFollow,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              decoration: BoxDecoration(
-                color: isFollowing
-                    ? Colors.transparent
-                    : theme.colorScheme.primary, // Follow시 파란색 배경
-                border: Border.all(
-                  color: isFollowing
-                      ? theme.dividerColor
-                      : theme.colorScheme.primary,
-                  width: 1,
-                ),
-                borderRadius: BorderRadius.circular(30),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    isFollowing ? FeatherIcons.check : FeatherIcons.userPlus,
-                    size: 18,
-                    color: isFollowing
-                        ? theme.textTheme.bodyMedium?.color
-                        : theme.colorScheme.onPrimary,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    isFollowing ? 'Following' : 'Follow',
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: isFollowing
-                          ? theme.textTheme.bodyMedium?.color
-                          : theme.colorScheme.onPrimary,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-
-        // Message Button
-        Padding(
-          padding: const EdgeInsets.only(left: 10),
-          child: GestureDetector(
-            onTap: () async {
-              String? currentUserId = await InZoneDatabase.getCurrentUserUid();
-              if (currentUserId == null) return;
-
-              String targetUserId = getUserId();
-              bool isAiUser = widget.isAI;
-
-              if (isAiUser) {
-                context.pushNamed('chat',
-                    extra: ChatUser(
-                      name: name,
-                      email: targetUserId,
-                      chatId: null,
-                    ).toJson());
-              } else {
-                List<String> sortedIds = [currentUserId, targetUserId]..sort();
-                String conversationId = "${sortedIds[0]}_${sortedIds[1]}";
-
-                try {
-                  final conversationDoc = await FirebaseFirestore.instance
-                      .collection('conversations')
-                      .doc(conversationId)
-                      .get();
-
-                  if (!conversationDoc.exists) {
-                    String currentUserName =
-                        await _getCurrentUserName(currentUserId);
-
-                    await FirebaseFirestore.instance
-                        .collection('conversations')
-                        .doc(conversationId)
-                        .set({
-                      'participants': [currentUserId, targetUserId],
-                      'participantNames': {
-                        currentUserId: currentUserName,
-                        targetUserId: name,
-                      },
-                      'createdAt': FieldValue.serverTimestamp(),
-                      'lastUpdated': FieldValue.serverTimestamp(),
-                      'lastMessageTime': FieldValue.serverTimestamp(),
-                    });
-                  }
-
-                  context.pushNamed('chat', extra: {
-                    'conversationId': conversationId,
-                    'otherUserName': name,
-                    'otherUserId': targetUserId,
-                  });
-                } catch (e) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text(
-                          'Failed to open conversation. Please try again.'),
-                    ),
-                  );
-                }
-              }
-            },
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              decoration: BoxDecoration(
-                color: Colors.transparent,
-                border: Border.all(
-                  color: theme.dividerColor,
-                  width: 1,
-                ),
-                borderRadius: BorderRadius.circular(30),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    FeatherIcons.messageCircle,
-                    size: 18,
-                    color: theme.textTheme.bodyMedium?.color,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Message',
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: theme.textTheme.bodyMedium?.color,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
   // Helper method to get current user's name
   Future<String> _getCurrentUserName(String userId) async {
     String defaultName = "User";
@@ -563,11 +591,6 @@ class _ProfileScreenState extends BaseProfileScreenState<ProfileScreen> {
     } catch (e) {}
 
     return defaultName;
-  }
-
-  @override
-  PreferredSizeWidget? buildAppBar() {
-    return null; // Return null as we'll use SliverAppBar instead
   }
 
   void _showOptionsBottomSheet(BuildContext context) {
@@ -718,7 +741,7 @@ class _ProfileScreenState extends BaseProfileScreenState<ProfileScreen> {
               SliverPersistentHeader(
                 delegate: _SliverAppBarDelegate(
                   Container(
-                    height: 54.0, // 명시적 높이 설정
+                    height: 54.0,
                     decoration: BoxDecoration(
                       color: Theme.of(context).cardColor,
                       borderRadius: const BorderRadius.only(
@@ -727,7 +750,6 @@ class _ProfileScreenState extends BaseProfileScreenState<ProfileScreen> {
                       ),
                     ),
                     child: Center(
-                      // Center로 감싸서 위치 고정
                       child: TabBar(
                         controller: _scrollTabController,
                         tabs: getTabLabels()
@@ -735,8 +757,22 @@ class _ProfileScreenState extends BaseProfileScreenState<ProfileScreen> {
                             .toList(),
                         indicatorColor: Theme.of(context).primaryColor,
                         labelColor: Theme.of(context).primaryColor,
-                        unselectedLabelColor: Theme.of(context).hintColor,
-                        indicatorWeight: 3.0,
+                        unselectedLabelColor: Theme.of(context)
+                            .textTheme
+                            .bodyMedium
+                            ?.color
+                            ?.withOpacity(0.6),
+                        indicatorWeight: 3,
+                        indicatorSize: TabBarIndicatorSize.label,
+                        dividerColor: Colors.transparent,
+                        indicator: UnderlineTabIndicator(
+                          borderSide: BorderSide(
+                              width: 3,
+                              color: Theme.of(context).colorScheme.primary),
+                          insets: const EdgeInsets.symmetric(horizontal: 0),
+                        ),
+                        labelPadding: const EdgeInsets.symmetric(
+                            vertical: 8, horizontal: 16),
                       ),
                     ),
                   ),
@@ -750,7 +786,6 @@ class _ProfileScreenState extends BaseProfileScreenState<ProfileScreen> {
               ),
             ];
           },
-          // 스크롤 문제를 해결하기 위해 직접 TabBarView를 구현
           body: TabBarView(
             controller: _scrollTabController,
             children: getTabViews(),
