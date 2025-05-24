@@ -113,13 +113,106 @@ class _ProfileScreenState extends State<ProfileScreen>
 
     return Row(
       children: [
+        // Message Button
+        Padding(
+          padding: const EdgeInsets.only(left: 10),
+          child: GestureDetector(
+            onTap: () async {
+              String? currentUserId = await InZoneDatabase.getCurrentUserUid();
+              if (currentUserId == null) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                      content: Text('Please log in to send messages')),
+                );
+                return;
+              }
+
+              String targetUserId = getUserId();
+              bool isAiUser = widget.isAI;
+
+              try {
+                if (isAiUser) {
+                  // For AI users
+                  context.pushNamed('chat',
+                      extra: ChatUser(
+                        name: name,
+                        email: targetUserId,
+                        chatId: null,
+                        isHuman: false,
+                      ));
+                } else {
+                  // For human users
+                  List<String> sortedIds = [currentUserId, targetUserId]
+                    ..sort();
+                  String conversationId = "${sortedIds[0]}_${sortedIds[1]}";
+
+                  try {
+                    final conversationDoc = await FirebaseFirestore.instance
+                        .collection('conversations')
+                        .doc(conversationId)
+                        .get();
+
+                    if (!conversationDoc.exists) {
+                      String currentUserName =
+                          await _getCurrentUserName(currentUserId);
+
+                      await FirebaseFirestore.instance
+                          .collection('conversations')
+                          .doc(conversationId)
+                          .set({
+                        'participants': [currentUserId, targetUserId],
+                        'participantNames': {
+                          currentUserId: currentUserName,
+                          targetUserId: name,
+                        },
+                        'createdAt': FieldValue.serverTimestamp(),
+                        'lastUpdated': FieldValue.serverTimestamp(),
+                        'lastMessageTime': FieldValue.serverTimestamp(),
+                      });
+                    }
+
+                    context.pushNamed('chat', extra: {
+                      'conversationId': conversationId,
+                      'otherUserName': name,
+                      'otherUserId': targetUserId,
+                    });
+                  } catch (e) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                          content: Text('Failed to open conversation: $e')),
+                    );
+                  }
+                }
+              } catch (e) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Error navigating to chat: $e')),
+                );
+              }
+            },
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+              decoration: BoxDecoration(
+                color: Theme.of(context).brightness == Brightness.light
+                    ? Colors.grey[300]
+                    : Colors.grey[800],
+                borderRadius: BorderRadius.circular(30),
+              ),
+              child: Icon(
+                FeatherIcons.messageCircle,
+                size: 18,
+                color: theme.textTheme.bodyMedium?.color,
+              ),
+            ),
+          ),
+        ),
+
         // Follow/Following Button
         Padding(
-          padding: const EdgeInsets.only(left: 16),
+          padding: const EdgeInsets.only(left: 10),
           child: GestureDetector(
             onTap: toggleFollow,
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
                 color: isFollowing
                     ? Colors.transparent
@@ -149,100 +242,6 @@ class _ProfileScreenState extends State<ProfileScreen>
                       color: isFollowing
                           ? theme.textTheme.bodyMedium?.color
                           : theme.colorScheme.onPrimary,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-
-        // Message Button
-        Padding(
-          padding: const EdgeInsets.only(left: 10),
-          child: GestureDetector(
-            onTap: () async {
-              String? currentUserId = await InZoneDatabase.getCurrentUserUid();
-              if (currentUserId == null) return;
-
-              String targetUserId = getUserId();
-              bool isAiUser = widget.isAI;
-
-              if (isAiUser) {
-                context.pushNamed('chat',
-                    extra: ChatUser(
-                      name: name,
-                      email: targetUserId,
-                      chatId: null,
-                    ).toJson());
-              } else {
-                List<String> sortedIds = [currentUserId, targetUserId]..sort();
-                String conversationId = "${sortedIds[0]}_${sortedIds[1]}";
-
-                try {
-                  final conversationDoc = await FirebaseFirestore.instance
-                      .collection('conversations')
-                      .doc(conversationId)
-                      .get();
-
-                  if (!conversationDoc.exists) {
-                    String currentUserName =
-                        await _getCurrentUserName(currentUserId);
-
-                    await FirebaseFirestore.instance
-                        .collection('conversations')
-                        .doc(conversationId)
-                        .set({
-                      'participants': [currentUserId, targetUserId],
-                      'participantNames': {
-                        currentUserId: currentUserName,
-                        targetUserId: name,
-                      },
-                      'createdAt': FieldValue.serverTimestamp(),
-                      'lastUpdated': FieldValue.serverTimestamp(),
-                      'lastMessageTime': FieldValue.serverTimestamp(),
-                    });
-                  }
-
-                  context.pushNamed('chat', extra: {
-                    'conversationId': conversationId,
-                    'otherUserName': name,
-                    'otherUserId': targetUserId,
-                  });
-                } catch (e) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text(
-                          'Failed to open conversation. Please try again.'),
-                    ),
-                  );
-                }
-              }
-            },
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              decoration: BoxDecoration(
-                color: Colors.transparent,
-                border: Border.all(
-                  color: theme.dividerColor,
-                  width: 1,
-                ),
-                borderRadius: BorderRadius.circular(30),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    FeatherIcons.messageCircle,
-                    size: 18,
-                    color: theme.textTheme.bodyMedium?.color,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Message',
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: theme.textTheme.bodyMedium?.color,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -480,6 +479,14 @@ class _ProfileScreenState extends State<ProfileScreen>
     String userId = getUserId();
     if (userId.isEmpty) return;
 
+    String? currentUserId = await InZoneDatabase.getCurrentUserUid();
+    if (currentUserId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please log in to follow users')),
+      );
+      return;
+    }
+
     bool currentFollowState = isFollowing;
     bool newFollowState = !currentFollowState;
 
@@ -494,57 +501,45 @@ class _ProfileScreenState extends State<ProfileScreen>
     });
 
     try {
-      bool success;
+      bool success = false;
       if (widget.isAI) {
         // For AI users
         if (newFollowState) {
           success = await InZoneDatabase.followAIUser(userId);
+          if (success) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Following $username')),
+            );
+          }
         } else {
           success = await InZoneDatabase.unfollowAIUser(userId);
+          if (success) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Unfollowed $username')),
+            );
+          }
         }
       } else {
-        // For human users (existing implementation)
+        // For human users
         if (newFollowState) {
-          await InZoneDatabase.followUser(
-              userId, await _getCurrentUserName(userId));
+          String currentUserName = await _getCurrentUserName(currentUserId);
+          await InZoneDatabase.followUser(userId, currentUserName);
           success = true;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Following $username')),
+          );
         } else {
           await InZoneDatabase.unfollowUser(userId);
           success = true;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Unfollowed $username')),
+          );
         }
       }
 
       if (success) {
         // If successful, refresh the profile data to get updated followers/following lists
-        String? currentUserId = await InZoneDatabase.getCurrentUserUid();
-        if (currentUserId != null) {
-          // Get the current user's profile
-          Map<String, dynamic>? currentUserProfile =
-              await InZoneDatabase.getCurrentUserProfile();
-
-          if (currentUserProfile != null &&
-              currentUserProfile.containsKey('following')) {
-            // Update the community tab data with the new following list
-            List<dynamic> currentUserFollowing =
-                currentUserProfile['following'] ?? [];
-
-            // Process the following list
-            List<Map<String, dynamic>> formattedFollowing = [];
-            for (var followedUser in currentUserFollowing) {
-              if (followedUser is Map<String, dynamic>) {
-                formattedFollowing.add(followedUser);
-              } else if (followedUser is String) {
-                formattedFollowing.add(
-                    {'id': followedUser, 'username': 'User', 'type': 'human'});
-              }
-            }
-
-            // Update the following list in the community tab data
-            setState(() {
-              _communityTabData["following"] = formattedFollowing;
-            });
-          }
-        }
+        await fetchUserProfile();
       } else {
         // If the operation failed, revert the UI changes
         setState(() {
@@ -574,7 +569,7 @@ class _ProfileScreenState extends State<ProfileScreen>
       // Show error message
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text(
-              'Failed to ${newFollowState ? 'follow' : 'unfollow'} user')));
+              'Failed to ${newFollowState ? 'follow' : 'unfollow'} user: $e')));
     }
   }
 

@@ -497,7 +497,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           elevation: 0,
           leading: IconButton(
             icon: Icon(Icons.arrow_back, color: textColor),
-            onPressed: () => context.pop(false),
+            onPressed: () {
+              // Return true to indicate changes were made
+              context.pop(true);
+            },
           ),
           title: Text(
             'Edit Profile',
