@@ -555,7 +555,7 @@ class _FullscreenYoutubePlayerState extends State<FullscreenYoutubePlayer>
           initialVideoId: widget.videoId.toString(),
           flags: YoutubePlayerFlags(
             autoPlay: true,
-            mute: false,
+            mute: true,
             hideControls: false,
             enableCaption: true,
             startAt: widget.startAt.inSeconds,
