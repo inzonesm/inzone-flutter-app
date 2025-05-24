@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:inzone/components/posts/shimmering.dart';
 import 'package:inzone/components/video/video_widget.dart';
 import 'package:inzone/config/custom_icons.dart';
@@ -17,12 +18,14 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:smooth_page_indicator/smooth_page_indicator.dart';
 import 'package:go_router/go_router.dart';
 import 'package:inzone/router/routes.dart';
+import 'dart:io' show Platform;
 
 class PostCard extends StatefulWidget {
   InZonePost post;
   final Function(String)? onTap;
   final String? profileImageUrl;
   final bool showHue;
+  final bool isAd; // Flag to determine if this is an ad
 
   InZonePost getPost() {
     return post;
@@ -34,6 +37,7 @@ class PostCard extends StatefulWidget {
     this.onTap,
     this.showHue = true,
     this.profileImageUrl,
+    this.isAd = false, // Default to false
   });
 
   @override
@@ -50,6 +54,14 @@ class _PostCardState extends State<PostCard> {
     viewportFraction: 1,
   );
 
+  // Native Ad variables
+  NativeAd? _nativeAd;
+  bool _nativeAdIsLoaded = false;
+  
+  // Ad Unit IDs
+  final String _androidAdUnitId = 'ca-app-pub-4474122990542651~2720978162';
+  final String _iosAdUnitId = 'ca-app-pub-4474122990542651~2508616366';
+  
   bool isLiked = false;
   Future<bool> isCommentPresent() async {
     DocumentReference postDocumentReference =
@@ -117,6 +129,51 @@ class _PostCardState extends State<PostCard> {
     super.initState();
     _loadLikedState(); // Load the liked state when the widget is initialized
     _loadUserProfileImage();
+    
+    // Load native ad if isAd is true
+    if (widget.isAd) {
+      _loadNativeAd();
+    }
+  }
+  
+  void _loadNativeAd() {
+    // Use test ad units during development
+    final testAdUnitId = Platform.isAndroid
+        ? 'ca-app-pub-3940256099942544/2247696110'  // Android test ad unit
+        : 'ca-app-pub-3940256099942544/3986624511'; // iOS test ad unit
+
+    _nativeAd = NativeAd(
+      adUnitId: testAdUnitId, // Use test ad unit during development
+      factoryId: 'adFactoryExample', // Must match the factory ID registered in native code
+      listener: NativeAdListener(
+        onAdLoaded: (ad) {
+          debugPrint('Native ad loaded');
+          setState(() {
+            _nativeAdIsLoaded = true;
+          });
+        },
+        onAdFailedToLoad: (ad, error) {
+          // Dispose the ad here to free resources
+          debugPrint('Native ad failed to load: $error');
+          ad.dispose();
+        },
+        onAdClicked: (ad) {
+          debugPrint('Native ad clicked');
+        },
+        onAdImpression: (ad) {
+          debugPrint('Native ad impression');
+        },
+      ),
+      request: const AdRequest(),
+    );
+    
+    _nativeAd!.load();
+  }
+
+  @override
+  void dispose() {
+    _nativeAd?.dispose();
+    super.dispose();
   }
 
   @override
@@ -125,6 +182,17 @@ class _PostCardState extends State<PostCard> {
     // If the post ID changed, reload the liked state
     if (oldWidget.post.id != widget.post.id) {
       _loadLikedState();
+    }
+    
+    // If the isAd flag changed, load or dispose the ad
+    if (oldWidget.isAd != widget.isAd) {
+      if (widget.isAd) {
+        _loadNativeAd();
+      } else {
+        _nativeAd?.dispose();
+        _nativeAd = null;
+        _nativeAdIsLoaded = false;
+      }
     }
   }
 
@@ -181,6 +249,35 @@ class _PostCardState extends State<PostCard> {
   bool isCommentPresentbool = false;
   @override
   Widget build(BuildContext context) {
+    // If this is an ad and it's loaded, show the ad view
+    if (widget.isAd && _nativeAdIsLoaded) {
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 20.0),
+        child: Container(
+          height: 250, // Fixed height instead of constraints
+          width: MediaQuery.of(context).size.width - 30,
+          decoration: BoxDecoration(
+            color: Theme.of(context).cardColor,
+            borderRadius: BorderRadius.circular(15),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 8,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(15),
+            child: SizedBox(
+              height: 250, // Fixed height for the AdWidget
+              child: AdWidget(ad: _nativeAd!),
+            ),
+          ),
+        ),
+      );
+    }
+
     checkComment();
 
     final validImages = widget.post.imageContent
@@ -1140,6 +1237,19 @@ class _DynamicPageViewState extends State<_DynamicPageView> {
     }
   }
 
+  // Allow external updates of the height (used by VideoWidget)
+  void updateVideoHeight(int index, double newHeight) {
+    if (_heights[index] != newHeight) {
+      _heights[index] = newHeight;
+      
+      if (_currentIndex == index && mounted) {
+        setState(() {
+          _currentHeight = newHeight;
+        });
+      }
+    }
+  }
+
   bool _isValidUrl(String url) {
     return url.isNotEmpty &&
         (url.startsWith('http://') || url.startsWith('https://'));
@@ -1208,13 +1318,21 @@ class _DynamicPageViewState extends State<_DynamicPageView> {
 
               return LayoutBuilder(
                 builder: (context, constraints) {
-                  final videoHeight = constraints.maxWidth * 9 / 16;
-                  WidgetsBinding.instance.addPostFrameCallback((_) {
-                    _updateHeightOnce(videoUrl, index, videoHeight);
-                  });
+                  // Initial height based on 16:9 aspect ratio - will be updated when video loads
+                  double initialHeight = constraints.maxWidth * 9 / 16;
+                  _updateHeightOnce(videoUrl, index, initialHeight);
+                  
                   return ClipRRect(
                     borderRadius: BorderRadius.circular(12),
-                    child: VideoWidget(videoUrl: videoUrl),
+                    child: _VideoWidgetWrapper(
+                      videoUrl: videoUrl,
+                      maxWidth: constraints.maxWidth,
+                      index: index,
+                      onAspectRatioUpdated: (aspectRatio) {
+                        double calculatedHeight = constraints.maxWidth / aspectRatio;
+                        updateVideoHeight(index, calculatedHeight);
+                      },
+                    ),
                   );
                 },
               );
@@ -1222,6 +1340,40 @@ class _DynamicPageViewState extends State<_DynamicPageView> {
           },
         ),
       ),
+    );
+  }
+}
+
+// Wrapper widget to communicate between VideoWidget and _DynamicPageView
+class _VideoWidgetWrapper extends StatefulWidget {
+  final String videoUrl;
+  final double maxWidth;
+  final int index;
+  final Function(double) onAspectRatioUpdated;
+
+  const _VideoWidgetWrapper({
+    required this.videoUrl,
+    required this.maxWidth,
+    required this.index,
+    required this.onAspectRatioUpdated,
+  });
+
+  @override
+  State<_VideoWidgetWrapper> createState() => _VideoWidgetWrapperState();
+}
+
+class _VideoWidgetWrapperState extends State<_VideoWidgetWrapper> {
+  final GlobalKey _videoKey = GlobalKey();
+  
+  @override
+  Widget build(BuildContext context) {
+    return VideoWidget(
+      key: _videoKey,
+      videoUrl: widget.videoUrl,
+      onAspectRatioUpdated: (aspectRatio) {
+        // When aspect ratio changes, notify parent
+        widget.onAspectRatioUpdated(aspectRatio);
+      },
     );
   }
 }

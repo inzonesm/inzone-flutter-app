@@ -14,7 +14,7 @@ import 'package:inzone/services/appsflyer_service.dart';
 import 'package:purchases_flutter/models/purchases_configuration.dart'
     show PurchasesConfiguration;
 import 'dart:io' show Platform;
-
+import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:purchases_flutter/purchases_flutter.dart'
     show LogLevel, Purchases;
 
@@ -64,6 +64,7 @@ Future<void> initPlatformState() async {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  MobileAds.instance.initialize();
   MediaKit.ensureInitialized();
 
   // Enable pending purchases on Android

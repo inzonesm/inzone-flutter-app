@@ -126,7 +126,7 @@ class _AllChatsScreenState extends State<AllChatsScreen>
             String groupName = 'Group Chat';
             if (groupDoc.exists && groupDoc.data() != null) {
               var groupData = groupDoc.data() as Map<String, dynamic>;
-              debugPrint('Group data from Firestore: $groupData');
+
 
               // Try different possible field names for the group name
               groupName = groupData['name'] ??
@@ -134,7 +134,7 @@ class _AllChatsScreenState extends State<AllChatsScreen>
                   data['groupName'] ??
                   'Group Chat';
 
-              debugPrint('Using group name in list: $groupName');
+
             }
 
             allChats.add(ChatUser(
@@ -147,7 +147,7 @@ class _AllChatsScreenState extends State<AllChatsScreen>
               isGroupChat: true,
             ));
           } catch (e) {
-            debugPrint('Error fetching group details: $e');
+
             // Fallback to basic info if there's an error
             String groupName = data['groupName'] ?? 'Group Chat';
             allChats.add(ChatUser(
@@ -497,7 +497,7 @@ class _ChatUserCardState extends State<ChatUserCard> {
         if (widget.userData.isHuman) {
           if (widget.userData.isGroupChat) {
             // Navigate to group chat
-            debugPrint('Navigating to group chat: ${widget.userData.chatId}');
+
             // Show loading indicator while fetching group data
             showDialog(
               context: context,
@@ -516,7 +516,7 @@ class _ChatUserCardState extends State<ChatUserCard> {
               Navigator.of(context).pop();
 
               if (doc.exists) {
-                debugPrint('Group document data: ${doc.data()}');
+
 
                 // Get the actual group name from the document
                 // First try to get it from the 'name' field, then from 'groupName', then fallback to userData name
@@ -525,7 +525,7 @@ class _ChatUserCardState extends State<ChatUserCard> {
                     widget.userData.name ??
                     'Group Chat';
 
-                debugPrint('Using group name: $groupName');
+
 
                 // Extract avatars if available
                 List<String> avatars = [];
@@ -547,7 +547,7 @@ class _ChatUserCardState extends State<ChatUserCard> {
                 );
 
                 // Navigate to the group chat screen
-                debugPrint('Navigating to group chat with data: $groupData');
+
 
                 // Try using Go Router first with fallback to direct navigation
                 try {
@@ -559,7 +559,7 @@ class _ChatUserCardState extends State<ChatUserCard> {
                     }
                   });
                 } catch (e) {
-                  debugPrint('Go Router navigation failed: $e');
+
                 }
               } else {
                 // Fallback to regular chat if group data not found

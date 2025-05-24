@@ -55,23 +55,18 @@ class _CustomAppBarState extends State<CustomAppBar> {
 
   Future<void> _loadUserBalance() async {
     try {
-      debugPrint('CustomAppBar: Fetching user balance...');
+
       final response = await _monetizationService.getBalance();
-      debugPrint('CustomAppBar: Balance API response: $response');
 
       if (response['success'] == true) {
         final balance = response['data']['balance'];
-        debugPrint('CustomAppBar: Raw balance value: $balance');
 
         if (mounted) {
           setState(() {
             _userBalance = balance.toString();
-            debugPrint('CustomAppBar: Updated _userBalance to: $_userBalance');
           });
         }
       } else {
-        debugPrint(
-            'CustomAppBar: Balance API returned success=false: ${response['error']}');
       }
     } catch (e) {
       debugPrint('CustomAppBar: Error loading balance: $e');

@@ -41,8 +41,7 @@ class GroupCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(24),
           child: InkWell(
             onTap: () {
-              debugPrint(
-                  'Navigating to group chat with data: ${group.toString()}');
+
               try {
                 // Try using Go Router first
                 context.push(Routes.groupChat, extra: group);
