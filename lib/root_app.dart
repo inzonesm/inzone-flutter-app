@@ -259,7 +259,6 @@ class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
                         _buildAnimatedOptionButton(
                           'Create 3D Avatar',
                           Icons.person,
-                          const Color(0xFF2196F3),
                           () {
                             print("Create 3D Avatar button tapped");
                             _toggleExpanded();
@@ -271,7 +270,6 @@ class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
                         _buildAnimatedOptionButton(
                           'Create AI Character',
                           Icons.face,
-                          const Color(0xFF2196F3),
                           () {
                             print("Create AI Character button tapped");
                             _toggleExpanded();
@@ -288,7 +286,6 @@ class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
                         _buildAnimatedOptionButton(
                           'Create Post',
                           Icons.post_add,
-                          const Color(0xFF2196F3),
                           () {
                             print("Create Post button tapped");
                             _toggleExpanded();
@@ -407,11 +404,9 @@ class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
   Widget _buildAnimatedOptionButton(
     String label,
     IconData icon,
-    Color color,
     VoidCallback onPressed,
     int index,
   ) {
-    // 확장 상태일 때만 애니메이션 실행, 닫힐 때는 fade out만 적용
     return AnimatedOpacity(
       opacity: _isExpanded ? 1.0 : 0.0,
       duration: Duration(milliseconds: _isExpanded ? 300 + (index * 100) : 200),
@@ -424,19 +419,43 @@ class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
             Duration(milliseconds: _isExpanded ? 300 + (index * 100) : 200),
         curve: _isExpanded ? Curves.easeOutBack : Curves.easeIn,
         child: Center(
-          child: SizedBox(
-            width: 200,
-            child: ElevatedButton.icon(
-              icon: Icon(icon, color: Colors.white),
-              label: Text(label, style: const TextStyle(color: Colors.white)),
+          child: IntrinsicWidth(
+            child: ElevatedButton(
               onPressed: onPressed,
               style: ElevatedButton.styleFrom(
-                backgroundColor: color,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                backgroundColor: Theme.of(context).cardColor,
+                padding: const EdgeInsets.only(
+                    left: 5, right: 15, top: 10, bottom: 10),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(24),
+                  borderRadius: BorderRadius.circular(30),
                 ),
+                elevation: 2,
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 40,
+                    height: 32,
+                    decoration: const BoxDecoration(
+                      color: Color(0xFF2196F3),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      icon,
+                      color: Colors.white,
+                      size: 18,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    label,
+                    style: TextStyle(
+                      color: Theme.of(context).textTheme.titleLarge?.color,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
