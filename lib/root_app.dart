@@ -30,6 +30,10 @@ class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
   bool _isKeyboardVisible = false;
   bool _isExpanded = false;
 
+  // Add animation controllers
+  late AnimationController _rotationController;
+  late Animation<double> _rotationAnimation;
+
   // Focus node to track app-wide focus state
   final FocusNode _rootFocusNode = FocusNode();
 
@@ -54,6 +58,20 @@ class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
   void initState() {
     super.initState();
 
+    // Initialize rotation animation controller
+    _rotationController = AnimationController(
+      duration: const Duration(milliseconds: 300),
+      vsync: this,
+    );
+
+    _rotationAnimation = Tween<double>(
+      begin: 0.0,
+      end: 0.125, // 1/8 of a full rotation (45 degrees)
+    ).animate(CurvedAnimation(
+      parent: _rotationController,
+      curve: Curves.easeInOut,
+    ));
+
     // Initialize screens with the controller
     _screens = [
       HomeScreen(controller: _homeScrollController),
@@ -67,6 +85,7 @@ class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
   void dispose() {
     _homeScrollController.dispose();
     _rootFocusNode.dispose();
+    _rotationController.dispose();
     super.dispose();
   }
 
@@ -136,8 +155,14 @@ class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
   ];
 
   void _toggleExpanded() {
+    print("Toggle expanded: ${!_isExpanded}");
     setState(() {
       _isExpanded = !_isExpanded;
+      if (_isExpanded) {
+        _rotationController.forward();
+      } else {
+        _rotationController.reverse();
+      }
     });
   }
 
@@ -156,130 +181,18 @@ class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
     final String location = GoRouterState.of(context).matchedLocation;
     final bool isMainTabRoute = _routes.contains(location);
 
-    return GestureDetector(
-      onTap: () {
-        FocusScope.of(context).unfocus();
-        if (_isExpanded) {
-          _toggleExpanded();
-        }
-      },
-      child: Scaffold(
-        key: _key,
-        backgroundColor: Theme.of(context).canvasColor,
-        extendBody: true,
-        floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-        floatingActionButton: _isKeyboardVisible
-            ? null
-            : Stack(
-                alignment: Alignment.bottomCenter,
-                clipBehavior: Clip.none,
-                children: [
-                  // 옵션 버튼들
-                  Positioned(
-                    bottom: 70,
-                    child: AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 200),
-                      transitionBuilder:
-                          (Widget child, Animation<double> animation) {
-                        return FadeTransition(
-                          opacity: animation,
-                          child: SlideTransition(
-                            position: Tween<Offset>(
-                              begin: const Offset(0, 0.2),
-                              end: Offset.zero,
-                            ).animate(animation),
-                            child: child,
-                          ),
-                        );
-                      },
-                      child: _isExpanded
-                          ? Column(
-                              key: const ValueKey('expandedOptions'),
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                _buildActionButton(
-                                  'Create 3D Avatar',
-                                  Icons.person,
-                                  () {
-                                    _toggleExpanded();
-                                    context.push(Routes.create3dModel);
-                                  },
-                                  const Color(0xFF2196F3),
-                                  3,
-                                ),
-                                const SizedBox(height: 16),
-                                _buildActionButton(
-                                  'Create AI Character',
-                                  Icons.face,
-                                  () {
-                                    _toggleExpanded();
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                          content: Text(
-                                              'AI Character creation coming soon')),
-                                    );
-                                  },
-                                  const Color(0xFF2196F3),
-                                  2,
-                                ),
-                                const SizedBox(height: 16),
-                                _buildActionButton(
-                                  'Create Post',
-                                  Icons.post_add,
-                                  () {
-                                    _toggleExpanded();
-                                    context.push(Routes.post);
-                                  },
-                                  const Color(0xFF2196F3),
-                                  1,
-                                ),
-                              ],
-                            )
-                          : const SizedBox(
-                              key: ValueKey('collapsedOptions'),
-                              height: 0,
-                              width: 0,
-                            ),
-                    ),
-                  ),
-                  // 메인 플로팅 버튼
-                  FloatingActionButton(
-                    heroTag: 'main_fab',
-                    elevation: 0,
-                    backgroundColor: Colors.transparent,
-                    onPressed: _toggleExpanded,
-                    child: Container(
-                      width: 56,
-                      height: 56,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.2),
-                            spreadRadius: 1,
-                            blurRadius: 3,
-                            offset: const Offset(0, 1),
-                          ),
-                        ],
-                        gradient: const LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [
-                            Color(0xFF14CFEE),
-                            Color(0xFF2196F3),
-                          ],
-                        ),
-                      ),
-                      child: Icon(
-                        _isExpanded ? Icons.close : Icons.add,
-                        size: 28,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-        body: NotificationListener<ScrollNotification>(
+    return Scaffold(
+      key: _key,
+      backgroundColor: Theme.of(context).canvasColor,
+      extendBody: true,
+      body: GestureDetector(
+        onTap: () {
+          FocusScope.of(context).unfocus();
+          if (_isExpanded) {
+            _toggleExpanded();
+          }
+        },
+        child: NotificationListener<ScrollNotification>(
           onNotification: (ScrollNotification notification) {
             if (notification is ScrollStartNotification) {
               WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -301,132 +214,234 @@ class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
             return false; // false: allow scroll event to continue propagating
           },
           // Use IndexedStack for main tab routes, otherwise use the provided child for nested routes
-          child: isMainTabRoute
-              ? IndexedStack(
-                  index: _currentPage,
-                  children: _screens,
-                )
-              : widget.child, // Use the provided child for non-tab routes
-        ),
-        bottomNavigationBar: AnimatedSwitcher(
-          duration: const Duration(milliseconds: 200),
-          child: _isKeyboardVisible
-              ? const SizedBox.shrink()
-              : SafeArea(
-                  bottom: false,
-                  child: AnimatedBottomNavigationBar.builder(
-                    key: const ValueKey('navBar'),
-                    itemCount: _bottomNavBarTitles.length,
-                    tabBuilder: (int index, bool isActive) {
-                      return Center(
-                        child: SizedBox(
-                          width: 26,
-                          height: 26,
-                          child: FittedBox(
-                            fit: BoxFit.contain,
-                            child: ColorFiltered(
-                              colorFilter: ColorFilter.mode(
-                                isActive
-                                    ? Theme.of(context).colorScheme.primary
-                                    : Theme.of(context).unselectedWidgetColor,
-                                BlendMode.srcIn,
-                              ),
-                              child: Iconify(
-                                _iconifyPaths[index],
-                                size: 100, // 실제 크기는 FittedBox가 제어함
-                              ),
-                            ),
-                          ),
-                        ),
-                      );
-                    },
-                    activeIndex: _currentPage,
-                    splashSpeedInMilliseconds: 0,
-                    gapLocation: GapLocation.center,
-                    notchSmoothness: NotchSmoothness.softEdge,
-                    leftCornerRadius: 32,
-                    rightCornerRadius: 32,
-                    onTap: _onItemTapped,
-                    backgroundColor: Theme.of(context).cardColor,
-                    splashColor: Colors.transparent,
-                    splashRadius: 0,
-                    shadow: const BoxShadow(
-                      color: Colors.transparent,
-                      blurRadius: 0,
-                      spreadRadius: 0,
+          child: Stack(
+            children: [
+              isMainTabRoute
+                  ? IndexedStack(
+                      index: _currentPage,
+                      children: _screens,
+                    )
+                  : widget.child, // Use the provided child for non-tab routes
+
+              // Full screen semi-transparent overlay
+              AnimatedOpacity(
+                opacity: _isExpanded ? 1.0 : 0.0,
+                duration: const Duration(milliseconds: 300),
+                curve: _isExpanded ? Curves.easeOut : Curves.easeIn,
+                child: IgnorePointer(
+                  ignoring: !_isExpanded,
+                  child: Positioned.fill(
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: _toggleExpanded,
+                      child: Container(
+                        color: Colors.black.withOpacity(0.3),
+                      ),
                     ),
                   ),
                 ),
+              ),
+
+              // Option buttons (absolute top layer)
+              Positioned(
+                bottom: 150,
+                left: 0,
+                right: 0,
+                child: AnimatedOpacity(
+                  opacity: _isExpanded ? 1.0 : 0.0,
+                  duration: const Duration(milliseconds: 300),
+                  curve: _isExpanded ? Curves.easeOut : Curves.easeIn,
+                  child: IgnorePointer(
+                    ignoring: !_isExpanded,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        _buildAnimatedOptionButton(
+                          'Create 3D Avatar',
+                          Icons.person,
+                          const Color(0xFF2196F3),
+                          () {
+                            print("Create 3D Avatar button tapped");
+                            _toggleExpanded();
+                            context.push(Routes.create3dModel);
+                          },
+                          0,
+                        ),
+                        const SizedBox(height: 16),
+                        _buildAnimatedOptionButton(
+                          'Create AI Character',
+                          Icons.face,
+                          const Color(0xFF2196F3),
+                          () {
+                            print("Create AI Character button tapped");
+                            _toggleExpanded();
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content:
+                                    Text('AI Character creation coming soon'),
+                              ),
+                            );
+                          },
+                          1,
+                        ),
+                        const SizedBox(height: 16),
+                        _buildAnimatedOptionButton(
+                          'Create Post',
+                          Icons.post_add,
+                          const Color(0xFF2196F3),
+                          () {
+                            print("Create Post button tapped");
+                            _toggleExpanded();
+                            context.push(Routes.post);
+                          },
+                          2,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+      floatingActionButton: _isKeyboardVisible
+          ? null
+          : GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () {
+                print("Main FAB button tapped");
+                _toggleExpanded();
+              },
+              child: Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.2),
+                      spreadRadius: 1,
+                      blurRadius: 3,
+                      offset: const Offset(0, 1),
+                    ),
+                  ],
+                  gradient: const LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      Color(0xFF14CFEE),
+                      Color(0xFF2196F3),
+                    ],
+                  ),
+                ),
+                child: AnimatedBuilder(
+                  animation: _rotationAnimation,
+                  builder: (context, child) {
+                    return Transform.rotate(
+                      angle: _rotationAnimation.value * 2.0 * 3.14159,
+                      child: const Icon(
+                        Icons.add,
+                        size: 28,
+                        color: Colors.white,
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
+      bottomNavigationBar: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 200),
+        child: _isKeyboardVisible
+            ? const SizedBox.shrink()
+            : SafeArea(
+                bottom: false,
+                child: AnimatedBottomNavigationBar.builder(
+                  key: const ValueKey('navBar'),
+                  itemCount: _bottomNavBarTitles.length,
+                  tabBuilder: (int index, bool isActive) {
+                    return Center(
+                      child: SizedBox(
+                        width: 26,
+                        height: 26,
+                        child: FittedBox(
+                          fit: BoxFit.contain,
+                          child: ColorFiltered(
+                            colorFilter: ColorFilter.mode(
+                              isActive
+                                  ? Theme.of(context).colorScheme.primary
+                                  : Theme.of(context).unselectedWidgetColor,
+                              BlendMode.srcIn,
+                            ),
+                            child: Iconify(
+                              _iconifyPaths[index],
+                              size: 100, // 실제 크기는 FittedBox가 제어함
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                  activeIndex: _currentPage,
+                  splashSpeedInMilliseconds: 0,
+                  gapLocation: GapLocation.center,
+                  notchSmoothness: NotchSmoothness.softEdge,
+                  leftCornerRadius: 32,
+                  rightCornerRadius: 32,
+                  onTap: _onItemTapped,
+                  backgroundColor: Theme.of(context).cardColor,
+                  splashColor: Colors.transparent,
+                  splashRadius: 0,
+                  shadow: const BoxShadow(
+                    color: Colors.transparent,
+                    blurRadius: 0,
+                    spreadRadius: 0,
+                  ),
+                ),
+              ),
       ),
     );
   }
 
-  Widget _buildActionButton(
-      String label, IconData icon, VoidCallback onTap, Color color, int index) {
-    return TweenAnimationBuilder<double>(
-      tween: Tween<double>(begin: 0, end: 1),
-      duration: Duration(milliseconds: 150 + (index * 100)), // 순서대로 나타나게 타이밍 조정
-      curve: Curves.easeOutBack,
-      builder: (context, value, child) {
-        return Transform.scale(
-          scale: value.clamp(0.0, 1.0),
-          child: Opacity(
-            opacity: value.clamp(0.0, 1.0),
-            child: Material(
-              color: Colors.transparent,
-              child: InkWell(
-                onTap: onTap,
-                borderRadius: BorderRadius.circular(24),
-                splashColor: color.withOpacity(0.1),
-                highlightColor: color.withOpacity(0.05),
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(24),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.1),
-                        spreadRadius: 1,
-                        blurRadius: 3,
-                        offset: const Offset(0, 1),
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Container(
-                        width: 32,
-                        height: 32,
-                        decoration: BoxDecoration(
-                          color: color,
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(
-                          icon,
-                          color: Colors.white,
-                          size: 18,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        label,
-                        style: TextStyle(
-                          color: color,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
+  Widget _buildAnimatedOptionButton(
+    String label,
+    IconData icon,
+    Color color,
+    VoidCallback onPressed,
+    int index,
+  ) {
+    // 확장 상태일 때만 애니메이션 실행, 닫힐 때는 fade out만 적용
+    return AnimatedOpacity(
+      opacity: _isExpanded ? 1.0 : 0.0,
+      duration: Duration(milliseconds: _isExpanded ? 300 + (index * 100) : 200),
+      curve: _isExpanded ? Curves.easeOutBack : Curves.easeIn,
+      child: AnimatedPadding(
+        padding: EdgeInsets.only(
+          top: _isExpanded ? 0 : 20,
+        ),
+        duration:
+            Duration(milliseconds: _isExpanded ? 300 + (index * 100) : 200),
+        curve: _isExpanded ? Curves.easeOutBack : Curves.easeIn,
+        child: Center(
+          child: SizedBox(
+            width: 200,
+            child: ElevatedButton.icon(
+              icon: Icon(icon, color: Colors.white),
+              label: Text(label, style: const TextStyle(color: Colors.white)),
+              onPressed: onPressed,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: color,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(24),
                 ),
               ),
             ),
           ),
-        );
-      },
+        ),
+      ),
     );
   }
 }
