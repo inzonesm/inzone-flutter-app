@@ -18,7 +18,6 @@ import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:purchases_flutter/purchases_flutter.dart'
     show LogLevel, Purchases;
 
-
 Future<void> validateFirebaseSession() async {
   final user = FirebaseAuth.instance.currentUser;
 
@@ -65,7 +64,10 @@ Future<void> initPlatformState() async {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize AdMob with test device configuration
   MobileAds.instance.initialize();
+
   MediaKit.ensureInitialized();
 
   // Enable pending purchases on Android
