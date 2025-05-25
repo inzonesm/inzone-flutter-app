@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_expandable_fab/flutter_expandable_fab.dart';
 import 'package:go_router/go_router.dart';
 import 'package:inzone/router/routes.dart';
 import 'package:animated_bottom_navigation_bar/animated_bottom_navigation_bar.dart';
@@ -27,8 +26,10 @@ class RootApp extends StatefulWidget {
 class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
   int _currentPage = 0; // Track selected tab index
   final ScrollController _homeScrollController = ScrollController();
-  final _key = GlobalKey<ExpandableFabState>();
+  final _key = GlobalKey<ScaffoldState>();
   bool _isKeyboardVisible = false;
+  bool _isExpanded = false;
+
   // Focus node to track app-wide focus state
   final FocusNode _rootFocusNode = FocusNode();
 
@@ -134,6 +135,12 @@ class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
     Ph.user,
   ];
 
+  void _toggleExpanded() {
+    setState(() {
+      _isExpanded = !_isExpanded;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     const systemUiOverlayStyle = SystemUiOverlayStyle(
@@ -152,6 +159,9 @@ class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
     return GestureDetector(
       onTap: () {
         FocusScope.of(context).unfocus();
+        if (_isExpanded) {
+          _toggleExpanded();
+        }
       },
       child: Scaffold(
         key: _key,
@@ -160,37 +170,114 @@ class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
         floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
         floatingActionButton: _isKeyboardVisible
             ? null
-            : FloatingActionButton(
-                heroTag: null,
-                elevation: 0,
-                backgroundColor: Colors.transparent,
-                onPressed: () {
-                  context.push(Routes.post);
-                },
-                child: Container(
-                  width: 56,
-                  height: 56,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.2),
-                        spreadRadius: 1,
-                        blurRadius: 3,
-                        offset: const Offset(0, 1),
-                      ),
-                    ],
-                    gradient: const LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [
-                        Color(0xFF14CFEE),
-                        Color(0xFF2196F3),
-                      ],
+            : Stack(
+                alignment: Alignment.bottomCenter,
+                clipBehavior: Clip.none,
+                children: [
+                  // 옵션 버튼들
+                  Positioned(
+                    bottom: 70,
+                    child: AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 200),
+                      transitionBuilder:
+                          (Widget child, Animation<double> animation) {
+                        return FadeTransition(
+                          opacity: animation,
+                          child: SlideTransition(
+                            position: Tween<Offset>(
+                              begin: const Offset(0, 0.2),
+                              end: Offset.zero,
+                            ).animate(animation),
+                            child: child,
+                          ),
+                        );
+                      },
+                      child: _isExpanded
+                          ? Column(
+                              key: const ValueKey('expandedOptions'),
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                _buildActionButton(
+                                  'Create 3D Avatar',
+                                  Icons.person,
+                                  () {
+                                    _toggleExpanded();
+                                    context.push(Routes.create3dModel);
+                                  },
+                                  const Color(0xFF2196F3),
+                                  3,
+                                ),
+                                const SizedBox(height: 16),
+                                _buildActionButton(
+                                  'Create AI Character',
+                                  Icons.face,
+                                  () {
+                                    _toggleExpanded();
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                          content: Text(
+                                              'AI Character creation coming soon')),
+                                    );
+                                  },
+                                  const Color(0xFF2196F3),
+                                  2,
+                                ),
+                                const SizedBox(height: 16),
+                                _buildActionButton(
+                                  'Create Post',
+                                  Icons.post_add,
+                                  () {
+                                    _toggleExpanded();
+                                    context.push(Routes.post);
+                                  },
+                                  const Color(0xFF2196F3),
+                                  1,
+                                ),
+                              ],
+                            )
+                          : const SizedBox(
+                              key: ValueKey('collapsedOptions'),
+                              height: 0,
+                              width: 0,
+                            ),
                     ),
                   ),
-                  child: const Icon(Icons.add, size: 28, color: Colors.white),
-                ),
+                  // 메인 플로팅 버튼
+                  FloatingActionButton(
+                    heroTag: 'main_fab',
+                    elevation: 0,
+                    backgroundColor: Colors.transparent,
+                    onPressed: _toggleExpanded,
+                    child: Container(
+                      width: 56,
+                      height: 56,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.2),
+                            spreadRadius: 1,
+                            blurRadius: 3,
+                            offset: const Offset(0, 1),
+                          ),
+                        ],
+                        gradient: const LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [
+                            Color(0xFF14CFEE),
+                            Color(0xFF2196F3),
+                          ],
+                        ),
+                      ),
+                      child: Icon(
+                        _isExpanded ? Icons.close : Icons.add,
+                        size: 28,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ],
               ),
         body: NotificationListener<ScrollNotification>(
           onNotification: (ScrollNotification notification) {
@@ -272,6 +359,74 @@ class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
                 ),
         ),
       ),
+    );
+  }
+
+  Widget _buildActionButton(
+      String label, IconData icon, VoidCallback onTap, Color color, int index) {
+    return TweenAnimationBuilder<double>(
+      tween: Tween<double>(begin: 0, end: 1),
+      duration: Duration(milliseconds: 150 + (index * 100)), // 순서대로 나타나게 타이밍 조정
+      curve: Curves.easeOutBack,
+      builder: (context, value, child) {
+        return Transform.scale(
+          scale: value.clamp(0.0, 1.0),
+          child: Opacity(
+            opacity: value.clamp(0.0, 1.0),
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: onTap,
+                borderRadius: BorderRadius.circular(24),
+                splashColor: color.withOpacity(0.1),
+                highlightColor: color.withOpacity(0.05),
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(24),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.1),
+                        spreadRadius: 1,
+                        blurRadius: 3,
+                        offset: const Offset(0, 1),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 32,
+                        height: 32,
+                        decoration: BoxDecoration(
+                          color: color,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          icon,
+                          color: Colors.white,
+                          size: 18,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        label,
+                        style: TextStyle(
+                          color: color,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }

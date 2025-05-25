@@ -30,6 +30,7 @@ import 'package:inzone/screen/settings/content_select_screen.dart';
 import 'package:inzone/screen/settings/subscription_purchase.dart';
 import 'package:inzone/screen/settings/referral_screen.dart';
 import 'package:inzone/screen/settings/settings_screen.dart';
+import 'package:inzone/screen/3d_model/3d_model_screen.dart';
 
 // Models
 import 'package:inzone/data/group_data.dart';
@@ -223,6 +224,15 @@ class AppRouter {
           key: state.pageKey,
           fullscreenDialog: true,
           child: const PostScreen(),
+        ),
+      ),
+      GoRoute(
+        path: Routes.create3dModel,
+        parentNavigatorKey: rootNavigatorKey,
+        pageBuilder: (context, state) => CupertinoPage(
+          key: state.pageKey,
+          fullscreenDialog: true,
+          child: const ModelCreateScreen(),
         ),
       ),
       GoRoute(
