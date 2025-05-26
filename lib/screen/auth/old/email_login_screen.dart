@@ -187,8 +187,35 @@ class _EmailLogInPageState extends State<EmailLogInPage> {
                                       errorMessage = null;
                                     });
 
-                                    // Navigate to full loading screen instead of dialog
-                                    context.push(Routes.splash);
+                                    // 스플래시 스크린 대신 로딩 인디케이터 표시
+                                    showDialog(
+                                      context: context,
+                                      barrierDismissible: false,
+                                      builder: (BuildContext context) {
+                                        return Dialog(
+                                          backgroundColor: Colors.transparent,
+                                          elevation: 0,
+                                          child: Center(
+                                            child: Container(
+                                              padding: const EdgeInsets.all(16),
+                                              decoration: BoxDecoration(
+                                                color: Colors.white,
+                                                borderRadius:
+                                                    BorderRadius.circular(16),
+                                              ),
+                                              child: const Column(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  CircularProgressIndicator(),
+                                                  SizedBox(height: 16),
+                                                  Text("Logging in..."),
+                                                ],
+                                              ),
+                                            ),
+                                          ),
+                                        );
+                                      },
+                                    );
 
                                     // Create a future that completes after at least 1 second
                                     final loadingDelay = Future.delayed(

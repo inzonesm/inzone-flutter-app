@@ -72,8 +72,34 @@ By using the Licensed Application, you agree to abide by these terms and conditi
   // Function to navigate between pages
   void _navigateToPage(int page) async {
     if (_currentPage == 1) {
-      // Show loading screen and then navigate to the home screen
-      context.push(Routes.splash);
+      // 스플래시 스크린 대신 로딩 인디케이터 표시
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (BuildContext context) {
+          return Dialog(
+            backgroundColor: Colors.transparent,
+            elevation: 0,
+            child: Center(
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: const Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    CircularProgressIndicator(),
+                    SizedBox(height: 16),
+                    Text("Creating account..."),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
+      );
 
       // Simulate a minimum 2-second loading time, and then proceed with tasks
       await Future.delayed(const Duration(seconds: 2));

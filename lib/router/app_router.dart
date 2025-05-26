@@ -82,8 +82,13 @@ class AppRouter {
   static final _shellNavigatorKey = GlobalKey<NavigatorState>();
   static final authNotifier = AuthNotifier();
 
+  // 초기 경로를 동적으로 설정하는 메서드 추가
+  static void setInitialRoute(String route) {
+    router.go(route);
+  }
+
   static final GoRouter router = GoRouter(
-    initialLocation: Routes.splash,
+    initialLocation: Routes.home,
     navigatorKey: rootNavigatorKey,
     debugLogDiagnostics: true,
     refreshListenable: authNotifier,
@@ -94,7 +99,6 @@ class AppRouter {
       final bool isLoggedIn = authNotifier.isLoggedIn;
       final bool isProfileCompleted = authNotifier.isProfileCompleted;
 
-      final bool isGoingToSplash = state.matchedLocation == Routes.splash;
       final bool isProfileScreen = state.matchedLocation == Routes.profile ||
           state.matchedLocation.startsWith('/auth/profile');
       final bool isInterestsScreen =
@@ -109,11 +113,6 @@ class AppRouter {
       // Don't redirect while still loading
       if (isLoading) {
         print("GoRouter redirect - Still loading, no redirect");
-        return null;
-      }
-
-      if (isGoingToSplash) {
-        print("GoRouter redirect - Going to splash, no redirect");
         return null;
       }
 
@@ -140,10 +139,7 @@ class AppRouter {
       }
 
       // If profile is completed and user is on auth screens that aren't needed anymore
-      if (isLoggedIn &&
-          isProfileCompleted &&
-          isAuthScreen &&
-          !isGoingToSplash) {
+      if (isLoggedIn && isProfileCompleted && isAuthScreen) {
         print(
             "GoRouter redirect - Profile completed but on auth screen, redirecting to home");
         return Routes.home;
@@ -159,7 +155,7 @@ class AppRouter {
       // 🚀 Auth and splash routes
       GoRoute(
         path: Routes.splash,
-        builder: (context, state) => const SplashScreen(),
+        builder: (context, state) => Container(),
       ),
       GoRoute(
         path: Routes.login,
