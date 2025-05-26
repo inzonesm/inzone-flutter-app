@@ -17,6 +17,8 @@ import 'dart:io' show Platform;
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:purchases_flutter/purchases_flutter.dart'
     show LogLevel, Purchases;
+import 'package:flutter_native_splash/flutter_native_splash.dart';
+import 'package:inzone/router/routes.dart';
 
 Future<void> validateFirebaseSession() async {
   final user = FirebaseAuth.instance.currentUser;
@@ -29,6 +31,7 @@ Future<void> validateFirebaseSession() async {
 
       // Try to refresh the ID token in case it's about to expire
       await user.getIdToken(true);
+      return;
     } catch (e) {
       print('Error validating user session: $e');
       // Token is invalid, sign the user out
@@ -63,23 +66,24 @@ Future<void> initPlatformState() async {
 }
 
 void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
+  // 네이티브 스플래시 스크린을 유지하기 위한 설정
+  WidgetsBinding widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
+  FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
 
   // Initialize AdMob with test device configuration
   MobileAds.instance.initialize();
 
   MediaKit.ensureInitialized();
 
-  // Enable pending purchases on Android
-
   // Initialize Google Fonts
   GoogleFonts.config.allowRuntimeFetching = true;
 
+  // Firebase 초기화
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
-  // Validate Firebase session on app start
+  // Firebase 인증 상태 확인
   await validateFirebaseSession();
 
   // Initialize AppsFlyerService
@@ -102,8 +106,34 @@ void main() async {
   });
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   const MyApp({super.key});
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  @override
+  void initState() {
+    super.initState();
+
+    // 앱이 로드되면 네이티브 스플래시를 제거하고 적절한 초기 경로로 이동
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      // 네이티브 스플래시 제거
+      FlutterNativeSplash.remove();
+
+      // 인증 상태에 따라 적절한 초기 경로로 이동
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser != null) {
+        // 로그인되어 있는 경우 홈 화면으로 이동
+        AppRouter.setInitialRoute(Routes.home);
+      } else {
+        // 로그인되어 있지 않은 경우 로그인 화면으로 이동
+        AppRouter.setInitialRoute(Routes.login);
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
