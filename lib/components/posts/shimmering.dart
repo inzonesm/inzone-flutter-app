@@ -136,20 +136,24 @@ Widget CategoryLoading(BuildContext context) {
             children: List.generate(10, (index) {
               return Padding(
                 padding: const EdgeInsets.only(right: 10),
-                child: Column(
-                  children: [
-                    SkeletonContainer.circular(
-                      height: 75,
-                      width: 75,
-                      color: Theme.of(context).cardColor,
-                    ),
-                    const SizedBox(height: 10),
-                    SkeletonContainer.circular(
-                      height: 10,
-                      width: 50,
-                      color: Theme.of(context).cardColor,
-                    ),
-                  ],
+                child: SizedBox(
+                  height: 95,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      SkeletonContainer.circular(
+                        height: 75,
+                        width: 75,
+                        color: Theme.of(context).cardColor,
+                      ),
+                      const SizedBox(height: 10),
+                      SkeletonContainer.circular(
+                        height: 10,
+                        width: 50,
+                        color: Theme.of(context).cardColor,
+                      ),
+                    ],
+                  ),
                 ),
               );
             }),
@@ -250,6 +254,7 @@ Widget GroupCardLoading(BuildContext context) {
         padding: EdgeInsets.symmetric(vertical: 18, horizontal: 18),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
           children: [
             // Title area
             SkeletonContainer.rounded(
@@ -280,7 +285,7 @@ Widget GroupCardLoading(BuildContext context) {
               ],
             ),
 
-            Spacer(),
+            SizedBox(height: 16),
 
             // Avatar stack at bottom
             SkeletonContainer.circular(

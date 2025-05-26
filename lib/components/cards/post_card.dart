@@ -137,13 +137,13 @@ class _PostCardState extends State<PostCard> {
   }
   
   void _loadNativeAd() {
-    // Use test ad units during development
-    final testAdUnitId = Platform.isAndroid
-        ? 'ca-app-pub-3940256099942544/2247696110'  // Android test ad unit
-        : 'ca-app-pub-3940256099942544/3986624511'; // iOS test ad unit
+    // Use production ad units
+    final adUnitId = Platform.isAndroid
+        ? 'ca-app-pub-4474122990542651/3780044430'  // Production Android native ad unit
+        : 'ca-app-pub-4474122990542651/5132045741'; // Production iOS native ad unit
 
     _nativeAd = NativeAd(
-      adUnitId: testAdUnitId, // Use test ad unit during development
+      adUnitId: adUnitId,
       factoryId: 'adFactoryExample', // Must match the factory ID registered in native code
       listener: NativeAdListener(
         onAdLoaded: (ad) {
@@ -249,29 +249,100 @@ class _PostCardState extends State<PostCard> {
   bool isCommentPresentbool = false;
   @override
   Widget build(BuildContext context) {
-    // If this is an ad and it's loaded, show the ad view
+    // If this is an ad and it's loaded, show the ad view with similar styling to regular posts
     if (widget.isAd && _nativeAdIsLoaded) {
-      return Padding(
-        padding: const EdgeInsets.only(bottom: 20.0),
-        child: Container(
-          height: 250, // Fixed height instead of constraints
-          width: MediaQuery.of(context).size.width - 30,
-          decoration: BoxDecoration(
-            color: Theme.of(context).cardColor,
-            borderRadius: BorderRadius.circular(15),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.1),
-                blurRadius: 8,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(15),
-            child: SizedBox(
-              height: 250, // Fixed height for the AdWidget
-              child: AdWidget(ad: _nativeAd!),
+      return GestureDetector(
+        child: Padding(
+          padding: const EdgeInsets.only(bottom: 20.0),
+          child: Container(
+            width: MediaQuery.of(context).size.width - 30,
+            padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 10),
+            decoration: BoxDecoration(
+              boxShadow: [
+                BoxShadow(
+                  color: Theme.of(context).brightness == Brightness.dark 
+                      ? Colors.black.withOpacity(0.3)
+                      : Colors.black.withOpacity(0.1),
+                  blurRadius: 8,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+              color: Theme.of(context).cardColor,
+              borderRadius: BorderRadius.circular(15),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Fake profile section to match regular posts
+                Row(
+                  children: [
+                    Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).primaryColor.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: Theme.of(context).primaryColor.withOpacity(0.3),
+                          width: 1,
+                        ),
+                      ),
+                      child: Icon(
+                        Icons.business,
+                        color: Theme.of(context).primaryColor,
+                        size: 24,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Text(
+                              'Sponsored',
+                              style: TextStyle(
+                                color: Theme.of(context).textTheme.titleLarge?.color,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 20,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: Theme.of(context).primaryColor.withOpacity(0.2),
+                                borderRadius: BorderRadius.circular(4),
+                                border: Border.all(
+                                  color: Theme.of(context).primaryColor.withOpacity(0.4),
+                                  width: 0.5,
+                                ),
+                              ),
+                              child: Text(
+                                'Ad',
+                                style: TextStyle(
+                                  color: Theme.of(context).primaryColor,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                    const Spacer(),
+                  ],
+                ),
+                const SizedBox(height: 15),
+                // Native Ad Content - taking full width and height
+                SizedBox(
+                  height: 350, // Increased height for better visibility
+                  width: double.infinity,
+                  child: AdWidget(ad: _nativeAd!),
+                ),
+                const SizedBox(height: 10),
+              ],
             ),
           ),
         ),
@@ -512,9 +583,6 @@ class _PostCardState extends State<PostCard> {
                       //           height: 35,
                       //           width: 35,
                       //           child: Image.asset(CustomIcons.uncomment))),
-                      const SizedBox(
-                        width: 10,
-                      ),
                       // GestureDetector(
                       //     onTap: () {
                       //       // Navigator.push(context,

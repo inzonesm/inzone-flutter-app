@@ -72,27 +72,23 @@ class GroupChatData {
 
   static List<ChatMessage> _parseMessages(List<dynamic> messagesData) {
     try {
-      print('Parsing ${messagesData.length} messages');
-      
+
       List<ChatMessage> messages = [];
       for (var i = 0; i < messagesData.length; i++) {
         try {
           final messageData = messagesData[i];
           // Debug data type
-          print('Message $i type: ${messageData.runtimeType}');
-          
+
           // Handle if it's already a Map
           final map = messageData is Map ? 
                       (messageData).cast<String, dynamic>() :
                       messageData as Map<String, dynamic>;
           
-          print('Message $i data: $map');
-          
+
           // First check if we have the required fields
           if (!map.containsKey('id') || 
               !map.containsKey('sender') || 
               !map.containsKey('content')) {
-            print('Message $i missing required fields, skipping');
             continue;
           }
           

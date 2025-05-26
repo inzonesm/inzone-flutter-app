@@ -302,21 +302,55 @@ class HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildPostWidget(dynamic post, int index) {
-    String postType = post['post_type'] ?? 'unknown';
+    // Check if this position should show an ad (every 8th item: 7, 15, 23, etc.)
+    if ((index + 1) % 8 == 0) {
+      // Create a dummy post for the ad
+      InZonePost adPost = InZonePost(
+        category: '',
+        userName: '',
+        comments: [],
+        datePosted: DateTime.now(),
+        likes: 0,
+        id: 'ad_$index',
+        imageContent: [],
+        videoContent: [],
+        textContent: '',
+        userReference: '',
+        mainCategory: '',
+        isAi: false,
+      );
+      
+      return PostCard(
+        post: adPost,
+        onTap: (postId) {},
+        isAd: true, // This tells the PostCard to display an ad
+      );
+    }
 
-    // Insert avatar carousel after certain number of posts
-    if (index > 0 && index % 20 == 0 && avatarCards.isNotEmpty) {
+    // Calculate the actual post index (accounting for inserted ads)
+    int actualPostIndex = index - (index ~/ 8);
+    
+    // Return empty widget if we've run out of posts
+    if (actualPostIndex >= posts.length) {
+      return const SizedBox.shrink();
+    }
+    
+    dynamic actualPost = posts[actualPostIndex];
+    String postType = actualPost['post_type'] ?? 'unknown';
+
+    // Insert avatar carousel after certain number of posts (adjust for ads)
+    if (actualPostIndex > 0 && actualPostIndex % 20 == 0 && avatarCards.isNotEmpty) {
       return _buildAvatarCarousel();
     }
 
     try {
       // Extract the category for the post
-      String category = _extractCategoryFromPost(post);
+      String category = _extractCategoryFromPost(actualPost);
 
       switch (postType) {
         case 'repost':
           // Build repost card
-          InZonePost postObj = InZonePost.fromJsonForHumans(post);
+          InZonePost postObj = InZonePost.fromJsonForHumans(actualPost);
           // Ensure correct category is set
           postObj = InZonePost(
             category: category,
@@ -332,16 +366,16 @@ class HomeScreenState extends State<HomeScreen> {
             mainCategory: postObj.mainCategory,
             isAi: false,
           );
-          InZoneAvatar avatar = InZoneAvatar.fromRepostJson(post);
+          InZoneAvatar avatar = InZoneAvatar.fromRepostJson(actualPost);
           return RepostCard(
             post: postObj,
             repost: avatar,
-            aiChat: post["ai_chat_content"] ?? "",
+            aiChat: actualPost["ai_chat_content"] ?? "",
           );
 
         case 'ai_post':
           // Build AI post card
-          InZonePost postObj = InZonePost.fromJsonForHumans(post);
+          InZonePost postObj = InZonePost.fromJsonForHumans(actualPost);
           postObj = InZonePost(
             category: category,
             userName: postObj.userName,
@@ -359,12 +393,11 @@ class HomeScreenState extends State<HomeScreen> {
           return PostCard(
             post: postObj,
             onTap: (postId) {},
-            isAd: true,
           );
 
         case 'human_post':
           // Build human post card
-          InZonePost postObj = InZonePost.fromJsonForHumans(post);
+          InZonePost postObj = InZonePost.fromJsonForHumans(actualPost);
           postObj = InZonePost(
             category: category,
             userName: postObj.userName,
@@ -386,7 +419,7 @@ class HomeScreenState extends State<HomeScreen> {
 
         default:
           // For unknown post types, try to render as a regular post
-          InZonePost postObj = InZonePost.fromJsonForHumans(post);
+          InZonePost postObj = InZonePost.fromJsonForHumans(actualPost);
           postObj = InZonePost(
             category: category,
             userName: postObj.userName,
@@ -479,7 +512,7 @@ class HomeScreenState extends State<HomeScreen> {
                                   borderRadius: BorderRadius.circular(4),
                                   color: Theme.of(context).cardColor,
                                 ),
-                                child: CategoryLoading(context),
+                                child: const SizedBox(), // Remove CategoryLoading from here
                               ),
                             ),
                           ],
@@ -527,11 +560,14 @@ class HomeScreenState extends State<HomeScreen> {
                   SliverList(
                     delegate: SliverChildBuilderDelegate(
                       (context, index) {
-                        if (index == posts.length && isLoadingMore) {
+                        // Calculate total items including ads
+                        int totalItemsWithAds = posts.length + (posts.length ~/ 7);
+                        
+                        if (index == totalItemsWithAds && isLoadingMore) {
                           return const Center(
                               child: CupertinoActivityIndicator());
                         } else if (index ==
-                            posts.length + (isLoadingMore ? 1 : 0)) {
+                            totalItemsWithAds + (isLoadingMore ? 1 : 0)) {
                           // Bottom padding for navigation bar
                           return const SizedBox(height: 100);
                         }
@@ -541,9 +577,9 @@ class HomeScreenState extends State<HomeScreen> {
                           child: _buildPostWidget(posts[index], index),
                         );
                       },
-                      childCount: posts.length +
+                      childCount: posts.length + (posts.length ~/ 7) +
                           (isLoadingMore ? 1 : 0) +
-                          1, // +1 for bottom padding
+                          1, // +ads +loading +bottom padding
                     ),
                   ),
                 ],

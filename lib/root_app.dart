@@ -224,13 +224,13 @@ class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
                   : widget.child, // Use the provided child for non-tab routes
 
               // Full screen semi-transparent overlay
-              AnimatedOpacity(
-                opacity: _isExpanded ? 1.0 : 0.0,
-                duration: const Duration(milliseconds: 300),
-                curve: _isExpanded ? Curves.easeOut : Curves.easeIn,
-                child: IgnorePointer(
-                  ignoring: !_isExpanded,
-                  child: Positioned.fill(
+              Positioned.fill(
+                child: AnimatedOpacity(
+                  opacity: _isExpanded ? 1.0 : 0.0,
+                  duration: const Duration(milliseconds: 300),
+                  curve: _isExpanded ? Curves.easeOut : Curves.easeIn,
+                  child: IgnorePointer(
+                    ignoring: !_isExpanded,
                     child: GestureDetector(
                       behavior: HitTestBehavior.opaque,
                       onTap: _toggleExpanded,
