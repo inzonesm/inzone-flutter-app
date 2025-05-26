@@ -17,6 +17,13 @@ class _EmailLogInPageState extends State<EmailLogInPage> {
   String? errorMessage;
   bool isLoading = false;
 
+  // 로딩 다이얼로그를 안전하게 닫기 위한 메서드
+  void _dismissLoadingDialog() {
+    if (mounted && Navigator.of(context).canPop()) {
+      Navigator.of(context).pop();
+    }
+  }
+
   // Helper function to convert Firebase error codes to user-friendly messages
   String getUserFriendlyErrorMessage(FirebaseAuthException e) {
     switch (e.code) {
@@ -233,6 +240,9 @@ class _EmailLogInPageState extends State<EmailLogInPage> {
                                       // Wait for minimum loading time
                                       await loadingDelay;
 
+                                      // 로딩 다이얼로그 닫기
+                                      _dismissLoadingDialog();
+
                                       // Only navigate if the widget is still mounted
                                       if (mounted) {
                                         // Navigate directly to home
@@ -242,8 +252,8 @@ class _EmailLogInPageState extends State<EmailLogInPage> {
                                       // Wait for minimum loading time
                                       await loadingDelay;
 
-                                      // Pop loading screen and return to login screen
-                                      if (mounted) Navigator.pop(context);
+                                      // 로딩 다이얼로그 닫기
+                                      _dismissLoadingDialog();
 
                                       setState(() {
                                         isLoading = false;
@@ -254,8 +264,8 @@ class _EmailLogInPageState extends State<EmailLogInPage> {
                                       // Wait for minimum loading time
                                       await loadingDelay;
 
-                                      // Pop loading screen and return to login screen
-                                      if (mounted) Navigator.pop(context);
+                                      // 로딩 다이얼로그 닫기
+                                      _dismissLoadingDialog();
 
                                       setState(() {
                                         isLoading = false;

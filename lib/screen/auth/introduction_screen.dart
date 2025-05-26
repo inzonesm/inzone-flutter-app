@@ -71,7 +71,7 @@ class _IntroductionScreenState extends State<IntroductionScreen> {
 
   void _dismissLoadingDialog() {
     if (mounted && GoRouter.of(context).canPop()) {
-      context.pop();
+      Navigator.of(context).pop();
     }
   }
 
