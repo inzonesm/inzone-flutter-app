@@ -452,21 +452,17 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                       );
                     }
 
-                    print('Found ${messagesData.length} messages in Firestore');
 
                     // Convert the data to GroupChatData
                     _groupChatData = GroupChatData.fromSnapshot(snapshot.data!);
 
                     if (_groupChatData!.messages.isEmpty) {
-                      print('Messages parsed but resulted in empty list');
                       return const Center(
                         child: Text(
                             'No messages parsed correctly. Check data format.'),
                       );
                     }
 
-                    print(
-                        'Parsed ${_groupChatData!.messages.length} messages successfully');
 
                     // Scroll to bottom when new messages come in
                     WidgetsBinding.instance
@@ -499,15 +495,12 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       );
     }
 
-    print('Building message list with ${messages.length} messages');
 
     // Create a single list of widgets if there are no timestamps
     bool hasTimestamps = messages.any((msg) => msg.timestamp != null);
 
     if (!hasTimestamps) {
-      print(
-          'No message timestamps found, showing messages without date grouping');
-      List<Widget> messageWidgets = [];
+  List<Widget> messageWidgets = [];
 
       // Add a "Today" header
       messageWidgets.add(
@@ -678,21 +671,49 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       );
     }
 
-    // For other AI users, check if group has an image
-    if (sender.type == 'ai' && _groupChatData?.imageUrl.isNotEmpty == true) {
-      return ClipOval(
-        child: Image.network(
-          _groupChatData!.imageUrl,
-          fit: BoxFit.cover,
-          height: 35,
-          width: 35,
-          errorBuilder: (context, error, stackTrace) {
+    // For AI users, fetch their profile image from aiUsers collection
+    if (sender.type == 'ai' && sender.uid.isNotEmpty) {
+      return FutureBuilder<DocumentSnapshot>(
+        future: FirebaseFirestore.instance
+            .collection('aiUsers')
+            .doc(sender.uid)
+            .get(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(
-              child: Icon(Icons.account_circle,
-                  color: Colors.blueAccent, size: 35),
+              child: Icon(Icons.smart_toy, color: Colors.blueAccent, size: 35),
             );
-          },
-        ),
+          }
+
+          if (snapshot.hasData && snapshot.data!.exists) {
+            final aiUserData = snapshot.data!.data() as Map<String, dynamic>?;
+            final profileImage = aiUserData?['profilePicture'] ?? 
+                                 aiUserData?['profileImage'] ?? 
+                                 aiUserData?['character']?['profilePicture'];
+
+            if (profileImage != null && profileImage.toString().isNotEmpty) {
+              return ClipOval(
+                child: Image.network(
+                  profileImage.toString(),
+                  fit: BoxFit.cover,
+                  height: 35,
+                  width: 35,
+                  errorBuilder: (context, error, stackTrace) {
+                    return const Center(
+                      child: Icon(Icons.smart_toy,
+                          color: Colors.blueAccent, size: 35),
+                    );
+                  },
+                ),
+              );
+            }
+          }
+
+          // Fallback to AI icon if no profile image is found
+          return const Center(
+            child: Icon(Icons.smart_toy, color: Colors.blueAccent, size: 35),
+          );
+        },
       );
     }
 
@@ -1088,10 +1109,49 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       );
     }
 
-    // For AI users
-    if (participant.type == 'ai') {
-      return const Center(
-        child: Icon(Icons.smart_toy, color: Colors.blueAccent, size: 24),
+    // For AI users, fetch their profile image from aiUsers collection
+    if (participant.type == 'ai' && participant.uid.isNotEmpty) {
+      return FutureBuilder<DocumentSnapshot>(
+        future: FirebaseFirestore.instance
+            .collection('aiUsers')
+            .doc(participant.uid)
+            .get(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(
+              child: Icon(Icons.smart_toy, color: Colors.blueAccent, size: 24),
+            );
+          }
+
+          if (snapshot.hasData && snapshot.data!.exists) {
+            final aiUserData = snapshot.data!.data() as Map<String, dynamic>?;
+            final profileImage = aiUserData?['profilePicture'] ?? 
+                                 aiUserData?['profileImage'] ?? 
+                                 aiUserData?['character']?['profilePicture'];
+
+            if (profileImage != null && profileImage.toString().isNotEmpty) {
+              return ClipOval(
+                child: Image.network(
+                  profileImage.toString(),
+                  fit: BoxFit.cover,
+                  width: 24,
+                  height: 24,
+                  errorBuilder: (context, error, stackTrace) {
+                    return const Center(
+                      child: Icon(Icons.smart_toy,
+                          color: Colors.blueAccent, size: 24),
+                    );
+                  },
+                ),
+              );
+            }
+          }
+
+          // Fallback to AI icon if no profile image is found
+          return const Center(
+            child: Icon(Icons.smart_toy, color: Colors.blueAccent, size: 24),
+          );
+        },
       );
     }
 

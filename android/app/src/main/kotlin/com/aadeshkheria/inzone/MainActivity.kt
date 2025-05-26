@@ -13,7 +13,7 @@ class MainActivity: FlutterFragmentActivity() {
         GoogleMobileAdsPlugin.registerNativeAdFactory(
             flutterEngine,
             "adFactoryExample",
-            NativeAdFactoryExample(layoutInflater)
+            NativeAdFactoryExample(this)
         )
     }
 

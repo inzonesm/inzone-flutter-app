@@ -13,6 +13,17 @@ class GroupCard extends StatelessWidget {
 
   const GroupCard({super.key, required this.group});
 
+  // Helper method to format member count dynamically
+  String _formatMemberCount(int count) {
+    if (count >= 1000000) {
+      return '${(count / 1000000).toStringAsFixed(1)}M';
+    } else if (count >= 1000) {
+      return '${(count / 1000).toStringAsFixed(1)}k';
+    } else {
+      return count.toString();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     // Create avatar image list
@@ -71,36 +82,38 @@ class GroupCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    SizedBox(
-                      height: 60,
-                      child: Text(
-                        group.name,
-                        style: Theme.of(context).textTheme.titleLarge,
-                        maxLines: 3,
-                        overflow: TextOverflow.ellipsis,
+                    // Title section - always fully visible
+                    Text(
+                      group.name,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        height: 1.2,
+                        fontSize: 16,
                       ),
                     ),
                     const SizedBox(height: 4),
-                    SizedBox(
-                      height: 80,
+                    // Description section with flexible height
+                    Expanded(
+                      flex: 2,
                       child: Text(
                         group.description,
-                        style: Theme.of(context).textTheme.bodySmall,
-                        maxLines: 5,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          height: 1.2,
+                        ),
+                        maxLines: 6,
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
                     const SizedBox(height: 8),
-                    SizedBox(
-                      height: 24,
-                      child: Row(
-                        children: [
-                          Icon(Icons.group,
-                              size: 16,
-                              color: Theme.of(context).colorScheme.primary),
-                          const SizedBox(width: 4),
-                          Text(
-                            '${(group.memberCount / 1000).toStringAsFixed(1)}k',
+                    // Stats row
+                    Row(
+                      children: [
+                        Icon(Icons.group,
+                            size: 16,
+                            color: Theme.of(context).colorScheme.primary),
+                        const SizedBox(width: 4),
+                                                  Text(
+                            _formatMemberCount(group.memberCount),
                             style: TextStyle(
                               fontWeight: FontWeight.bold,
                               fontSize: 14,
@@ -110,84 +123,28 @@ class GroupCard extends StatelessWidget {
                                   ?.color,
                             ),
                           ),
-                          const Spacer(),
-                          Icon(Icons.chat_bubble_outline,
-                              size: 16,
-                              color: Theme.of(context).colorScheme.primary),
-                          const SizedBox(width: 4),
-                          Text(
-                            '${group.messageCount}',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 14,
-                              color: Theme.of(context)
-                                  .textTheme
-                                  .titleMedium
-                                  ?.color,
-                            ),
+                        const Spacer(),
+                        Icon(Icons.chat_bubble_outline,
+                            size: 16,
+                            color: Theme.of(context).colorScheme.primary),
+                        const SizedBox(width: 4),
+                        Text(
+                          '${group.messageCount}',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                            color: Theme.of(context)
+                                .textTheme
+                                .titleMedium
+                                ?.color,
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
-                    const Spacer(),
+                    const SizedBox(height: 12),
                     Align(
                       alignment: Alignment.bottomLeft,
-                      child: ImageStack.widgets(
-                        totalCount: avatarImages.length,
-                        widgetCount: 3,
-                        widgetRadius: 38,
-                        widgetBorderWidth: 1,
-                        widgetBorderColor: Colors.white,
-                        backgroundColor: Colors.transparent,
-                        extraCountBorderColor: Colors.transparent,
-                        extraCountTextStyle:
-                            Theme.of(context).textTheme.bodyMedium ??
-                                const TextStyle(),
-                        children: List.generate(
-                          min(3, avatarImages.length),
-                          (index) {
-                            final avatar = avatarImages[index];
-                            return ClipRRect(
-                              borderRadius: BorderRadius.circular(40),
-                              child: (avatar.startsWith('http') ||
-                                      avatar.startsWith('https'))
-                                  ? Image.network(
-                                      avatar,
-                                      width: 40,
-                                      height: 40,
-                                      fit: BoxFit.cover,
-                                      errorBuilder:
-                                          (context, error, stackTrace) {
-                                        return Container(
-                                          width: 40,
-                                          height: 40,
-                                          color: Colors.grey.shade100,
-                                          child: const FittedBox(
-                                            fit: BoxFit.cover,
-                                            child: Icon(
-                                              Icons.account_circle,
-                                              color: Colors.grey,
-                                            ),
-                                          ),
-                                        );
-                                      },
-                                    )
-                                  : Container(
-                                      width: 40,
-                                      height: 40,
-                                      color: Colors.grey.shade100,
-                                      child: const FittedBox(
-                                        fit: BoxFit.cover,
-                                        child: Icon(
-                                          Icons.account_circle,
-                                          color: Colors.grey,
-                                        ),
-                                      ),
-                                    ),
-                            );
-                          },
-                        ),
-                      ),
+                      child: _buildParticipantAvatars(),
                     )
                   ],
                 ),
@@ -198,6 +155,44 @@ class GroupCard extends StatelessWidget {
       ),
     );
   }
+
+  // Build participant avatars with static blue AI profile pictures
+  Widget _buildParticipantAvatars() {
+    if (group.avatars.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return ImageStack.widgets(
+      key: ValueKey('avatars_${group.id}'),
+      totalCount: group.avatars.length, // This preserves the +1, +2, etc. functionality
+      widgetCount: 3,
+      widgetRadius: 38,
+      widgetBorderWidth: 1,
+      widgetBorderColor: Colors.white,
+      backgroundColor: Colors.transparent,
+      extraCountBorderColor: Colors.transparent,
+      extraCountTextStyle: const TextStyle(),
+      children: List.generate(
+        min(3, group.avatars.length),
+        (index) => Container(
+          key: ValueKey('static_avatar_${group.id}_$index'),
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: Colors.blue.shade100,
+          ),
+          child: const Icon(
+            Icons.smart_toy,
+            color: Colors.blueAccent,
+            size: 24,
+          ),
+        ),
+      ),
+    );
+  }
+
+
 }
 /*
  // Avatar stack
