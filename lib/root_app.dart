@@ -244,7 +244,7 @@ class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
 
               // Option buttons (absolute top layer)
               Positioned(
-                bottom: 150,
+                bottom: 135,
                 left: 0,
                 right: 0,
                 child: AnimatedOpacity(
