@@ -4,6 +4,7 @@ import 'package:inzone/services/inzone_database.dart';
 import 'package:inzone/screen/profile/profile_screen.dart';
 import 'package:inzone/router/routes.dart';
 import 'package:go_router/go_router.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class FollowersFollowingTab extends StatefulWidget {
   final Map<String, List<Map<String, dynamic>>> userList;
@@ -82,9 +83,65 @@ class _FollowersFollowingTabState extends State<FollowersFollowingTab> {
     if (_userProfileImages.containsKey(userId)) return; // Already loaded
 
     try {
+      // First try to get user profile from API (works for both human and AI users)
       final userData = await InZoneDatabase.getUserProfile(userId);
       if (userData != null && userData.containsKey('profilePicture')) {
         final profilePicture = userData['profilePicture'];
+        if (profilePicture != null && profilePicture.toString().isNotEmpty) {
+          if (mounted) {
+            setState(() {
+              _userProfileImages[userId] = profilePicture.toString();
+            });
+          }
+          return;
+        }
+      }
+
+      // If API doesn't return a profile image, try AI user API
+      final aiUserData = await InZoneDatabase.getAIUserProfile(userId);
+      if (aiUserData != null && aiUserData.containsKey('profilePicture')) {
+        final profilePicture = aiUserData['profilePicture'];
+        if (profilePicture != null && profilePicture.toString().isNotEmpty) {
+          if (mounted) {
+            setState(() {
+              _userProfileImages[userId] = profilePicture.toString();
+            });
+          }
+          return;
+        }
+      }
+
+      // If both APIs fail, try Firestore directly
+      // Try humanUsers collection first
+      DocumentSnapshot userDoc = await FirebaseFirestore.instance
+          .collection('humanUsers')
+          .doc(userId)
+          .get();
+
+      if (userDoc.exists) {
+        final userData = userDoc.data() as Map<String, dynamic>?;
+        final profilePicture = userData?['profilePicture'] ?? userData?['profileImage'];
+        if (profilePicture != null && profilePicture.toString().isNotEmpty) {
+          if (mounted) {
+            setState(() {
+              _userProfileImages[userId] = profilePicture.toString();
+            });
+          }
+          return;
+        }
+      }
+
+      // Try aiUsers collection
+      DocumentSnapshot aiUserDoc = await FirebaseFirestore.instance
+          .collection('aiUsers')
+          .doc(userId)
+          .get();
+
+      if (aiUserDoc.exists) {
+        final aiUserData = aiUserDoc.data() as Map<String, dynamic>?;
+        final profilePicture = aiUserData?['profilePicture'] ?? 
+                               aiUserData?['profileImage'] ?? 
+                               aiUserData?['character']?['profilePicture'];
         if (profilePicture != null && profilePicture.toString().isNotEmpty) {
           if (mounted) {
             setState(() {

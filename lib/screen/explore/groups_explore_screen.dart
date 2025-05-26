@@ -120,7 +120,6 @@ class _GroupsExploreScreenState extends State<GroupsExploreScreen> {
       try {
         GroupChatData chatData = GroupChatData.fromSnapshot(doc);
         groups.add(GroupDataMapper.fromGroupChatData(chatData));
-        print('Converted group: ${chatData.name}');
       } catch (e) {
         print('Error converting group data: $e');
       }

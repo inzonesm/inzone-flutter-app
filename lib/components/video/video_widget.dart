@@ -151,6 +151,10 @@ class _VideoWidgetState extends State<VideoWidget> {
       // Cancel subscription after we're done
       subscription.cancel();
       
+      // Configure audio settings after successful initialization
+      await _mediaKitPlayer!.setVolume(100);
+      await _mediaKitPlayer!.setRate(1.0);
+      
       debugPrint('MediaKit Player opened successfully');
       _mediaKitPlayer!.pause();
 
@@ -259,6 +263,8 @@ class _VideoWidgetState extends State<VideoWidget> {
           // Auto-play when video becomes sufficiently visible
           if (_mediaKitPlayer != null) {
             _mediaKitPlayer!.play();
+            // Ensure volume is set when playing
+            _mediaKitPlayer!.setVolume(100);
           }
         } else if (info.visibleFraction == 0) {
           // Pause when video is not visible
@@ -283,6 +289,8 @@ class _VideoWidgetState extends State<VideoWidget> {
                       _mediaKitPlayer!.pause();
                     } else {
                       _mediaKitPlayer!.play();
+                      // Ensure volume is set when manually playing
+                      _mediaKitPlayer!.setVolume(100);
                     }
                   }
                 },

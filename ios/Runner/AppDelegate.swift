@@ -28,83 +28,143 @@ class NativeAdFactoryExample: NSObject, FLTNativeAdFactory {
     func createNativeAd(_ nativeAd: NativeAd, customOptions: [AnyHashable: Any]?) -> NativeAdView {
         // Create a simple native ad view
         let nativeAdView = NativeAdView()
-        nativeAdView.backgroundColor = UIColor.white
         
-        // Set up the ad view with a simple layout
+        // Make background transparent to inherit card color
+        nativeAdView.backgroundColor = UIColor.clear
+        
+        // Set up the ad view with a simple layout - no padding
         let stackView = UIStackView()
         stackView.axis = .vertical
-        stackView.spacing = 8
+        stackView.spacing = 0
         stackView.distribution = .fill
         stackView.translatesAutoresizingMaskIntoConstraints = false
         nativeAdView.addSubview(stackView)
         
-        // Setup constraints for the stack view
+        // Setup constraints for the stack view - no padding
         NSLayoutConstraint.activate([
-            stackView.topAnchor.constraint(equalTo: nativeAdView.topAnchor, constant: 16),
-            stackView.leadingAnchor.constraint(equalTo: nativeAdView.leadingAnchor, constant: 16),
-            stackView.trailingAnchor.constraint(equalTo: nativeAdView.trailingAnchor, constant: -16),
-            stackView.bottomAnchor.constraint(equalTo: nativeAdView.bottomAnchor, constant: -16)
+            stackView.topAnchor.constraint(equalTo: nativeAdView.topAnchor),
+            stackView.leadingAnchor.constraint(equalTo: nativeAdView.leadingAnchor),
+            stackView.trailingAnchor.constraint(equalTo: nativeAdView.trailingAnchor),
+            stackView.bottomAnchor.constraint(equalTo: nativeAdView.bottomAnchor)
         ])
         
-        // Add a small "Ad" label at the top
-        let adLabel = UILabel()
-        adLabel.text = "Ad"
-        adLabel.font = UIFont.systemFont(ofSize: 10)
-        adLabel.textColor = UIColor.gray
-        adLabel.textAlignment = .center
-        adLabel.backgroundColor = UIColor.lightGray
-        adLabel.layer.cornerRadius = 4
-        adLabel.layer.masksToBounds = true
-        stackView.addArrangedSubview(adLabel)
+        // Create header container for headline and body text
+        let headerContainer = UIView()
+        headerContainer.translatesAutoresizingMaskIntoConstraints = false
+        headerContainer.heightAnchor.constraint(equalToConstant: 60).isActive = true
+        stackView.addArrangedSubview(headerContainer)
         
         // Create and add the headline label
         if let headline = nativeAd.headline {
             let headlineLabel = UILabel()
-            headlineLabel.font = UIFont.boldSystemFont(ofSize: 16)
+            headlineLabel.font = UIFont.boldSystemFont(ofSize: 14)
             headlineLabel.text = headline
             headlineLabel.numberOfLines = 2
-            headlineLabel.textColor = UIColor.black
-            stackView.addArrangedSubview(headlineLabel)
+            
+            // Support dark mode for headline text
+            if #available(iOS 13.0, *) {
+                headlineLabel.textColor = UIColor.label
+            } else {
+                headlineLabel.textColor = UIColor.black
+            }
+            headlineLabel.translatesAutoresizingMaskIntoConstraints = false
+            headerContainer.addSubview(headlineLabel)
             nativeAdView.headlineView = headlineLabel
+            
+            // Position headline at top of header container
+            NSLayoutConstraint.activate([
+                headlineLabel.topAnchor.constraint(equalTo: headerContainer.topAnchor, constant: 8),
+                headlineLabel.leadingAnchor.constraint(equalTo: headerContainer.leadingAnchor, constant: 8),
+                headlineLabel.trailingAnchor.constraint(equalTo: headerContainer.trailingAnchor, constant: -8)
+            ])
+            
+            // Create and add the body text if available
+            if let body = nativeAd.body, !body.isEmpty {
+                let bodyLabel = UILabel()
+                bodyLabel.font = UIFont.systemFont(ofSize: 14)
+                bodyLabel.text = body
+                bodyLabel.numberOfLines = 2
+                
+                // Support dark mode for body text
+                if #available(iOS 13.0, *) {
+                    bodyLabel.textColor = UIColor.secondaryLabel
+                } else {
+                    bodyLabel.textColor = UIColor.systemGray
+                }
+                bodyLabel.translatesAutoresizingMaskIntoConstraints = false
+                headerContainer.addSubview(bodyLabel)
+                nativeAdView.bodyView = bodyLabel
+                
+                // Position body text below headline
+                NSLayoutConstraint.activate([
+                    bodyLabel.topAnchor.constraint(equalTo: headlineLabel.bottomAnchor, constant: 2),
+                    bodyLabel.leadingAnchor.constraint(equalTo: headerContainer.leadingAnchor, constant: 8),
+                    bodyLabel.trailingAnchor.constraint(equalTo: headerContainer.trailingAnchor, constant: -8)
+                ])
+            }
         }
         
-        // Create and add the body text if available
-        if let body = nativeAd.body, !body.isEmpty {
-            let bodyLabel = UILabel()
-            bodyLabel.font = UIFont.systemFont(ofSize: 14)
-            bodyLabel.text = body
-            bodyLabel.numberOfLines = 3
-            bodyLabel.textColor = UIColor.darkGray
-            stackView.addArrangedSubview(bodyLabel)
-            nativeAdView.bodyView = bodyLabel
-        }
-        
-        // Create and add media view if available
+        // Create and add media view if available - takes most of the space
         if nativeAd.mediaContent != nil {
+            // Create a container for the media view with padding
+            let mediaContainer = UIView()
+            mediaContainer.translatesAutoresizingMaskIntoConstraints = false
+            stackView.addArrangedSubview(mediaContainer)
+            
             let mediaView = MediaView()
             mediaView.translatesAutoresizingMaskIntoConstraints = false
-            mediaView.heightAnchor.constraint(equalToConstant: 120).isActive = true
             mediaView.mediaContent = nativeAd.mediaContent
-            stackView.addArrangedSubview(mediaView)
+            mediaView.contentMode = .scaleAspectFill
+            mediaView.clipsToBounds = true
+            mediaView.layer.cornerRadius = 12
+            mediaView.layer.masksToBounds = true
+            mediaContainer.addSubview(mediaView)
             nativeAdView.mediaView = mediaView
+            
+            // Add padding around media view
+            NSLayoutConstraint.activate([
+                mediaView.topAnchor.constraint(equalTo: mediaContainer.topAnchor, constant: 16),
+                mediaView.leadingAnchor.constraint(equalTo: mediaContainer.leadingAnchor, constant: 16),
+                mediaView.trailingAnchor.constraint(equalTo: mediaContainer.trailingAnchor, constant: -16),
+                mediaView.bottomAnchor.constraint(equalTo: mediaContainer.bottomAnchor, constant: -16)
+            ])
+            
+            // Make media container flexible and take most space
+            mediaContainer.setContentHuggingPriority(UILayoutPriority(249), for: .vertical)
+            mediaContainer.setContentCompressionResistancePriority(UILayoutPriority(749), for: .vertical)
         }
+        
+        // Create footer container for CTA button
+        let footerContainer = UIView()
+        footerContainer.translatesAutoresizingMaskIntoConstraints = false
+        footerContainer.heightAnchor.constraint(equalToConstant: 50).isActive = true
+        stackView.addArrangedSubview(footerContainer)
         
         // Create and add the call to action button if available
         if let callToAction = nativeAd.callToAction, !callToAction.isEmpty {
             let ctaButton = UIButton(type: .system)
             ctaButton.setTitle(callToAction, for: .normal)
             ctaButton.setTitleColor(.white, for: .normal)
-            ctaButton.backgroundColor = UIColor(red: 0.0, green: 0.48, blue: 1.0, alpha: 1.0) // systemBlue equivalent
-            ctaButton.layer.cornerRadius = 8
+            ctaButton.titleLabel?.font = UIFont.boldSystemFont(ofSize: 12)
+            ctaButton.backgroundColor = UIColor(red: 0.259, green: 0.522, blue: 0.957, alpha: 1.0) // #4286F4
+            ctaButton.layer.cornerRadius = 6
             ctaButton.contentEdgeInsets = UIEdgeInsets(top: 8, left: 16, bottom: 8, right: 16)
-            ctaButton.isUserInteractionEnabled = false
-            stackView.addArrangedSubview(ctaButton)
+            ctaButton.translatesAutoresizingMaskIntoConstraints = false
+            footerContainer.addSubview(ctaButton)
             nativeAdView.callToActionView = ctaButton
+            
+            // Position CTA button on the right
+            NSLayoutConstraint.activate([
+                ctaButton.trailingAnchor.constraint(equalTo: footerContainer.trailingAnchor, constant: -8),
+                ctaButton.centerYAnchor.constraint(equalTo: footerContainer.centerYAnchor),
+                ctaButton.heightAnchor.constraint(equalToConstant: 36),
+                ctaButton.widthAnchor.constraint(greaterThanOrEqualToConstant: 80)
+            ])
         }
         
         // Associate the native ad with the view
         nativeAdView.nativeAd = nativeAd
         
         return nativeAdView
-    }
+  }
 }
