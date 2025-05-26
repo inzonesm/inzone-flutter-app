@@ -69,6 +69,13 @@ By using the Licensed Application, you agree to abide by these terms and conditi
   String? username;
   String? password;
 
+  // 로딩 다이얼로그를 안전하게 닫기 위한 메서드
+  void _dismissLoadingDialog() {
+    if (mounted && Navigator.of(context).canPop()) {
+      context.pop();
+    }
+  }
+
   // Function to navigate between pages
   void _navigateToPage(int page) async {
     if (_currentPage == 1) {
@@ -135,12 +142,18 @@ By using the Licensed Application, you agree to abide by these terms and conditi
               userInterests: interests!,
             );
 
+            // 로딩 다이얼로그 닫기
+            _dismissLoadingDialog();
+
             // Navigate to home
             if (mounted) {
               context.go(Routes.home);
             }
           }
         } else {
+          // 로딩 다이얼로그 닫기
+          _dismissLoadingDialog();
+
           // Navigate back to introduction screen
           if (mounted) {
             context.go(Routes.login);
@@ -153,9 +166,22 @@ By using the Licensed Application, you agree to abide by these terms and conditi
           ScaffoldMessenger.of(context).showSnackBar(snackBar);
         }
       } on FirebaseAuthException catch (e) {
+        // 로딩 다이얼로그 닫기
+        _dismissLoadingDialog();
+
         // Show an error message if something went wrong
         final snackBar = SnackBar(
           content: Text("Error: ${e.message}"),
+          backgroundColor: Colors.red,
+        );
+        ScaffoldMessenger.of(context).showSnackBar(snackBar);
+      } catch (e) {
+        // 로딩 다이얼로그 닫기
+        _dismissLoadingDialog();
+
+        // Show a general error message
+        const snackBar = SnackBar(
+          content: Text("An unexpected error occurred. Please try again."),
           backgroundColor: Colors.red,
         );
         ScaffoldMessenger.of(context).showSnackBar(snackBar);
