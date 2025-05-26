@@ -28,7 +28,9 @@ class NativeAdFactoryExample: NSObject, FLTNativeAdFactory {
     func createNativeAd(_ nativeAd: NativeAd, customOptions: [AnyHashable: Any]?) -> NativeAdView {
         // Create a simple native ad view
         let nativeAdView = NativeAdView()
-        nativeAdView.backgroundColor = UIColor.white
+        
+        // Make background transparent to inherit card color
+        nativeAdView.backgroundColor = UIColor.clear
         
         // Set up the ad view with a simple layout - no padding
         let stackView = UIStackView()
@@ -58,7 +60,13 @@ class NativeAdFactoryExample: NSObject, FLTNativeAdFactory {
             headlineLabel.font = UIFont.boldSystemFont(ofSize: 14)
             headlineLabel.text = headline
             headlineLabel.numberOfLines = 2
-            headlineLabel.textColor = UIColor.black
+            
+            // Support dark mode for headline text
+            if #available(iOS 13.0, *) {
+                headlineLabel.textColor = UIColor.label
+            } else {
+                headlineLabel.textColor = UIColor.black
+            }
             headlineLabel.translatesAutoresizingMaskIntoConstraints = false
             headerContainer.addSubview(headlineLabel)
             nativeAdView.headlineView = headlineLabel
@@ -76,7 +84,13 @@ class NativeAdFactoryExample: NSObject, FLTNativeAdFactory {
                 bodyLabel.font = UIFont.systemFont(ofSize: 14)
                 bodyLabel.text = body
                 bodyLabel.numberOfLines = 2
-                bodyLabel.textColor = UIColor.systemGray
+                
+                // Support dark mode for body text
+                if #available(iOS 13.0, *) {
+                    bodyLabel.textColor = UIColor.secondaryLabel
+                } else {
+                    bodyLabel.textColor = UIColor.systemGray
+                }
                 bodyLabel.translatesAutoresizingMaskIntoConstraints = false
                 headerContainer.addSubview(bodyLabel)
                 nativeAdView.bodyView = bodyLabel
@@ -92,6 +106,11 @@ class NativeAdFactoryExample: NSObject, FLTNativeAdFactory {
         
         // Create and add media view if available - takes most of the space
         if nativeAd.mediaContent != nil {
+            // Create a container for the media view with padding
+            let mediaContainer = UIView()
+            mediaContainer.translatesAutoresizingMaskIntoConstraints = false
+            stackView.addArrangedSubview(mediaContainer)
+            
             let mediaView = MediaView()
             mediaView.translatesAutoresizingMaskIntoConstraints = false
             mediaView.mediaContent = nativeAd.mediaContent
@@ -99,12 +118,20 @@ class NativeAdFactoryExample: NSObject, FLTNativeAdFactory {
             mediaView.clipsToBounds = true
             mediaView.layer.cornerRadius = 12
             mediaView.layer.masksToBounds = true
-            stackView.addArrangedSubview(mediaView)
+            mediaContainer.addSubview(mediaView)
             nativeAdView.mediaView = mediaView
             
-            // Make media view flexible and take most space
-            mediaView.setContentHuggingPriority(UILayoutPriority(249), for: .vertical)
-            mediaView.setContentCompressionResistancePriority(UILayoutPriority(749), for: .vertical)
+            // Add padding around media view
+            NSLayoutConstraint.activate([
+                mediaView.topAnchor.constraint(equalTo: mediaContainer.topAnchor, constant: 16),
+                mediaView.leadingAnchor.constraint(equalTo: mediaContainer.leadingAnchor, constant: 16),
+                mediaView.trailingAnchor.constraint(equalTo: mediaContainer.trailingAnchor, constant: -16),
+                mediaView.bottomAnchor.constraint(equalTo: mediaContainer.bottomAnchor, constant: -16)
+            ])
+            
+            // Make media container flexible and take most space
+            mediaContainer.setContentHuggingPriority(UILayoutPriority(249), for: .vertical)
+            mediaContainer.setContentCompressionResistancePriority(UILayoutPriority(749), for: .vertical)
         }
         
         // Create footer container for CTA button
