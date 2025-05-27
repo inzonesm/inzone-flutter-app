@@ -16,6 +16,7 @@ import 'package:inzone/components/posts/shimmering.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
 import 'package:purchases_ui_flutter/paywall_result.dart';
 import 'package:purchases_ui_flutter/purchases_ui_flutter.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class GroupsExploreScreen extends StatefulWidget {
   const GroupsExploreScreen({super.key});
@@ -45,24 +46,39 @@ class _GroupsExploreScreenState extends State<GroupsExploreScreen> {
 
   Future<void> _loadUserBalance() async {
     try {
-      debugPrint('Fetching user balance...');
-      final response = await _monetizationService.getBalance();
-      debugPrint('Balance API response: $response');
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser == null) {
+        debugPrint('No authenticated user found');
+        return;
+      }
 
-      if (response['success'] == true) {
-        final balance = response['data']['balance'];
-        debugPrint(
-            'Raw balance value: $balance (type: ${balance.runtimeType})');
+      debugPrint('Fetching user balance from Firestore for UID: ${currentUser.uid}');
+      
+      final userDoc = await _firestore
+          .collection('humanUsers')
+          .doc(currentUser.uid)
+          .get();
+
+      if (userDoc.exists && userDoc.data() != null) {
+        final userData = userDoc.data()!;
+        final balance = userData['balance'];
+        debugPrint('Balance from Firestore: $balance (type: ${balance.runtimeType})');
 
         setState(() {
-          _userBalance = balance.toString();
+          _userBalance = balance?.toString() ?? '0';
           debugPrint('Updated _userBalance to: $_userBalance');
         });
       } else {
-        debugPrint('Balance API returned success=false: ${response['error']}');
+        debugPrint('User document does not exist in humanUsers collection');
+        setState(() {
+          _userBalance = '0';
+        });
       }
     } catch (e) {
-      debugPrint('Error loading balance: $e');
+      debugPrint('Error loading balance from Firestore: $e');
+      setState(() {
+        _userBalance = '0';
+      });
     }
   }
 
