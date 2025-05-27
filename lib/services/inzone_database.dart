@@ -866,6 +866,33 @@ class InZoneDatabase {
     } catch (e) {}
   }
 
+  Future<Map<String, String>?> generate3DAvatar(String prompt) async {
+    final url = Uri.parse(
+        'https://inzoneapi-912424781531.us-central1.run.app/api/full_generate');
+
+    try {
+      final response = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'prompt': prompt}),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return {
+          'model_url': data['model_url'],
+          'texture_url': data['texture_url'],
+        };
+      } else {
+        print("Error: ${response.body}");
+        return null;
+      }
+    } catch (e) {
+      print("Exception: $e");
+      return null;
+    }
+  }
+
   static Future<String?> generateImage(String imagePrompt) async {
     const String url =
         'https://inzoneapi-912424781531.us-central1.run.app/api/ai/generate-image';
