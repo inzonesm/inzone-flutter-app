@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:async';
 
 import 'package:colorful_safe_area/colorful_safe_area.dart';
 import 'package:flutter/material.dart';
@@ -33,6 +34,7 @@ class _GroupsExploreScreenState extends State<GroupsExploreScreen> {
   final FocusNode _searchFocusNode = FocusNode();
   String _searchQuery = '';
   String _userBalance = '0'; // Will be updated by _loadUserBalance method
+  StreamSubscription<DocumentSnapshot>? _balanceSubscription;
 
   // Map to store participants for each group
   final Map<String, List<Participant>> _groupParticipants = {};
@@ -41,10 +43,10 @@ class _GroupsExploreScreenState extends State<GroupsExploreScreen> {
   void initState() {
     super.initState();
     _loadDefaultGroups();
-    _loadUserBalance(); // Load balance from API
+    _setupBalanceStream(); // Setup stream instead of one-time load
   }
 
-  Future<void> _loadUserBalance() async {
+  void _setupBalanceStream() {
     try {
       final currentUser = FirebaseAuth.instance.currentUser;
       if (currentUser == null) {
@@ -52,30 +54,39 @@ class _GroupsExploreScreenState extends State<GroupsExploreScreen> {
         return;
       }
 
-      debugPrint('Fetching user balance from Firestore for UID: ${currentUser.uid}');
+      debugPrint('Setting up balance stream for UID: ${currentUser.uid}');
       
-      final userDoc = await _firestore
+      _balanceSubscription = _firestore
           .collection('humanUsers')
           .doc(currentUser.uid)
-          .get();
+          .snapshots()
+          .listen(
+            (DocumentSnapshot userDoc) {
+              if (userDoc.exists && userDoc.data() != null) {
+                final userData = userDoc.data() as Map<String, dynamic>;
+                final balance = userData['balance'];
+                debugPrint('Balance from Firestore stream: $balance (type: ${balance.runtimeType})');
 
-      if (userDoc.exists && userDoc.data() != null) {
-        final userData = userDoc.data()!;
-        final balance = userData['balance'];
-        debugPrint('Balance from Firestore: $balance (type: ${balance.runtimeType})');
-
-        setState(() {
-          _userBalance = balance?.toString() ?? '0';
-          debugPrint('Updated _userBalance to: $_userBalance');
-        });
-      } else {
-        debugPrint('User document does not exist in humanUsers collection');
-        setState(() {
-          _userBalance = '0';
-        });
-      }
+                setState(() {
+                  _userBalance = balance?.toString() ?? '0';
+                  debugPrint('Updated _userBalance to: $_userBalance');
+                });
+              } else {
+                debugPrint('User document does not exist in humanUsers collection');
+                setState(() {
+                  _userBalance = '0';
+                });
+              }
+            },
+            onError: (error) {
+              debugPrint('Error in balance stream: $error');
+              setState(() {
+                _userBalance = '0';
+              });
+            },
+          );
     } catch (e) {
-      debugPrint('Error loading balance from Firestore: $e');
+      debugPrint('Error setting up balance stream: $e');
       setState(() {
         _userBalance = '0';
       });
@@ -86,6 +97,7 @@ class _GroupsExploreScreenState extends State<GroupsExploreScreen> {
   void dispose() {
     _searchController.dispose();
     _searchFocusNode.dispose();
+    _balanceSubscription?.cancel(); // Cancel the stream subscription
     super.dispose();
   }
 
