@@ -115,11 +115,13 @@ class Participant {
   final String uid;
   final String type;
   final String name;
+  final String? profilePictureUrl;
 
   Participant({
     required this.uid,
     required this.type,
     required this.name,
+    this.profilePictureUrl,
   });
 
   factory Participant.fromMap(Map<String, dynamic> map) {
@@ -127,6 +129,7 @@ class Participant {
       uid: map['uid'] ?? '',
       type: map['type'] ?? '',
       name: map['name'] ?? '',
+      profilePictureUrl: map['profile_picture_url'],
     );
   }
 }
