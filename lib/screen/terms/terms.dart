@@ -3,15 +3,15 @@ import 'package:flutter_feather_icons/flutter_feather_icons.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-class PolicyScreen extends StatelessWidget {
-  const PolicyScreen({super.key});
+class TermsScreen extends StatelessWidget {
+  const TermsScreen({super.key});
 
   Future<void> _launchEmail() async {
     final Uri emailUri = Uri(
       scheme: 'mailto',
       path: 'contact@inzone.ai',
       queryParameters: {
-        'subject': 'Privacy Policy Inquiry',
+        'subject': 'Terms of Service Inquiry',
       },
     );
 
@@ -40,9 +40,9 @@ class PolicyScreen extends StatelessWidget {
                   children: [
                     const SizedBox(height: 10),
 
-                    // 1. Introduction
+                    // 1. Acceptance of Terms
                     Text(
-                      "1. Introduction",
+                      "1. Acceptance of Terms",
                       style: TextStyle(
                         color: Theme.of(context).textTheme.titleLarge?.color,
                         fontSize: 20,
@@ -51,7 +51,7 @@ class PolicyScreen extends StatelessWidget {
                       ),
                     ),
                     Text(
-                      "Welcome to InZone's Privacy Policy. This policy explains how we collect, use, disclose, and safeguard your information when you use our mobile application and website.",
+                      "By accessing and using InZone's mobile application and website, you agree to be bound by these Terms of Service and all applicable laws and regulations. If you do not agree with any of these terms, you are prohibited from using or accessing this application.",
                       style: TextStyle(
                         color: Theme.of(context).textTheme.bodyMedium?.color,
                         fontSize: 16,
@@ -60,9 +60,9 @@ class PolicyScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 20),
 
-                    // 2. Information We Collect
+                    // 2. Use License
                     Text(
-                      "2. Information We Collect",
+                      "2. Use License",
                       style: TextStyle(
                         color: Theme.of(context).textTheme.titleLarge?.color,
                         fontSize: 20,
@@ -71,43 +71,7 @@ class PolicyScreen extends StatelessWidget {
                       ),
                     ),
                     Text(
-                      "We may collect information about you in a variety of ways. The information we may collect includes:",
-                      style: TextStyle(
-                        color: Theme.of(context).textTheme.bodyMedium?.color,
-                        fontSize: 16,
-                        height: 1.5,
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.only(left: 10, top: 8),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _buildBulletPoint(context,
-                              "Personal Data: Personally identifiable information, such as your name, email address, and date of birth, that you voluntarily give to us when you register with the application."),
-                          _buildBulletPoint(context,
-                              "Derivative Data: Information our servers automatically collect when you access the application, such as your IP address, browser type, operating system, access times, and the pages you have viewed."),
-                          _buildBulletPoint(context,
-                              "Financial Data: Financial information, such as data related to your payment method, that we may collect when you purchase a subscription."),
-                          _buildBulletPoint(context,
-                              "Data from Social Networks: User information from social networking sites, including Facebook, Google, and others, if you connect your account to these services."),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-
-                    // 3. Use of Your Information
-                    Text(
-                      "3. Use of Your Information",
-                      style: TextStyle(
-                        color: Theme.of(context).textTheme.titleLarge?.color,
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        height: 1.5,
-                      ),
-                    ),
-                    Text(
-                      "We may use the information we collect about you for various purposes, including:",
+                      "Permission is granted to temporarily download one copy of the application for personal, non-commercial use only. This is the grant of a license, not a transfer of title, and under this license you may not:",
                       style: TextStyle(
                         color: Theme.of(context).textTheme.bodyMedium?.color,
                         fontSize: 16,
@@ -120,25 +84,23 @@ class PolicyScreen extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           _buildBulletPoint(
-                              context, "To create and manage your account"),
-                          _buildBulletPoint(
-                              context, "To provide and maintain our services"),
-                          _buildBulletPoint(context, "To process transactions"),
-                          _buildBulletPoint(
-                              context, "To send administrative information"),
-                          _buildBulletPoint(
-                              context, "To personalize your experience"),
-                          _buildBulletPoint(context, "To protect our services"),
+                              context, "Modify or copy the materials"),
                           _buildBulletPoint(context,
-                              "To respond to legal requests and comply with regulations"),
+                              "Use the materials for any commercial purpose or for any public display"),
+                          _buildBulletPoint(context,
+                              "Attempt to decompile or reverse engineer any software contained in the application"),
+                          _buildBulletPoint(context,
+                              "Remove any copyright or other proprietary notations from the materials"),
+                          _buildBulletPoint(context,
+                              "Transfer the materials to another person or \"mirror\" the materials on any other server"),
                         ],
                       ),
                     ),
                     const SizedBox(height: 20),
 
-                    // 4. Disclosure of Your Information
+                    // 3. Account Registration
                     Text(
-                      "4. Disclosure of Your Information",
+                      "3. Account Registration",
                       style: TextStyle(
                         color: Theme.of(context).textTheme.titleLarge?.color,
                         fontSize: 20,
@@ -147,7 +109,47 @@ class PolicyScreen extends StatelessWidget {
                       ),
                     ),
                     Text(
-                      "We may share information we have collected about you in certain situations. Your information may be disclosed as follows:",
+                      "To use certain features of the application, you may be required to register for an account. You agree to provide accurate, current, and complete information during the registration process and to update such information to keep it accurate, current, and complete.",
+                      style: TextStyle(
+                        color: Theme.of(context).textTheme.bodyMedium?.color,
+                        fontSize: 16,
+                        height: 1.5,
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+
+                    // 4. User Content
+                    Text(
+                      "4. User Content",
+                      style: TextStyle(
+                        color: Theme.of(context).textTheme.titleLarge?.color,
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        height: 1.5,
+                      ),
+                    ),
+                    Text(
+                      "Our application allows you to post, link, store, share and otherwise make available certain information, text, graphics, videos, or other material. You retain any and all rights to any content you submit, post, or display through the application and are responsible for all such content.",
+                      style: TextStyle(
+                        color: Theme.of(context).textTheme.bodyMedium?.color,
+                        fontSize: 16,
+                        height: 1.5,
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+
+                    // 5. Prohibited Activities
+                    Text(
+                      "5. Prohibited Activities",
+                      style: TextStyle(
+                        color: Theme.of(context).textTheme.titleLarge?.color,
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        height: 1.5,
+                      ),
+                    ),
+                    Text(
+                      "You agree not to engage in any of the following prohibited activities:",
                       style: TextStyle(
                         color: Theme.of(context).textTheme.bodyMedium?.color,
                         fontSize: 16,
@@ -160,23 +162,27 @@ class PolicyScreen extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           _buildBulletPoint(context,
-                              "By Law or to Protect Rights: If required by law or to protect our rights and those of our users."),
+                              "Violating any local, state, national, or international law or regulation"),
+                          _buildBulletPoint(
+                              context, "Infringing upon the rights of others"),
                           _buildBulletPoint(context,
-                              "Third-Party Service Providers: We may share your information with third parties that perform services for us or on our behalf."),
+                              "Engaging in unauthorized framing or linking to the application"),
                           _buildBulletPoint(context,
-                              "Marketing Communications: With your consent, we may share your information with third parties for marketing purposes."),
+                              "Uploading or transmitting viruses or other malicious code"),
                           _buildBulletPoint(context,
-                              "Interactions with Other Users: If you interact with other users, they may see certain aspects of your profile."),
+                              "Interfering with or disrupting the application or servers or networks connected to the application"),
                           _buildBulletPoint(context,
-                              "Business Transfers: If we are involved in a merger, acquisition, or sale of assets."),
+                              "Impersonating or attempting to impersonate another user or person"),
+                          _buildBulletPoint(context,
+                              "Harassing, threatening, or intimidating other users"),
                         ],
                       ),
                     ),
                     const SizedBox(height: 20),
 
-                    // 5. Third-Party Websites
+                    // 6. Intellectual Property
                     Text(
-                      "5. Third-Party Websites",
+                      "6. Intellectual Property",
                       style: TextStyle(
                         color: Theme.of(context).textTheme.titleLarge?.color,
                         fontSize: 20,
@@ -185,7 +191,7 @@ class PolicyScreen extends StatelessWidget {
                       ),
                     ),
                     Text(
-                      "The application may contain links to third-party websites that are not affiliated with us. We are not responsible for the privacy practices of these websites.",
+                      "The application and its original content, features, and functionality are and will remain the exclusive property of InZone and its licensors. The application is protected by copyright, trademark, and other laws both in the United States and foreign countries.",
                       style: TextStyle(
                         color: Theme.of(context).textTheme.bodyMedium?.color,
                         fontSize: 16,
@@ -194,9 +200,9 @@ class PolicyScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 20),
 
-                    // 6. Security of Your Information
+                    // 7. Termination
                     Text(
-                      "6. Security of Your Information",
+                      "7. Termination",
                       style: TextStyle(
                         color: Theme.of(context).textTheme.titleLarge?.color,
                         fontSize: 20,
@@ -205,7 +211,7 @@ class PolicyScreen extends StatelessWidget {
                       ),
                     ),
                     Text(
-                      "We use administrative, technical, and physical security measures to protect your personal information. However, no security system is impenetrable, and we cannot guarantee the security of our database.",
+                      "We may terminate or suspend your account and bar access to the application immediately, without prior notice or liability, under our sole discretion, for any reason whatsoever, including but not limited to a breach of the Terms.",
                       style: TextStyle(
                         color: Theme.of(context).textTheme.bodyMedium?.color,
                         fontSize: 16,
@@ -214,9 +220,9 @@ class PolicyScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 20),
 
-                    // 7. COPPA Compliance
+                    // 8. Governing Law
                     Text(
-                      "7. COPPA Compliance",
+                      "8. Governing Law",
                       style: TextStyle(
                         color: Theme.of(context).textTheme.titleLarge?.color,
                         fontSize: 20,
@@ -225,7 +231,7 @@ class PolicyScreen extends StatelessWidget {
                       ),
                     ),
                     Text(
-                      "We comply with the requirements of the Children's Online Privacy Protection Act (COPPA). We do not collect personal information from children under 13 without appropriate parental consent.",
+                      "These Terms shall be governed by and construed in accordance with the laws of the United States, without regard to its conflict of law provisions.",
                       style: TextStyle(
                         color: Theme.of(context).textTheme.bodyMedium?.color,
                         fontSize: 16,
@@ -234,9 +240,9 @@ class PolicyScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 20),
 
-                    // 8. Options Regarding Your Information
+                    // 9. Changes to Terms
                     Text(
-                      "8. Options Regarding Your Information",
+                      "9. Changes to Terms",
                       style: TextStyle(
                         color: Theme.of(context).textTheme.titleLarge?.color,
                         fontSize: 20,
@@ -245,27 +251,7 @@ class PolicyScreen extends StatelessWidget {
                       ),
                     ),
                     Text(
-                      "You may at any time review, change, or delete the information in your account. You may also opt out of marketing communications.",
-                      style: TextStyle(
-                        color: Theme.of(context).textTheme.bodyMedium?.color,
-                        fontSize: 16,
-                        height: 1.5,
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-
-                    // 9. Changes to This Privacy Policy
-                    Text(
-                      "9. Changes to This Privacy Policy",
-                      style: TextStyle(
-                        color: Theme.of(context).textTheme.titleLarge?.color,
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        height: 1.5,
-                      ),
-                    ),
-                    Text(
-                      "We may update this policy from time to time. We will notify you of any changes by posting the new policy on this page.",
+                      "We reserve the right to modify or replace these Terms at any time. If a revision is material, we will provide at least 30 days' notice prior to any new terms taking effect.",
                       style: TextStyle(
                         color: Theme.of(context).textTheme.bodyMedium?.color,
                         fontSize: 16,
@@ -288,7 +274,7 @@ class PolicyScreen extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          "If you have questions about this Privacy Policy, \n please contact us at: ",
+                          "If you have questions about these Terms,\n please contact us at: ",
                           style: TextStyle(
                             color:
                                 Theme.of(context).textTheme.bodyMedium?.color,
@@ -329,7 +315,7 @@ class PolicyScreen extends StatelessWidget {
                   children: [
                     // Title on left
                     Text(
-                      "Privacy Policy",
+                      "Terms of Service",
                       style: Theme.of(context).textTheme.headlineMedium,
                     ),
 

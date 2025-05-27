@@ -38,6 +38,8 @@ import 'package:inzone/data/group_data.dart';
 
 // Routes
 import 'package:inzone/router/routes.dart';
+import 'package:inzone/screen/terms/policy.dart';
+import 'package:inzone/screen/terms/terms.dart';
 
 /// A custom codec that can handle Map<String, Object> extras
 class MapExtraCodec extends Codec<Object?, Object?> {
@@ -420,6 +422,30 @@ class AppRouter {
         path: Routes.settings,
         parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) => SettingsScreen(),
+      ),
+
+      GoRoute(
+        path: Routes.privacyPolicy,
+        parentNavigatorKey: rootNavigatorKey,
+        pageBuilder: (context, state) {
+          return CupertinoPage(
+            key: state.pageKey,
+            fullscreenDialog: true,
+            child: const PolicyScreen(),
+          );
+        },
+      ),
+
+      GoRoute(
+        path: Routes.termsConditions,
+        parentNavigatorKey: rootNavigatorKey,
+        pageBuilder: (context, state) {
+          return CupertinoPage(
+            key: state.pageKey,
+            fullscreenDialog: true,
+            child: const TermsScreen(),
+          );
+        },
       ),
     ],
   );
