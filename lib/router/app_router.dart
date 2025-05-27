@@ -30,7 +30,8 @@ import 'package:inzone/screen/settings/content_select_screen.dart';
 import 'package:inzone/screen/settings/subscription_purchase.dart';
 import 'package:inzone/screen/settings/referral_screen.dart';
 import 'package:inzone/screen/settings/settings_screen.dart';
-import 'package:inzone/screen/3d_model/3d_model_screen.dart';
+import 'package:inzone/screen/3d_model/3d_model_create_screen.dart';
+import 'package:inzone/screen/3d_model/3d_model_select_screen.dart';
 
 // Models
 import 'package:inzone/data/group_data.dart';
@@ -230,6 +231,22 @@ class AppRouter {
           fullscreenDialog: true,
           child: const ModelCreateScreen(),
         ),
+      ),
+      GoRoute(
+        path: Routes.create3dModelSelect,
+        parentNavigatorKey: rootNavigatorKey,
+        pageBuilder: (context, state) {
+          final Map<String, dynamic> extra =
+              state.extra as Map<String, dynamic>;
+          return CupertinoPage(
+            key: state.pageKey,
+            fullscreenDialog: true,
+            child: Model3DSelectScreen(
+              prompt: extra['prompt'] as String,
+              name: extra['name'] as String,
+            ),
+          );
+        },
       ),
       GoRoute(
         path: Routes.editProfile,

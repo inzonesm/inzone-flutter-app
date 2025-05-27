@@ -5,6 +5,7 @@ import 'package:flutter_feather_icons/flutter_feather_icons.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:inzone/components/ui/button.dart';
+import 'package:inzone/router/routes.dart';
 
 class ModelCreateScreen extends StatefulWidget {
   const ModelCreateScreen({super.key});
@@ -48,8 +49,15 @@ class _ModelCreateScreenState extends State<ModelCreateScreen> {
       return;
     }
 
-    // Close modal after creating character
-    context.pop();
+    // Navigate to model selection screen with input data
+    context.push(
+      Routes.create3dModelSelect,
+      extra: {
+        'prompt': _descriptionController.text.trim(),
+        'image': _characterImage?.path ?? '',
+        'name': _nameController.text.trim(),
+      },
+    );
   }
 
   @override
@@ -124,13 +132,25 @@ class _ModelCreateScreenState extends State<ModelCreateScreen> {
                   ),
                 ),
                 const SizedBox(height: 24),
-                Text(
-                  'Character Description',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
-                    color: Theme.of(context).textTheme.bodyLarge?.color,
-                  ),
+                Row(
+                  children: [
+                    Text(
+                      'Character Description',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                        color: Theme.of(context).textTheme.bodyLarge?.color,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      '(Required)',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Theme.of(context).textTheme.bodyMedium?.color,
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 8),
                 Container(
@@ -163,64 +183,79 @@ class _ModelCreateScreenState extends State<ModelCreateScreen> {
                   ),
                 ),
                 const SizedBox(height: 24),
-                Text(
-                  'Character Image',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
-                    color: Theme.of(context).textTheme.bodyLarge?.color,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                GestureDetector(
-                  onTap: _pickImage,
-                  child: Container(
-                    height: 200,
-                    width: double.infinity,
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).cardColor,
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(
-                        color: Theme.of(context).dividerColor,
-                      ),
-                    ),
-                    child: _characterImage != null
-                        ? ClipRRect(
-                            borderRadius: BorderRadius.circular(10),
-                            child: Image.file(
-                              _characterImage!,
-                              fit: BoxFit.cover,
-                            ),
-                          )
-                        : Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                FeatherIcons.image,
-                                size: 48,
-                                color: Theme.of(context).iconTheme.color,
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                'Tap to add an image',
-                                style: TextStyle(
-                                  color: Theme.of(context)
-                                      .textTheme
-                                      .bodyMedium
-                                      ?.color,
-                                ),
-                              ),
-                            ],
-                          ),
-                  ),
-                ),
+                // Row(
+                //   children: [
+                //     Text(
+                //       'Character Image',
+                //       style: TextStyle(
+                //         fontSize: 16,
+                //         fontWeight: FontWeight.w500,
+                //         color: Theme.of(context).textTheme.bodyLarge?.color,
+                //       ),
+                //     ),
+                //     const SizedBox(width: 8),
+                //     Text(
+                //       '(Optional)',
+                //       style: TextStyle(
+                //         fontSize: 14,
+                //         color: Theme.of(context).textTheme.bodyMedium?.color,
+                //       ),
+                //     ),
+                //   ],
+                // ),
+                // const SizedBox(height: 16),
+                // GestureDetector(
+                //   onTap: _pickImage,
+                //   child: Container(
+                //     height: 200,
+                //     width: double.infinity,
+                //     decoration: BoxDecoration(
+                //       color: Theme.of(context).cardColor,
+                //       borderRadius: BorderRadius.circular(10),
+                //       border: Border.all(
+                //         color: Theme.of(context).dividerColor,
+                //       ),
+                //     ),
+                //     child: _characterImage != null
+                //         ? ClipRRect(
+                //             borderRadius: BorderRadius.circular(10),
+                //             child: Image.file(
+                //               _characterImage!,
+                //               fit: BoxFit.cover,
+                //             ),
+                //           )
+                //         : Column(
+                //             mainAxisAlignment: MainAxisAlignment.center,
+                //             children: [
+                //               Icon(
+                //                 FeatherIcons.image,
+                //                 size: 48,
+                //                 color: Theme.of(context).iconTheme.color,
+                //               ),
+                //               const SizedBox(height: 8),
+                //               Text(
+                //                 'Tap to add an image',
+                //                 style: TextStyle(
+                //                   color: Theme.of(context)
+                //                       .textTheme
+                //                       .bodyMedium
+                //                       ?.color,
+                //                 ),
+                //               ),
+                //             ],
+                //           ),
+                //   ),
+                // ),
                 const SizedBox(height: 40),
-                Button(
-                  text: 'Create My Character',
-                  onPressed: _createCharacter,
-                ),
               ],
             ),
+          ),
+        ),
+        bottomNavigationBar: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: Button(
+            text: 'Create My Character',
+            onPressed: _createCharacter,
           ),
         ),
       ),
