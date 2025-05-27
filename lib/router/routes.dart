@@ -16,6 +16,7 @@ class Routes {
   // Feature routes
   static const String post = '/post';
   static const String create3dModel = '/3d-model';
+  static const String create3dModelSelect = '/3d-model/select';
   static const String editProfile = '/edit-profile';
   static const String editField = '/edit-field/:fieldType';
   static const String postChat = '/post-chat';
