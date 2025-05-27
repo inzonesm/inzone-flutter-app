@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'dart:math';
 import 'package:image_stack/image_stack.dart';
 import 'package:go_router/go_router.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'package:inzone/data/group_data.dart';
+import 'package:inzone/data/group_chat_data.dart';
 import 'package:inzone/screen/chat/group_chat_screen.dart';
 import 'package:bounce/bounce.dart';
 import 'package:inzone/router/routes.dart';
@@ -156,38 +158,165 @@ class GroupCard extends StatelessWidget {
     );
   }
 
-  // Build participant avatars with static blue AI profile pictures
+  // Build participant avatars with actual AI profile pictures
   Widget _buildParticipantAvatars() {
     if (group.avatars.isEmpty) {
       return const SizedBox.shrink();
     }
 
-    return ImageStack.widgets(
-      key: ValueKey('avatars_${group.id}'),
-      totalCount: group.avatars.length, // This preserves the +1, +2, etc. functionality
-      widgetCount: 3,
-      widgetRadius: 38,
-      widgetBorderWidth: 1,
-      widgetBorderColor: Colors.white,
-      backgroundColor: Colors.transparent,
-      extraCountBorderColor: Colors.transparent,
-      extraCountTextStyle: const TextStyle(),
-      children: List.generate(
-        min(3, group.avatars.length),
-        (index) => Container(
-          key: ValueKey('static_avatar_${group.id}_$index'),
+    return FutureBuilder<DocumentSnapshot>(
+      future: FirebaseFirestore.instance
+          .collection('groupChats')
+          .doc(group.id)
+          .get(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          // Show loading state with static icons
+          return ImageStack.widgets(
+            key: ValueKey('avatars_loading_${group.id}'),
+            totalCount: group.avatars.length,
+            widgetCount: 3,
+            widgetRadius: 38,
+            widgetBorderWidth: 1,
+            widgetBorderColor: Colors.white,
+            backgroundColor: Colors.transparent,
+            extraCountBorderColor: Colors.transparent,
+            extraCountTextStyle: const TextStyle(),
+            children: List.generate(
+              min(3, group.avatars.length),
+              (index) => Container(
+                key: ValueKey('loading_avatar_${group.id}_$index'),
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.blue.shade100,
+                ),
+                child: const Icon(
+                  Icons.smart_toy,
+                  color: Colors.blueAccent,
+                  size: 24,
+                ),
+              ),
+            ),
+          );
+        }
+
+        List<Participant> participants = [];
+        if (snapshot.hasData && snapshot.data!.exists) {
+          try {
+            final data = snapshot.data!.data() as Map<String, dynamic>;
+            final List<dynamic> participantsData = data['participants'] ?? [];
+            participants = participantsData
+                .map((participant) => Participant.fromMap(participant.cast<String, dynamic>()))
+                .where((p) => p.type == 'ai') // Only show AI participants
+                .toList();
+          } catch (e) {
+            print('Error parsing participants in group card: $e');
+          }
+        }
+
+        // If no participants found, show static icons
+        if (participants.isEmpty) {
+          return ImageStack.widgets(
+            key: ValueKey('avatars_static_${group.id}'),
+            totalCount: group.avatars.length,
+            widgetCount: 3,
+            widgetRadius: 38,
+            widgetBorderWidth: 1,
+            widgetBorderColor: Colors.white,
+            backgroundColor: Colors.transparent,
+            extraCountBorderColor: Colors.transparent,
+            extraCountTextStyle: const TextStyle(),
+            children: List.generate(
+              min(3, group.avatars.length),
+              (index) => Container(
+                key: ValueKey('static_avatar_${group.id}_$index'),
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.blue.shade100,
+                ),
+                child: const Icon(
+                  Icons.smart_toy,
+                  color: Colors.blueAccent,
+                  size: 24,
+                ),
+              ),
+            ),
+          );
+        }
+
+        return ImageStack.widgets(
+          key: ValueKey('avatars_${group.id}'),
+          totalCount: participants.length,
+          widgetCount: 3,
+          widgetRadius: 38,
+          widgetBorderWidth: 1,
+          widgetBorderColor: Colors.white,
+          backgroundColor: Colors.transparent,
+          extraCountBorderColor: Colors.transparent,
+          extraCountTextStyle: const TextStyle(),
+          children: List.generate(
+            min(3, participants.length),
+            (index) => _buildParticipantAvatar(participants[index], index),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildParticipantAvatar(Participant participant, int index) {
+    // If participant has profile picture URL, use it
+    if (participant.profilePictureUrl != null && 
+        participant.profilePictureUrl!.isNotEmpty) {
+      return Container(
+        key: ValueKey('avatar_${group.id}_${participant.uid}'),
+        width: 40,
+        height: 40,
+        decoration: const BoxDecoration(
+          shape: BoxShape.circle,
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Image.network(
+          participant.profilePictureUrl!,
+          fit: BoxFit.cover,
           width: 40,
           height: 40,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: Colors.blue.shade100,
-          ),
-          child: const Icon(
-            Icons.smart_toy,
-            color: Colors.blueAccent,
-            size: 24,
-          ),
+          errorBuilder: (context, error, stackTrace) {
+            // Fallback to AI icon if image fails to load
+            return Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.blue.shade100,
+              ),
+              child: const Icon(
+                Icons.smart_toy,
+                color: Colors.blueAccent,
+                size: 24,
+              ),
+            );
+          },
         ),
+      );
+    }
+
+    // Fallback to AI icon if no profile picture URL
+    return Container(
+      key: ValueKey('fallback_avatar_${group.id}_$index'),
+      width: 40,
+      height: 40,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: Colors.blue.shade100,
+      ),
+      child: const Icon(
+        Icons.smart_toy,
+        color: Colors.blueAccent,
+        size: 24,
       ),
     );
   }

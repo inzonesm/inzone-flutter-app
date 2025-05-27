@@ -753,49 +753,37 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       );
     }
 
-    // For AI users, fetch their profile image from aiUsers collection
-    if (sender.type == 'ai' && sender.uid.isNotEmpty) {
-      return FutureBuilder<DocumentSnapshot>(
-        future: FirebaseFirestore.instance
-            .collection('aiUsers')
-            .doc(sender.uid)
-            .get(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(
-              child: Icon(Icons.smart_toy, color: Colors.blueAccent, size: 35),
-            );
-          }
-
-          if (snapshot.hasData && snapshot.data!.exists) {
-            final aiUserData = snapshot.data!.data() as Map<String, dynamic>?;
-            final profileImage = aiUserData?['profilePicture'] ?? 
-                                 aiUserData?['profileImage'] ?? 
-                                 aiUserData?['character']?['profilePicture'];
-
-            if (profileImage != null && profileImage.toString().isNotEmpty) {
-              return ClipOval(
-                child: Image.network(
-                  profileImage.toString(),
-                  fit: BoxFit.cover,
-                  height: 35,
-                  width: 35,
-                  errorBuilder: (context, error, stackTrace) {
-                    return const Center(
-                      child: Icon(Icons.smart_toy,
-                          color: Colors.blueAccent, size: 35),
-                    );
-                  },
-                ),
-              );
-            }
-          }
-
-          // Fallback to AI icon if no profile image is found
-          return const Center(
-            child: Icon(Icons.smart_toy, color: Colors.blueAccent, size: 35),
+    // For AI users, check if we have profile picture URL from participant data
+    if (sender.type == 'ai') {
+      // First try to get profile picture from the current group's participant data
+      if (_groupChatData != null) {
+        final participant = _groupChatData!.participants.firstWhere(
+          (p) => p.uid == sender.uid && p.type == 'ai',
+          orElse: () => Participant(uid: '', type: '', name: ''),
+        );
+        
+        if (participant.profilePictureUrl != null && 
+            participant.profilePictureUrl!.isNotEmpty) {
+          return ClipOval(
+            child: Image.network(
+              participant.profilePictureUrl!,
+              fit: BoxFit.cover,
+              height: 35,
+              width: 35,
+              errorBuilder: (context, error, stackTrace) {
+                return const Center(
+                  child: Icon(Icons.smart_toy,
+                      color: Colors.blueAccent, size: 35),
+                );
+              },
+            ),
           );
-        },
+        }
+      }
+
+      // Fallback to AI icon if no profile image is found
+      return const Center(
+        child: Icon(Icons.smart_toy, color: Colors.blueAccent, size: 35),
       );
     }
 
@@ -1199,49 +1187,29 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       );
     }
 
-    // For AI users, fetch their profile image from aiUsers collection
-    if (participant.type == 'ai' && participant.uid.isNotEmpty) {
-      return FutureBuilder<DocumentSnapshot>(
-        future: FirebaseFirestore.instance
-            .collection('aiUsers')
-            .doc(participant.uid)
-            .get(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(
-              child: Icon(Icons.smart_toy, color: Colors.blueAccent, size: 24),
-            );
-          }
-
-          if (snapshot.hasData && snapshot.data!.exists) {
-            final aiUserData = snapshot.data!.data() as Map<String, dynamic>?;
-            final profileImage = aiUserData?['profilePicture'] ?? 
-                                 aiUserData?['profileImage'] ?? 
-                                 aiUserData?['character']?['profilePicture'];
-
-            if (profileImage != null && profileImage.toString().isNotEmpty) {
-              return ClipOval(
-                child: Image.network(
-                  profileImage.toString(),
-                  fit: BoxFit.cover,
-                  width: 24,
-                  height: 24,
-                  errorBuilder: (context, error, stackTrace) {
-                    return const Center(
-                      child: Icon(Icons.smart_toy,
-                          color: Colors.blueAccent, size: 24),
-                    );
-                  },
-                ),
+    // For AI users, use profile picture URL from participant data
+    if (participant.type == 'ai') {
+      if (participant.profilePictureUrl != null && 
+          participant.profilePictureUrl!.isNotEmpty) {
+        return ClipOval(
+          child: Image.network(
+            participant.profilePictureUrl!,
+            fit: BoxFit.cover,
+            width: 24,
+            height: 24,
+            errorBuilder: (context, error, stackTrace) {
+              return const Center(
+                child: Icon(Icons.smart_toy,
+                    color: Colors.blueAccent, size: 24),
               );
-            }
-          }
+            },
+          ),
+        );
+      }
 
-          // Fallback to AI icon if no profile image is found
-          return const Center(
-            child: Icon(Icons.smart_toy, color: Colors.blueAccent, size: 24),
-          );
-        },
+      // Fallback to AI icon if no profile image is found
+      return const Center(
+        child: Icon(Icons.smart_toy, color: Colors.blueAccent, size: 24),
       );
     }
 
