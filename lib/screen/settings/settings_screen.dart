@@ -270,19 +270,19 @@ class SettingsScreen extends StatelessWidget {
       },
       () {
         try {
-          _launchInBrowser("https://inzone.ai/privacy-policy");
+          context.push(Routes.privacyPolicy);
         } catch (e) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error launching browser: $e')),
+            SnackBar(content: Text('Error navigating to referral: $e')),
           );
         }
       },
       () {
         try {
-          _launchInBrowser("https://inzone.ai/terms-conditions");
+          context.push(Routes.termsConditions);
         } catch (e) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error launching browser: $e')),
+            SnackBar(content: Text('Error navigating to referral: $e')),
           );
         }
       },
