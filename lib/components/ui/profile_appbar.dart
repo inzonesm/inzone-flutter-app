@@ -53,19 +53,33 @@ class ProfileAppbar extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: Colors.grey[300],
                   borderRadius: BorderRadius.circular(20),
-                  image: profileImageUrl.isNotEmpty
-                      ? DecorationImage(
-                          image: NetworkImage(profileImageUrl),
-                          fit: BoxFit.cover,
-                        )
-                      : null,
                 ),
-                child: profileImageUrl.isEmpty
-                    ? ClipRRect(
-                        borderRadius: BorderRadius.circular(20),
-                        child: const Icon(Icons.account_circle, size: 80),
-                      )
-                    : null,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(20),
+                  child: profileImageUrl.isNotEmpty
+                      ? Image.network(
+                          profileImageUrl,
+                          width: 80,
+                          height: 80,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) {
+                            debugPrint('Error loading profile image: $error');
+                            return const Icon(Icons.account_circle, size: 80);
+                          },
+                          loadingBuilder: (context, child, loadingProgress) {
+                            if (loadingProgress == null) return child;
+                            return Center(
+                              child: CircularProgressIndicator(
+                                value: loadingProgress.expectedTotalBytes != null
+                                    ? loadingProgress.cumulativeBytesLoaded /
+                                        loadingProgress.expectedTotalBytes!
+                                    : null,
+                              ),
+                            );
+                          },
+                        )
+                      : const Icon(Icons.account_circle, size: 80),
+                ),
               ),
             ),
           ],

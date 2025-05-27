@@ -338,6 +338,9 @@ class InZoneDatabase {
     if (profile.containsKey('profilePicture')) {
       normalizedProfile['profilePicture'] = profile['profilePicture'];
     }
+    if (profile.containsKey('profile_picture_url')) {
+      normalizedProfile['profile_picture_url'] = profile['profile_picture_url'];
+    }
     if (profile.containsKey('referral_code')) {
       normalizedProfile['referral_code'] = profile['referral_code'];
     }
