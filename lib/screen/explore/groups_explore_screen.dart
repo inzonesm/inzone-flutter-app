@@ -33,6 +33,9 @@ class _GroupsExploreScreenState extends State<GroupsExploreScreen> {
   String _searchQuery = '';
   String _userBalance = '0'; // Will be updated by _loadUserBalance method
 
+  // Map to store participants for each group
+  final Map<String, List<Participant>> _groupParticipants = {};
+
   @override
   void initState() {
     super.initState();
@@ -119,12 +122,30 @@ class _GroupsExploreScreenState extends State<GroupsExploreScreen> {
     for (var doc in documents) {
       try {
         GroupChatData chatData = GroupChatData.fromSnapshot(doc);
-        groups.add(GroupDataMapper.fromGroupChatData(chatData));
+        GroupData groupData = GroupDataMapper.fromGroupChatData(chatData);
+
+        // Store participants in the map
+        _groupParticipants[groupData.id] = chatData.participants;
+
+        groups.add(groupData);
       } catch (e) {
         print('Error converting group data: $e');
       }
     }
     return groups;
+  }
+
+  // Helper method to check if a group has a participant matching the search query
+  bool _hasMatchingParticipant(GroupData group, String query) {
+    // Check for participants in our map
+    if (_groupParticipants.containsKey(group.id) &&
+        _groupParticipants[group.id]!.isNotEmpty) {
+      return _groupParticipants[group.id]!
+          .any((participant) => participant.name.toLowerCase().contains(query));
+    }
+
+    // Fallback to avatars for default groups
+    return group.avatars.any((avatar) => avatar.toLowerCase().contains(query));
   }
 
   void presentPaywall() async {
@@ -278,7 +299,7 @@ class _GroupsExploreScreenState extends State<GroupsExploreScreen> {
                           });
                         },
                         decoration: InputDecoration(
-                          hintText: 'Search groups...',
+                          hintText: 'Search participants...',
                           prefixIcon: Icon(Icons.search,
                               color: Theme.of(context).iconTheme.color),
                           suffixIcon: _searchQuery.isNotEmpty
@@ -403,7 +424,8 @@ class _GroupsExploreScreenState extends State<GroupsExploreScreen> {
             if (_searchQuery.isNotEmpty) {
               groups = groups
                   .where((group) =>
-                      group.name.toLowerCase().contains(_searchQuery))
+                      group.name.toLowerCase().contains(_searchQuery) ||
+                      _hasMatchingParticipant(group, _searchQuery))
                   .toList();
             }
 
