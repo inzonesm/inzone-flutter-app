@@ -838,7 +838,7 @@ class _PostCardState extends State<PostCard> {
   void _submitPostReport(String reason) async {
     try {
       final currentUser = FirebaseAuth.instance.currentUser;
-      if (currentUser != null) {
+      if (currentUser != null && currentUser.uid.isNotEmpty) {
         // Check if a report for this post already exists
         final querySnapshot = await FirebaseFirestore.instance
             .collection('reportPost')
@@ -857,26 +857,48 @@ class _PostCardState extends State<PostCard> {
             existingReasons = [existingReasons];
           }
 
-          // Add new reason to array
+          // Get existing reporters array or create a new one
+          List<dynamic> existingReporters = existingReport['reporter'] ?? [];
+          if (existingReporters is String) {
+            // Convert single string to array if needed
+            existingReporters = [existingReporters];
+          }
+
+          // Get existing dates array or create a new one
+          List<dynamic> existingDates = existingReport['date'] ?? [];
+
+          // Add new entries to arrays
           existingReasons.add(reason);
+          existingReporters.add(currentUser.uid);
+
+          // Add current timestamp to existing dates
+          existingDates.add(Timestamp.now());
 
           await existingReport.reference.update({
             'count': currentCount + 1,
             'reason': existingReasons, // Update with the array of reasons
-            'reporter': currentUser.uid, // Update with the latest reporter
-            'date': FieldValue.serverTimestamp(), // Update timestamp
+            'reporter': existingReporters, // Update with the array of reporters
+            'date': existingDates, // Use regular list with Timestamp.now()
           });
         } else {
           // Create new report
           final reportDocRef =
               FirebaseFirestore.instance.collection('reportPost').doc();
+
+          // Get author from post (default to user reference if author is empty)
+          String author = widget.post.userReference.isNotEmpty
+              ? widget.post.userReference
+              : 'unknown';
+
           await reportDocRef.set({
-            'author': '',
+            'author': author,
             'count': 1, // Initial count
-            'date': FieldValue.serverTimestamp(),
+            'date': [
+              Timestamp.now()
+            ], // Use Timestamp.now() instead of FieldValue.serverTimestamp()
             'post_id': widget.post.id,
             'reason': [reason], // Store reason as array
-            'reporter': currentUser.uid,
+            'reporter': [currentUser.uid], // Store reporter as array
           });
         }
 
@@ -900,7 +922,7 @@ class _PostCardState extends State<PostCard> {
   void _submitUserReport(String reason) async {
     try {
       final currentUser = FirebaseAuth.instance.currentUser;
-      if (currentUser != null) {
+      if (currentUser != null && currentUser.uid.isNotEmpty) {
         // Check if a report for this user already exists
         final querySnapshot = await FirebaseFirestore.instance
             .collection('reportUser')
@@ -919,25 +941,47 @@ class _PostCardState extends State<PostCard> {
             existingReasons = [existingReasons];
           }
 
-          // Add new reason to array
+          // Get existing reporters array or create a new one
+          List<dynamic> existingReporters = existingReport['reporter'] ?? [];
+          if (existingReporters is String) {
+            // Convert single string to array if needed
+            existingReporters = [existingReporters];
+          }
+
+          // Get existing dates array or create a new one
+          List<dynamic> existingDates = existingReport['date'] ?? [];
+
+          // Add new entries to arrays
           existingReasons.add(reason);
+          existingReporters.add(currentUser.uid);
+
+          // Add current timestamp to existing dates
+          existingDates.add(Timestamp.now());
 
           await existingReport.reference.update({
             'count': currentCount + 1,
             'reason': existingReasons, // Update with the array of reasons
-            'reporter': currentUser.uid, // Update with the latest reporter
-            'date': FieldValue.serverTimestamp(), // Update timestamp
+            'reporter': existingReporters, // Update with the array of reporters
+            'date': existingDates, // Use regular list with Timestamp.now()
           });
         } else {
           // Create new report
           final reportDocRef =
               FirebaseFirestore.instance.collection('reportUser').doc();
+
+          // Get author from post (default to user reference if author is empty)
+          String author = widget.post.userReference.isNotEmpty
+              ? widget.post.userReference
+              : 'unknown';
+
           await reportDocRef.set({
-            'author': widget.post.userReference,
+            'author': author, // User being reported
             'count': 1, // Initial count
-            'date': FieldValue.serverTimestamp(),
+            'date': [
+              Timestamp.now()
+            ], // Use Timestamp.now() instead of FieldValue.serverTimestamp()
             'reason': [reason], // Store reason as array
-            'reporter': currentUser.uid,
+            'reporter': [currentUser.uid], // Store reporter as array
           });
         }
 
