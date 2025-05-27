@@ -850,9 +850,19 @@ class _PostCardState extends State<PostCard> {
           final existingReport = querySnapshot.docs.first;
           final int currentCount = existingReport['count'] ?? 0;
 
+          // Get existing reasons array or create a new one
+          List<dynamic> existingReasons = existingReport['reason'] ?? [];
+          if (existingReasons is String) {
+            // Convert single string to array if needed
+            existingReasons = [existingReasons];
+          }
+
+          // Add new reason to array
+          existingReasons.add(reason);
+
           await existingReport.reference.update({
             'count': currentCount + 1,
-            'reason': reason, // Update with the latest reason
+            'reason': existingReasons, // Update with the array of reasons
             'reporter': currentUser.uid, // Update with the latest reporter
             'date': FieldValue.serverTimestamp(), // Update timestamp
           });
@@ -865,7 +875,7 @@ class _PostCardState extends State<PostCard> {
             'count': 1, // Initial count
             'date': FieldValue.serverTimestamp(),
             'post_id': widget.post.id,
-            'reason': reason,
+            'reason': [reason], // Store reason as array
             'reporter': currentUser.uid,
           });
         }
@@ -902,9 +912,19 @@ class _PostCardState extends State<PostCard> {
           final existingReport = querySnapshot.docs.first;
           final int currentCount = existingReport['count'] ?? 0;
 
+          // Get existing reasons array or create a new one
+          List<dynamic> existingReasons = existingReport['reason'] ?? [];
+          if (existingReasons is String) {
+            // Convert single string to array if needed
+            existingReasons = [existingReasons];
+          }
+
+          // Add new reason to array
+          existingReasons.add(reason);
+
           await existingReport.reference.update({
             'count': currentCount + 1,
-            'reason': reason, // Update with the latest reason
+            'reason': existingReasons, // Update with the array of reasons
             'reporter': currentUser.uid, // Update with the latest reporter
             'date': FieldValue.serverTimestamp(), // Update timestamp
           });
@@ -916,7 +936,7 @@ class _PostCardState extends State<PostCard> {
             'author': widget.post.userReference,
             'count': 1, // Initial count
             'date': FieldValue.serverTimestamp(),
-            'reason': reason,
+            'reason': [reason], // Store reason as array
             'reporter': currentUser.uid,
           });
         }
