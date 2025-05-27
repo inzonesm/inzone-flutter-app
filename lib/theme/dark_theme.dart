@@ -76,7 +76,7 @@ class DarkTheme {
         ),
 
         // Card theme
-        cardTheme: CardTheme(
+        cardTheme: CardThemeData(
           color: AppColors.darkSurfaceColor,
           elevation: 4,
           shape: RoundedRectangleBorder(
@@ -147,10 +147,10 @@ class DarkTheme {
         ),
 
         // Dialog theme
-        dialogTheme: DialogTheme(
+        dialogTheme: const DialogThemeData(
           backgroundColor: AppColors.darkSurfaceColor,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(15),
+            borderRadius: BorderRadius.all(Radius.circular(15)),
           ),
         ),
 
