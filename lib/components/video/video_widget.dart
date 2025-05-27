@@ -36,6 +36,11 @@ class _VideoWidgetState extends State<VideoWidget> {
   Timer? _loadingTimeoutTimer;
   String _errorMessage = 'Unsupported video format.';
   final String _uniqueViewId = UniqueKey().toString();
+  
+  // Add scrubbing state variables
+  bool _isScrubbing = false;
+  Duration _scrubbingPosition = Duration.zero;
+  Timer? _scrubbingTimer;
 
   @override
   void initState() {
@@ -299,6 +304,31 @@ class _VideoWidgetState extends State<VideoWidget> {
               ),
             ),
             
+            // Timestamp overlay during scrubbing
+            if (_isScrubbing)
+              Positioned(
+                bottom: 30,
+                left: 0,
+                right: 0,
+                child: Center(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.8),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      _formatDuration(_scrubbingPosition),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            
             // Custom progress bar with blue color that supports seeking - positioned at the very bottom
             Positioned(
               left: 0,
@@ -318,10 +348,19 @@ class _VideoWidgetState extends State<VideoWidget> {
                   
                   return GestureDetector(
                     onTapDown: (details) {
-                      _handleProgressBarTap(details.localPosition.dx, context, duration);
+                      _handleProgressBarInteraction(details.localPosition.dx, context, duration, isStart: true);
+                    },
+                    onTapUp: (details) {
+                      _handleProgressBarInteraction(details.localPosition.dx, context, duration, isEnd: true);
+                    },
+                    onHorizontalDragStart: (details) {
+                      _handleProgressBarInteraction(details.localPosition.dx, context, duration, isStart: true);
                     },
                     onHorizontalDragUpdate: (details) {
-                      _handleProgressBarTap(details.localPosition.dx, context, duration);
+                      _handleProgressBarInteraction(details.localPosition.dx, context, duration);
+                    },
+                    onHorizontalDragEnd: (details) {
+                      _handleProgressBarInteraction(0, context, duration, isEnd: true);
                     },
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
@@ -382,6 +421,9 @@ class _VideoWidgetState extends State<VideoWidget> {
     // Cancel timer
     _loadingTimeoutTimer?.cancel();
     
+    // Cancel scrubbing timer
+    _scrubbingTimer?.cancel();
+    
     // Dispose of the media kit player
     if (_mediaKitPlayer != null) {
       _mediaKitPlayer!.pause();
@@ -392,21 +434,49 @@ class _VideoWidgetState extends State<VideoWidget> {
     super.dispose();
   }
 
-  // Handle tap on the progress bar to seek
-  void _handleProgressBarTap(double localX, BuildContext context, Duration duration) {
+  // Handle interaction with the progress bar (tap, drag start, drag update, drag end)
+  void _handleProgressBarInteraction(double localX, BuildContext context, Duration duration, {bool isStart = false, bool isEnd = false}) {
     if (_mediaKitPlayer == null) return;
+    
+    if (isStart) {
+      // Start scrubbing
+      setState(() {
+        _isScrubbing = true;
+      });
+      
+      // Cancel any existing timer
+      _scrubbingTimer?.cancel();
+    }
+    
+    if (isEnd) {
+      // End scrubbing - hide timestamp after a short delay
+      _scrubbingTimer?.cancel();
+      _scrubbingTimer = Timer(const Duration(milliseconds: 500), () {
+        if (mounted) {
+          setState(() {
+            _isScrubbing = false;
+          });
+        }
+      });
+      return;
+    }
     
     // Get the width of the progress bar
     final RenderBox box = context.findRenderObject() as RenderBox;
     final double width = box.size.width;
     
-    // Calculate the tap position as a percentage
+    // Calculate the tap/drag position as a percentage
     double tapPosition = localX / width;
     tapPosition = tapPosition.clamp(0.0, 1.0);
     
     // Convert to duration
     final int milliseconds = (duration.inMilliseconds * tapPosition).round();
     final newPosition = Duration(milliseconds: milliseconds);
+    
+    // Update scrubbing position for timestamp display
+    setState(() {
+      _scrubbingPosition = newPosition;
+    });
     
     // Seek to the new position
     _mediaKitPlayer!.seek(newPosition);

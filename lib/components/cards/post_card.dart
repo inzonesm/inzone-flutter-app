@@ -844,7 +844,7 @@ class _PostCardState extends State<PostCard> {
 
     // New comment to add
     Map<String, dynamic> newComment = {
-      'author': FirebaseAuth.instance.currentUser!.uid,
+      'author': FirebaseAuth.instance.currentUser!.displayName,
       'text': commentText,
       'userId': FirebaseAuth.instance.currentUser!.uid,
       'timestamp': DateTime.now().toString(),
@@ -1092,9 +1092,9 @@ class _PostCardState extends State<PostCard> {
                                           postId: "",
                                           userId: ""),
                                       const [],
-                                      // treeThemeData: const TreeThemeData(
-                                      //     lineColor: Colors.transparent,
-                                      //     lineWidth: 0),
+                                      treeThemeData: TreeThemeData(
+                                          lineColor: Theme.of(context).cardColor,
+                                          lineWidth: 0),
                                       avatarRoot: (context, data) =>
                                           const PreferredSize(
                                         preferredSize: Size.fromRadius(12),
@@ -1188,6 +1188,23 @@ class _PostCardState extends State<PostCard> {
                                                 crossAxisAlignment:
                                                     CrossAxisAlignment.start,
                                                 children: [
+                                                  Text(
+                                                    data.author,
+                                                    style: Theme.of(context)
+                                                        .textTheme
+                                                        .bodySmall
+                                                        ?.copyWith(
+                                                            fontWeight:
+                                                                FontWeight.w600,
+                                                            color: Theme.of(
+                                                                    context)
+                                                                .textTheme
+                                                                .titleMedium
+                                                                ?.color),
+                                                  ),
+                                                  const SizedBox(
+                                                    height: 4,
+                                                  ),
                                                   Text(
                                                     '${data.content}',
                                                     style: TextStyle(
