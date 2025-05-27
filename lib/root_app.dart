@@ -256,33 +256,33 @@ class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        _buildAnimatedOptionButton(
-                          'Create 3D Avatar',
-                          Icons.person,
-                          () {
-                            print("Create 3D Avatar button tapped");
-                            _toggleExpanded();
-                            context.push(Routes.create3dModel);
-                          },
-                          0,
-                        ),
-                        const SizedBox(height: 16),
-                        _buildAnimatedOptionButton(
-                          'Create AI Character',
-                          Icons.face,
-                          () {
-                            print("Create AI Character button tapped");
-                            _toggleExpanded();
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content:
-                                    Text('AI Character creation coming soon'),
-                              ),
-                            );
-                          },
-                          1,
-                        ),
-                        const SizedBox(height: 16),
+                        // _buildAnimatedOptionButton(
+                        //   'Create 3D Avatar',
+                        //   Icons.person,
+                        //   () {
+                        //     print("Create 3D Avatar button tapped");
+                        //     _toggleExpanded();
+                        //     context.push(Routes.create3dModel);
+                        //   },
+                        //   0,
+                        // ),
+                        // const SizedBox(height: 16),
+                        // _buildAnimatedOptionButton(
+                        //   'Create AI Character',
+                        //   Icons.face,
+                        //   () {
+                        //     print("Create AI Character button tapped");
+                        //     _toggleExpanded();
+                        //     ScaffoldMessenger.of(context).showSnackBar(
+                        //       const SnackBar(
+                        //         content:
+                        //             Text('AI Character creation coming soon'),
+                        //       ),
+                        //     );
+                        //   },
+                        //   1,
+                        // ),
+                        // const SizedBox(height: 16),
                         _buildAnimatedOptionButton(
                           'Create Post',
                           Icons.post_add,
