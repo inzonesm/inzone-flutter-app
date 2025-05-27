@@ -29,6 +29,8 @@ class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
   final _key = GlobalKey<ScaffoldState>();
   bool _isKeyboardVisible = false;
   bool _isExpanded = false;
+  bool _isNavBarVisible = true; // Track visibility of navigation bar
+  double _lastScrollPosition = 0; // Keep track of the last scroll position
 
   // Add animation controllers
   late AnimationController _rotationController;
@@ -79,14 +81,48 @@ class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
       AllChatsScreen(key: allChatsScreenKey),
       const UserProfileScreen(),
     ];
+
+    // Add scroll listener to handle navbar visibility
+    _homeScrollController.addListener(_handleScroll);
   }
 
   @override
   void dispose() {
+    _homeScrollController.removeListener(_handleScroll);
     _homeScrollController.dispose();
     _rootFocusNode.dispose();
     _rotationController.dispose();
     super.dispose();
+  }
+
+  // Handle scroll events to show/hide navbar
+  void _handleScroll() {
+    // Only apply to Home screen
+    if (_currentPage != 0) return;
+
+    if (!_homeScrollController.hasClients) return;
+
+    final currentScrollPosition = _homeScrollController.position.pixels;
+
+    // Determine if scrolling up or down
+    if (currentScrollPosition > _lastScrollPosition &&
+        currentScrollPosition > 10) {
+      // Scrolling down
+      if (_isNavBarVisible) {
+        setState(() {
+          _isNavBarVisible = false;
+        });
+      }
+    } else if (currentScrollPosition < _lastScrollPosition) {
+      // Scrolling up
+      if (!_isNavBarVisible) {
+        setState(() {
+          _isNavBarVisible = true;
+        });
+      }
+    }
+
+    _lastScrollPosition = currentScrollPosition;
   }
 
   void _onItemTapped(int index) {
@@ -102,6 +138,11 @@ class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
             duration: const Duration(milliseconds: 300),
             curve: Curves.easeInOut,
           );
+
+          // Show navbar when scrolling to top
+          setState(() {
+            _isNavBarVisible = true;
+          });
         }
       }
     }
@@ -109,6 +150,8 @@ class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
     // Update the current page index
     setState(() {
       _currentPage = index;
+      // Show navbar when changing tabs
+      _isNavBarVisible = true;
     });
 
     // Update the URL without rebuilding the page
@@ -305,46 +348,54 @@ class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       floatingActionButton: _isKeyboardVisible
           ? null
-          : GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTap: () {
-                print("Main FAB button tapped");
-                _toggleExpanded();
-              },
-              child: Container(
-                width: 56,
-                height: 56,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.2),
-                      spreadRadius: 1,
-                      blurRadius: 3,
-                      offset: const Offset(0, 1),
-                    ),
-                  ],
-                  gradient: const LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      Color(0xFF14CFEE),
-                      Color(0xFF2196F3),
-                    ],
-                  ),
-                ),
-                child: AnimatedBuilder(
-                  animation: _rotationAnimation,
-                  builder: (context, child) {
-                    return Transform.rotate(
-                      angle: _rotationAnimation.value * 2.0 * 3.14159,
-                      child: const Icon(
-                        Icons.add,
-                        size: 28,
-                        color: Colors.white,
-                      ),
-                    );
+          : AnimatedSlide(
+              duration: const Duration(milliseconds: 200),
+              offset: _isNavBarVisible ? Offset.zero : const Offset(0, 2),
+              child: AnimatedOpacity(
+                duration: const Duration(milliseconds: 200),
+                opacity: _isNavBarVisible ? 1.0 : 0.0,
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () {
+                    print("Main FAB button tapped");
+                    _toggleExpanded();
                   },
+                  child: Container(
+                    width: 56,
+                    height: 56,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.2),
+                          spreadRadius: 1,
+                          blurRadius: 3,
+                          offset: const Offset(0, 1),
+                        ),
+                      ],
+                      gradient: const LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          Color(0xFF14CFEE),
+                          Color(0xFF2196F3),
+                        ],
+                      ),
+                    ),
+                    child: AnimatedBuilder(
+                      animation: _rotationAnimation,
+                      builder: (context, child) {
+                        return Transform.rotate(
+                          angle: _rotationAnimation.value * 2.0 * 3.14159,
+                          child: const Icon(
+                            Icons.add,
+                            size: 28,
+                            color: Colors.white,
+                          ),
+                        );
+                      },
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -352,48 +403,56 @@ class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
         duration: const Duration(milliseconds: 200),
         child: _isKeyboardVisible
             ? const SizedBox.shrink()
-            : SafeArea(
-                bottom: false,
-                child: AnimatedBottomNavigationBar.builder(
-                  key: const ValueKey('navBar'),
-                  itemCount: _bottomNavBarTitles.length,
-                  tabBuilder: (int index, bool isActive) {
-                    return Center(
-                      child: SizedBox(
-                        width: 26,
-                        height: 26,
-                        child: FittedBox(
-                          fit: BoxFit.contain,
-                          child: ColorFiltered(
-                            colorFilter: ColorFilter.mode(
-                              isActive
-                                  ? Theme.of(context).colorScheme.primary
-                                  : Theme.of(context).unselectedWidgetColor,
-                              BlendMode.srcIn,
-                            ),
-                            child: Iconify(
-                              _iconifyPaths[index],
-                              size: 100, // 실제 크기는 FittedBox가 제어함
+            : AnimatedSlide(
+                duration: const Duration(milliseconds: 200),
+                offset: _isNavBarVisible ? Offset.zero : const Offset(0, 1),
+                child: AnimatedOpacity(
+                  duration: const Duration(milliseconds: 200),
+                  opacity: _isNavBarVisible ? 1.0 : 0.0,
+                  child: SafeArea(
+                    bottom: false,
+                    child: AnimatedBottomNavigationBar.builder(
+                      key: const ValueKey('navBar'),
+                      itemCount: _bottomNavBarTitles.length,
+                      tabBuilder: (int index, bool isActive) {
+                        return Center(
+                          child: SizedBox(
+                            width: 26,
+                            height: 26,
+                            child: FittedBox(
+                              fit: BoxFit.contain,
+                              child: ColorFiltered(
+                                colorFilter: ColorFilter.mode(
+                                  isActive
+                                      ? Theme.of(context).colorScheme.primary
+                                      : Theme.of(context).unselectedWidgetColor,
+                                  BlendMode.srcIn,
+                                ),
+                                child: Iconify(
+                                  _iconifyPaths[index],
+                                  size: 100, // 실제 크기는 FittedBox가 제어함
+                                ),
+                              ),
                             ),
                           ),
-                        ),
+                        );
+                      },
+                      activeIndex: _currentPage,
+                      splashSpeedInMilliseconds: 0,
+                      gapLocation: GapLocation.center,
+                      notchSmoothness: NotchSmoothness.softEdge,
+                      leftCornerRadius: 32,
+                      rightCornerRadius: 32,
+                      onTap: _onItemTapped,
+                      backgroundColor: Theme.of(context).cardColor,
+                      splashColor: Colors.transparent,
+                      splashRadius: 0,
+                      shadow: const BoxShadow(
+                        color: Colors.transparent,
+                        blurRadius: 0,
+                        spreadRadius: 0,
                       ),
-                    );
-                  },
-                  activeIndex: _currentPage,
-                  splashSpeedInMilliseconds: 0,
-                  gapLocation: GapLocation.center,
-                  notchSmoothness: NotchSmoothness.softEdge,
-                  leftCornerRadius: 32,
-                  rightCornerRadius: 32,
-                  onTap: _onItemTapped,
-                  backgroundColor: Theme.of(context).cardColor,
-                  splashColor: Colors.transparent,
-                  splashRadius: 0,
-                  shadow: const BoxShadow(
-                    color: Colors.transparent,
-                    blurRadius: 0,
-                    spreadRadius: 0,
+                    ),
                   ),
                 ),
               ),
