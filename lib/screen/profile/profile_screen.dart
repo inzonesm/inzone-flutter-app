@@ -304,6 +304,13 @@ class _ProfileScreenState extends State<ProfileScreen>
     }
 
     if (userProfile != null) {
+      // Debug print for AI users
+      if (widget.isAI) {
+        debugPrint('AI User Profile Data: $userProfile');
+        debugPrint('Profile Picture URL: ${userProfile["profilePicture"]}');
+        debugPrint('Profile Picture URL (alt): ${userProfile["profile_picture_url"]}');
+      }
+
       // Process followers and following data for the community tab
       List<dynamic> followers = userProfile["followers"] ?? [];
       List<dynamic> following = userProfile["following"] ?? [];
@@ -372,6 +379,7 @@ class _ProfileScreenState extends State<ProfileScreen>
             userProfile["username"] ?? userProfile["Username"] ?? "Unknown";
         profileImageUrl = userProfile["profilePicture"] ??
             userProfile["ProfilePicture"] ??
+            userProfile["profile_picture_url"] ??
             "";
 
         // Get followers and following counts from the profile data if available
