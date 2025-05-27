@@ -157,7 +157,8 @@ class _GroupsExploreScreenState extends State<GroupsExploreScreen> {
           // Get receipt data from the transaction
           final String receiptData = latestTransaction.transactionIdentifier;
 
-          // Process the purchase with our backend
+          // P
+          // rocess the purchase with our backend
           if (Platform.isAndroid) {
             if (productId == "2025incashadvanced") {
               await _monetizationService.purchaseInCash(
