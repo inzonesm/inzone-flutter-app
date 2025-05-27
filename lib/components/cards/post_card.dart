@@ -57,11 +57,11 @@ class _PostCardState extends State<PostCard> {
   // Native Ad variables
   NativeAd? _nativeAd;
   bool _nativeAdIsLoaded = false;
-  
+
   // Ad Unit IDs
   final String _androidAdUnitId = 'ca-app-pub-4474122990542651~2720978162';
   final String _iosAdUnitId = 'ca-app-pub-4474122990542651~2508616366';
-  
+
   bool isLiked = false;
   Future<bool> isCommentPresent() async {
     DocumentReference postDocumentReference =
@@ -129,22 +129,23 @@ class _PostCardState extends State<PostCard> {
     super.initState();
     _loadLikedState(); // Load the liked state when the widget is initialized
     _loadUserProfileImage();
-    
+
     // Load native ad if isAd is true
     if (widget.isAd) {
       _loadNativeAd();
     }
   }
-  
+
   void _loadNativeAd() {
     // Use production ad units
     final adUnitId = Platform.isAndroid
-        ? 'ca-app-pub-4474122990542651/3780044430'  // Production Android native ad unit
+        ? 'ca-app-pub-4474122990542651/3780044430' // Production Android native ad unit
         : 'ca-app-pub-4474122990542651/5132045741'; // Production iOS native ad unit
 
     _nativeAd = NativeAd(
       adUnitId: adUnitId,
-      factoryId: 'adFactoryExample', // Must match the factory ID registered in native code
+      factoryId:
+          'adFactoryExample', // Must match the factory ID registered in native code
       listener: NativeAdListener(
         onAdLoaded: (ad) {
           debugPrint('Native ad loaded');
@@ -166,7 +167,7 @@ class _PostCardState extends State<PostCard> {
       ),
       request: const AdRequest(),
     );
-    
+
     _nativeAd!.load();
   }
 
@@ -183,7 +184,7 @@ class _PostCardState extends State<PostCard> {
     if (oldWidget.post.id != widget.post.id) {
       _loadLikedState();
     }
-    
+
     // If the isAd flag changed, load or dispose the ad
     if (oldWidget.isAd != widget.isAd) {
       if (widget.isAd) {
@@ -260,7 +261,7 @@ class _PostCardState extends State<PostCard> {
             decoration: BoxDecoration(
               boxShadow: [
                 BoxShadow(
-                  color: Theme.of(context).brightness == Brightness.dark 
+                  color: Theme.of(context).brightness == Brightness.dark
                       ? Colors.black.withOpacity(0.3)
                       : Colors.black.withOpacity(0.1),
                   blurRadius: 8,
@@ -283,7 +284,8 @@ class _PostCardState extends State<PostCard> {
                         color: Theme.of(context).primaryColor.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(20),
                         border: Border.all(
-                          color: Theme.of(context).primaryColor.withOpacity(0.3),
+                          color:
+                              Theme.of(context).primaryColor.withOpacity(0.3),
                           width: 1,
                         ),
                       ),
@@ -302,19 +304,27 @@ class _PostCardState extends State<PostCard> {
                             Text(
                               'Sponsored',
                               style: TextStyle(
-                                color: Theme.of(context).textTheme.titleLarge?.color,
+                                color: Theme.of(context)
+                                    .textTheme
+                                    .titleLarge
+                                    ?.color,
                                 fontWeight: FontWeight.bold,
                                 fontSize: 20,
                               ),
                             ),
                             const SizedBox(width: 8),
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 6, vertical: 2),
                               decoration: BoxDecoration(
-                                color: Theme.of(context).primaryColor.withOpacity(0.2),
+                                color: Theme.of(context)
+                                    .primaryColor
+                                    .withOpacity(0.2),
                                 borderRadius: BorderRadius.circular(4),
                                 border: Border.all(
-                                  color: Theme.of(context).primaryColor.withOpacity(0.4),
+                                  color: Theme.of(context)
+                                      .primaryColor
+                                      .withOpacity(0.4),
                                   width: 0.5,
                                 ),
                               ),
@@ -469,8 +479,8 @@ class _PostCardState extends State<PostCard> {
                   const Spacer(),
                   GestureDetector(
                     onTap: () {
-                      HapticFeedback.lightImpact();
                       _showOptionsBottomSheet(context);
+                      HapticFeedback.lightImpact();
                     },
                     child: Padding(
                       padding: const EdgeInsets.all(15),
@@ -615,53 +625,51 @@ class _PostCardState extends State<PostCard> {
   }
 
   void _showOptionsBottomSheet(BuildContext context) {
-    Future.microtask(() {
-      showModalBottomSheet(
-        isScrollControlled: true,
-        backgroundColor: Colors.transparent,
-        context: context,
-        builder: (context) => Container(
-          decoration: BoxDecoration(
-            color: Theme.of(context).cardColor,
-            borderRadius: const BorderRadius.only(
-              topRight: Radius.circular(30),
-              topLeft: Radius.circular(30),
-            ),
+    showModalBottomSheet(
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      context: context,
+      builder: (context) => Container(
+        decoration: BoxDecoration(
+          color: Theme.of(context).cardColor,
+          borderRadius: const BorderRadius.only(
+            topRight: Radius.circular(30),
+            topLeft: Radius.circular(30),
           ),
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 5),
-                child: Center(
-                  child: Container(
-                    width: 50,
-                    height: 5,
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).dividerColor,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 5),
+              child: Center(
+                child: Container(
+                  width: 50,
+                  height: 5,
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).dividerColor,
+                    borderRadius: BorderRadius.circular(10),
                   ),
                 ),
               ),
-              const SizedBox(height: 15),
-              _optionItem(
-                CustomIcons.notInterested,
-                "Flag this post",
-                "not_interested",
-              ),
-              _optionItem(
-                CustomIcons.dontShow,
-                "Block ${widget.post.userName}",
-                "dont_show",
-              ),
-              const SizedBox(height: 15),
-            ],
-          ),
+            ),
+            const SizedBox(height: 15),
+            _optionItem(
+              CustomIcons.notInterested,
+              "Report this post",
+              "not_interested",
+            ),
+            _optionItem(
+              CustomIcons.dontShow,
+              "Report ${widget.post.userName}",
+              "dont_show",
+            ),
+            const SizedBox(height: 15),
+          ],
         ),
-      );
-    });
+      ),
+    );
   }
 
   Widget _buildVideoWidget(String videoUrl, double aspectRatio) {
@@ -685,18 +693,11 @@ class _PostCardState extends State<PostCard> {
       onTap: () async {
         Navigator.pop(context); // Close the bottom sheet
         if (value == "not_interested") {
-          const snackBar = SnackBar(
-            content: Text("This post has been flagged for review."),
-            backgroundColor: Colors.red,
-          );
-          ScaffoldMessenger.of(context).showSnackBar(snackBar);
+          // Show reason input dialog for post
+          _showReportReasonDialog(context);
         } else if (value == "dont_show") {
-          final snackBar = SnackBar(
-            content:
-                Text("Posts from ${widget.post.userName} will not be shown."),
-            backgroundColor: Colors.red,
-          );
-          ScaffoldMessenger.of(context).showSnackBar(snackBar);
+          // Show reason input dialog for user
+          _showReportUserDialog(context);
         }
       },
       child: Padding(
@@ -716,6 +717,527 @@ class _PostCardState extends State<PostCard> {
         ),
       ),
     );
+  }
+
+  // Show dialog to get report reason from user for post reporting
+  void _showReportReasonDialog(BuildContext context) {
+    final TextEditingController reasonController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20.0),
+          ),
+          elevation: 0,
+          backgroundColor: Colors.transparent,
+          child: Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Theme.of(context).cardColor,
+              shape: BoxShape.rectangle,
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  blurRadius: 10,
+                  offset: const Offset(0, 5),
+                ),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  children: [
+                    Icon(
+                      Icons.report_problem_rounded,
+                      color: Theme.of(context).colorScheme.error,
+                      size: 28,
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      'Report Post',
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        color: Theme.of(context).textTheme.titleLarge?.color,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                Container(
+                  padding: const EdgeInsets.all(15),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context)
+                        .colorScheme
+                        .surfaceContainerHighest
+                        .withOpacity(0.3),
+                    borderRadius: BorderRadius.circular(15),
+                  ),
+                  child: Text(
+                    'Please tell us why you\'re reporting this post. This will help us take appropriate action.',
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: Theme.of(context).textTheme.bodyMedium?.color,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                TextField(
+                  controller: reasonController,
+                  decoration: InputDecoration(
+                    hintText: 'Enter reason',
+                    hintStyle: TextStyle(
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? Colors.grey[400]
+                          : Colors.grey[600],
+                    ),
+                    filled: true,
+                    fillColor: Theme.of(context).brightness == Brightness.dark
+                        ? Colors.grey[800]
+                        : Colors.grey[100],
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(15),
+                      borderSide: BorderSide(
+                        color: Theme.of(context).dividerColor,
+                        width: 1,
+                      ),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(15),
+                      borderSide: BorderSide(
+                        color: Theme.of(context).colorScheme.primary,
+                        width: 2,
+                      ),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 16),
+                  ),
+                  style: TextStyle(
+                    color: Theme.of(context).brightness == Brightness.dark
+                        ? Colors.white
+                        : Colors.black,
+                    fontSize: 16,
+                  ),
+                  maxLines: 3,
+                ),
+                const SizedBox(height: 24),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      onPressed: () {
+                        Navigator.of(context).pop(); // Close dialog
+                      },
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 20, vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                      child: Text(
+                        'Cancel',
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: Theme.of(context).textTheme.bodyMedium?.color,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    ElevatedButton(
+                      onPressed: () {
+                        // Get the reason text
+                        final reason = reasonController.text.trim();
+                        if (reason.isNotEmpty) {
+                          // Submit report with user's reason
+                          _submitPostReport(reason);
+                          Navigator.of(context).pop(); // Close dialog
+                        } else {
+                          // Show error if reason is empty
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content:
+                                  Text('Please enter a reason for reporting'),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                        }
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Theme.of(context).colorScheme.primary,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 20, vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                      child: const Text(
+                        'Submit',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  // Show dialog to get report reason for user reporting
+  void _showReportUserDialog(BuildContext context) {
+    final TextEditingController reasonController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20.0),
+          ),
+          elevation: 0,
+          backgroundColor: Colors.transparent,
+          child: Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Theme.of(context).cardColor,
+              shape: BoxShape.rectangle,
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  blurRadius: 10,
+                  offset: const Offset(0, 5),
+                ),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  children: [
+                    Icon(
+                      Icons.person_off_rounded,
+                      color: Theme.of(context).colorScheme.error,
+                      size: 28,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'Report ${widget.post.userName}',
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                          color: Theme.of(context).textTheme.titleLarge?.color,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                Container(
+                  padding: const EdgeInsets.all(15),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context)
+                        .colorScheme
+                        .surfaceContainerHighest
+                        .withOpacity(0.3),
+                    borderRadius: BorderRadius.circular(15),
+                  ),
+                  child: Text(
+                    'Please tell us why you\'re reporting this user. This will help us maintain a safe environment.',
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: Theme.of(context).textTheme.bodyMedium?.color,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                TextField(
+                  controller: reasonController,
+                  decoration: InputDecoration(
+                    hintText: 'Enter reason',
+                    hintStyle: TextStyle(
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? Colors.grey[400]
+                          : Colors.grey[600],
+                    ),
+                    filled: true,
+                    fillColor: Theme.of(context).brightness == Brightness.dark
+                        ? Colors.grey[800]
+                        : Colors.grey[100],
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(15),
+                      borderSide: BorderSide(
+                        color: Theme.of(context).dividerColor,
+                        width: 1,
+                      ),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(15),
+                      borderSide: BorderSide(
+                        color: Theme.of(context).colorScheme.primary,
+                        width: 2,
+                      ),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 16),
+                  ),
+                  style: TextStyle(
+                    color: Theme.of(context).brightness == Brightness.dark
+                        ? Colors.white
+                        : Colors.black,
+                    fontSize: 16,
+                  ),
+                  maxLines: 3,
+                ),
+                const SizedBox(height: 24),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      onPressed: () {
+                        Navigator.of(context).pop(); // Close dialog
+                      },
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 20, vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                      child: Text(
+                        'Cancel',
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: Theme.of(context).textTheme.bodyMedium?.color,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    ElevatedButton(
+                      onPressed: () {
+                        // Get the reason text
+                        final reason = reasonController.text.trim();
+                        if (reason.isNotEmpty) {
+                          // Submit report with user's reason
+                          _submitUserReport(reason);
+                          Navigator.of(context).pop(); // Close dialog
+                        } else {
+                          // Show error if reason is empty
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content:
+                                  Text('Please enter a reason for reporting'),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                        }
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Theme.of(context).colorScheme.primary,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 20, vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                      child: const Text(
+                        'Submit',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  // Submit post report to Firebase
+  void _submitPostReport(String reason) async {
+    try {
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser != null && currentUser.uid.isNotEmpty) {
+        // Check if a report for this post already exists
+        final querySnapshot = await FirebaseFirestore.instance
+            .collection('reportPost')
+            .where('post_id', isEqualTo: widget.post.id)
+            .get();
+
+        if (querySnapshot.docs.isNotEmpty) {
+          // Report exists, increment count
+          final existingReport = querySnapshot.docs.first;
+          final int currentCount = existingReport['count'] ?? 0;
+
+          // Get existing reasons array or create a new one
+          List<dynamic> existingReasons = existingReport['reason'] ?? [];
+          if (existingReasons is String) {
+            // Convert single string to array if needed
+            existingReasons = [existingReasons];
+          }
+
+          // Get existing reporters array or create a new one
+          List<dynamic> existingReporters = existingReport['reporter'] ?? [];
+          if (existingReporters is String) {
+            // Convert single string to array if needed
+            existingReporters = [existingReporters];
+          }
+
+          // Get existing dates array or create a new one
+          List<dynamic> existingDates = existingReport['date'] ?? [];
+
+          // Add new entries to arrays
+          existingReasons.add(reason);
+          existingReporters.add(currentUser.uid);
+
+          // Add current timestamp to existing dates
+          existingDates.add(Timestamp.now());
+
+          await existingReport.reference.update({
+            'count': currentCount + 1,
+            'reason': existingReasons, // Update with the array of reasons
+            'reporter': existingReporters, // Update with the array of reporters
+            'date': existingDates, // Use regular list with Timestamp.now()
+          });
+        } else {
+          // Create new report
+          final reportDocRef =
+              FirebaseFirestore.instance.collection('reportPost').doc();
+
+          // Get author from post (default to user reference if author is empty)
+          String author = widget.post.userReference.isNotEmpty
+              ? widget.post.userReference
+              : 'unknown';
+
+          await reportDocRef.set({
+            'author': author,
+            'count': 1, // Initial count
+            'date': [
+              Timestamp.now()
+            ], // Use Timestamp.now() instead of FieldValue.serverTimestamp()
+            'post_id': widget.post.id,
+            'reason': [reason], // Store reason as array
+            'reporter': [currentUser.uid], // Store reporter as array
+          });
+        }
+
+        const snackBar = SnackBar(
+          content: Text("This post has been flagged for review."),
+          backgroundColor: Colors.red,
+        );
+        ScaffoldMessenger.of(context).showSnackBar(snackBar);
+      }
+    } catch (e) {
+      debugPrint('Error reporting post: $e');
+      const snackBar = SnackBar(
+        content: Text("Failed to report post. Please try again."),
+        backgroundColor: Colors.red,
+      );
+      ScaffoldMessenger.of(context).showSnackBar(snackBar);
+    }
+  }
+
+  // Submit user report to Firebase
+  void _submitUserReport(String reason) async {
+    try {
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser != null && currentUser.uid.isNotEmpty) {
+        // Check if a report for this user already exists
+        final querySnapshot = await FirebaseFirestore.instance
+            .collection('reportUser')
+            .where('author', isEqualTo: widget.post.userReference)
+            .get();
+
+        if (querySnapshot.docs.isNotEmpty) {
+          // Report exists, increment count
+          final existingReport = querySnapshot.docs.first;
+          final int currentCount = existingReport['count'] ?? 0;
+
+          // Get existing reasons array or create a new one
+          List<dynamic> existingReasons = existingReport['reason'] ?? [];
+          if (existingReasons is String) {
+            // Convert single string to array if needed
+            existingReasons = [existingReasons];
+          }
+
+          // Get existing reporters array or create a new one
+          List<dynamic> existingReporters = existingReport['reporter'] ?? [];
+          if (existingReporters is String) {
+            // Convert single string to array if needed
+            existingReporters = [existingReporters];
+          }
+
+          // Get existing dates array or create a new one
+          List<dynamic> existingDates = existingReport['date'] ?? [];
+
+          // Add new entries to arrays
+          existingReasons.add(reason);
+          existingReporters.add(currentUser.uid);
+
+          // Add current timestamp to existing dates
+          existingDates.add(Timestamp.now());
+
+          await existingReport.reference.update({
+            'count': currentCount + 1,
+            'reason': existingReasons, // Update with the array of reasons
+            'reporter': existingReporters, // Update with the array of reporters
+            'date': existingDates, // Use regular list with Timestamp.now()
+          });
+        } else {
+          // Create new report
+          final reportDocRef =
+              FirebaseFirestore.instance.collection('reportUser').doc();
+
+          // Get author from post (default to user reference if author is empty)
+          String author = widget.post.userReference.isNotEmpty
+              ? widget.post.userReference
+              : 'unknown';
+
+          await reportDocRef.set({
+            'author': author, // User being reported
+            'count': 1, // Initial count
+            'date': [
+              Timestamp.now()
+            ], // Use Timestamp.now() instead of FieldValue.serverTimestamp()
+            'reason': [reason], // Store reason as array
+            'reporter': [currentUser.uid], // Store reporter as array
+          });
+        }
+
+        final snackBar = SnackBar(
+          content:
+              Text("Posts from ${widget.post.userName} will not be shown."),
+          backgroundColor: Colors.red,
+        );
+        ScaffoldMessenger.of(context).showSnackBar(snackBar);
+      }
+    } catch (e) {
+      debugPrint('Error reporting user: $e');
+      const snackBar = SnackBar(
+        content: Text("Failed to report user. Please try again."),
+        backgroundColor: Colors.red,
+      );
+      ScaffoldMessenger.of(context).showSnackBar(snackBar);
+    }
   }
 
   final TextEditingController _replyController = TextEditingController();
@@ -1093,7 +1615,8 @@ class _PostCardState extends State<PostCard> {
                                           userId: ""),
                                       const [],
                                       treeThemeData: TreeThemeData(
-                                          lineColor: Theme.of(context).cardColor,
+                                          lineColor:
+                                              Theme.of(context).cardColor,
                                           lineWidth: 0),
                                       avatarRoot: (context, data) =>
                                           const PreferredSize(
@@ -1326,7 +1849,7 @@ class _DynamicPageViewState extends State<_DynamicPageView> {
   void updateVideoHeight(int index, double newHeight) {
     if (_heights[index] != newHeight) {
       _heights[index] = newHeight;
-      
+
       if (_currentIndex == index && mounted) {
         setState(() {
           _currentHeight = newHeight;
@@ -1406,7 +1929,7 @@ class _DynamicPageViewState extends State<_DynamicPageView> {
                   // Initial height based on 16:9 aspect ratio - will be updated when video loads
                   double initialHeight = constraints.maxWidth * 9 / 16;
                   _updateHeightOnce(videoUrl, index, initialHeight);
-                  
+
                   return ClipRRect(
                     borderRadius: BorderRadius.circular(12),
                     child: _VideoWidgetWrapper(
@@ -1414,7 +1937,8 @@ class _DynamicPageViewState extends State<_DynamicPageView> {
                       maxWidth: constraints.maxWidth,
                       index: index,
                       onAspectRatioUpdated: (aspectRatio) {
-                        double calculatedHeight = constraints.maxWidth / aspectRatio;
+                        double calculatedHeight =
+                            constraints.maxWidth / aspectRatio;
                         updateVideoHeight(index, calculatedHeight);
                       },
                     ),
@@ -1449,7 +1973,7 @@ class _VideoWidgetWrapper extends StatefulWidget {
 
 class _VideoWidgetWrapperState extends State<_VideoWidgetWrapper> {
   final GlobalKey _videoKey = GlobalKey();
-  
+
   @override
   Widget build(BuildContext context) {
     return VideoWidget(
