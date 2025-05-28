@@ -82,10 +82,10 @@ class _ContentSelectionSettingsScreenState
   // Category icons
   final Map<String, String> categoryIcons = {
     'Social & Personal Development': 'icons/content_icons/cloths.png',
-    'Arts & Creativity': 'icons/content_icons/1.png',
-    'Entertainment & Pop Culture': 'icons/content_icons/2.png',
-    'Learning & Knowledge': 'icons/content_icons/3.png',
-    'Lifestyle & Hobbies': 'icons/content_icons/4.png',
+    'Arts & Creativity': 'icons/content_icons/music.png',
+    'Entertainment & Pop Culture': 'icons/content_icons/popcorn.png',
+    'Learning & Knowledge': 'icons/content_icons/tools.png',
+    'Lifestyle & Hobbies': 'icons/content_icons/game.png',
   };
 
   void _goBack() {
@@ -133,28 +133,16 @@ class _ContentSelectionSettingsScreenState
                     ),
                   ),
                   const Expanded(
-                    child: Column(
-                      children: [
-                        Text(
-                          'Interest',
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                        Text(
-                          'Pick things you\'d like to see on your feed',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ],
+                    child: Text(
+                      'Interest',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      textAlign: TextAlign.center,
                     ),
                   ),
-                  const SizedBox(width: 40),
+                  const SizedBox(width: 50),
                 ],
               ),
             ),
@@ -184,7 +172,7 @@ class _ContentSelectionSettingsScreenState
                                       width: 32,
                                       height: 32,
                                       decoration: BoxDecoration(
-                                        color: Theme.of(context).cardColor,
+                                        color: Colors.transparent,
                                         borderRadius: BorderRadius.circular(8),
                                       ),
                                       child: Padding(
@@ -205,18 +193,71 @@ class _ContentSelectionSettingsScreenState
                                   ],
                                 ),
                               ),
-                              Wrap(
-                                spacing: 10,
-                                runSpacing: 10,
-                                children: List.generate(
-                                  topics.length,
-                                  (i) {
-                                    return TopicSelectorWidget(
-                                      topic: topics[i],
-                                      callBack: addToList,
-                                    );
-                                  },
-                                ),
+                              SingleChildScrollView(
+                                scrollDirection: Axis.horizontal,
+                                child: topics.length <= 4
+                                    // Single row layout for 4 or fewer topics
+                                    ? Row(
+                                        children: topics
+                                            .map((topic) => TopicSelectorWidget(
+                                                  topic: topic,
+                                                  callBack: addToList,
+                                                ))
+                                            .toList(),
+                                      )
+                                    // Two-row layout for more than 4 topics
+                                    : SizedBox(
+                                        height:
+                                            110, // Height for 2 rows of topics
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            // First row
+                                            Expanded(
+                                              child: Row(
+                                                children: topics
+                                                    .sublist(
+                                                        0,
+                                                        (topics.length / 2)
+                                                                    .ceil() >
+                                                                topics.length
+                                                            ? topics.length
+                                                            : (topics.length /
+                                                                    2)
+                                                                .ceil())
+                                                    .map((topic) =>
+                                                        TopicSelectorWidget(
+                                                          topic: topic,
+                                                          callBack: addToList,
+                                                        ))
+                                                    .toList(),
+                                              ),
+                                            ),
+                                            const SizedBox(height: 5),
+                                            // Second row
+                                            Expanded(
+                                              child: Row(
+                                                children: topics.length >
+                                                        (topics.length / 2)
+                                                            .ceil()
+                                                    ? topics
+                                                        .sublist(
+                                                            (topics.length / 2)
+                                                                .ceil())
+                                                        .map((topic) =>
+                                                            TopicSelectorWidget(
+                                                              topic: topic,
+                                                              callBack:
+                                                                  addToList,
+                                                            ))
+                                                        .toList()
+                                                    : [],
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
                               ),
                               const SizedBox(height: 10),
                             ],
@@ -234,7 +275,11 @@ class _ContentSelectionSettingsScreenState
         bottomNavigationBar: Padding(
             padding:
                 const EdgeInsets.only(left: 15, right: 15, bottom: 30, top: 15),
-            child: Button(text: "Done", onPressed: _saveSelection)),
+            child: Button(
+                text: selectedTopics.isEmpty
+                    ? "Done"
+                    : "Done  (${selectedTopics.length} selected)",
+                onPressed: _saveSelection)),
       ),
     );
   }
