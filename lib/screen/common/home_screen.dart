@@ -9,7 +9,10 @@ import 'package:inzone/components/profile/avatar_story_component.dart';
 import 'package:inzone/components/ui/appbar.dart';
 import 'package:inzone/data/inzone_avatar.dart';
 import 'package:inzone/data/inzone_post.dart';
+import 'package:inzone/router/routes.dart';
 import 'package:inzone/services/inzone_database.dart';
+import 'package:go_router/go_router.dart';
+import 'package:inzone/screen/common/search_explore_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key, this.controller});
@@ -153,7 +156,6 @@ class HomeScreenState extends State<HomeScreen> {
     });
 
     try {
-      // 배치로 더 많은 데이터를 로드
       final response = await InZoneDatabase.getFeed(page: reloadCount);
 
       if (!mounted) return;
@@ -182,14 +184,10 @@ class HomeScreenState extends State<HomeScreen> {
             _currentPage++;
             hasMorePosts = newPosts.isNotEmpty;
 
-            // 다음 페이지가 필요할 것으로 예상되면 미리 준비
             if (hasMorePosts && (_currentPage % 2 == 0)) {
-              // 미리 다음 페이지 데이터 준비 (비동기적으로)
-              Future.delayed(const Duration(milliseconds: 200), () {
-                if (mounted && !isLoadingMore && hasMorePosts) {
-                  _preloadNextPage();
-                }
-              });
+              if (mounted && !isLoadingMore && hasMorePosts) {
+                _preloadNextPage();
+              }
             }
           });
         } else {
@@ -211,21 +209,15 @@ class HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  // 다음 페이지 데이터 미리 로드 (백그라운드)
   Future<void> _preloadNextPage() async {
-    // 이미 로딩 중이면 중복 실행 방지
     if (isLoadingMore || !mounted) return;
 
-    // 실제로 UI에 로딩 상태를 표시하지 않고 내부적으로만 로딩
     bool wasLoading = isLoadingMore;
     isLoadingMore = true;
     reloadCount++;
 
     try {
       await InZoneDatabase.getFeed(page: reloadCount);
-      // 결과는 실제로 사용하지 않고, 캐시에만 저장
-    } catch (e) {
-      // 조용히 오류 처리
     } finally {
       if (mounted) {
         isLoadingMore = wasLoading;
@@ -365,7 +357,6 @@ class HomeScreenState extends State<HomeScreen> {
         isAi: false,
       );
 
-      // 각 광고마다 개별적인 상태를 가지는 별도의 위젯 사용
       return _AdPostCard(
         adPost: adPost,
         index: index,
@@ -502,7 +493,21 @@ class HomeScreenState extends State<HomeScreen> {
                       isHome: true,
                       userPoints: "100",
                       profileImageUrl: null,
-                      onSearchTap: () {},
+                      onSearchTap: () {
+                        try {
+                          // context.push(Routes.searchExplore);
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (context) => const SearchExploreScreen(),
+                            ),
+                          );
+                        } catch (e) {
+                          print('Error navigating to search: $e');
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('검색 화면으로 이동할 수 없습니다: $e')),
+                          );
+                        }
+                      },
                       onProfileTap: () {},
                       onPointsTap: () {},
                     ),
@@ -569,7 +574,22 @@ class HomeScreenState extends State<HomeScreen> {
                         isHome: true,
                         userPoints: "100",
                         profileImageUrl: null,
-                        onSearchTap: () {},
+                        onSearchTap: () {
+                          try {
+                            // context.push(Routes.searchExplore);
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (context) =>
+                                    const SearchExploreScreen(),
+                              ),
+                            );
+                          } catch (e) {
+                            print('Error navigating to search: $e');
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('검색 화면으로 이동할 수 없습니다: $e')),
+                            );
+                          }
+                        },
                         onProfileTap: () {},
                         onPointsTap: () {},
                       ),
@@ -651,7 +671,6 @@ class HomeScreenState extends State<HomeScreen> {
   }
 }
 
-// 광고 포스트 카드 위젯 - 각 광고마다 개별적인 상태를 가짐
 class _AdPostCard extends StatefulWidget {
   final InZonePost adPost;
   final int index;

@@ -55,7 +55,6 @@ class _CustomAppBarState extends State<CustomAppBar> {
 
   Future<void> _loadUserBalance() async {
     try {
-
       final response = await _monetizationService.getBalance();
 
       if (response['success'] == true) {
@@ -66,8 +65,7 @@ class _CustomAppBarState extends State<CustomAppBar> {
             _userBalance = balance.toString();
           });
         }
-      } else {
-      }
+      } else {}
     } catch (e) {
       debugPrint('CustomAppBar: Error loading balance: $e');
     }
@@ -106,6 +104,27 @@ class _CustomAppBarState extends State<CustomAppBar> {
                     style: Theme.of(context).textTheme.headlineMedium,
                   ),
                   const Spacer(),
+                  if (widget.isHome &&
+                      !widget.isGroup &&
+                      !widget.isChat &&
+                      !widget.isSettings)
+                    GestureDetector(
+                      onTap: widget.onSearchTap,
+                      child: Container(
+                        width: 48,
+                        height: 48,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Theme.of(context).cardColor,
+                        ),
+                        child: Icon(
+                          Icons.search,
+                          color: Theme.of(context).iconTheme.color,
+                          size: 28,
+                        ),
+                      ),
+                    ),
+
                   if (widget.isGroup)
                     GestureDetector(
                       onTap: widget.onSearchTap,

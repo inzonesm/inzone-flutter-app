@@ -15,6 +15,8 @@ import 'package:inzone/screen/auth/signin_login_screen.dart';
 import 'package:inzone/screen/auth/profile_screen.dart' as auth;
 import 'package:inzone/screen/auth/interesting_select_screen.dart';
 import 'package:inzone/screen/common/home_screen.dart';
+import 'package:inzone/screen/common/search_explore_screen.dart';
+import 'package:inzone/screen/common/characters_screen.dart';
 import 'package:inzone/screen/explore/groups_explore_screen.dart';
 import 'package:inzone/screen/chat/all_chats_screen.dart';
 import 'package:inzone/screen/profile/user_profile_screen.dart';
@@ -210,6 +212,20 @@ class AppRouter {
           GoRoute(
             path: Routes.profile_tab,
             builder: (context, state) => const UserProfileScreen(),
+          ),
+          GoRoute(
+            path: Routes.searchExplore,
+            builder: (context, state) {
+              return const SearchExploreScreen();
+            },
+          ),
+          GoRoute(
+            path: Routes.characters,
+            pageBuilder: (context, state) {
+              return const NoTransitionPage(
+                child: CharactersScreen(),
+              );
+            },
           ),
         ],
       ),

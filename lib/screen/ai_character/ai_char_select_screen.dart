@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
-import 'package:inzone/components/ui/appbar.dart';
 import 'package:inzone/components/ui/button.dart';
 
 class AICharacterSelectionScreen extends StatefulWidget {

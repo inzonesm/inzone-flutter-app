@@ -12,6 +12,8 @@ class Routes {
   static const String groups = '/groups';
   static const String chats = '/chats';
   static const String profile_tab = '/profile';
+  static const String searchExplore = '/search_explore';
+  static const String characters = '/characters';
 
   // Feature routes
   static const String post = '/post';
