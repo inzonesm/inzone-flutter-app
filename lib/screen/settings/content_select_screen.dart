@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:inzone/components/settings/topic_selector_widget.dart';
 import 'package:inzone/components/ui/appbar.dart';
 import 'package:go_router/go_router.dart';
+import 'package:inzone/components/ui/button.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 class ContentSelectionSettingsScreen extends StatefulWidget {
   const ContentSelectionSettingsScreen({super.key});
@@ -34,37 +36,57 @@ class _ContentSelectionSettingsScreenState
     context.pop();
   }
 
-  final List<String> topicList = [
-    'environmental_conservation',
-    'bullying_prevention',
-    'mental_health',
-    'inclusivity',
-    'anti_discrimination',
-    'healthy_habits',
-    'community_service',
-    'creativity',
-    'science',
-    'funny_memes',
-    'diy',
-    'video_game_reviews',
-    'animated_movies',
-    'challenge_videos',
-    'cooking',
-    'animals',
-    'magic_tricks',
-    'board_games',
-    'art',
-    'dance',
-    'outdoor_adventures',
-    'music',
-    'books',
-    'travel',
-    'lego',
-    'fashion',
-    'financial_literacy',
-    'empowerment',
-    'friendship',
-  ];
+  // Topic categories
+  final Map<String, List<String>> topicCategories = {
+    'Social & Personal Development': [
+      'environmental_conservation',
+      'bullying_prevention',
+      'mental_health',
+      'inclusivity',
+      'anti_discrimination',
+      'healthy_habits',
+      'financial_literacy',
+      'empowerment',
+      'friendship',
+      'community_service',
+    ],
+    'Arts & Creativity': [
+      'creativity',
+      'art',
+      'dance',
+      'music',
+      'fashion',
+    ],
+    'Entertainment & Pop Culture': [
+      'funny_memes',
+      'animated_movies',
+      'challenge_videos',
+      'video_game_reviews',
+      'board_games',
+      'magic_tricks',
+      'lego',
+    ],
+    'Learning & Knowledge': [
+      'science',
+      'books',
+    ],
+    'Lifestyle & Hobbies': [
+      'diy',
+      'cooking',
+      'animals',
+      'outdoor_adventures',
+      'travel',
+    ],
+  };
+
+  // Category icons
+  final Map<String, String> categoryIcons = {
+    'Social & Personal Development': 'icons/content_icons/cloths.png',
+    'Arts & Creativity': 'icons/content_icons/1.png',
+    'Entertainment & Pop Culture': 'icons/content_icons/2.png',
+    'Learning & Knowledge': 'icons/content_icons/3.png',
+    'Lifestyle & Hobbies': 'icons/content_icons/4.png',
+  };
 
   void _goBack() {
     context.pop();
@@ -79,44 +101,128 @@ class _ContentSelectionSettingsScreenState
       top: true,
       bottom: false,
       child: Scaffold(
-        appBar: PreferredSize(
-          preferredSize: const Size.fromHeight(100),
-          child: Padding(
-            padding: const EdgeInsets.only(top: 2),
-            child: CustomAppBar(
-              isImage: false,
-              isSettings: true,
-              isHome: true,
-              title: "Select Topics",
-              userPoints: "100",
-              onSearchTap: () {},
-              onProfileTap: () {},
-              onPointsTap: () {},
-            ),
-          ),
-        ),
         body: Column(
           children: [
+            Padding(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+              child: Row(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.only(right: 8.0),
+                    child: GestureDetector(
+                      onTap: () {
+                        Navigator.of(context).pop();
+                      },
+                      child: CircleAvatar(
+                        radius: 22,
+                        backgroundColor: Theme.of(context).cardColor,
+                        foregroundColor: Theme.of(context).cardColor,
+                        child: Padding(
+                          padding: const EdgeInsets.only(left: 5),
+                          child: Center(
+                            child: Icon(
+                              Icons.arrow_back_ios,
+                              size: 18,
+                              color:
+                                  Theme.of(context).textTheme.bodyMedium?.color,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const Expanded(
+                    child: Column(
+                      children: [
+                        Text(
+                          'Interest',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        Text(
+                          'Pick things you\'d like to see on your feed',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 40),
+                ],
+              ),
+            ),
             Expanded(
               child: CustomScrollView(
                 slivers: [
                   SliverPadding(
                     padding: const EdgeInsets.symmetric(
                         horizontal: 12, vertical: 10),
-                    sliver: SliverToBoxAdapter(
-                      child: Wrap(
-                        spacing: 10,
-                        runSpacing: 10,
-                        children: List.generate(
-                          topicList.length,
-                          (index) {
-                            String currentTopic = topicList[index];
-                            return TopicSelectorWidget(
-                              topic: currentTopic,
-                              callBack: addToList,
-                            );
-                          },
-                        ),
+                    sliver: SliverList(
+                      delegate: SliverChildBuilderDelegate(
+                        (context, index) {
+                          String categoryName =
+                              topicCategories.keys.elementAt(index);
+                          List<String> topics = topicCategories[categoryName]!;
+                          String iconPath = categoryIcons[categoryName]!;
+
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Padding(
+                                padding: const EdgeInsets.only(
+                                    left: 8.0, top: 16.0, bottom: 8.0),
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      width: 32,
+                                      height: 32,
+                                      decoration: BoxDecoration(
+                                        color: Theme.of(context).cardColor,
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: Padding(
+                                        padding: const EdgeInsets.all(6.0),
+                                        child: Image.asset(
+                                          iconPath,
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      categoryName,
+                                      style: const TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Wrap(
+                                spacing: 10,
+                                runSpacing: 10,
+                                children: List.generate(
+                                  topics.length,
+                                  (i) {
+                                    return TopicSelectorWidget(
+                                      topic: topics[i],
+                                      callBack: addToList,
+                                    );
+                                  },
+                                ),
+                              ),
+                              const SizedBox(height: 10),
+                            ],
+                          );
+                        },
+                        childCount: topicCategories.length,
                       ),
                     ),
                   ),
@@ -126,35 +232,9 @@ class _ContentSelectionSettingsScreenState
           ],
         ),
         bottomNavigationBar: Padding(
-          padding:
-              const EdgeInsets.only(left: 15, right: 15, bottom: 30, top: 15),
-          child: GestureDetector(
-            onTap: () async {
-              _saveSelection();
-            },
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              height: 60,
-              width: MediaQuery.of(context).size.width - 80,
-              decoration: BoxDecoration(
-                  color: Colors.blueAccent,
-                  borderRadius: BorderRadius.circular(20)),
-              child: const Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    'DONE',
-                    style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
+            padding:
+                const EdgeInsets.only(left: 15, right: 15, bottom: 30, top: 15),
+            child: Button(text: "Done", onPressed: _saveSelection)),
       ),
     );
   }
