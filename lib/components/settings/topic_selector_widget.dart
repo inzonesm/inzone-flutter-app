@@ -28,6 +28,19 @@ class _TopicSelectorWidgetState extends State<TopicSelectorWidget> {
 
   @override
   Widget build(BuildContext context) {
+    // Colors for the widget
+    const brightBlue = Color(0xFF4E9AF5); // Bright blue color
+    const selectedBorderColor = brightBlue;
+    final selectedBackgroundColor =
+        brightBlue.withOpacity(0.2); // Lighter bright blue
+    const unselectedBackgroundColor =
+        Color(0xFFE9EDF0); // Light gray color from image
+
+    // Check if dark mode is enabled
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final unselectedTextColor = isDarkMode ? Colors.black87 : Colors.black87;
+    final selectedTextColor = isDarkMode ? Colors.white : Colors.black87;
+
     return GestureDetector(
       onTap: () {
         setState(() {
@@ -39,40 +52,58 @@ class _TopicSelectorWidgetState extends State<TopicSelectorWidget> {
       },
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-        margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+        margin: const EdgeInsets.symmetric(horizontal: 5, vertical: 5),
         decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(10),
-            color: selected
-                ? Theme.of(context).colorScheme.primary
-                : Theme.of(context).colorScheme.secondary,
-            boxShadow: [
-              BoxShadow(
-                  color: Theme.of(context).primaryColor.withOpacity(0.2),
-                  spreadRadius: 3,
-                  offset: const Offset(0, 5),
-                  blurRadius: 7)
-            ]),
+          borderRadius: BorderRadius.circular(30),
+          color: selected ? selectedBackgroundColor : unselectedBackgroundColor,
+          border: selected
+              ? Border.all(color: selectedBorderColor, width: 1.5)
+              : null,
+        ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            SvgPicture.asset(
-              widget.topic.length > 2
-                  ? "icons/category_icons/${widget.topic}.svg"
-                  : "icons/category_icons/animals.svg",
-              height: 25,
-              width: 25,
+            // if (widget.topic.length > 2) ...[
+            //   SvgPicture.asset(
+            //     "icons/category_icons/${widget.topic}.svg",
+            //     height: 20,
+            //     width: 20,
+            //     color: selected ? selectedBorderColor : unselectedTextColor,
+            //   ),
+            //   const SizedBox(width: 8),
+            // ],
+            Text(
+              replaceAndCapitalize(widget.topic),
+              style: TextStyle(
+                color: selected ? selectedTextColor : unselectedTextColor,
+                fontWeight: selected ? FontWeight.bold : FontWeight.normal,
+                fontSize: 16,
+              ),
             ),
-            const SizedBox(
-              width: 10,
-            ),
-            Text(replaceAndCapitalize(widget.topic),
-                style: selected
-                    ? const TextStyle(
-                        color: Colors.white, fontWeight: FontWeight.bold)
-                    : const TextStyle(color: Colors.black)),
           ],
         ),
       ),
+    );
+  }
+}
+
+// Extension to create lighter and darker versions of colors
+extension ColorExtension on Color {
+  Color get lighter {
+    return Color.fromARGB(
+      alpha,
+      red + ((255 - red) ~/ 2),
+      green + ((255 - green) ~/ 2),
+      blue + ((255 - blue) ~/ 2),
+    );
+  }
+
+  Color get darker {
+    return Color.fromARGB(
+      alpha,
+      red ~/ 1.5,
+      green ~/ 1.5,
+      blue ~/ 1.5,
     );
   }
 }

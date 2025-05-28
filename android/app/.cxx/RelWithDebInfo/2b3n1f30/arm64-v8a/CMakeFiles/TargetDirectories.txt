@@ -1,0 +1,2 @@
+/Users/Files/Internship/InZone/inzone-remake/android/app/.cxx/RelWithDebInfo/2b3n1f30/arm64-v8a/CMakeFiles/edit_cache.dir
+/Users/Files/Internship/InZone/inzone-remake/android/app/.cxx/RelWithDebInfo/2b3n1f30/arm64-v8a/CMakeFiles/rebuild_cache.dir
