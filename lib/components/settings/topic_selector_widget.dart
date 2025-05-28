@@ -2,10 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
 class TopicSelectorWidget extends StatefulWidget {
-  String topic;
-  void Function(String topic) callBack;
+  final String topic;
+  final void Function(String topic) callBack;
 
-  TopicSelectorWidget({super.key, required this.topic, required this.callBack});
+  const TopicSelectorWidget(
+      {super.key, required this.topic, required this.callBack});
 
   @override
   State<TopicSelectorWidget> createState() => _TopicSelectorWidgetState();
@@ -13,6 +14,7 @@ class TopicSelectorWidget extends StatefulWidget {
 
 class _TopicSelectorWidgetState extends State<TopicSelectorWidget> {
   bool selected = false;
+
   String replaceAndCapitalize(String text) {
     if (text.contains("_")) {
       List<String> words = text.split('_');
@@ -24,6 +26,13 @@ class _TopicSelectorWidgetState extends State<TopicSelectorWidget> {
       return words.join(' ');
     }
     return "${text[0].toUpperCase()}${text.substring(1).toLowerCase()}";
+  }
+
+  void _toggleSelection() {
+    setState(() {
+      selected = !selected;
+    });
+    widget.callBack(widget.topic);
   }
 
   @override
@@ -42,14 +51,7 @@ class _TopicSelectorWidgetState extends State<TopicSelectorWidget> {
     final selectedTextColor = isDarkMode ? Colors.white : Colors.black87;
 
     return GestureDetector(
-      onTap: () {
-        setState(() {
-          selected = !selected;
-          if (selected) {
-            widget.callBack(widget.topic);
-          }
-        });
-      },
+      onTap: _toggleSelection,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
         margin: const EdgeInsets.symmetric(horizontal: 5, vertical: 5),

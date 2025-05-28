@@ -202,9 +202,9 @@ class SettingsScreen extends StatelessWidget {
 
   List<String> category = ["Personal", "Others"];
 
-  List<String> personalTitleList = ["Content Selection", "Subscription"];
+  List<String> personalTitleList = ["Interests", "Subscription"];
   List<String> personalSubtitleList = [
-    "You can select different content",
+    "Select what you'd like to see in your feed",
     "Manage your InCash subscription"
   ];
   List<VoidCallback> personalOnPressedList(BuildContext context) {
