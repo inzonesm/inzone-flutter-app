@@ -50,56 +50,77 @@ class _AICharacterSelectionScreenState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Column(
-        children: [
-          // AppBar(
-          //   leading: IconButton(
-          //     icon: const Icon(Icons.arrow_back),
-          //     onPressed: () => Navigator.of(context).pop(),
-          //   ),
-          //   title: const Text('Select AI Character'),
-          //   centerTitle: true,
-          //   backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-          //   elevation: 0,
-          // ),
-          Expanded(
-            child: _isLoading
-                ? const Center(
-                    child: CircularProgressIndicator(),
-                  )
-                : PageView.builder(
-                    controller: _pageController,
-                    itemCount: _characters.length,
-                    onPageChanged: (index) {
-                      setState(() {
-                        _currentPage = index;
-                      });
+      body: SafeArea(
+        child: Column(
+          children: [
+            Row(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(left: 20, top: 0, bottom: 8),
+                  child: GestureDetector(
+                    onTap: () {
+                      Navigator.pop(context);
                     },
-                    itemBuilder: (context, index) {
-                      return _buildCharacterItem(index);
-                    },
-                  ),
-          ),
-          if (!_isLoading) _buildPageIndicator(),
-          const SizedBox(height: 20),
-          if (!_isLoading)
-            Padding(
-              padding: const EdgeInsets.all(20.0),
-              child: Button(
-                text: 'Select Character',
-                onPressed: () {
-                  // Handle character selection
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                          'Selected: ${_characters[_currentPage]['name']}'),
+                    child: CircleAvatar(
+                      radius: 22,
+                      backgroundColor: Theme.of(context).cardColor,
+                      foregroundColor: Theme.of(context).cardColor,
+                      child: Padding(
+                        padding: const EdgeInsets.only(left: 5),
+                        child: Center(
+                          child: Icon(
+                            Icons.arrow_back_ios,
+                            size: 18,
+                            color:
+                                Theme.of(context).textTheme.bodyMedium?.color,
+                          ),
+                        ),
+                      ),
                     ),
-                  );
-                },
-              ),
+                  ),
+                ),
+                const Spacer(),
+              ],
             ),
-          const SizedBox(height: 20),
-        ],
+            Expanded(
+              child: _isLoading
+                  ? const Center(
+                      child: CircularProgressIndicator(),
+                    )
+                  : PageView.builder(
+                      controller: _pageController,
+                      itemCount: _characters.length,
+                      onPageChanged: (index) {
+                        setState(() {
+                          _currentPage = index;
+                        });
+                      },
+                      itemBuilder: (context, index) {
+                        return _buildCharacterItem(index);
+                      },
+                    ),
+            ),
+            if (!_isLoading) _buildPageIndicator(),
+            const SizedBox(height: 20),
+            if (!_isLoading)
+              Padding(
+                padding: const EdgeInsets.all(20.0),
+                child: Button(
+                  text: 'Select Character',
+                  onPressed: () {
+                    // Handle character selection
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                            'Selected: ${_characters[_currentPage]['name']}'),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            const SizedBox(height: 20),
+          ],
+        ),
       ),
     );
   }
