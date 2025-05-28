@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:inzone/components/posts/shimmering.dart';
 import 'dart:math';
 import 'package:inzone/data/inzone_avatar.dart';
 import 'package:inzone/components/profile/avatar_card.dart';
@@ -135,7 +136,7 @@ class _CharactersScreenState extends State<CharactersScreen> {
 
             // Main content
             Expanded(
-              child: _buildContent(),
+              child: _buildContent(context),
             ),
           ],
         ),
@@ -143,9 +144,9 @@ class _CharactersScreenState extends State<CharactersScreen> {
     );
   }
 
-  Widget _buildContent() {
+  Widget _buildContent(BuildContext context) {
     if (isLoading) {
-      return const Center(child: CircularProgressIndicator());
+      return _buildLoadingGrid(context);
     }
 
     if (errorMessage != null) {
@@ -192,6 +193,75 @@ class _CharactersScreenState extends State<CharactersScreen> {
           },
         ),
       ),
+    );
+  }
+
+  // 원형 아바타 로딩 상태를 그리드로 표시
+  Widget _buildLoadingGrid(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(8.0),
+      child: GridView.builder(
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 3,
+          childAspectRatio: 0.75,
+          crossAxisSpacing: 12,
+          mainAxisSpacing: 20,
+        ),
+        itemCount: 12, // 로딩 시 표시할 아이템 수
+        itemBuilder: (context, index) {
+          return _buildCircularLoading(context);
+        },
+      ),
+    );
+  }
+
+  // 원형 로딩 아이템
+  Widget _buildCircularLoading(BuildContext context) {
+    return Column(
+      children: [
+        // 원형 아바타 로딩 효과
+        Container(
+          width: 110,
+          height: 110,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            gradient: LinearGradient(
+              colors: [
+                Theme.of(context).cardColor,
+                Theme.of(context).cardColor.withOpacity(0.7),
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(3.0),
+            child: Container(
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Theme.of(context).cardColor,
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(2.0),
+                child: ClipOval(
+                  child: SkeletonContainer.circular(
+                    width: 105,
+                    height: 105,
+                    color: Theme.of(context).cardColor.withOpacity(0.7),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+        // 이름 로딩 효과
+        SkeletonContainer.rounded(
+          width: 80,
+          height: 14,
+          color: Theme.of(context).cardColor.withOpacity(0.7),
+        ),
+      ],
     );
   }
 
@@ -274,16 +344,6 @@ class _CharactersScreenState extends State<CharactersScreen> {
               overflow: TextOverflow.ellipsis,
               textAlign: TextAlign.center,
             ),
-            // Text(
-            //   avatar.,
-            //   style: const TextStyle(
-            //     fontSize: 14,
-            //     fontWeight: FontWeight.w600,
-            //   ),
-            //   maxLines: 1,
-            //   overflow: TextOverflow.ellipsis,
-            //   textAlign: TextAlign.center,
-            // ),
           ],
         ),
       ],

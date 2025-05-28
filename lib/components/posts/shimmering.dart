@@ -390,6 +390,196 @@ Widget ImageLoading2(BuildContext context) {
   );
 }
 
+Widget AvatarLoading(BuildContext context) {
+  return Padding(
+    padding: const EdgeInsets.all(4),
+    child: Container(
+      height: 300,
+      width: 300,
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(24),
+      ),
+      child: SkeletonContainer.rounded(
+        height: 300,
+        width: 300,
+        color: Theme.of(context).cardColor,
+      ),
+    ),
+  );
+}
+
+// 검색/탐색 화면에서 사용할 전체 레이아웃 로딩 위젯
+Widget SearchLoading(BuildContext context) {
+  return CustomScrollView(
+    slivers: [
+      // 캐릭터 섹션 제목
+      SliverToBoxAdapter(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: Row(
+            children: [
+              SkeletonContainer.rounded(
+                width: 120,
+                height: 24,
+                color: Theme.of(context).cardColor,
+              ),
+              const Spacer(),
+              SkeletonContainer.rounded(
+                width: 60,
+                height: 24,
+                color: Theme.of(context).cardColor,
+              ),
+            ],
+          ),
+        ),
+      ),
+
+      SliverToBoxAdapter(
+        child: SizedBox(
+          height: 130,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8.0),
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              itemCount: 8,
+              itemBuilder: (context, index) {
+                return Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                  child: Column(
+                    children: [
+                      Container(
+                        width: 80,
+                        height: 80,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: LinearGradient(
+                            colors: [
+                              Theme.of(context).cardColor,
+                              Theme.of(context).cardColor.withOpacity(0.7),
+                            ],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.all(2.5),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: Theme.of(context).cardColor,
+                            ),
+                            child: Padding(
+                              padding: const EdgeInsets.all(2.0),
+                              child: ClipOval(
+                                child: SkeletonContainer.circular(
+                                  width: 75,
+                                  height: 75,
+                                  color: Theme.of(context)
+                                      .cardColor
+                                      .withOpacity(0.7),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      SkeletonContainer.rounded(
+                        width: 60,
+                        height: 12,
+                        color: Theme.of(context).cardColor.withOpacity(0.7),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ),
+        ),
+      ),
+
+      SliverToBoxAdapter(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              SkeletonContainer.rounded(
+                width: 150,
+                height: 24,
+                color: Theme.of(context).cardColor,
+              ),
+              SkeletonContainer.rounded(
+                width: 70,
+                height: 20,
+                color: Theme.of(context).cardColor,
+              ),
+            ],
+          ),
+        ),
+      ),
+
+      SliverList(
+        delegate: SliverChildBuilderDelegate(
+          (context, index) {
+            return Padding(
+              padding:
+                  const EdgeInsets.symmetric(vertical: 6.0, horizontal: 16.0),
+              child: Row(
+                children: [
+                  SkeletonContainer.circular(
+                    width: 20,
+                    height: 20,
+                    color: Theme.of(context).cardColor,
+                  ),
+                  const SizedBox(width: 16),
+                  SkeletonContainer.rounded(
+                    width: MediaQuery.of(context).size.width * 0.6,
+                    height: 16,
+                    color: Theme.of(context).cardColor,
+                  ),
+                  const Spacer(),
+                  SkeletonContainer.circular(
+                    width: 20,
+                    height: 20,
+                    color: Theme.of(context).cardColor,
+                  ),
+                ],
+              ),
+            );
+          },
+          childCount: 3,
+        ),
+      ),
+
+      SliverToBoxAdapter(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 24, 16, 8),
+          child: SkeletonContainer.rounded(
+            width: 180,
+            height: 24,
+            color: Theme.of(context).cardColor,
+          ),
+        ),
+      ),
+
+      SliverList(
+        delegate: SliverChildBuilderDelegate(
+          (context, index) {
+            return Padding(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 0.0, vertical: 8.0),
+              child: PostLoading(context),
+            );
+          },
+          childCount: 3,
+        ),
+      ),
+    ],
+  );
+}
+
 class Skelton extends StatelessWidget {
   const Skelton({
     super.key,

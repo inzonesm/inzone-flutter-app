@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:inzone/components/cards/post_card.dart';
 import 'package:inzone/components/profile/avatar_card.dart';
 import 'package:inzone/components/profile/avatar_story_component.dart';
+import 'package:inzone/components/posts/shimmering.dart';
 import 'package:inzone/data/inzone_avatar.dart';
 import 'package:inzone/data/inzone_post.dart';
 import 'package:inzone/services/inzone_database.dart';
@@ -274,137 +275,130 @@ class _SearchExploreScreenState extends State<SearchExploreScreen> {
         right: false,
         top: true,
         bottom: false,
-        child: isLoading
-            ? const Center(child: CircularProgressIndicator())
-            : Column(
+        child: Column(
+          children: [
+            // Top search bar and back button - 항상 표시됨
+            Padding(
+              padding: const EdgeInsets.only(
+                  top: 8.0, left: 8.0, right: 16.0, bottom: 8.0),
+              child: Row(
                 children: [
-                  // Top search bar and back button
                   Padding(
-                    padding: const EdgeInsets.only(
-                        top: 8.0, left: 8.0, right: 16.0, bottom: 8.0),
-                    child: Row(
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.only(right: 8.0),
-                          child: GestureDetector(
-                            onTap: () {
-                              if (_searchFocusNode.hasFocus) {
-                                _searchFocusNode.unfocus();
-                                _clearSearch();
-                              } else {
-                                Navigator.of(context).pop();
-                              }
-                            },
-                            child: CircleAvatar(
-                              radius: 22,
-                              backgroundColor: Theme.of(context).cardColor,
-                              foregroundColor: Theme.of(context).cardColor,
-                              child: Padding(
-                                padding: const EdgeInsets.only(left: 5),
-                                child: Center(
-                                  child: Icon(
-                                    Icons.arrow_back_ios,
-                                    size: 18,
-                                    color: Theme.of(context)
-                                        .textTheme
-                                        .bodyMedium
-                                        ?.color,
-                                  ),
-                                ),
-                              ),
+                    padding: const EdgeInsets.only(right: 8.0),
+                    child: GestureDetector(
+                      onTap: () {
+                        if (_searchFocusNode.hasFocus) {
+                          _searchFocusNode.unfocus();
+                          _clearSearch();
+                        } else {
+                          Navigator.of(context).pop();
+                        }
+                      },
+                      child: CircleAvatar(
+                        radius: 22,
+                        backgroundColor: Theme.of(context).cardColor,
+                        foregroundColor: Theme.of(context).cardColor,
+                        child: Padding(
+                          padding: const EdgeInsets.only(left: 5),
+                          child: Center(
+                            child: Icon(
+                              Icons.arrow_back_ios,
+                              size: 18,
+                              color:
+                                  Theme.of(context).textTheme.bodyMedium?.color,
                             ),
                           ),
                         ),
-                        Expanded(
-                          child: TextField(
-                            controller: _searchController,
-                            focusNode: _searchFocusNode,
-                            cursorColor:
-                                Theme.of(context).textTheme.bodyMedium?.color,
-                            style: Theme.of(context).textTheme.bodyMedium,
-                            decoration: InputDecoration(
-                              hintText: 'Search',
-                              hintStyle: TextStyle(
-                                color: Theme.of(context).hintColor,
-                                fontSize: 14,
-                              ),
-                              contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 16, vertical: 0),
-                              suffixIcon: isSearchLoading
-                                  ? Container(
-                                      width: 16,
-                                      height: 16,
-                                      margin: const EdgeInsets.all(14),
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        color: Theme.of(context)
-                                            .colorScheme
-                                            .primary,
-                                      ),
-                                    )
-                                  : searchQuery.isNotEmpty
-                                      ? IconButton(
-                                          icon:
-                                              const Icon(Icons.clear, size: 18),
-                                          onPressed: _clearSearch,
-                                          splashRadius: 16,
-                                        )
-                                      : null,
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(30),
-                                borderSide: BorderSide.none,
-                              ),
-                              enabledBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(30),
-                                borderSide: BorderSide.none,
-                              ),
-                              focusedBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(30),
-                                borderSide: BorderSide.none,
-                              ),
-                              disabledBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(30),
-                                borderSide: BorderSide.none,
-                              ),
-                              errorBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(30),
-                                borderSide: BorderSide.none,
-                              ),
-                              focusedErrorBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(30),
-                                borderSide: BorderSide.none,
-                              ),
-                              filled: true,
-                              fillColor: Theme.of(context)
-                                  .colorScheme
-                                  .surfaceContainerLowest,
-                            ),
-                            onChanged: _onSearchTextChanged,
-                            textInputAction: TextInputAction.search,
-                            onSubmitted: _onSearchSubmitted,
-                          ),
-                        ),
-                      ],
+                      ),
                     ),
                   ),
-
-                  // Expanded content area
                   Expanded(
-                    child: isSearching
-                        ? _buildSearchResults()
-                        : _buildMainContent(),
+                    child: TextField(
+                      controller: _searchController,
+                      focusNode: _searchFocusNode,
+                      cursorColor:
+                          Theme.of(context).textTheme.bodyMedium?.color,
+                      style: Theme.of(context).textTheme.bodyMedium,
+                      decoration: InputDecoration(
+                        hintText: 'Search',
+                        hintStyle: TextStyle(
+                          color: Theme.of(context).hintColor,
+                          fontSize: 14,
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 0),
+                        suffixIcon: isSearchLoading
+                            ? Container(
+                                width: 16,
+                                height: 16,
+                                margin: const EdgeInsets.all(14),
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Theme.of(context).colorScheme.primary,
+                                ),
+                              )
+                            : searchQuery.isNotEmpty
+                                ? IconButton(
+                                    icon: const Icon(Icons.clear, size: 18),
+                                    onPressed: _clearSearch,
+                                    splashRadius: 16,
+                                  )
+                                : null,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(30),
+                          borderSide: BorderSide.none,
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(30),
+                          borderSide: BorderSide.none,
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(30),
+                          borderSide: BorderSide.none,
+                        ),
+                        disabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(30),
+                          borderSide: BorderSide.none,
+                        ),
+                        errorBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(30),
+                          borderSide: BorderSide.none,
+                        ),
+                        focusedErrorBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(30),
+                          borderSide: BorderSide.none,
+                        ),
+                        filled: true,
+                        fillColor: Theme.of(context)
+                            .colorScheme
+                            .surfaceContainerLowest,
+                      ),
+                      onChanged: _onSearchTextChanged,
+                      textInputAction: TextInputAction.search,
+                      onSubmitted: _onSearchSubmitted,
+                    ),
                   ),
                 ],
               ),
+            ),
+
+            // Expanded content area - 로딩 중이면 shimmer 효과 표시
+            Expanded(
+              child: isLoading
+                  ? SearchLoading(context)
+                  : isSearching
+                      ? _buildSearchResults()
+                      : _buildMainContent(),
+            ),
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildSearchResults() {
     if (isSearchLoading) {
-      return const Center(
-        child: CircularProgressIndicator(),
-      );
+      return SearchLoading(context);
     }
 
     if (searchResults.isEmpty) {
