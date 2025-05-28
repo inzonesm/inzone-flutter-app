@@ -310,22 +310,17 @@ class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
                         //   0,
                         // ),
                         // const SizedBox(height: 16),
-                        // _buildAnimatedOptionButton(
-                        //   'Create AI Character',
-                        //   Icons.face,
-                        //   () {
-                        //     print("Create AI Character button tapped");
-                        //     _toggleExpanded();
-                        //     ScaffoldMessenger.of(context).showSnackBar(
-                        //       const SnackBar(
-                        //         content:
-                        //             Text('AI Character creation coming soon'),
-                        //       ),
-                        //     );
-                        //   },
-                        //   1,
-                        // ),
-                        // const SizedBox(height: 16),
+                        _buildAnimatedOptionButton(
+                          'Create AI Character',
+                          Icons.face,
+                          () {
+                            print("Create AI Character button tapped");
+                            _toggleExpanded();
+                            context.push(Routes.createAICharacter);
+                          },
+                          1,
+                        ),
+                        const SizedBox(height: 16),
                         _buildAnimatedOptionButton(
                           'Create Post',
                           Icons.post_add,

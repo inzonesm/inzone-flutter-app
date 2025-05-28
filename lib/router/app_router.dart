@@ -6,9 +6,9 @@ import 'package:go_router/go_router.dart';
 import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:inzone/router/auth_notifier.dart';
-
-// Screens
 import 'package:inzone/root_app.dart';
+import 'package:inzone/screen/ai_character/ai_char_prompt_screen.dart';
+import 'package:inzone/screen/ai_character/ai_char_select_screen.dart';
 import 'package:inzone/screen/auth/splash_screen.dart';
 import 'package:inzone/screen/auth/introduction_screen.dart';
 import 'package:inzone/screen/auth/signin_login_screen.dart';
@@ -30,7 +30,7 @@ import 'package:inzone/screen/settings/content_select_screen.dart';
 import 'package:inzone/screen/settings/subscription_purchase.dart';
 import 'package:inzone/screen/settings/referral_screen.dart';
 import 'package:inzone/screen/settings/settings_screen.dart';
-import 'package:inzone/screen/3d_model/3d_model_create_screen.dart';
+import 'package:inzone/screen/3d_model/3d_model_prompt_screen.dart';
 import 'package:inzone/screen/3d_model/3d_model_select_screen.dart';
 
 // Models
@@ -85,7 +85,6 @@ class AppRouter {
   static final _shellNavigatorKey = GlobalKey<NavigatorState>();
   static final authNotifier = AuthNotifier();
 
-  // 초기 경로를 동적으로 설정하는 메서드 추가
   static void setInitialRoute(String route) {
     router.go(route);
   }
@@ -225,13 +224,15 @@ class AppRouter {
           child: const PostScreen(),
         ),
       ),
+
+      /* --------- 3d Model Routes --------- */
       GoRoute(
         path: Routes.create3dModel,
         parentNavigatorKey: rootNavigatorKey,
         pageBuilder: (context, state) => CupertinoPage(
           key: state.pageKey,
           fullscreenDialog: true,
-          child: const ModelCreateScreen(),
+          child: const ModelPromptScreen(),
         ),
       ),
       GoRoute(
@@ -250,6 +251,34 @@ class AppRouter {
           );
         },
       ),
+      /* ---------- ai char routes ---------- */
+      GoRoute(
+        path: Routes.createAICharacter,
+        parentNavigatorKey: rootNavigatorKey,
+        pageBuilder: (context, state) => CupertinoPage(
+          key: state.pageKey,
+          fullscreenDialog: true,
+          child: const AICharacterPromptScreen(),
+        ),
+      ),
+
+      GoRoute(
+        path: Routes.createAICharacterSelect,
+        parentNavigatorKey: rootNavigatorKey,
+        pageBuilder: (context, state) {
+          final Map<String, dynamic> extra =
+              state.extra as Map<String, dynamic>;
+          return CupertinoPage(
+            key: state.pageKey,
+            child: AICharacterSelectionScreen(
+              name: extra['name'] as String,
+              prompt: extra['prompt'] as String,
+            ),
+          );
+        },
+      ),
+
+      /* --------- Profile and Edit Routes --------- */
       GoRoute(
         path: Routes.editProfile,
         parentNavigatorKey: rootNavigatorKey,
