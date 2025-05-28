@@ -67,8 +67,9 @@ class HomeScreenState extends State<HomeScreen> {
   }
 
   void _onScroll() {
+    // 화면 끝에서 더 일찍(500픽셀 전) 데이터 로딩을 시작
     if (_scrollController.position.pixels >=
-            _scrollController.position.maxScrollExtent - 200 &&
+            _scrollController.position.maxScrollExtent - 500 &&
         !isLoadingMore &&
         hasMorePosts) {
       _loadMorePosts();
@@ -152,6 +153,7 @@ class HomeScreenState extends State<HomeScreen> {
     });
 
     try {
+      // 배치로 더 많은 데이터를 로드
       final response = await InZoneDatabase.getFeed(page: reloadCount);
 
       if (!mounted) return;
@@ -179,6 +181,16 @@ class HomeScreenState extends State<HomeScreen> {
 
             _currentPage++;
             hasMorePosts = newPosts.isNotEmpty;
+
+            // 다음 페이지가 필요할 것으로 예상되면 미리 준비
+            if (hasMorePosts && (_currentPage % 2 == 0)) {
+              // 미리 다음 페이지 데이터 준비 (비동기적으로)
+              Future.delayed(const Duration(milliseconds: 200), () {
+                if (mounted && !isLoadingMore && hasMorePosts) {
+                  _preloadNextPage();
+                }
+              });
+            }
           });
         } else {
           setState(() {
@@ -195,6 +207,28 @@ class HomeScreenState extends State<HomeScreen> {
         setState(() {
           isLoadingMore = false;
         });
+      }
+    }
+  }
+
+  // 다음 페이지 데이터 미리 로드 (백그라운드)
+  Future<void> _preloadNextPage() async {
+    // 이미 로딩 중이면 중복 실행 방지
+    if (isLoadingMore || !mounted) return;
+
+    // 실제로 UI에 로딩 상태를 표시하지 않고 내부적으로만 로딩
+    bool wasLoading = isLoadingMore;
+    isLoadingMore = true;
+    reloadCount++;
+
+    try {
+      await InZoneDatabase.getFeed(page: reloadCount);
+      // 결과는 실제로 사용하지 않고, 캐시에만 저장
+    } catch (e) {
+      // 조용히 오류 처리
+    } finally {
+      if (mounted) {
+        isLoadingMore = wasLoading;
       }
     }
   }
@@ -302,9 +336,20 @@ class HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildPostWidget(dynamic post, int index) {
+    // Calculate the actual post index (accounting for inserted ads)
+    int actualPostIndex = index - (index ~/ 8);
+
+    // Return empty widget if we've run out of posts
+    if (actualPostIndex >= posts.length) {
+      return const SizedBox.shrink();
+    }
+
+    // Get the actual post data using the calculated index
+    dynamic actualPost = posts[actualPostIndex];
+
     // Check if this position should show an ad (every 8th item: 7, 15, 23, etc.)
     if ((index + 1) % 8 == 0) {
-      // Create a dummy post for the ad
+      // 광고를 위한 더미 포스트 생성
       InZonePost adPost = InZonePost(
         category: '',
         userName: '',
@@ -319,27 +364,20 @@ class HomeScreenState extends State<HomeScreen> {
         mainCategory: '',
         isAi: false,
       );
-      
-      return PostCard(
-        post: adPost,
-        onTap: (postId) {},
-        isAd: true, // This tells the PostCard to display an ad
+
+      // 각 광고마다 개별적인 상태를 가지는 별도의 위젯 사용
+      return _AdPostCard(
+        adPost: adPost,
+        index: index,
       );
     }
 
-    // Calculate the actual post index (accounting for inserted ads)
-    int actualPostIndex = index - (index ~/ 8);
-    
-    // Return empty widget if we've run out of posts
-    if (actualPostIndex >= posts.length) {
-      return const SizedBox.shrink();
-    }
-    
-    dynamic actualPost = posts[actualPostIndex];
     String postType = actualPost['post_type'] ?? 'unknown';
 
     // Insert avatar carousel after certain number of posts (adjust for ads)
-    if (actualPostIndex > 0 && actualPostIndex % 20 == 0 && avatarCards.isNotEmpty) {
+    if (actualPostIndex > 0 &&
+        actualPostIndex % 20 == 0 &&
+        avatarCards.isNotEmpty) {
       return _buildAvatarCarousel();
     }
 
@@ -512,7 +550,8 @@ class HomeScreenState extends State<HomeScreen> {
                                   borderRadius: BorderRadius.circular(4),
                                   color: Theme.of(context).cardColor,
                                 ),
-                                child: const SizedBox(), // Remove CategoryLoading from here
+                                child:
+                                    const SizedBox(), // Remove CategoryLoading from here
                               ),
                             ),
                           ],
@@ -561,25 +600,34 @@ class HomeScreenState extends State<HomeScreen> {
                     delegate: SliverChildBuilderDelegate(
                       (context, index) {
                         // Calculate total items including ads
-                        int totalItemsWithAds = posts.length + (posts.length ~/ 7);
-                        
+                        int totalItemsWithAds =
+                            posts.length + (posts.length ~/ 7);
+
                         if (index == totalItemsWithAds && isLoadingMore) {
-                          return const Center(
-                              child: CupertinoActivityIndicator());
+                          return const SizedBox(height: 1);
                         } else if (index ==
                             totalItemsWithAds + (isLoadingMore ? 1 : 0)) {
                           // Bottom padding for navigation bar
                           return const SizedBox(height: 100);
                         }
-                        return Padding(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 16.0, vertical: 0),
-                          child: _buildPostWidget(posts[index], index),
-                        );
+
+                        // If within range, build the post widget
+                        if (index < totalItemsWithAds) {
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16.0, vertical: 0),
+                            child: _buildPostWidget(null, index),
+                          );
+                        }
+
+                        return const SizedBox.shrink(); // Safety fallback
                       },
-                      childCount: posts.length + (posts.length ~/ 7) +
-                          (isLoadingMore ? 1 : 0) +
-                          1, // +ads +loading +bottom padding
+                      childCount: posts.isEmpty
+                          ? 1 // Just show bottom padding if no posts
+                          : posts.length +
+                              (posts.length ~/ 7) +
+                              (isLoadingMore ? 1 : 0) +
+                              1, // +ads +loading +bottom padding
                     ),
                   ),
                 ],
@@ -600,5 +648,59 @@ class HomeScreenState extends State<HomeScreen> {
       print('Error getting user name: $e');
     }
     return "User";
+  }
+}
+
+// 광고 포스트 카드 위젯 - 각 광고마다 개별적인 상태를 가짐
+class _AdPostCard extends StatefulWidget {
+  final InZonePost adPost;
+  final int index;
+
+  const _AdPostCard({
+    required this.adPost,
+    required this.index,
+  });
+
+  @override
+  State<_AdPostCard> createState() => _AdPostCardState();
+}
+
+class _AdPostCardState extends State<_AdPostCard> {
+  bool isAdLoaded = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // 광고 로딩 시작
+    _loadAd();
+  }
+
+  Future<void> _loadAd() async {
+    if (mounted) {
+      setState(() {
+        isAdLoaded = true;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      children: [
+        // 광고 로딩 중 Shimmering 효과 표시
+        if (!isAdLoaded) AdPostLoading(context),
+
+        // 실제 광고 PostCard (애니메이션 효과로 서서히 나타남)
+        AnimatedOpacity(
+          opacity: isAdLoaded ? 1.0 : 0.0,
+          duration: const Duration(milliseconds: 500),
+          child: PostCard(
+            post: widget.adPost,
+            onTap: (postId) {},
+            isAd: true,
+          ),
+        ),
+      ],
+    );
   }
 }

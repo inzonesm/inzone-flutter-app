@@ -7,14 +7,14 @@ import 'package:image_picker/image_picker.dart';
 import 'package:inzone/components/ui/button.dart';
 import 'package:inzone/router/routes.dart';
 
-class ModelCreateScreen extends StatefulWidget {
-  const ModelCreateScreen({super.key});
+class ModelPromptScreen extends StatefulWidget {
+  const ModelPromptScreen({super.key});
 
   @override
-  State<ModelCreateScreen> createState() => _ModelCreateScreenState();
+  State<ModelPromptScreen> createState() => _ModelPromptScreenState();
 }
 
-class _ModelCreateScreenState extends State<ModelCreateScreen> {
+class _ModelPromptScreenState extends State<ModelPromptScreen> {
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _descriptionController = TextEditingController();
   File? _characterImage;

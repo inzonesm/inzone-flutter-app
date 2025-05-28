@@ -117,6 +117,59 @@ Widget PostLoading(BuildContext context) {
   );
 }
 
+// 광고 로딩을 위한 별도의 위젯
+Widget AdPostLoading(BuildContext context) {
+  return Stack(
+    children: [
+      Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 15),
+        child: Skelton(
+          height: 320,
+          width: MediaQuery.of(context).size.width,
+          color: Theme.of(context).cardColor.withOpacity(0.7),
+        ),
+      ),
+      Padding(
+        padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 30),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // 광고 라벨
+            Row(
+              mainAxisAlignment: MainAxisAlignment.start,
+              children: [
+                SkeletonContainer.circular(
+                  height: 30,
+                  width: 60,
+                  color: Theme.of(context).primaryColor.withOpacity(0.3),
+                ),
+                const SizedBox(width: 10),
+                const SkeletonContainer.circular(
+                  height: 30,
+                  width: 100,
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            // 광고 이미지
+            SkeletonContainer.rounded(
+              height: 180,
+              color: Theme.of(context).cardColor.withOpacity(0.9),
+            ),
+            const SizedBox(height: 15),
+            // 광고 하단 버튼
+            SkeletonContainer.rounded(
+              height: 40,
+              width: 120,
+              color: Theme.of(context).primaryColor.withOpacity(0.3),
+            ),
+          ],
+        ),
+      ),
+    ],
+  );
+}
+
 Widget CategoryLoading(BuildContext context) {
   return Stack(
     children: [

@@ -87,8 +87,9 @@ class _PostCardState extends State<PostCard> {
       // Check if this is an AI post
       if (widget.post.isAi) {
         // For AI posts, try to get the AI user profile using the userName
-        final aiUserData = await InZoneDatabase.getAIUserProfile(widget.post.userName);
-        
+        final aiUserData =
+            await InZoneDatabase.getAIUserProfile(widget.post.userName);
+
         if (aiUserData != null &&
             aiUserData['profilePicture'] != null &&
             aiUserData['profilePicture'].toString().isNotEmpty) {
