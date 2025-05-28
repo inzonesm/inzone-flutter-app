@@ -66,7 +66,6 @@ Future<void> initPlatformState() async {
 }
 
 void main() async {
-  // 네이티브 스플래시 스크린을 유지하기 위한 설정
   WidgetsBinding widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
   FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
 
@@ -78,12 +77,12 @@ void main() async {
   // Initialize Google Fonts
   GoogleFonts.config.allowRuntimeFetching = true;
 
-  // Firebase 초기화
+  // Firebase initialization
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
-  // Firebase 인증 상태 확인
+  // Firebase auth check
   await validateFirebaseSession();
 
   // Initialize AppsFlyerService
