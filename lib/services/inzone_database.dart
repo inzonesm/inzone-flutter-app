@@ -869,6 +869,61 @@ class InZoneDatabase {
     } catch (e) {}
   }
 
+  static Future<Map<String, dynamic>> createPopularCharacter({
+    required String greeting,
+    required String name,
+    required String personality,
+    int? numberOfChats,
+    String? profilePictureUrl,
+    int? votes,
+    bool? createdByHuman,
+  }) async {
+    const String url =
+        'https://ai-apis-912424781531.us-east1.run.app/create/popularCharacter';
+
+    Map<String, String> headers = {"Content-Type": "application/json"};
+    Map<String, dynamic> body = {
+      "Greeting": greeting,
+      "Name": name,
+      "Personality": personality,
+    };
+
+    // Add optional fields if provided
+    if (numberOfChats != null) body["NumberOfChats"] = numberOfChats;
+    if (profilePictureUrl != null) body["ProfilePictureUrl"] = profilePictureUrl;
+    if (votes != null) body["Votes"] = votes;
+    if (createdByHuman != null) body["CreatedByHuman"] = createdByHuman;
+
+    try {
+      final response = await http.post(
+        Uri.parse(url),
+        headers: headers,
+        body: jsonEncode(body),
+      );
+
+      final Map<String, dynamic> responseData = jsonDecode(response.body);
+
+      if (response.statusCode == 200) {
+        return {
+          "success": true,
+          "data": responseData,
+        };
+      } else {
+        return {
+          "success": false,
+          "error": responseData["error"] ?? "Unknown error",
+          "code": responseData["code"] ?? "UNKNOWN_ERROR",
+        };
+      }
+    } catch (e) {
+      return {
+        "success": false,
+        "error": "Network error: $e",
+        "code": "NETWORK_ERROR",
+      };
+    }
+  }
+
   Future<Map<String, String>?> generate3DAvatar(String prompt) async {
     final url = Uri.parse(
         'https://inzoneapi-912424781531.us-central1.run.app/api/full_generate');
