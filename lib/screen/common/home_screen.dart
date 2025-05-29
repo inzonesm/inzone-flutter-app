@@ -1,6 +1,7 @@
 import 'package:colorful_safe_area/colorful_safe_area.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:inzone/components/cards/post_card.dart';
 import 'package:inzone/components/cards/repost_card.dart';
 import 'package:inzone/components/posts/shimmering.dart';
@@ -39,10 +40,12 @@ class HomeScreenState extends State<HomeScreen> {
   bool hasMorePosts = true;
   String? selectedCategory; // Track the currently selected category
   int reloadCount = 0; // Track number of reloads
+  int _currentVisibleIndex = 0; // Track current visible card index
 
   // Store the actual posts data from API
   List<dynamic> posts = [];
   List<dynamic> originalPosts = []; // For category filtering
+  final Set<String> _viewedPosts = {}; // Track posts whose view count has been incremented
 
   @override
   void initState() {
@@ -70,7 +73,26 @@ class HomeScreenState extends State<HomeScreen> {
   }
 
   void _onScroll() {
-    // 화면 끝에서 더 일찍(500픽셀 전) 데이터 로딩을 시작
+    // Calculate approximate current visible index based on scroll position
+    // Assuming average card height of ~200px
+    double scrollPosition = _scrollController.position.pixels;
+    int estimatedVisibleIndex = (scrollPosition / 200).floor();
+    
+    // Update current visible index if it has changed significantly
+    if (estimatedVisibleIndex != _currentVisibleIndex) {
+      _currentVisibleIndex = estimatedVisibleIndex;
+      
+      // Ensure we have enough posts loaded ahead
+      int totalItemsWithAds = posts.length + (posts.length ~/ 10);
+      int remainingItems = totalItemsWithAds - _currentVisibleIndex;
+      
+      // If we're within 5 items of the end, load more
+      if (remainingItems <= 5 && !isLoadingMore && hasMorePosts) {
+        _loadMorePosts();
+      }
+    }
+    
+    // Original logic: 화면 끝에서 더 일찍(500픽셀 전) 데이터 로딩을 시작
     if (_scrollController.position.pixels >=
             _scrollController.position.maxScrollExtent - 500 &&
         !isLoadingMore &&
@@ -102,6 +124,7 @@ class HomeScreenState extends State<HomeScreen> {
         hasMorePosts = true;
         selectedCategory = null; // Reset selected category on refresh
         reloadCount++; // Increment reload count on refresh
+        _viewedPosts.clear(); // Clear viewed posts tracking on refresh
       });
       loadAvatars();
     }
@@ -372,6 +395,13 @@ class HomeScreenState extends State<HomeScreen> {
       return _buildAvatarCarousel();
     }
 
+    // Increment view count when post is built (not for ads or carousels)
+    String postId = actualPost['id']?.toString() ?? actualPost['_id']?.toString() ?? '';
+    if (postId.isNotEmpty && postType != 'unknown' && !_viewedPosts.contains(postId)) {
+      _viewedPosts.add(postId);
+      _incrementViewCount(postId, postType);
+    }
+
     try {
       // Extract the category for the post
       String category = _extractCategoryFromPost(actualPost);
@@ -523,6 +553,8 @@ class HomeScreenState extends State<HomeScreen> {
             : CustomScrollView(
                 controller: _scrollController,
                 physics: const AlwaysScrollableScrollPhysics(),
+                // Cache extent to prebuild the next ~3 cards (assuming ~200px per card)
+                cacheExtent: 600.0,
                 slivers: [
                   // iOS 스타일 리프레시 컨트롤
                   CupertinoSliverRefreshControl(
@@ -648,6 +680,12 @@ class HomeScreenState extends State<HomeScreen> {
                               (posts.length ~/ 10) +
                               (isLoadingMore ? 1 : 0) +
                               1, // +ads +loading +bottom padding
+                      // Enable automatic keep alives to maintain built widgets
+                      addAutomaticKeepAlives: true,
+                      // Enable repaint boundaries for better performance
+                      addRepaintBoundaries: true,
+                      // Prebuild next 3 items by setting semantic index
+                      addSemanticIndexes: true,
                     ),
                   ),
                 ],
@@ -668,6 +706,42 @@ class HomeScreenState extends State<HomeScreen> {
       print('Error getting user name: $e');
     }
     return "User";
+  }
+
+  // Method to increment view count for a post when it gets built
+  Future<void> _incrementViewCount(String postId, String postType) async {
+    try {
+      String collectionName;
+      
+      // Map post type to collection name
+      switch (postType) {
+        case 'ai_post':
+          collectionName = 'aiPosts';
+          break;
+        case 'human_post':
+          collectionName = 'humanPosts';
+          break;
+        case 'repost':
+          collectionName = 'reposts';
+          break;
+        default:
+          // Skip view count increment for unknown post types or ads
+          return;
+      }
+
+      // Directly increment the viewcount field using Firebase SDK
+      await FirebaseFirestore.instance
+          .collection(collectionName)
+          .doc(postId)
+          .update({
+        'viewcount': FieldValue.increment(1),
+      });
+      
+      print('View count incremented for $collectionName/$postId');
+    } catch (e) {
+      // Silently handle errors - don't disrupt user experience
+      print('Error incrementing view count for $postId: $e');
+    }
   }
 }
 
