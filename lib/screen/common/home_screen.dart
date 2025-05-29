@@ -329,7 +329,7 @@ class HomeScreenState extends State<HomeScreen> {
 
   Widget _buildPostWidget(dynamic post, int index) {
     // Calculate the actual post index (accounting for inserted ads)
-    int actualPostIndex = index - (index ~/ 8);
+    int actualPostIndex = index - (index ~/ 11);
 
     // Return empty widget if we've run out of posts
     if (actualPostIndex >= posts.length) {
@@ -339,8 +339,8 @@ class HomeScreenState extends State<HomeScreen> {
     // Get the actual post data using the calculated index
     dynamic actualPost = posts[actualPostIndex];
 
-    // Check if this position should show an ad (every 8th item: 7, 15, 23, etc.)
-    if ((index + 1) % 8 == 0) {
+    // Check if this position should show an ad (every 11th item: 10, 21, 32, etc.)
+    if ((index + 1) % 11 == 0) {
       // 광고를 위한 더미 포스트 생성
       InZonePost adPost = InZonePost(
         category: '',
@@ -621,7 +621,7 @@ class HomeScreenState extends State<HomeScreen> {
                       (context, index) {
                         // Calculate total items including ads
                         int totalItemsWithAds =
-                            posts.length + (posts.length ~/ 7);
+                            posts.length + (posts.length ~/ 10);
 
                         if (index == totalItemsWithAds && isLoadingMore) {
                           return const SizedBox(height: 1);
@@ -645,7 +645,7 @@ class HomeScreenState extends State<HomeScreen> {
                       childCount: posts.isEmpty
                           ? 1 // Just show bottom padding if no posts
                           : posts.length +
-                              (posts.length ~/ 7) +
+                              (posts.length ~/ 10) +
                               (isLoadingMore ? 1 : 0) +
                               1, // +ads +loading +bottom padding
                     ),
