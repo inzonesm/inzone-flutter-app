@@ -75,6 +75,9 @@ class _AICharacterPromptScreenState extends State<AICharacterPromptScreen> {
         createdByHuman: true,
       );
 
+      // Print the response with the specified prefix
+      print("PPPPPPPPPPPP$result");
+
       if (result["success"] == true) {
         // Success - show success message and navigate
         ScaffoldMessenger.of(context).showSnackBar(
@@ -91,6 +94,7 @@ class _AICharacterPromptScreenState extends State<AICharacterPromptScreen> {
             'prompt': _descriptionController.text.trim(),
             'name': _nameController.text.trim(),
             'characterId': result["data"]["PopularCharacterId"],
+            'profilePictureUrl': result["data"]["profile_picture_url"] ?? "",
           },
         );
       } else {

@@ -5,8 +5,15 @@ import 'package:inzone/components/ui/button.dart';
 class AICharacterSelectionScreen extends StatefulWidget {
   final String name;
   final String prompt;
-  const AICharacterSelectionScreen(
-      {super.key, required this.name, required this.prompt});
+  final String profilePictureUrl;
+  final String characterId;
+  const AICharacterSelectionScreen({
+    super.key, 
+    required this.name, 
+    required this.prompt,
+    required this.profilePictureUrl,
+    required this.characterId,
+  });
 
   @override
   State<AICharacterSelectionScreen> createState() =>
@@ -125,6 +132,83 @@ class _AICharacterSelectionScreenState
   }
 
   Widget _buildCharacterItem(int index) {
+    // For the first character (index 0), show the user's created character
+    if (index == 0) {
+      return Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          // Display the profile picture if available, otherwise show default icon
+          Container(
+            width: 200,
+            height: 200,
+            decoration: BoxDecoration(
+              color: Theme.of(context).cardColor,
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  blurRadius: 10,
+                  spreadRadius: 2,
+                ),
+              ],
+            ),
+            child: widget.profilePictureUrl.isNotEmpty
+                ? ClipOval(
+                    child: Image.network(
+                      widget.profilePictureUrl,
+                      width: 200,
+                      height: 200,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) {
+                        // If image fails to load, show default icon
+                        return Center(
+                          child: Icon(
+                            CupertinoIcons.person_fill,
+                            size: 100,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
+                        );
+                      },
+                      loadingBuilder: (context, child, loadingProgress) {
+                        if (loadingProgress == null) return child;
+                        return Center(
+                          child: CircularProgressIndicator(
+                            value: loadingProgress.expectedTotalBytes != null
+                                ? loadingProgress.cumulativeBytesLoaded /
+                                    loadingProgress.expectedTotalBytes!
+                                : null,
+                          ),
+                        );
+                      },
+                    ),
+                  )
+                : Center(
+                    child: Icon(
+                      CupertinoIcons.person_fill,
+                      size: 100,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                  ),
+          ),
+          const SizedBox(height: 20),
+          Text(
+            widget.name,
+            style: Theme.of(context).textTheme.headlineSmall,
+          ),
+          const SizedBox(height: 10),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 40),
+            child: Text(
+              widget.prompt,
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodyLarge,
+            ),
+          ),
+        ],
+      );
+    }
+    
+    // For other characters, show the sample data
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
