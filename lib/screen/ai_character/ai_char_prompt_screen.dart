@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:inzone/components/ui/button.dart';
 import 'package:inzone/router/routes.dart';
+import 'package:inzone/services/inzone_database.dart';
 
 class AICharacterPromptScreen extends StatefulWidget {
   const AICharacterPromptScreen({super.key});
@@ -19,7 +20,7 @@ class _AICharacterPromptScreenState extends State<AICharacterPromptScreen> {
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _descriptionController = TextEditingController();
   File? _characterImage;
-  final bool _isUploading = false;
+  bool _isUploading = false;
 
   @override
   void dispose() {
@@ -41,8 +42,8 @@ class _AICharacterPromptScreenState extends State<AICharacterPromptScreen> {
     }
   }
 
-  void _createCharacter() {
-    // Add character creation logic here
+  Future<void> _createCharacter() async {
+    // Validate required fields
     if (_nameController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please enter a character name')),
@@ -50,14 +51,72 @@ class _AICharacterPromptScreenState extends State<AICharacterPromptScreen> {
       return;
     }
 
-    // Navigate to model selection screen with input data
-    context.push(
-      Routes.createAICharacterSelect,
-      extra: {
-        'prompt': _descriptionController.text.trim(),
-        'name': _nameController.text.trim(),
-      },
-    );
+    if (_descriptionController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter a character description')),
+      );
+      return;
+    }
+
+    // Set loading state
+    setState(() {
+      _isUploading = true;
+    });
+
+    try {
+      // Call the API to create popular character
+      final result = await InZoneDatabase.createPopularCharacter(
+        greeting: "Hello! I'm ${_nameController.text.trim()}. Let's chat!",
+        name: _nameController.text.trim(),
+        personality: _descriptionController.text.trim(),
+        numberOfChats: 0,
+        profilePictureUrl: "", // Empty for now since image upload is commented out
+        votes: 0,
+        createdByHuman: true,
+      );
+
+      if (result["success"] == true) {
+        // Success - show success message and navigate
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Character "${_nameController.text.trim()}" created successfully!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+
+        // Navigate to model selection screen with input data
+        context.push(
+          Routes.createAICharacterSelect,
+          extra: {
+            'prompt': _descriptionController.text.trim(),
+            'name': _nameController.text.trim(),
+            'characterId': result["data"]["PopularCharacterId"],
+          },
+        );
+      } else {
+        // Error - show error message
+        String errorMessage = result["error"] ?? "Failed to create character";
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $errorMessage'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      // Handle unexpected errors
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Unexpected error: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      // Reset loading state
+      setState(() {
+        _isUploading = false;
+      });
+    }
   }
 
   @override
@@ -255,8 +314,8 @@ class _AICharacterPromptScreenState extends State<AICharacterPromptScreen> {
         bottomNavigationBar: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           child: Button(
-            text: 'Create AI Character',
-            onPressed: _createCharacter,
+            text: _isUploading ? 'Creating Character...' : 'Create AI Character',
+            onPressed: _isUploading ? () {} : () => _createCharacter(),
           ),
         ),
       ),
