@@ -289,6 +289,8 @@ class AppRouter {
             child: AICharacterSelectionScreen(
               name: extra['name'] as String,
               prompt: extra['prompt'] as String,
+              profilePictureUrl: extra['profilePictureUrl'] as String? ?? "",
+              characterId: extra['characterId'] as String? ?? "",
             ),
           );
         },
