@@ -197,7 +197,7 @@ class SettingsScreen extends StatelessWidget {
         );
       },
     );
-    return result ?? false; // 아무것도 선택 안 하고 닫으면 false
+    return result ?? false;
   }
 
   List<String> category = ["Personal", "Others"];

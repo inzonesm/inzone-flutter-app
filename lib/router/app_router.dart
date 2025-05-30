@@ -34,6 +34,7 @@ import 'package:inzone/screen/settings/referral_screen.dart';
 import 'package:inzone/screen/settings/settings_screen.dart';
 import 'package:inzone/screen/3d_model/3d_model_prompt_screen.dart';
 import 'package:inzone/screen/3d_model/3d_model_select_screen.dart';
+import 'package:inzone/screen/3d_model/3d_model_intro.dart';
 
 // Models
 import 'package:inzone/data/group_data.dart';
@@ -243,13 +244,43 @@ class AppRouter {
 
       /* --------- 3d Model Routes --------- */
       GoRoute(
-        path: Routes.create3dModel,
+        path: Routes.create3dModelIntro,
         parentNavigatorKey: rootNavigatorKey,
         pageBuilder: (context, state) => CupertinoPage(
           key: state.pageKey,
           fullscreenDialog: true,
-          child: const ModelPromptScreen(),
+          child: const ModelIntroScreen(),
         ),
+      ),
+      GoRoute(
+        path: Routes.create3dModel,
+        parentNavigatorKey: rootNavigatorKey,
+        pageBuilder: (context, state) {
+          // Check if we should use a fade transition
+          final Map<String, dynamic>? extra =
+              state.extra as Map<String, dynamic>?;
+          final bool useFadeTransition =
+              extra != null && extra['transition'] == 'fade';
+
+          return useFadeTransition
+              ? CustomTransitionPage(
+                  key: state.pageKey,
+                  child: const ModelPromptScreen(),
+                  transitionsBuilder:
+                      (context, animation, secondaryAnimation, child) {
+                    return FadeTransition(
+                      opacity: animation,
+                      child: child,
+                    );
+                  },
+                  transitionDuration: const Duration(milliseconds: 400),
+                )
+              : CupertinoPage(
+                  key: state.pageKey,
+                  fullscreenDialog: true,
+                  child: const ModelPromptScreen(),
+                );
+        },
       ),
       GoRoute(
         path: Routes.create3dModelSelect,

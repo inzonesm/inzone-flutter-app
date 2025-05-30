@@ -30,7 +30,7 @@ dependencies:
   google_fonts: ^6.2.1
   flutter_svg: ^2.0.5
   choice: ^2.3.0
-  lottie: ^2.2.0
+  lottie: ^3.3.1
   shimmer: ^3.0.0
   floating_draggable_widget: ^2.1.5
   image_picker: ^1.1.2
@@ -82,6 +82,8 @@ dependencies:
   carousel_slider: ^5.0.0
   purchases_ui_flutter: ^8.8.0
   google_mobile_ads: ^6.0.0
+  model_viewer_plus: ^1.9.3
+  flutter_3d_controller: ^2.2.0
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -128,6 +130,7 @@ flutter:
     - assets/splash.svg
     - assets/animations/
     - assets/auth/
+    - assets/3d/
     - icons/
     - icons/referral/
     - icons/nav_bar_icons/

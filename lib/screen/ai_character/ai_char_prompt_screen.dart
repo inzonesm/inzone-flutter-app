@@ -70,7 +70,8 @@ class _AICharacterPromptScreenState extends State<AICharacterPromptScreen> {
         name: _nameController.text.trim(),
         personality: _descriptionController.text.trim(),
         numberOfChats: 0,
-        profilePictureUrl: "", // Empty for now since image upload is commented out
+        profilePictureUrl:
+            "", // Empty for now since image upload is commented out
         votes: 0,
         createdByHuman: true,
       );
@@ -82,7 +83,8 @@ class _AICharacterPromptScreenState extends State<AICharacterPromptScreen> {
         // Success - show success message and navigate
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Character "${_nameController.text.trim()}" created successfully!'),
+            content: Text(
+                'Character "${_nameController.text.trim()}" created successfully!'),
             backgroundColor: Colors.green,
           ),
         );
@@ -318,7 +320,8 @@ class _AICharacterPromptScreenState extends State<AICharacterPromptScreen> {
         bottomNavigationBar: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           child: Button(
-            text: _isUploading ? 'Creating Character...' : 'Create AI Character',
+            text:
+                _isUploading ? 'Creating Character...' : 'Create AI Character',
             onPressed: _isUploading ? () {} : () => _createCharacter(),
           ),
         ),
