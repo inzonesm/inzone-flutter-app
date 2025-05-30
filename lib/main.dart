@@ -19,6 +19,7 @@ import 'package:purchases_flutter/purchases_flutter.dart'
     show LogLevel, Purchases;
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:inzone/router/routes.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 Future<void> validateFirebaseSession() async {
   final user = FirebaseAuth.instance.currentUser;
@@ -71,6 +72,10 @@ void main() async {
 
   // Initialize AdMob with test device configuration
   MobileAds.instance.initialize();
+
+  // SharedPreferences prefs = await SharedPreferences.getInstance();
+
+  // prefs.clear();
 
   MediaKit.ensureInitialized();
 
