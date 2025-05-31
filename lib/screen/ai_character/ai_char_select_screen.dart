@@ -8,8 +8,8 @@ class AICharacterSelectionScreen extends StatefulWidget {
   final String profilePictureUrl;
   final String characterId;
   const AICharacterSelectionScreen({
-    super.key, 
-    required this.name, 
+    super.key,
+    required this.name,
     required this.prompt,
     required this.profilePictureUrl,
     required this.characterId,
@@ -207,7 +207,7 @@ class _AICharacterSelectionScreenState
         ],
       );
     }
-    
+
     // For other characters, show the sample data
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,

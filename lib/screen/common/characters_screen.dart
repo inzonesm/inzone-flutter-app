@@ -10,6 +10,30 @@ import 'package:inzone/router/routes.dart';
 import 'package:inzone/screen/chat/all_chats_screen.dart';
 import 'dart:async';
 
+// Cache for storing AI characters
+class AICharactersCache {
+  static List<dynamic>? _cachedCharacters;
+  static DateTime? _lastFetchTime;
+
+  static List<dynamic>? get cachedCharacters => _cachedCharacters;
+
+  static bool get hasCachedCharacters =>
+      _cachedCharacters != null &&
+      _lastFetchTime != null &&
+      DateTime.now().difference(_lastFetchTime!).inMinutes <
+          30; // Cache valid for 30 minutes
+
+  static void cacheCharacters(List<dynamic> characters) {
+    _cachedCharacters = characters;
+    _lastFetchTime = DateTime.now();
+  }
+
+  static void clearCache() {
+    _cachedCharacters = null;
+    _lastFetchTime = null;
+  }
+}
+
 class CharactersScreen extends StatefulWidget {
   const CharactersScreen({super.key});
 
@@ -51,19 +75,35 @@ class _CharactersScreenState extends State<CharactersScreen> {
         errorMessage = null;
       });
 
-      final characters = await InZoneDatabase.getAICharacters(popular: false);
+      List<dynamic>? characters;
+
+      // Use cached characters if available and valid
+      if (AICharactersCache.hasCachedCharacters) {
+        characters = AICharactersCache.cachedCharacters;
+        setState(() {
+          isLoading = false;
+        });
+      } else {
+        // Fetch from API if cache is not available or expired
+        characters = await InZoneDatabase.getAICharacters(popular: false);
+
+        // Cache the fetched characters
+        if (characters != null) {
+          AICharactersCache.cacheCharacters(characters);
+        }
+      }
 
       if (characters != null && mounted) {
         setState(() {
           avatars.clear();
-          for (var characterData in characters) {
+          for (var characterData in characters!) {
             InZoneAvatar avatar = InZoneAvatar.fromAICharacter(characterData);
             avatars.add(avatar);
           }
           _filterAvatars(searchQuery);
           isLoading = false;
         });
-      } else {
+      } else if (characters == null && mounted) {
         setState(() {
           errorMessage = 'Failed to load characters';
           isLoading = false;
@@ -77,6 +117,12 @@ class _CharactersScreenState extends State<CharactersScreen> {
         });
       }
     }
+  }
+
+  // Force refresh by clearing cache and reloading
+  Future<void> _forceRefresh() async {
+    AICharactersCache.clearCache();
+    await _loadCharacters();
   }
 
   void _filterAvatars(String query) {
@@ -271,7 +317,7 @@ class _CharactersScreenState extends State<CharactersScreen> {
             ),
             const SizedBox(height: 16),
             ElevatedButton(
-              onPressed: _loadCharacters,
+              onPressed: _forceRefresh,
               child: const Text('Retry'),
             ),
           ],
@@ -305,7 +351,7 @@ class _CharactersScreenState extends State<CharactersScreen> {
     return Padding(
       padding: const EdgeInsets.all(8.0),
       child: RefreshIndicator(
-        onRefresh: _loadCharacters,
+        onRefresh: _forceRefresh,
         child: Scrollbar(
           thickness: 6,
           radius: const Radius.circular(10),
