@@ -8,6 +8,7 @@ import 'package:inzone/components/profile/avatar_story_component.dart';
 import 'package:inzone/services/inzone_database.dart';
 import 'package:inzone/router/routes.dart';
 import 'package:inzone/screen/chat/all_chats_screen.dart';
+import 'dart:async';
 
 class CharactersScreen extends StatefulWidget {
   const CharactersScreen({super.key});
@@ -18,13 +19,29 @@ class CharactersScreen extends StatefulWidget {
 
 class _CharactersScreenState extends State<CharactersScreen> {
   final List<InZoneAvatar> avatars = [];
+  final List<InZoneAvatar> filteredAvatars = [];
   bool isLoading = true;
   String? errorMessage;
+
+  // Search functionality
+  final TextEditingController _searchController = TextEditingController();
+  final FocusNode _searchFocusNode = FocusNode();
+  bool isSearching = false;
+  String searchQuery = '';
+  Timer? _debounce;
 
   @override
   void initState() {
     super.initState();
     _loadCharacters();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    _searchFocusNode.dispose();
+    _debounce?.cancel();
+    super.dispose();
   }
 
   Future<void> _loadCharacters() async {
@@ -34,15 +51,16 @@ class _CharactersScreenState extends State<CharactersScreen> {
         errorMessage = null;
       });
 
-      final characters = await InZoneDatabase.getCarouselCharacters();
+      final characters = await InZoneDatabase.getAICharacters(popular: false);
 
       if (characters != null && mounted) {
         setState(() {
           avatars.clear();
           for (var characterData in characters) {
-            InZoneAvatar avatar = InZoneAvatar.fromDirectJson(characterData);
+            InZoneAvatar avatar = InZoneAvatar.fromAICharacter(characterData);
             avatars.add(avatar);
           }
+          _filterAvatars(searchQuery);
           isLoading = false;
         });
       } else {
@@ -59,6 +77,45 @@ class _CharactersScreenState extends State<CharactersScreen> {
         });
       }
     }
+  }
+
+  void _filterAvatars(String query) {
+    setState(() {
+      if (query.isEmpty) {
+        filteredAvatars.clear();
+        filteredAvatars.addAll(avatars);
+      } else {
+        filteredAvatars.clear();
+        filteredAvatars.addAll(avatars.where((avatar) =>
+            avatar.name.toLowerCase().contains(query.toLowerCase()) ||
+            avatar.bio.toLowerCase().contains(query.toLowerCase()) ||
+            avatar.personality.toLowerCase().contains(query.toLowerCase())));
+      }
+      isSearching = query.isNotEmpty;
+    });
+  }
+
+  void _onSearchTextChanged(String text) {
+    if (_debounce?.isActive ?? false) {
+      _debounce!.cancel();
+    }
+
+    _debounce = Timer(const Duration(milliseconds: 500), () {
+      _filterAvatars(text);
+    });
+  }
+
+  void _clearSearch() {
+    _searchController.clear();
+    if (_debounce?.isActive ?? false) {
+      _debounce!.cancel();
+    }
+    setState(() {
+      searchQuery = '';
+      isSearching = false;
+    });
+    _filterAvatars('');
+    _searchFocusNode.unfocus();
   }
 
   List<Color> _generateUniqueGradient(InZoneAvatar avatar) {
@@ -89,17 +146,22 @@ class _CharactersScreenState extends State<CharactersScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            // Back button row instead of AppBar
+            // Search bar and back button
             Padding(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+              padding: const EdgeInsets.only(
+                  top: 8.0, left: 8.0, right: 16.0, bottom: 8.0),
               child: Row(
                 children: [
                   Padding(
                     padding: const EdgeInsets.only(right: 8.0),
                     child: GestureDetector(
                       onTap: () {
-                        Navigator.of(context).pop();
+                        if (_searchFocusNode.hasFocus) {
+                          _searchFocusNode.unfocus();
+                          _clearSearch();
+                        } else {
+                          Navigator.of(context).pop();
+                        }
                       },
                       child: CircleAvatar(
                         radius: 22,
@@ -119,21 +181,69 @@ class _CharactersScreenState extends State<CharactersScreen> {
                       ),
                     ),
                   ),
-                  const Expanded(
-                    child: Text(
-                      'Characters',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
+                  Expanded(
+                    child: TextField(
+                      controller: _searchController,
+                      focusNode: _searchFocusNode,
+                      cursorColor:
+                          Theme.of(context).textTheme.bodyMedium?.color,
+                      style: Theme.of(context).textTheme.bodyMedium,
+                      decoration: InputDecoration(
+                        hintText: 'Search characters',
+                        hintStyle: TextStyle(
+                          color: Theme.of(context).hintColor,
+                          fontSize: 14,
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 0),
+                        suffixIcon: searchQuery.isNotEmpty
+                            ? IconButton(
+                                icon: const Icon(Icons.clear, size: 18),
+                                onPressed: _clearSearch,
+                                splashRadius: 16,
+                              )
+                            : null,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(30),
+                          borderSide: BorderSide.none,
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(30),
+                          borderSide: BorderSide.none,
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(30),
+                          borderSide: BorderSide.none,
+                        ),
+                        filled: true,
+                        fillColor: Theme.of(context).cardColor,
                       ),
-                      textAlign: TextAlign.center,
+                      onChanged: (text) {
+                        setState(() {
+                          searchQuery = text;
+                        });
+                        _onSearchTextChanged(text);
+                      },
+                      textInputAction: TextInputAction.search,
                     ),
                   ),
-                  const SizedBox(width: 40),
                 ],
               ),
             ),
-
+            const SizedBox(height: 2),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Row(
+                children: [
+                  Text(
+                    'Characters',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                  ),
+                ],
+              ),
+            ),
             // Main content
             Expanded(
               child: _buildContent(context),
@@ -175,11 +285,56 @@ class _CharactersScreenState extends State<CharactersScreen> {
       );
     }
 
+    if (isSearching && filteredAvatars.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.search_off, size: 64, color: Colors.grey),
+            const SizedBox(height: 16),
+            Text(
+              'No characters found for "$searchQuery"',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+          ],
+        ),
+      );
+    }
+
     // 3-column grid with unlimited rows of circular avatars
     return Padding(
       padding: const EdgeInsets.all(8.0),
       child: RefreshIndicator(
         onRefresh: _loadCharacters,
+        child: Scrollbar(
+          thickness: 6,
+          radius: const Radius.circular(10),
+          thumbVisibility: true,
+          child: GridView.builder(
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 3,
+              childAspectRatio: 0.75,
+              crossAxisSpacing: 12,
+              mainAxisSpacing: 20,
+            ),
+            itemCount: isSearching ? filteredAvatars.length : avatars.length,
+            itemBuilder: (context, index) {
+              return _buildCircularAvatar(
+                  isSearching ? filteredAvatars[index] : avatars[index]);
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLoadingGrid(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(8.0),
+      child: Scrollbar(
+        thickness: 6,
+        radius: const Radius.circular(10),
+        thumbVisibility: true,
         child: GridView.builder(
           gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: 3,
@@ -187,39 +342,18 @@ class _CharactersScreenState extends State<CharactersScreen> {
             crossAxisSpacing: 12,
             mainAxisSpacing: 20,
           ),
-          itemCount: avatars.length,
+          itemCount: 12,
           itemBuilder: (context, index) {
-            return _buildCircularAvatar(avatars[index]);
+            return _buildCircularLoading(context);
           },
         ),
       ),
     );
   }
 
-  // 원형 아바타 로딩 상태를 그리드로 표시
-  Widget _buildLoadingGrid(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(8.0),
-      child: GridView.builder(
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 3,
-          childAspectRatio: 0.75,
-          crossAxisSpacing: 12,
-          mainAxisSpacing: 20,
-        ),
-        itemCount: 12, // 로딩 시 표시할 아이템 수
-        itemBuilder: (context, index) {
-          return _buildCircularLoading(context);
-        },
-      ),
-    );
-  }
-
-  // 원형 로딩 아이템
   Widget _buildCircularLoading(BuildContext context) {
     return Column(
       children: [
-        // 원형 아바타 로딩 효과
         Container(
           width: 110,
           height: 110,
@@ -255,7 +389,6 @@ class _CharactersScreenState extends State<CharactersScreen> {
           ),
         ),
         const SizedBox(height: 8),
-        // 이름 로딩 효과
         SkeletonContainer.rounded(
           width: 80,
           height: 14,
@@ -266,10 +399,8 @@ class _CharactersScreenState extends State<CharactersScreen> {
   }
 
   Widget _buildCircularAvatar(InZoneAvatar avatar) {
-    // 홈페이지와 동일한 방식으로 색상 생성
     List<Color> gradientColors = _generateUniqueGradient(avatar);
 
-    // Custom circular avatar with larger size
     return Column(
       children: [
         Container(

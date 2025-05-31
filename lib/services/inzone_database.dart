@@ -890,7 +890,8 @@ class InZoneDatabase {
 
     // Add optional fields if provided
     if (numberOfChats != null) body["NumberOfChats"] = numberOfChats;
-    if (profilePictureUrl != null) body["ProfilePictureUrl"] = profilePictureUrl;
+    if (profilePictureUrl != null)
+      body["ProfilePictureUrl"] = profilePictureUrl;
     if (votes != null) body["Votes"] = votes;
     if (createdByHuman != null) body["CreatedByHuman"] = createdByHuman;
 
@@ -1489,6 +1490,39 @@ class InZoneDatabase {
         return responseData
             .map((character) => character as Map<String, dynamic>)
             .toList();
+      } else {
+        return null;
+      }
+    } catch (e) {
+      return null;
+    }
+  }
+
+  static Future<List<Map<String, dynamic>>?> getAICharacters(
+      {bool popular = false}) async {
+    final String url =
+        'https://ai-apis-912424781531.us-east1.run.app/characters${popular ? "?popular=true" : ""}';
+
+    try {
+      final http.Response response = await http.get(
+        Uri.parse(url),
+        headers: <String, String>{
+          'Content-Type': 'application/json',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> responseData = jsonDecode(response.body);
+
+        if (responseData['success'] == true &&
+            responseData.containsKey('characters')) {
+          final List<dynamic> characters = responseData['characters'];
+          return characters
+              .map((character) => character as Map<String, dynamic>)
+              .toList();
+        } else {
+          return null;
+        }
       } else {
         return null;
       }

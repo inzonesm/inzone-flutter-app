@@ -69,6 +69,42 @@ class InZoneAvatar {
     );
   }
 
+  // Factory method for the new AI characters endpoint
+  factory InZoneAvatar.fromAICharacter(Map<String, dynamic> json) {
+    // Helper function to safely convert values to string
+    String safeString(dynamic value) {
+      if (value == null) return '';
+      if (value is String) return value;
+      if (value is List) return value.join(', ');
+      return value.toString();
+    }
+
+    // Check for both possible profile picture field names
+    String profilePicUrl = '';
+    if (json.containsKey('profilePicture')) {
+      profilePicUrl = safeString(json['profilePicture']);
+    } else if (json.containsKey('profile_picture_url')) {
+      profilePicUrl = safeString(json['profile_picture_url']);
+    }
+
+    return InZoneAvatar(
+      id: safeString(json['id']),
+      name: safeString(json['name']),
+      bio: safeString(json['bio']),
+      username: safeString(json['name']),
+      profilePicture: profilePicUrl,
+      personality: safeString(json['personality']),
+      gender: safeString(json['gender']) != ''
+          ? safeString(json['gender'])
+          : 'not specified',
+      subCategory: safeString(json['category']) != ''
+          ? safeString(json['category'])
+          : 'not specified',
+      age: json['age'] is int ? json['age'] : 0,
+      greeting: safeString(json['greeting']),
+    );
+  }
+
   // Method to parse a list of InZoneAvatar objects from JSON
   static List<InZoneAvatar> fromJsonList(List<dynamic> jsonList) {
     return jsonList.map((json) => InZoneAvatar.fromJson(json)).toList();

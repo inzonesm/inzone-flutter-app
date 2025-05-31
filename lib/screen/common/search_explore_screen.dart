@@ -14,6 +14,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:async';
 import 'package:inzone/router/routes.dart';
 import 'package:inzone/screen/common/characters_screen.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 class SearchExploreScreen extends StatefulWidget {
   const SearchExploreScreen({super.key});
@@ -207,7 +209,62 @@ class _SearchExploreScreenState extends State<SearchExploreScreen> {
     }
   }
 
-  void _performSearch(String query) {
+  // Call API to search for posts
+  Future<List<InZonePost>> _searchPostsApi(String query, {int k = 20}) async {
+    try {
+      // Encode the query parameters for the URL
+      final encodedQuery = Uri.encodeComponent(query);
+      final url =
+          'https://ai-apis-912424781531.us-east1.run.app/search/posts?keywords=$encodedQuery&k=$k';
+
+      final response = await http.get(Uri.parse(url));
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+
+        if (data != null && data['results'] != null) {
+          return (data['results'] as List).map((result) {
+            // Extract post data from the nested structure
+            final postData = result['post'];
+            final id = result['id'] as String;
+            final collection = result['collection'] as String? ?? 'General';
+
+            // Extract text, image, and video content
+            final textContent = postData['text_content'] ?? '';
+            final imageContent =
+                List<String>.from(postData['image_content'] ?? []);
+            final videoContent =
+                List<String>.from(postData['video_content'] ?? []);
+
+            // Create a post object with required fields
+            return InZonePost(
+              id: id,
+              userName: 'AI User',
+              comments: [], // Empty comments list
+              datePosted: DateTime.now(),
+              likes: 0,
+              textContent: textContent,
+              imageContent: imageContent,
+              videoContent: videoContent,
+              userReference: 'ai_user',
+              category: collection,
+              mainCategory: collection,
+              isAi: true,
+            );
+          }).toList();
+        }
+      }
+
+      // Handle error cases
+      debugPrint('API search error: ${response.statusCode} - ${response.body}');
+      return [];
+    } catch (e) {
+      debugPrint('Exception during API search: $e');
+      return [];
+    }
+  }
+
+  void _performSearch(String query) async {
     if (query.trim().isEmpty) {
       setState(() {
         isSearching = false;
@@ -230,20 +287,19 @@ class _SearchExploreScreenState extends State<SearchExploreScreen> {
       }
 
       isSearching = true;
-
-      // Mock search results using the recommended posts
-      // In a real app, you would call an API to search posts
-      searchResults = recommendedPosts
-          .where((post) =>
-              post.textContent.toLowerCase().contains(query.toLowerCase()) ||
-              post.userName.toLowerCase().contains(query.toLowerCase()) ||
-              post.category.toLowerCase().contains(query.toLowerCase()))
-          .toList();
-
-      // 검색 완료, 로딩 상태 비활성화
-      isSearchLoading = false;
+      isSearchLoading = true;
       searchQuery = query;
     });
+
+    // Call the API search endpoint
+    final results = await _searchPostsApi(query);
+
+    if (mounted) {
+      setState(() {
+        searchResults = results;
+        isSearchLoading = false;
+      });
+    }
 
     // 검색 기록 저장
     _saveSearchHistory();
@@ -398,7 +454,7 @@ class _SearchExploreScreenState extends State<SearchExploreScreen> {
 
   Widget _buildSearchResults() {
     if (isSearchLoading) {
-      return SearchLoading(context);
+      return SearchResultsLoading(context);
     }
 
     if (searchResults.isEmpty) {
@@ -428,8 +484,11 @@ class _SearchExploreScreenState extends State<SearchExploreScreen> {
     return ListView.builder(
       itemCount: searchResults.length,
       itemBuilder: (context, index) {
-        return PostCard(
-          post: searchResults[index],
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12.0),
+          child: PostCard(
+            post: searchResults[index],
+          ),
         );
       },
     );
@@ -458,8 +517,18 @@ class _SearchExploreScreenState extends State<SearchExploreScreen> {
                     onTap: () {
                       // Navigate to characters screen
                       Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (context) => const CharactersScreen(),
+                        PageRouteBuilder(
+                          pageBuilder:
+                              (context, animation, secondaryAnimation) =>
+                                  const CharactersScreen(),
+                          transitionsBuilder:
+                              (context, animation, secondaryAnimation, child) {
+                            return FadeTransition(
+                              opacity: animation,
+                              child: child,
+                            );
+                          },
+                          transitionDuration: const Duration(milliseconds: 300),
                         ),
                       );
                     },

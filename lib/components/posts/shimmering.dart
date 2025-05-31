@@ -580,6 +580,16 @@ Widget SearchLoading(BuildContext context) {
   );
 }
 
+// 검색 결과 화면에서 사용할 로딩 위젯
+Widget SearchResultsLoading(BuildContext context) {
+  return ListView.builder(
+    itemCount: 5,
+    itemBuilder: (context, index) {
+      return PostLoading(context);
+    },
+  );
+}
+
 class Skelton extends StatelessWidget {
   const Skelton({
     super.key,
