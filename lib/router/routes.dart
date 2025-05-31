@@ -20,7 +20,7 @@ class Routes {
   static const String create3dModelIntro = '/3d-model/intro';
   static const String create3dModel = '/3d-model';
   static const String create3dModelSelect = '/3d-model/select';
-  static const String createAICharacter = '/ai-character';
+  static const String createAICharacter = '/ai-character/select';
   static const String createAICharacterSelect = '/ai-character/select';
   static const String editProfile = '/edit-profile';
   static const String editField = '/edit-field/:fieldType';

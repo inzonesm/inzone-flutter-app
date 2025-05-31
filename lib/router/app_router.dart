@@ -7,7 +7,6 @@ import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:inzone/router/auth_notifier.dart';
 import 'package:inzone/root_app.dart';
-import 'package:inzone/screen/ai_character/ai_char_prompt_screen.dart';
 import 'package:inzone/screen/ai_character/ai_char_select_screen.dart';
 import 'package:inzone/screen/auth/splash_screen.dart';
 import 'package:inzone/screen/auth/introduction_screen.dart';
@@ -299,29 +298,38 @@ class AppRouter {
         },
       ),
       /* ---------- ai char routes ---------- */
-      GoRoute(
-        path: Routes.createAICharacter,
-        parentNavigatorKey: rootNavigatorKey,
-        pageBuilder: (context, state) => CupertinoPage(
-          key: state.pageKey,
-          fullscreenDialog: true,
-          child: const AICharacterPromptScreen(),
-        ),
-      ),
+      // GoRoute(
+      //   path: Routes.createAICharacter,
+      //   parentNavigatorKey: rootNavigatorKey,
+      //   pageBuilder: (context, state) => CupertinoPage(
+      //     key: state.pageKey,
+      //     fullscreenDialog: true,
+      //     child: const AICharacterPromptScreen(),
+      //   ),
+      // ),
 
       GoRoute(
         path: Routes.createAICharacterSelect,
         parentNavigatorKey: rootNavigatorKey,
         pageBuilder: (context, state) {
-          final Map<String, dynamic> extra =
-              state.extra as Map<String, dynamic>;
+          final Map<String, dynamic>? extra =
+              state.extra as Map<String, dynamic>?;
+
+          // Provide default values if extra is null
+          final String name = extra?['name'] as String? ?? "AI Character";
+          final String prompt = extra?['prompt'] as String? ?? "";
+          final String profilePictureUrl =
+              extra?['profilePictureUrl'] as String? ?? "";
+          final String characterId = extra?['characterId'] as String? ?? "";
+
           return CupertinoPage(
             key: state.pageKey,
+            fullscreenDialog: true,
             child: AICharacterSelectionScreen(
-              name: extra['name'] as String,
-              prompt: extra['prompt'] as String,
-              profilePictureUrl: extra['profilePictureUrl'] as String? ?? "",
-              characterId: extra['characterId'] as String? ?? "",
+              name: name,
+              prompt: prompt,
+              profilePictureUrl: profilePictureUrl,
+              characterId: characterId,
             ),
           );
         },
