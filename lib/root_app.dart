@@ -13,7 +13,6 @@ import 'package:iconify_flutter/icons/mdi.dart';
 import 'package:iconify_flutter/icons/heroicons_outline.dart';
 import 'package:iconify_flutter/icons/ph.dart';
 import 'package:iconify_flutter/icons/heroicons_solid.dart';
-import 'package:inzone/screen/3d_model/3d_model_intro.dart';
 
 class RootApp extends StatefulWidget {
   final Widget child;
@@ -300,27 +299,17 @@ class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        _buildAnimatedOptionButton(
-                          'Create 3D Avatar',
-                          Icons.person,
-                          () async {
-                            print("Create 3D Avatar button tapped");
-                            _toggleExpanded();
-
-                            // Check if intro has been seen
-                            final hasSeenIntro =
-                                await ModelIntroScreen.hasSeenIntro();
-                            if (hasSeenIntro) {
-                              // Skip intro and go directly to prompt screen
-                              context.push(Routes.create3dModel);
-                            } else {
-                              // Show intro for the first time
-                              context.push(Routes.create3dModelIntro);
-                            }
-                          },
-                          0,
-                        ),
-                        const SizedBox(height: 16),
+                        // _buildAnimatedOptionButton(
+                        //   'Create 3D Avatar',
+                        //   Icons.person,
+                        //   () {
+                        //     print("Create 3D Avatar button tapped");
+                        //     _toggleExpanded();
+                        //     context.push(Routes.create3dModel);
+                        //   },
+                        //   0,
+                        // ),
+                        // const SizedBox(height: 16),
                         _buildAnimatedOptionButton(
                           'Create AI Character',
                           Icons.face,
