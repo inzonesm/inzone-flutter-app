@@ -240,7 +240,7 @@ class AppsFlyerService {
     appsflyerSdk.setCustomerUserId(userId);
   }
 
-  Future<bool?> logEvent(
+  Future<bool?> logEvent( 
       String eventName, Map<String, dynamic>? eventValues) async {
     return await appsflyerSdk.logEvent(eventName, eventValues);
   }
