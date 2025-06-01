@@ -1965,7 +1965,6 @@ class _DynamicPageViewState extends State<_DynamicPageView> {
 
               return LayoutBuilder(
                 builder: (context, constraints) {
-                  // Initial height based on 16:9 aspect ratio - will be updated when video loads
                   double initialHeight = constraints.maxWidth * 9 / 16;
                   _updateHeightOnce(videoUrl, index, initialHeight);
 
