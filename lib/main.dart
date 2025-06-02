@@ -20,6 +20,7 @@ import 'package:purchases_flutter/purchases_flutter.dart'
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:inzone/router/routes.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:app_tracking_transparency/app_tracking_transparency.dart';
 
 Future<void> validateFirebaseSession() async {
   final user = FirebaseAuth.instance.currentUser;
@@ -66,6 +67,30 @@ Future<void> initPlatformState() async {
   }
 }
 
+Future<void> requestTrackingPermission() async {
+  if (Platform.isIOS) {
+    final TrackingStatus status =
+        await AppTrackingTransparency.requestTrackingAuthorization();
+    
+    // If authorized, fetch IDFA (else, fall back to SKAdNetwork or do nothing)
+    if (status == TrackingStatus.authorized) {
+      try {
+        final String advertisingId = await AppTrackingTransparency.getAdvertisingIdentifier();
+        // Now you have the IDFA in `advertisingId`
+        print('IDFA = $advertisingId');
+        // …send it to your server or to your ad SDK
+      } catch (e) {
+        // Failed to retrieve IDFA
+        print('Error fetching IDFA: $e');
+      }
+    } else {
+      // "denied" or "notDetermined" or "restricted"
+      // Don't attempt to fetch IDFA; use SKAdNetwork or generic attribution instead.
+      print('Tracking permission not granted (status = $status).');
+    }
+  }
+}
+
 void main() async {
   WidgetsBinding widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
   FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
@@ -89,6 +114,9 @@ void main() async {
 
   // Firebase auth check
   await validateFirebaseSession();
+
+  // Request tracking permission and get IDFA if authorized
+  await requestTrackingPermission();
 
   // Initialize AppsFlyerService
   final appsFlyerService = AppsFlyerService();
