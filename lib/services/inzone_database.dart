@@ -4,11 +4,29 @@ import 'package:http/http.dart' as http;
 import 'package:inzone/data/inzone_post.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:inzone/services/appsflyer_service.dart';
+import 'dart:async'; // Add Timer import
 
 import '../main.dart';
 
 class InZoneDatabase {
+  // Track last API call time to prevent too many requests
+  static DateTime? _lastFeedApiCallTime;
+  static const _minTimeBetweenCalls = Duration(milliseconds: 500);
+
   static Future<dynamic> getFeed({int? page}) async {
+    // Throttle API requests to prevent overloading
+    if (_lastFeedApiCallTime != null) {
+      final timeSinceLastCall =
+          DateTime.now().difference(_lastFeedApiCallTime!);
+      if (timeSinceLastCall < _minTimeBetweenCalls) {
+        // Wait for the minimum time between calls
+        await Future.delayed(_minTimeBetweenCalls - timeSinceLastCall);
+      }
+    }
+
+    // Update the last API call time
+    _lastFeedApiCallTime = DateTime.now();
+
     String url =
         'https://inzoneapi-912424781531.us-central1.run.app/feed/posts-flow';
 
@@ -24,14 +42,17 @@ class InZoneDatabase {
     }
 
     try {
-      // Make the GET request
+      // Make the GET request with timeout
       final response = await http.get(
         Uri.parse(url),
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
         },
-      );
+      ).timeout(const Duration(seconds: 15), onTimeout: () {
+        // Return a timeout response
+        throw TimeoutException('The request took too long to complete');
+      });
 
       // Check if the response status code is 200 (OK)
       if (response.statusCode == 200) {
@@ -39,12 +60,19 @@ class InZoneDatabase {
 
         // Return the response as is - it should contain a 'posts' field with post_type
         return jsonData;
+      } else if (response.statusCode == 429) {
+        // Too many requests - add additional delay
+        print('Rate limited by API (429). Waiting before retrying...');
+        await Future.delayed(const Duration(seconds: 2));
+        return null;
       } else {
         // Log if status code is not 200 (OK)
+        print('API error: ${response.statusCode} - ${response.body}');
         return null;
       }
     } catch (e) {
       // Handle any other exceptions
+      print('Feed API request failed: $e');
       return null;
     }
   }
