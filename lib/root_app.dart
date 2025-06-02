@@ -10,9 +10,10 @@ import 'package:inzone/screen/profile/user_profile_screen.dart';
 import 'package:iconify_flutter/iconify_flutter.dart';
 import 'package:iconify_flutter/icons/ri.dart';
 import 'package:iconify_flutter/icons/mdi.dart';
-import 'package:iconify_flutter/icons/heroicons_outline.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:iconify_flutter/icons/ph.dart';
 import 'package:iconify_flutter/icons/heroicons_solid.dart';
+import 'package:in_app_review/in_app_review.dart';
 
 class RootApp extends StatefulWidget {
   final Widget child;
@@ -31,6 +32,10 @@ class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
   bool _isExpanded = false;
   bool _isNavBarVisible = true; // Track visibility of navigation bar
   double _lastScrollPosition = 0; // Keep track of the last scroll position
+
+  /* --- in app review --- */
+  final InAppReview inAppReview = InAppReview.instance;
+  int appOpenCounter = 0; // Counter for app opens
 
   // Add animation controllers
   late AnimationController _rotationController;
@@ -84,6 +89,9 @@ class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
 
     // Add scroll listener to handle navbar visibility
     _homeScrollController.addListener(_handleScroll);
+
+    // Check app open count and request review if needed
+    _checkAndRequestReview();
   }
 
   @override
@@ -299,17 +307,17 @@ class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        // _buildAnimatedOptionButton(
-                        //   'Create 3D Avatar',
-                        //   Icons.person,
-                        //   () {
-                        //     print("Create 3D Avatar button tapped");
-                        //     _toggleExpanded();
-                        //     context.push(Routes.create3dModel);
-                        //   },
-                        //   0,
-                        // ),
-                        // const SizedBox(height: 16),
+                        _buildAnimatedOptionButton(
+                          'Create 3D Avatar',
+                          Icons.person,
+                          () {
+                            print("Create 3D Avatar button tapped");
+                            _toggleExpanded();
+                            context.push(Routes.create3dModel);
+                          },
+                          0,
+                        ),
+                        const SizedBox(height: 16),
                         _buildAnimatedOptionButton(
                           'Create AI Character',
                           Icons.face,
@@ -516,5 +524,29 @@ class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
         ),
       ),
     );
+  }
+
+  // Handle in-app review based on app open count
+  Future<void> _checkAndRequestReview() async {
+    final prefs = await SharedPreferences.getInstance();
+
+    // Retrieve the saved counter or default to 0 if not found
+    appOpenCounter = prefs.getInt('appOpenCounter') ?? 0;
+
+    // Increment app open counter
+    appOpenCounter++;
+
+    // Save the incremented counter
+    await prefs.setInt('appOpenCounter', appOpenCounter);
+
+    // Print the current counter value
+    print('App opened $appOpenCounter times');
+
+    // Only show review dialog at specific counts (3 and 21)
+    if (appOpenCounter == 3 || appOpenCounter == 21) {
+      if (await inAppReview.isAvailable()) {
+        inAppReview.requestReview();
+      }
+    }
   }
 }

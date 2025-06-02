@@ -357,14 +357,14 @@ Widget ImageLoading(BuildContext context) {
     padding: const EdgeInsets.all(4),
     child: Container(
       height: 140,
-      width: 140,
+      width: MediaQuery.of(context).size.width,
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(24),
       ),
       child: SkeletonContainer.rounded(
         height: 140,
-        width: 140,
+        width: MediaQuery.of(context).size.width,
         color: Theme.of(context).cardColor,
       ),
     ),
