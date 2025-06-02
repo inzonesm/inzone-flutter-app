@@ -121,13 +121,28 @@ class NativeAdFactoryExample: NSObject, FLTNativeAdFactory {
             mediaContainer.addSubview(mediaView)
             nativeAdView.mediaView = mediaView
             
-            // Add padding around media view
-            NSLayoutConstraint.activate([
-                mediaView.topAnchor.constraint(equalTo: mediaContainer.topAnchor, constant: 16),
-                mediaView.leadingAnchor.constraint(equalTo: mediaContainer.leadingAnchor, constant: 16),
-                mediaView.trailingAnchor.constraint(equalTo: mediaContainer.trailingAnchor, constant: -16),
-                mediaView.bottomAnchor.constraint(equalTo: mediaContainer.bottomAnchor, constant: -16)
-            ])
+            // Apply constraints with aspect ratio
+            if nativeAd.mediaContent != nil && nativeAd.mediaContent.aspectRatio > 0 {
+                let aspectRatio = CGFloat(nativeAd.mediaContent.aspectRatio)
+                
+                NSLayoutConstraint.activate([
+                    mediaView.topAnchor.constraint(equalTo: mediaContainer.topAnchor, constant: 16),
+                    mediaView.leadingAnchor.constraint(equalTo: mediaContainer.leadingAnchor, constant: 16),
+                    mediaView.trailingAnchor.constraint(equalTo: mediaContainer.trailingAnchor, constant: -16),
+                    mediaView.bottomAnchor.constraint(equalTo: mediaContainer.bottomAnchor, constant: -16),
+                    
+                    // Key: maintain aspect ratio
+                    mediaView.heightAnchor.constraint(equalTo: mediaView.widthAnchor, multiplier: 1 / aspectRatio)
+                ])
+            } else {
+                // fallback (ex: no aspect ratio info)
+                NSLayoutConstraint.activate([
+                    mediaView.topAnchor.constraint(equalTo: mediaContainer.topAnchor, constant: 16),
+                    mediaView.leadingAnchor.constraint(equalTo: mediaContainer.leadingAnchor, constant: 16),
+                    mediaView.trailingAnchor.constraint(equalTo: mediaContainer.trailingAnchor, constant: -16),
+                    mediaView.bottomAnchor.constraint(equalTo: mediaContainer.bottomAnchor, constant: -16)
+                ])
+            }
             
             // Make media container flexible and take most space
             mediaContainer.setContentHuggingPriority(UILayoutPriority(249), for: .vertical)
