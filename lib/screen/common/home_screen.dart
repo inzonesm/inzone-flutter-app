@@ -45,7 +45,8 @@ class HomeScreenState extends State<HomeScreen> {
   // Store the actual posts data from API
   List<dynamic> posts = [];
   List<dynamic> originalPosts = []; // For category filtering
-  final Set<String> _viewedPosts = {}; // Track posts whose view count has been incremented
+  final Set<String> _viewedPosts =
+      {}; // Track posts whose view count has been incremented
 
   @override
   void initState() {
@@ -77,21 +78,21 @@ class HomeScreenState extends State<HomeScreen> {
     // Assuming average card height of ~200px
     double scrollPosition = _scrollController.position.pixels;
     int estimatedVisibleIndex = (scrollPosition / 200).floor();
-    
+
     // Update current visible index if it has changed significantly
     if (estimatedVisibleIndex != _currentVisibleIndex) {
       _currentVisibleIndex = estimatedVisibleIndex;
-      
+
       // Ensure we have enough posts loaded ahead
       int totalItemsWithAds = posts.length + (posts.length ~/ 10);
       int remainingItems = totalItemsWithAds - _currentVisibleIndex;
-      
+
       // If we're within 5 items of the end, load more
       if (remainingItems <= 5 && !isLoadingMore && hasMorePosts) {
         _loadMorePosts();
       }
     }
-    
+
     // Original logic: 화면 끝에서 더 일찍(500픽셀 전) 데이터 로딩을 시작
     if (_scrollController.position.pixels >=
             _scrollController.position.maxScrollExtent - 500 &&
@@ -113,6 +114,9 @@ class HomeScreenState extends State<HomeScreen> {
   Future<void> loadFeed({bool isRefresh = false}) async {
     if (!mounted) return;
 
+    // Prevent concurrent loading requests
+    if (isLoading && isRefresh) return;
+
     if (isRefresh) {
       setState(() {
         _currentPage = 0;
@@ -123,7 +127,6 @@ class HomeScreenState extends State<HomeScreen> {
         avatarStoryComponents.clear();
         hasMorePosts = true;
         selectedCategory = null; // Reset selected category on refresh
-        reloadCount++; // Increment reload count on refresh
         _viewedPosts.clear(); // Clear viewed posts tracking on refresh
       });
       loadAvatars();
@@ -134,8 +137,9 @@ class HomeScreenState extends State<HomeScreen> {
     });
 
     try {
-      // Fetch data from InZoneDatabase with reload count parameter
-      final response = await InZoneDatabase.getFeed(page: reloadCount);
+      // Use page=1 for initial load to ensure consistent behavior
+      final response =
+          await InZoneDatabase.getFeed(page: isRefresh ? 1 : reloadCount);
 
       if (!mounted) return;
 
@@ -159,8 +163,38 @@ class HomeScreenState extends State<HomeScreen> {
             _currentPage++;
             hasMorePosts = newPosts.isNotEmpty;
           });
-        } else {}
-      } else {}
+        } else {
+          // Handle empty response gracefully
+          setState(() {
+            if (isRefresh) {
+              // If it was a refresh, reset to empty state
+              posts.clear();
+              originalPosts.clear();
+            }
+          });
+        }
+      } else {
+        // Handle null response gracefully
+        setState(() {
+          if (isRefresh) {
+            // If it was a refresh and failed, reset to empty state
+            posts.clear();
+            originalPosts.clear();
+          }
+        });
+      }
+    } catch (e) {
+      print('Error loading feed: $e');
+      // Handle error case - don't leave UI in loading state
+      if (mounted) {
+        setState(() {
+          // If error during refresh, ensure UI is updated
+          if (isRefresh) {
+            posts.clear();
+            originalPosts.clear();
+          }
+        });
+      }
     } finally {
       if (mounted) {
         setState(() {
@@ -175,17 +209,27 @@ class HomeScreenState extends State<HomeScreen> {
 
     setState(() {
       isLoadingMore = true;
-      reloadCount++; // Increment reload count when loading more posts
+      // Don't increment reloadCount here - it causes issues with pagination
     });
 
     try {
-      final response = await InZoneDatabase.getFeed(page: reloadCount);
+      // Always use current page number for pagination rather than reloadCount
+      final response = await InZoneDatabase.getFeed(page: _currentPage + 1);
 
       if (!mounted) return;
 
       if (response != null) {
         if (response.containsKey('posts')) {
           List<dynamic> newPosts = response['posts'] ?? [];
+
+          if (newPosts.isEmpty) {
+            // No more posts to load
+            setState(() {
+              hasMorePosts = false;
+              isLoadingMore = false;
+            });
+            return;
+          }
 
           setState(() {
             posts.addAll(newPosts);
@@ -206,12 +250,6 @@ class HomeScreenState extends State<HomeScreen> {
 
             _currentPage++;
             hasMorePosts = newPosts.isNotEmpty;
-
-            if (hasMorePosts && (_currentPage % 2 == 0)) {
-              if (mounted && !isLoadingMore && hasMorePosts) {
-                _preloadNextPage();
-              }
-            }
           });
         } else {
           setState(() {
@@ -223,6 +261,12 @@ class HomeScreenState extends State<HomeScreen> {
           hasMorePosts = false;
         });
       }
+    } catch (e) {
+      print('Error loading more posts: $e');
+      // Ensure we don't keep showing loading state if there's an error
+      setState(() {
+        hasMorePosts = false;
+      });
     } finally {
       if (mounted) {
         setState(() {
@@ -237,10 +281,12 @@ class HomeScreenState extends State<HomeScreen> {
 
     bool wasLoading = isLoadingMore;
     isLoadingMore = true;
-    reloadCount++;
 
     try {
-      await InZoneDatabase.getFeed(page: reloadCount);
+      // Use _currentPage + 1 instead of reloadCount for better pagination
+      await InZoneDatabase.getFeed(page: _currentPage + 1);
+    } catch (e) {
+      print('Error preloading next page: $e');
     } finally {
       if (mounted) {
         isLoadingMore = wasLoading;
@@ -396,8 +442,11 @@ class HomeScreenState extends State<HomeScreen> {
     }
 
     // Increment view count when post is built (not for ads or carousels)
-    String postId = actualPost['id']?.toString() ?? actualPost['_id']?.toString() ?? '';
-    if (postId.isNotEmpty && postType != 'unknown' && !_viewedPosts.contains(postId)) {
+    String postId =
+        actualPost['id']?.toString() ?? actualPost['_id']?.toString() ?? '';
+    if (postId.isNotEmpty &&
+        postType != 'unknown' &&
+        !_viewedPosts.contains(postId)) {
       _viewedPosts.add(postId);
       _incrementViewCount(postId, postType);
     }
@@ -559,10 +608,27 @@ class HomeScreenState extends State<HomeScreen> {
                   // iOS 스타일 리프레시 컨트롤
                   CupertinoSliverRefreshControl(
                     onRefresh: () async {
-                      setState(() {
-                        reloadCount++;
-                      });
-                      await loadFeed(isRefresh: true);
+                      try {
+                        // Only increment reload count if the previous load finished
+                        if (!isLoading && !isLoadingMore) {
+                          setState(() {
+                            reloadCount++;
+                          });
+                          await loadFeed(isRefresh: true);
+                        } else {
+                          // Cancel refresh if already loading
+                          setState(() {
+                            // Just complete the refresh without doing anything
+                          });
+                        }
+                      } catch (e) {
+                        // Handle refresh errors gracefully
+                        print('Error during refresh: $e');
+                        setState(() {
+                          isLoading = false;
+                          isLoadingMore = false;
+                        });
+                      }
                     },
                     refreshTriggerPullDistance: 120.0,
                     refreshIndicatorExtent: 60.0,
@@ -712,7 +778,7 @@ class HomeScreenState extends State<HomeScreen> {
   Future<void> _incrementViewCount(String postId, String postType) async {
     try {
       String collectionName;
-      
+
       // Map post type to collection name
       switch (postType) {
         case 'ai_post':
@@ -736,7 +802,7 @@ class HomeScreenState extends State<HomeScreen> {
           .update({
         'viewcount': FieldValue.increment(1),
       });
-      
+
       print('View count incremented for $collectionName/$postId');
     } catch (e) {
       // Silently handle errors - don't disrupt user experience
@@ -780,10 +846,7 @@ class _AdPostCardState extends State<_AdPostCard> {
   Widget build(BuildContext context) {
     return Stack(
       children: [
-        // 광고 로딩 중 Shimmering 효과 표시
         if (!isAdLoaded) AdPostLoading(context),
-
-        // 실제 광고 PostCard (애니메이션 효과로 서서히 나타남)
         AnimatedOpacity(
           opacity: isAdLoaded ? 1.0 : 0.0,
           duration: const Duration(milliseconds: 500),

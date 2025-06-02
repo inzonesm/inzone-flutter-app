@@ -6,10 +6,36 @@ import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 
+// Global mute state manager
+class VideoMuteManager {
+  static bool _isMuted = false;
+  static final StreamController<bool> _muteStateController =
+      StreamController<bool>.broadcast();
+
+  static Stream<bool> get muteStateStream => _muteStateController.stream;
+
+  static bool get isMuted => _isMuted;
+
+  static void setMuted(bool muted) {
+    if (_isMuted != muted) {
+      _isMuted = muted;
+      _muteStateController.add(_isMuted);
+    }
+  }
+
+  static void toggleMute() {
+    setMuted(!_isMuted);
+  }
+
+  static void dispose() {
+    _muteStateController.close();
+  }
+}
+
 // Notification to communicate video aspect ratio to parent widgets
 class VideoAspectRatioNotification extends Notification {
   final double aspectRatio;
-  
+
   VideoAspectRatioNotification(this.aspectRatio);
 }
 
@@ -18,7 +44,7 @@ class VideoWidget extends StatefulWidget {
   final Function(double)? onAspectRatioUpdated;
 
   const VideoWidget({
-    super.key, 
+    super.key,
     required this.videoUrl,
     this.onAspectRatioUpdated,
   });
@@ -36,27 +62,48 @@ class _VideoWidgetState extends State<VideoWidget> {
   Timer? _loadingTimeoutTimer;
   String _errorMessage = 'Unsupported video format.';
   final String _uniqueViewId = UniqueKey().toString();
-  
+
   // Add scrubbing state variables
   bool _isScrubbing = false;
   Duration _scrubbingPosition = Duration.zero;
   Timer? _scrubbingTimer;
 
+  // Control visibility of play/pause button
+  bool _showPlayPauseButton = true;
+  Timer? _hideControlsTimer;
+
+  // Subscription to mute state changes
+  StreamSubscription? _muteSubscription;
+
   @override
   void initState() {
     super.initState();
     _initializeVideo();
-    
+
     // Set a manual timeout for loading to prevent infinite spinner
     _loadingTimeoutTimer = Timer(const Duration(seconds: 15), () {
       if (mounted && _isLoading) {
         setState(() {
           _isLoading = false;
           _isPlayable = false;
-          _errorMessage = 'Video loading timed out. Please check your connection and try again.';
+          _errorMessage =
+              'Video loading timed out. Please check your connection and try again.';
         });
       }
     });
+
+    // Subscribe to global mute state changes
+    _muteSubscription = VideoMuteManager.muteStateStream.listen((isMuted) {
+      if (_mediaKitPlayer != null && mounted) {
+        _mediaKitPlayer!.setVolume(isMuted ? 0 : 100);
+        setState(() {}); // Trigger rebuild to update UI
+      }
+    });
+
+    // Apply current global mute state
+    if (_mediaKitPlayer != null) {
+      _mediaKitPlayer!.setVolume(VideoMuteManager.isMuted ? 0 : 100);
+    }
   }
 
   Future<void> _initializeVideo() async {
@@ -67,7 +114,7 @@ class _VideoWidgetState extends State<VideoWidget> {
 
     // Process the URL to handle YouTube links
     String mediaUrl = widget.videoUrl;
-    
+
     // Check if it's a YouTube URL and extract the video ID
     if (_isYoutubeUrl(widget.videoUrl)) {
       final videoId = _getYoutubeVideoId(widget.videoUrl);
@@ -99,14 +146,14 @@ class _VideoWidgetState extends State<VideoWidget> {
       r'(?:youtube\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?)\/|shorts\/|\S*?[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})',
       caseSensitive: false,
     );
-    
+
     Match? match = regExp.firstMatch(url);
     return match?.group(1);
   }
 
   Future<void> _initializeMediaKitPlayer(String videoPath) async {
     debugPrint('Starting MediaKit Player initialization: $videoPath');
-    
+
     try {
       // Dispose any existing MediaKit player
       if (_mediaKitPlayer != null) {
@@ -114,19 +161,18 @@ class _VideoWidgetState extends State<VideoWidget> {
         _mediaKitPlayer = null;
         _mediaKitVideoController = null;
       }
-      
+
       // Initialize the player with configuration for showing controls
       _mediaKitPlayer = Player();
-      
+
       // Create video controller with the proper configuration for the platform
       _mediaKitVideoController = VideoController(
         _mediaKitPlayer!,
       );
 
-      
       // Create a completer for tracking MediaKit initialization
       final Completer<void> mediaKitCompleter = Completer<void>();
-      
+
       // Setup listener for MediaKit player state changes
       final playerStateStream = _mediaKitPlayer!.stream.playing;
       final subscription = playerStateStream.listen((playing) {
@@ -134,32 +180,33 @@ class _VideoWidgetState extends State<VideoWidget> {
           mediaKitCompleter.complete();
         }
       });
-      
+
       // Error handler for MediaKit
       _mediaKitPlayer!.stream.error.listen((error) {
         if (!mediaKitCompleter.isCompleted) {
           mediaKitCompleter.completeError(error);
         }
       });
-      
+
       // Start opening the media
       unawaited(_mediaKitPlayer!.open(Media(videoPath)));
-      
+
       // Wait for either playback to start or timeout
       await mediaKitCompleter.future.timeout(
         const Duration(seconds: 10),
         onTimeout: () {
-          throw TimeoutException('MediaKit initialization timed out after 10 seconds');
+          throw TimeoutException(
+              'MediaKit initialization timed out after 10 seconds');
         },
       );
-      
+
       // Cancel subscription after we're done
       subscription.cancel();
-      
+
       // Configure audio settings after successful initialization
-      await _mediaKitPlayer!.setVolume(100);
+      await _mediaKitPlayer!.setVolume(VideoMuteManager.isMuted ? 0 : 100);
       await _mediaKitPlayer!.setRate(1.0);
-      
+
       debugPrint('MediaKit Player opened successfully');
       _mediaKitPlayer!.pause();
 
@@ -175,7 +222,8 @@ class _VideoWidgetState extends State<VideoWidget> {
         setState(() {
           _isPlayable = false;
           _isLoading = false;
-          _errorMessage = 'Video loading error: ${e.toString().substring(0, math.min(100, e.toString().length))}';
+          _errorMessage =
+              'Video loading error: ${e.toString().substring(0, math.min(100, e.toString().length))}';
         });
       }
     }
@@ -185,12 +233,15 @@ class _VideoWidgetState extends State<VideoWidget> {
   Widget build(BuildContext context) {
     final double width = MediaQuery.of(context).size.width - 60;
     double aspectRatio = 16 / 9; // Default fallback aspect ratio
-    
+
     if (_mediaKitPlayer != null) {
       final videoWidth = _mediaKitPlayer!.state.width?.toDouble();
       final videoHeight = _mediaKitPlayer!.state.height?.toDouble();
-      
-      if (videoWidth != null && videoHeight != null && videoWidth > 0 && videoHeight > 0) {
+
+      if (videoWidth != null &&
+          videoHeight != null &&
+          videoWidth > 0 &&
+          videoHeight > 0) {
         aspectRatio = videoWidth / videoHeight;
 
         // Call the callback to inform parent about aspect ratio
@@ -201,7 +252,7 @@ class _VideoWidgetState extends State<VideoWidget> {
             }
           });
         }
-        
+
         // Dispatch notification with aspect ratio
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted) {
@@ -210,7 +261,7 @@ class _VideoWidgetState extends State<VideoWidget> {
         });
       } else {}
     }
-    
+
     // Show loading indicator
     if (_isLoading) {
       return Container(
@@ -233,7 +284,8 @@ class _VideoWidgetState extends State<VideoWidget> {
                   debugPrint('Retry button pressed');
                   _initializeVideo();
                 },
-                child: const Text('Retry', style: TextStyle(color: Colors.white)),
+                child:
+                    const Text('Retry', style: TextStyle(color: Colors.white)),
               ),
             ],
           ),
@@ -243,7 +295,8 @@ class _VideoWidgetState extends State<VideoWidget> {
 
     // Show error message if video is not playable
     if (!_isInitialized || !_isPlayable) {
-      debugPrint('Building error view - isInitialized: $_isInitialized, isPlayable: $_isPlayable');
+      debugPrint(
+          'Building error view - isInitialized: $_isInitialized, isPlayable: $_isPlayable');
       return Container(
         width: width,
         height: width / aspectRatio,
@@ -284,18 +337,27 @@ class _VideoWidgetState extends State<VideoWidget> {
           children: [
             // The video player
             Video(controller: _mediaKitVideoController!),
-            
+
             // Custom overlay for capturing tap to pause/play
             Positioned.fill(
               child: GestureDetector(
                 onTap: () {
                   if (_mediaKitPlayer != null) {
+                    setState(() {
+                      _showPlayPauseButton = true;
+                    });
+
                     if (_mediaKitPlayer!.state.playing) {
                       _mediaKitPlayer!.pause();
                     } else {
                       _mediaKitPlayer!.play();
                       // Ensure volume is set when manually playing
-                      _mediaKitPlayer!.setVolume(100);
+                      if (!VideoMuteManager.isMuted) {
+                        _mediaKitPlayer!.setVolume(100);
+                      }
+
+                      // Auto-hide controls after playing
+                      _startHideControlsTimer();
                     }
                   }
                 },
@@ -303,7 +365,80 @@ class _VideoWidgetState extends State<VideoWidget> {
                 child: Container(color: Colors.transparent),
               ),
             ),
-            
+
+            // Play/Pause button in the center
+            StreamBuilder<bool>(
+              stream: _mediaKitPlayer?.stream.playing,
+              initialData: false,
+              builder: (context, snapshot) {
+                final bool isPlaying = snapshot.data ?? false;
+
+                return Positioned.fill(
+                  child: AnimatedOpacity(
+                    opacity: !isPlaying ? 1.0 : 0.0,
+                    duration: const Duration(milliseconds: 300),
+                    child: Center(
+                      child: GestureDetector(
+                        onTap: () {
+                          if (_mediaKitPlayer != null) {
+                            if (_mediaKitPlayer!.state.playing) {
+                              _mediaKitPlayer!.pause();
+                            } else {
+                              _mediaKitPlayer!.play();
+                              // Ensure volume is set when manually playing
+                              if (!VideoMuteManager.isMuted) {
+                                _mediaKitPlayer!.setVolume(100);
+                              }
+                            }
+                          }
+                        },
+                        child: Container(
+                          width: 70,
+                          height: 70,
+                          decoration: BoxDecoration(
+                            color: Colors.black.withOpacity(0.6),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.play_arrow,
+                            color: Colors.white,
+                            size: 40,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+
+            // Mute button overlay
+            Positioned(
+              bottom: 10,
+              right: 10,
+              child: GestureDetector(
+                onTap: () {
+                  // Toggle the global mute state
+                  VideoMuteManager.toggleMute();
+                },
+                child: Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.6),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    VideoMuteManager.isMuted
+                        ? Icons.volume_off
+                        : Icons.volume_up,
+                    color: Colors.white,
+                    size: 20,
+                  ),
+                ),
+              ),
+            ),
+
             // Timestamp overlay during scrubbing
             if (_isScrubbing)
               Positioned(
@@ -312,7 +447,8 @@ class _VideoWidgetState extends State<VideoWidget> {
                 right: 0,
                 child: Center(
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     decoration: BoxDecoration(
                       color: Colors.black.withOpacity(0.8),
                       borderRadius: BorderRadius.circular(8),
@@ -328,7 +464,7 @@ class _VideoWidgetState extends State<VideoWidget> {
                   ),
                 ),
               ),
-            
+
             // Custom progress bar with blue color that supports seeking - positioned at the very bottom
             Positioned(
               left: 0,
@@ -338,29 +474,39 @@ class _VideoWidgetState extends State<VideoWidget> {
                 stream: _mediaKitPlayer?.stream.position,
                 builder: (context, snapshot) {
                   if (!snapshot.hasData) return const SizedBox();
-                  
+
                   final position = snapshot.data!;
-                  final duration = _mediaKitPlayer?.state.duration ?? const Duration(seconds: 1);
-                  
+                  final duration = _mediaKitPlayer?.state.duration ??
+                      const Duration(seconds: 1);
+
                   // Calculate progress percentage
-                  double progress = position.inMilliseconds / duration.inMilliseconds;
+                  double progress =
+                      position.inMilliseconds / duration.inMilliseconds;
                   progress = progress.clamp(0.0, 1.0);
-                  
+
                   return GestureDetector(
                     onTapDown: (details) {
-                      _handleProgressBarInteraction(details.localPosition.dx, context, duration, isStart: true);
+                      _handleProgressBarInteraction(
+                          details.localPosition.dx, context, duration,
+                          isStart: true);
                     },
                     onTapUp: (details) {
-                      _handleProgressBarInteraction(details.localPosition.dx, context, duration, isEnd: true);
+                      _handleProgressBarInteraction(
+                          details.localPosition.dx, context, duration,
+                          isEnd: true);
                     },
                     onHorizontalDragStart: (details) {
-                      _handleProgressBarInteraction(details.localPosition.dx, context, duration, isStart: true);
+                      _handleProgressBarInteraction(
+                          details.localPosition.dx, context, duration,
+                          isStart: true);
                     },
                     onHorizontalDragUpdate: (details) {
-                      _handleProgressBarInteraction(details.localPosition.dx, context, duration);
+                      _handleProgressBarInteraction(
+                          details.localPosition.dx, context, duration);
                     },
                     onHorizontalDragEnd: (details) {
-                      _handleProgressBarInteraction(0, context, duration, isEnd: true);
+                      _handleProgressBarInteraction(0, context, duration,
+                          isEnd: true);
                     },
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
@@ -418,12 +564,14 @@ class _VideoWidgetState extends State<VideoWidget> {
   @override
   void dispose() {
     debugPrint('Disposing VideoWidget for URL: ${widget.videoUrl}');
-    // Cancel timer
+    // Cancel timers
     _loadingTimeoutTimer?.cancel();
-    
-    // Cancel scrubbing timer
     _scrubbingTimer?.cancel();
-    
+    _hideControlsTimer?.cancel();
+
+    // Cancel mute state subscription
+    _muteSubscription?.cancel();
+
     // Dispose of the media kit player
     if (_mediaKitPlayer != null) {
       _mediaKitPlayer!.pause();
@@ -435,19 +583,21 @@ class _VideoWidgetState extends State<VideoWidget> {
   }
 
   // Handle interaction with the progress bar (tap, drag start, drag update, drag end)
-  void _handleProgressBarInteraction(double localX, BuildContext context, Duration duration, {bool isStart = false, bool isEnd = false}) {
+  void _handleProgressBarInteraction(
+      double localX, BuildContext context, Duration duration,
+      {bool isStart = false, bool isEnd = false}) {
     if (_mediaKitPlayer == null) return;
-    
+
     if (isStart) {
       // Start scrubbing
       setState(() {
         _isScrubbing = true;
       });
-      
+
       // Cancel any existing timer
       _scrubbingTimer?.cancel();
     }
-    
+
     if (isEnd) {
       // End scrubbing - hide timestamp after a short delay
       _scrubbingTimer?.cancel();
@@ -460,33 +610,39 @@ class _VideoWidgetState extends State<VideoWidget> {
       });
       return;
     }
-    
+
     // Get the width of the progress bar
     final RenderBox box = context.findRenderObject() as RenderBox;
     final double width = box.size.width;
-    
+
     // Calculate the tap/drag position as a percentage
     double tapPosition = localX / width;
     tapPosition = tapPosition.clamp(0.0, 1.0);
-    
+
     // Convert to duration
     final int milliseconds = (duration.inMilliseconds * tapPosition).round();
     final newPosition = Duration(milliseconds: milliseconds);
-    
+
     // Update scrubbing position for timestamp display
     setState(() {
       _scrubbingPosition = newPosition;
     });
-    
+
     // Seek to the new position
     _mediaKitPlayer!.seek(newPosition);
   }
-  
+
   // Format duration as mm:ss
   String _formatDuration(Duration duration) {
     final minutes = duration.inMinutes;
     final seconds = (duration.inSeconds % 60).toString().padLeft(2, '0');
     return '$minutes:$seconds';
+  }
+
+  // Start timer to hide controls
+  void _startHideControlsTimer() {
+    // This function is now a no-op since we always show the play button when paused
+    // and never show it when playing
   }
 }
 

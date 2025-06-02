@@ -143,7 +143,7 @@ class _AICharacterSelectionScreenState extends State<AICharacterSelectionScreen>
         const SnackBar(content: Text('Please enter a character description')),
       );
       return;
-    } 
+    }
 
     // Hide keyboard
     FocusScope.of(context).unfocus();
@@ -488,7 +488,8 @@ class _AICharacterSelectionScreenState extends State<AICharacterSelectionScreen>
     final name = _generatedCharacter?['Name'] ?? 'AI Character';
     final description = _generatedCharacter?['Personality'] ?? '';
     final profilePictureUrl = _generatedCharacter?['profilePictureUrl'] ?? '';
-    final candidateImages = _generatedCharacter?['candidate_images'] as List<dynamic>? ?? [];
+    final candidateImages =
+        _generatedCharacter?['candidate_images'] as List<dynamic>? ?? [];
 
     // Initialize name controller
     if (_nameController.text.isEmpty) {
@@ -496,7 +497,7 @@ class _AICharacterSelectionScreenState extends State<AICharacterSelectionScreen>
     }
 
     // Use candidate images if available, otherwise fallback to profile picture
-    final List<String> characterImages = candidateImages.isNotEmpty 
+    final List<String> characterImages = candidateImages.isNotEmpty
         ? candidateImages.map((image) => image.toString()).toList()
         : [profilePictureUrl];
 
@@ -737,9 +738,11 @@ class _AICharacterSelectionScreenState extends State<AICharacterSelectionScreen>
     final name = _nameController.text.isNotEmpty
         ? _nameController.text
         : (_generatedCharacter?['Name'] ?? 'AI Character');
-    
-    final candidateImages = _generatedCharacter?['candidate_images'] as List<dynamic>? ?? [];
-    final selectedImageUrl = candidateImages.isNotEmpty && _selectedImageIndex < candidateImages.length
+
+    final candidateImages =
+        _generatedCharacter?['candidate_images'] as List<dynamic>? ?? [];
+    final selectedImageUrl = candidateImages.isNotEmpty &&
+            _selectedImageIndex < candidateImages.length
         ? candidateImages[_selectedImageIndex].toString()
         : (_generatedCharacter?['profilePictureUrl'] ?? '');
 
@@ -753,10 +756,11 @@ class _AICharacterSelectionScreenState extends State<AICharacterSelectionScreen>
           'selectedImageUrl': selectedImageUrl,
           'selectedImageIndex': _selectedImageIndex,
         };
-        
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Selected character: $name with image ${_selectedImageIndex + 1}'),
+            content: Text(
+                'Selected character: $name with image ${_selectedImageIndex + 1}'),
             backgroundColor: Colors.green,
           ),
         );
@@ -900,9 +904,9 @@ class _AICharacterSelectionScreenState extends State<AICharacterSelectionScreen>
                             },
                             child: const CircularProgressIndicator(
                               strokeWidth: 2.5,
-                              valueColor: AlwaysStoppedAnimation<Color>(
-                                Colors.white,
-                              ),
+                              // valueColor: AlwaysStoppedAnimation<Color>(
+                              //   Colors.white,
+                              // ),
                             ),
                           ),
                         ),
@@ -1274,10 +1278,12 @@ class _AICharacterSelectionScreenState extends State<AICharacterSelectionScreen>
   }
 
   bool _hasValidImageSelection() {
-    final candidateImages = _generatedCharacter?['candidate_images'] as List<dynamic>? ?? [];
+    final candidateImages =
+        _generatedCharacter?['candidate_images'] as List<dynamic>? ?? [];
     // If we have candidate images, check if a valid index is selected
     if (candidateImages.isNotEmpty) {
-      return _selectedImageIndex >= 0 && _selectedImageIndex < candidateImages.length;
+      return _selectedImageIndex >= 0 &&
+          _selectedImageIndex < candidateImages.length;
     }
     // If no candidate images, check if we have a profile picture and an image is selected
     final profilePictureUrl = _generatedCharacter?['profilePictureUrl'] ?? '';

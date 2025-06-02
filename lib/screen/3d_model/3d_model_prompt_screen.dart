@@ -506,6 +506,7 @@ class _ModelPromptScreenState extends State<ModelPromptScreen>
                           disabledBorder: InputBorder.none,
                           contentPadding:
                               const EdgeInsets.symmetric(vertical: 16),
+                          fillColor: Colors.transparent,
                         ),
                         style: TextStyle(
                           color: Theme.of(context).textTheme.bodyMedium?.color,
