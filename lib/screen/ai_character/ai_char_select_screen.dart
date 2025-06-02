@@ -13,12 +13,14 @@ class AICharacterSelectionScreen extends StatefulWidget {
   final String prompt;
   final String profilePictureUrl;
   final String characterId;
+  final List<String>? candidateImages;
   const AICharacterSelectionScreen({
     super.key,
     required this.name,
     required this.prompt,
     required this.profilePictureUrl,
     required this.characterId,
+    this.candidateImages,
   });
 
   @override
@@ -81,6 +83,7 @@ class _AICharacterSelectionScreenState extends State<AICharacterSelectionScreen>
         'Personality': widget.prompt,
         'profilePictureUrl': widget.profilePictureUrl,
         'PopularCharacterId': widget.characterId,
+        'candidate_images': widget.candidateImages ?? [],
       };
     }
 
@@ -140,7 +143,7 @@ class _AICharacterSelectionScreenState extends State<AICharacterSelectionScreen>
         const SnackBar(content: Text('Please enter a character description')),
       );
       return;
-    }
+    } 
 
     // Hide keyboard
     FocusScope.of(context).unfocus();
@@ -184,6 +187,7 @@ class _AICharacterSelectionScreenState extends State<AICharacterSelectionScreen>
             'Personality': _promptController.text.trim(),
             'profilePictureUrl': result["data"]["profile_picture_url"] ?? "",
             'PopularCharacterId': result["data"]["PopularCharacterId"] ?? "",
+            'candidate_images': result["data"]["candidate_images"] ?? [],
           };
 
           // Clear input field
@@ -301,7 +305,7 @@ class _AICharacterSelectionScreenState extends State<AICharacterSelectionScreen>
                     : _buildEmptyState(),
         bottomSheet: Padding(
           padding: const EdgeInsets.only(left: 16, right: 16, bottom: 16),
-          child: _selectedImageIndex >= 0 && _generatedCharacter != null
+          child: _generatedCharacter != null && _hasValidImageSelection()
               ? _buildSelectButton()
               : _buildPromptInput(),
         ),
@@ -484,21 +488,21 @@ class _AICharacterSelectionScreenState extends State<AICharacterSelectionScreen>
     final name = _generatedCharacter?['Name'] ?? 'AI Character';
     final description = _generatedCharacter?['Personality'] ?? '';
     final profilePictureUrl = _generatedCharacter?['profilePictureUrl'] ?? '';
+    final candidateImages = _generatedCharacter?['candidate_images'] as List<dynamic>? ?? [];
 
     // Initialize name controller
     if (_nameController.text.isEmpty) {
       _nameController.text = name;
     }
 
-    // Array of images to display multiple poses (actually using the same image)
-    final List<String> characterImages = [
-      profilePictureUrl,
-      profilePictureUrl,
-      profilePictureUrl,
-    ];
+    // Use candidate images if available, otherwise fallback to profile picture
+    final List<String> characterImages = candidateImages.isNotEmpty 
+        ? candidateImages.map((image) => image.toString()).toList()
+        : [profilePictureUrl];
 
-    // Debug image URL
-    print("Image URL: $profilePictureUrl");
+    // Debug image URLs
+    print("Candidate Images: $candidateImages");
+    print("Character Images: $characterImages");
 
     return SingleChildScrollView(
       child: Column(
@@ -551,6 +555,9 @@ class _AICharacterSelectionScreenState extends State<AICharacterSelectionScreen>
           Container(
             width: MediaQuery.of(context).size.width * 0.85,
             decoration: BoxDecoration(
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? Colors.grey.shade800.withOpacity(0.7)
+                  : Colors.white.withOpacity(0.9),
               gradient: LinearGradient(
                 colors: [
                   colorPalette[0].withOpacity(0.1),
@@ -561,9 +568,20 @@ class _AICharacterSelectionScreenState extends State<AICharacterSelectionScreen>
               ),
               borderRadius: BorderRadius.circular(20),
               border: Border.all(
-                color: colorPalette[0].withOpacity(0.3),
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? colorPalette[0].withOpacity(0.4)
+                    : colorPalette[0].withOpacity(0.3),
                 width: 1,
               ),
+              boxShadow: [
+                BoxShadow(
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? Colors.black.withOpacity(0.3)
+                      : Colors.black.withOpacity(0.1),
+                  blurRadius: 8,
+                  spreadRadius: 1,
+                ),
+              ],
             ),
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: TextField(
@@ -585,6 +603,8 @@ class _AICharacterSelectionScreenState extends State<AICharacterSelectionScreen>
                 focusedBorder: InputBorder.none,
                 errorBorder: InputBorder.none,
                 disabledBorder: InputBorder.none,
+                fillColor: Colors.transparent,
+                filled: true,
               ),
               onChanged: (value) {
                 // Update character info when the name changes
@@ -717,18 +737,32 @@ class _AICharacterSelectionScreenState extends State<AICharacterSelectionScreen>
     final name = _nameController.text.isNotEmpty
         ? _nameController.text
         : (_generatedCharacter?['Name'] ?? 'AI Character');
+    
+    final candidateImages = _generatedCharacter?['candidate_images'] as List<dynamic>? ?? [];
+    final selectedImageUrl = candidateImages.isNotEmpty && _selectedImageIndex < candidateImages.length
+        ? candidateImages[_selectedImageIndex].toString()
+        : (_generatedCharacter?['profilePictureUrl'] ?? '');
 
     return ElevatedButton(
       onPressed: () {
-        // Handle character selection
+        // Handle character selection with selected image
+        final characterData = {
+          'name': name,
+          'personality': _generatedCharacter?['Personality'] ?? '',
+          'characterId': _generatedCharacter?['PopularCharacterId'] ?? '',
+          'selectedImageUrl': selectedImageUrl,
+          'selectedImageIndex': _selectedImageIndex,
+        };
+        
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Selected character: $name'),
+            content: Text('Selected character: $name with image ${_selectedImageIndex + 1}'),
             backgroundColor: Colors.green,
           ),
         );
 
-        // Add selection post-processing logic here (e.g., navigating to next screen)
+        // Add navigation or callback logic here
+        // For example: context.push(Routes.chatWithCharacter, extra: characterData);
       },
       style: ElevatedButton.styleFrom(
         backgroundColor: colorPalette[0],
@@ -758,7 +792,9 @@ class _AICharacterSelectionScreenState extends State<AICharacterSelectionScreen>
           duration: const Duration(milliseconds: 300),
           height: 60,
           decoration: BoxDecoration(
-            color: Theme.of(context).cardColor.withOpacity(0.8),
+            color: Theme.of(context).brightness == Brightness.dark
+                ? Colors.grey.shade800.withOpacity(0.8)
+                : Colors.white.withOpacity(0.9),
             borderRadius: BorderRadius.circular(30),
             gradient: LinearGradient(
               colors: [
@@ -769,12 +805,16 @@ class _AICharacterSelectionScreenState extends State<AICharacterSelectionScreen>
               end: Alignment.bottomRight,
             ),
             border: Border.all(
-              color: Colors.transparent,
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? Colors.grey.shade700.withOpacity(0.5)
+                  : Colors.grey.shade300.withOpacity(0.5),
               width: 1,
             ),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.05),
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? Colors.black.withOpacity(0.3)
+                    : Colors.black.withOpacity(0.05),
                 blurRadius: 5,
                 spreadRadius: 1,
               )
@@ -815,6 +855,8 @@ class _AICharacterSelectionScreenState extends State<AICharacterSelectionScreen>
                     errorBorder: InputBorder.none,
                     disabledBorder: InputBorder.none,
                     contentPadding: const EdgeInsets.symmetric(vertical: 16),
+                    fillColor: Colors.transparent,
+                    filled: true,
                   ),
                   style: TextStyle(
                     color: Theme.of(context).textTheme.bodyMedium?.color,
@@ -1229,5 +1271,16 @@ class _AICharacterSelectionScreenState extends State<AICharacterSelectionScreen>
         );
       },
     );
+  }
+
+  bool _hasValidImageSelection() {
+    final candidateImages = _generatedCharacter?['candidate_images'] as List<dynamic>? ?? [];
+    // If we have candidate images, check if a valid index is selected
+    if (candidateImages.isNotEmpty) {
+      return _selectedImageIndex >= 0 && _selectedImageIndex < candidateImages.length;
+    }
+    // If no candidate images, check if we have a profile picture and an image is selected
+    final profilePictureUrl = _generatedCharacter?['profilePictureUrl'] ?? '';
+    return profilePictureUrl.isNotEmpty && _selectedImageIndex >= 0;
   }
 }
