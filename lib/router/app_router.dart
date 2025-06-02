@@ -34,6 +34,7 @@ import 'package:inzone/screen/settings/settings_screen.dart';
 import 'package:inzone/screen/3d_model/3d_model_prompt_screen.dart';
 import 'package:inzone/screen/3d_model/3d_model_select_screen.dart';
 import 'package:inzone/screen/3d_model/3d_model_intro.dart';
+import 'package:inzone/screen/settings/unity_webview_screen.dart';
 
 // Models
 import 'package:inzone/data/group_data.dart';
@@ -530,6 +531,18 @@ class AppRouter {
             key: state.pageKey,
             fullscreenDialog: true,
             child: const TermsScreen(),
+          );
+        },
+      ),
+
+      GoRoute(
+        path: Routes.unityWebGame,
+        parentNavigatorKey: rootNavigatorKey,
+        pageBuilder: (context, state) {
+          return CupertinoPage(
+            key: state.pageKey,
+            fullscreenDialog: true,
+            child: const UnityWebviewScreen(),
           );
         },
       ),

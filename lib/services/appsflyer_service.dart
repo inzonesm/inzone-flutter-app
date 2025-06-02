@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:appsflyer_sdk/appsflyer_sdk.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -197,28 +199,48 @@ class AppsFlyerService {
       // Get a reference to the Firestore collection
       final firestore = FirebaseFirestore.instance;
 
-      // Add a new document to the 'test' collection
-      await firestore.collection('test').add(referralData);
+      // Add a new document to the 'referrals' collection
+      await firestore.collection('referrals').add(referralData);
+
+      // Add 1500 to balance for both users
+      await _updateUserBalance(referrerId, 1500); // Referrer gets 1500
+      await _updateUserBalance(user.uid, 1500);   // Installer gets 1500
 
       log('Successfully saved referral data to Firestore with complete user details');
+      log('Successfully added 1500 balance to both referrer ($referrerId) and installer (${user.uid})');
     } catch (e) {
       log('Error saving referral data to Firestore: $e');
     }
   }
 
+  Future<void> _updateUserBalance(String userId, int amount) async {
+    try {
+      final firestore = FirebaseFirestore.instance;
+      await firestore.collection('humanUsers').doc(userId).update({
+        'balance': FieldValue.increment(amount),
+      });
+      log('Successfully added $amount to balance for user: $userId');
+    } catch (e) {
+      log('Error updating balance for user $userId: $e');
+    }
+  }
+
   String _getPlatform() {
-    return const String.fromEnvironment('dart.library.io.Platform') == 'true'
-        ? 'mobile'
-        : const String.fromEnvironment('dart.library.html') == 'true'
-            ? 'web'
-            : 'unknown';
+    if (Platform.isIOS){
+      return "ios";
+
+    } else if (Platform.isAndroid){
+      return "android";
+    } else {
+      return "unknown";
+    }
   }
 
   void setCustomerUserId(String userId) {
     appsflyerSdk.setCustomerUserId(userId);
   }
 
-  Future<bool?> logEvent(
+  Future<bool?> logEvent( 
       String eventName, Map<String, dynamic>? eventValues) async {
     return await appsflyerSdk.logEvent(eventName, eventValues);
   }

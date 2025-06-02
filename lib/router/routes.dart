@@ -41,6 +41,7 @@ class Routes {
   static const String contactUs = '/settings/contact-us';
   static const String privacyPolicy = '/settings/privacy-policy';
   static const String termsConditions = '/settings/terms-conditions';
+  static const String unityWebGame = '/settings/unity-web-game';
 
   // Helper methods to generate paths with parameters
   static String groupDetailsPath(String id) => '/group/$id';
