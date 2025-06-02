@@ -299,17 +299,17 @@ class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        // _buildAnimatedOptionButton(
-                        //   'Create 3D Avatar',
-                        //   Icons.person,
-                        //   () {
-                        //     print("Create 3D Avatar button tapped");
-                        //     _toggleExpanded();
-                        //     context.push(Routes.create3dModel);
-                        //   },
-                        //   0,
-                        // ),
-                        // const SizedBox(height: 16),
+                        _buildAnimatedOptionButton(
+                          'Create 3D Avatar',
+                          Icons.person,
+                          () {
+                            print("Create 3D Avatar button tapped");
+                            _toggleExpanded();
+                            context.push(Routes.create3dModel);
+                          },
+                          0,
+                        ),
+                        const SizedBox(height: 16),
                         _buildAnimatedOptionButton(
                           'Create AI Character',
                           Icons.face,
