@@ -14,6 +14,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:iconify_flutter/icons/ph.dart';
 import 'package:iconify_flutter/icons/heroicons_solid.dart';
 import 'package:in_app_review/in_app_review.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 class RootApp extends StatefulWidget {
   final Widget child;
@@ -526,27 +529,331 @@ class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
     );
   }
 
-  // Handle in-app review based on app open count
+  // Show a feedback popup dialog
+  Future<void> showFeedbackPopup(BuildContext context) async {
+    bool isSubmitting = false;
+
+    await showDialog(
+      context: context,
+      barrierDismissible: !isSubmitting,
+      builder: (BuildContext dialogContext) {
+        // Create controllers inside the builder to tie them to the widget lifecycle
+        final TextEditingController feedbackController =
+            TextEditingController();
+        final TextEditingController emailController = TextEditingController();
+
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return Dialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
+              elevation: 5,
+              backgroundColor: Theme.of(context).cardColor,
+              child: Container(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Header with title
+                    Center(
+                      child: Text(
+                        'We Value Your Feedback',
+                        style: Theme.of(context)
+                            .textTheme
+                            .headlineSmall
+                            ?.copyWith(
+                              fontWeight: FontWeight.bold,
+                              color:
+                                  Theme.of(context).textTheme.titleLarge?.color,
+                            ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Center(
+                      child: Text(
+                        'Help us improve your experience',
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              color:
+                                  Theme.of(context).textTheme.bodySmall?.color,
+                            ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+
+                    // Email input
+                    Text(
+                      'Your Email',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                    ),
+                    const SizedBox(height: 8),
+                    Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: Theme.of(context).brightness == Brightness.dark
+                              ? Colors.grey.shade700
+                              : Colors.grey.shade300,
+                        ),
+                        color: Theme.of(context).cardColor,
+                      ),
+                      child: TextField(
+                        controller: emailController,
+                        decoration: InputDecoration(
+                          hintText: 'Enter your email address',
+                          contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 16),
+                          border: InputBorder.none,
+                          hintStyle: TextStyle(
+                            color: Theme.of(context).hintColor,
+                          ),
+                        ),
+                        enabled: !isSubmitting,
+                        keyboardType: TextInputType.emailAddress,
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+
+                    // Feedback input
+                    Text(
+                      'Your Feedback',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                    ),
+                    const SizedBox(height: 8),
+                    Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: Theme.of(context).brightness == Brightness.dark
+                              ? Colors.grey.shade700
+                              : Colors.grey.shade300,
+                        ),
+                        color: Theme.of(context).cardColor,
+                      ),
+                      child: TextField(
+                        controller: feedbackController,
+                        maxLines: 5,
+                        decoration: InputDecoration(
+                          hintText: 'Let us know your thoughts...',
+                          contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 16),
+                          border: InputBorder.none,
+                          hintStyle: TextStyle(
+                            color: Theme.of(context).hintColor,
+                          ),
+                        ),
+                        enabled: !isSubmitting,
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+
+                    // Buttons
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        // Cancel button
+                        TextButton(
+                          onPressed: isSubmitting
+                              ? null
+                              : () {
+                                  Navigator.of(dialogContext).pop();
+                                },
+                          style: TextButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 12),
+                          ),
+                          child: const Text(
+                            'Cancel',
+                            style: TextStyle(
+                              color: Colors.redAccent,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+
+                        // Submit button
+                        Container(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(30),
+                            gradient: isSubmitting
+                                ? LinearGradient(
+                                    colors: [
+                                      Colors.grey.shade400,
+                                      Colors.grey.shade500,
+                                    ],
+                                  )
+                                : const LinearGradient(
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                    colors: [
+                                      Color(0xFF14CFEE),
+                                      Color(0xFF2196F3),
+                                    ],
+                                  ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFF2196F3).withOpacity(0.3),
+                                blurRadius: 8,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: ElevatedButton(
+                            onPressed: isSubmitting
+                                ? null
+                                : () async {
+                                    if (feedbackController.text.isEmpty) {
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
+                                        const SnackBar(
+                                          content: Text(
+                                              'Please enter your feedback'),
+                                        ),
+                                      );
+                                      return;
+                                    }
+
+                                    setState(() {
+                                      isSubmitting = true;
+                                    });
+
+                                    // Capture values before potential disposal
+                                    final String email = emailController.text;
+                                    final String feedback =
+                                        feedbackController.text;
+
+                                    // Send feedback to server
+                                    final bool feedbackSent =
+                                        await _sendFeedbackToServer(
+                                      email,
+                                      feedback,
+                                    );
+
+                                    // Only navigate if the dialog is still showing
+                                    if (dialogContext.mounted) {
+                                      Navigator.of(dialogContext).pop();
+
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                            feedbackSent
+                                                ? 'Thank you for your feedback!'
+                                                : 'Could not send feedback. Please try again later.',
+                                          ),
+                                        ),
+                                      );
+                                    }
+                                  },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.transparent,
+                              disabledBackgroundColor: Colors.transparent,
+                              shadowColor: Colors.transparent,
+                              elevation: 0,
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 24, vertical: 12),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(30),
+                              ),
+                            ),
+                            child: isSubmitting
+                                ? const SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      valueColor: AlwaysStoppedAnimation<Color>(
+                                          Colors.white),
+                                    ),
+                                  )
+                                : const Text(
+                                    'Submit',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  // Send feedback to server
+  Future<bool> _sendFeedbackToServer(String userEmail, String feedback) async {
+    try {
+      const String apiUrl =
+          'https://inzoneapi-912424781531.us-central1.run.app/feedback';
+
+      final Map<String, dynamic> payload = {
+        "email": userEmail.isEmpty ? "anonymous_user" : userEmail,
+        "Feedback": feedback
+      };
+
+      print('Sending feedback to server: $payload');
+
+      final response = await http
+          .post(
+            Uri.parse(apiUrl),
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: jsonEncode(payload),
+          )
+          .timeout(const Duration(seconds: 10));
+
+      if (response.statusCode == 200) {
+        final responseData = jsonDecode(response.body);
+        print('Server response: $responseData');
+        return responseData['success'] ?? false;
+      } else {
+        print('Server error: ${response.statusCode}, ${response.body}');
+        return false;
+      }
+    } catch (e) {
+      print('Error sending feedback to server: $e');
+      return false;
+    }
+  }
+
   Future<void> _checkAndRequestReview() async {
     final prefs = await SharedPreferences.getInstance();
 
-    // Retrieve the saved counter or default to 0 if not found
     appOpenCounter = prefs.getInt('appOpenCounter') ?? 0;
-
-    // Increment app open counter
     appOpenCounter++;
-
-    // Save the incremented counter
     await prefs.setInt('appOpenCounter', appOpenCounter);
 
-    // Print the current counter value
     print('App opened $appOpenCounter times');
 
-    // Only show review dialog at specific counts (3 and 21)
-    if (appOpenCounter == 3 || appOpenCounter == 21) {
-      if (await inAppReview.isAvailable()) {
-        inAppReview.requestReview();
-      }
+    // Fixed condition - only show at specific counts
+    if (appOpenCounter == 10 || appOpenCounter == 33) {
+      Future.delayed(const Duration(seconds: 2), () {
+        showFeedbackPopup(context);
+      });
+    }
+    // Show app review at 3rd and 21st app opens
+    else if (appOpenCounter == 3 || appOpenCounter == 21) {
+      Future.delayed(const Duration(seconds: 2), () async {
+        if (await inAppReview.isAvailable()) {
+          inAppReview.requestReview();
+        }
+      });
     }
   }
 }
