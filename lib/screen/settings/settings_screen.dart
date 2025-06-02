@@ -235,6 +235,7 @@ class SettingsScreen extends StatelessWidget {
   List<String> otherTitleList = [
     "Referral Program",
     "Contact Us",
+    // "Unity Game Test",
     "Privacy Policy",
     "Terms & Conditions",
     "Delete Account",
@@ -243,6 +244,7 @@ class SettingsScreen extends StatelessWidget {
   List<String> otherSubtitleList = [
     "Invite friends and earn rewards",
     "Get help or ask us any questions",
+    // "Test Unity web game integration",
     "Learn how we protect your personal information",
     "Understand the rules of using our services",
     "Permanently delete your account and data",
@@ -268,6 +270,15 @@ class SettingsScreen extends StatelessWidget {
           );
         }
       },
+      // () {
+      //   try {
+      //     context.push(Routes.unityWebGame);
+      //   } catch (e) {
+      //     ScaffoldMessenger.of(context).showSnackBar(
+      //       SnackBar(content: Text('Error navigating to Unity game: $e')),
+      //     );
+      //   }
+      // },
       () {
         try {
           context.push(Routes.privacyPolicy);
