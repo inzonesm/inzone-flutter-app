@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_feather_icons/flutter_feather_icons.dart';
 import 'package:inzone/components/ui/inzone_searchbar.dart';
 import 'package:inzone/services/inzone_database.dart';
 import 'package:inzone/screen/profile/profile_screen.dart';
 import 'package:inzone/router/routes.dart';
 import 'package:go_router/go_router.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:toasty_box/toast_service.dart';
 
 class FollowersFollowingTab extends StatefulWidget {
   final Map<String, List<Map<String, dynamic>>> userList;
@@ -120,7 +122,8 @@ class _FollowersFollowingTabState extends State<FollowersFollowingTab> {
 
       if (userDoc.exists) {
         final userData = userDoc.data() as Map<String, dynamic>?;
-        final profilePicture = userData?['profilePicture'] ?? userData?['profileImage'];
+        final profilePicture =
+            userData?['profilePicture'] ?? userData?['profileImage'];
         if (profilePicture != null && profilePicture.toString().isNotEmpty) {
           if (mounted) {
             setState(() {
@@ -139,9 +142,9 @@ class _FollowersFollowingTabState extends State<FollowersFollowingTab> {
 
       if (aiUserDoc.exists) {
         final aiUserData = aiUserDoc.data() as Map<String, dynamic>?;
-        final profilePicture = aiUserData?['profilePicture'] ?? 
-                               aiUserData?['profileImage'] ?? 
-                               aiUserData?['character']?['profilePicture'];
+        final profilePicture = aiUserData?['profilePicture'] ??
+            aiUserData?['profileImage'] ??
+            aiUserData?['character']?['profilePicture'];
         if (profilePicture != null && profilePicture.toString().isNotEmpty) {
           if (mounted) {
             setState(() {
@@ -166,8 +169,16 @@ class _FollowersFollowingTabState extends State<FollowersFollowingTab> {
       _loadUserProfileImages();
     } catch (e) {
       // Show error message
-      ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to process followers/following: $e')));
+      ToastService.showToast(
+        context,
+        backgroundColor: Theme.of(context).canvasColor,
+        shadowColor: Colors.transparent,
+        leading: const Icon(
+          FeatherIcons.xCircle,
+          color: Colors.redAccent,
+        ),
+        message: 'Failed to process followers/following: $e',
+      );
     } finally {
       if (mounted) {
         setState(() {

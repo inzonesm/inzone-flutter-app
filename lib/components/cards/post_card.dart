@@ -9,6 +9,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_feather_icons/flutter_feather_icons.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:inzone/components/posts/shimmering.dart';
@@ -24,6 +25,8 @@ import 'package:smooth_page_indicator/smooth_page_indicator.dart';
 import 'package:go_router/go_router.dart';
 import 'package:inzone/router/routes.dart';
 import 'dart:io' show Platform;
+
+import 'package:toasty_box/toast_service.dart';
 
 class PostCard extends StatefulWidget {
   InZonePost post;
@@ -918,12 +921,15 @@ class _PostCardState extends State<PostCard> {
                           Navigator.of(context).pop(); // Close dialog
                         } else {
                           // Show error if reason is empty
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content:
-                                  Text('Please enter a reason for reporting'),
-                              backgroundColor: Colors.red,
+                          ToastService.showToast(
+                            context,
+                            backgroundColor: Theme.of(context).canvasColor,
+                            shadowColor: Colors.transparent,
+                            leading: const Icon(
+                              FeatherIcons.xCircle,
+                              color: Colors.redAccent,
                             ),
+                            message: 'Please enter a reason for reporting',
                           );
                         }
                       },
@@ -1096,12 +1102,15 @@ class _PostCardState extends State<PostCard> {
                           Navigator.of(context).pop(); // Close dialog
                         } else {
                           // Show error if reason is empty
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content:
-                                  Text('Please enter a reason for reporting'),
-                              backgroundColor: Colors.red,
+                          ToastService.showToast(
+                            context,
+                            backgroundColor: Theme.of(context).canvasColor,
+                            shadowColor: Colors.transparent,
+                            leading: const Icon(
+                              FeatherIcons.xCircle,
+                              color: Colors.redAccent,
                             ),
+                            message: 'Please enter a reason for reporting',
                           );
                         }
                       },
@@ -1200,19 +1209,29 @@ class _PostCardState extends State<PostCard> {
           });
         }
 
-        const snackBar = SnackBar(
-          content: Text("This post has been flagged for review."),
-          backgroundColor: Colors.red,
+        ToastService.showToast(
+          context,
+          backgroundColor: Theme.of(context).canvasColor,
+          shadowColor: Colors.transparent,
+          leading: const Icon(
+            FeatherIcons.xCircle,
+            color: Colors.redAccent,
+          ),
+          message: "This post has been flagged for review.",
         );
-        ScaffoldMessenger.of(context).showSnackBar(snackBar);
       }
     } catch (e) {
       debugPrint('Error reporting post: $e');
-      const snackBar = SnackBar(
-        content: Text("Failed to report post. Please try again."),
-        backgroundColor: Colors.red,
+      ToastService.showToast(
+        context,
+        backgroundColor: Theme.of(context).canvasColor,
+        shadowColor: Colors.transparent,
+        leading: const Icon(
+          FeatherIcons.xCircle,
+          color: Colors.redAccent,
+        ),
+        message: "Failed to report post. Please try again.",
       );
-      ScaffoldMessenger.of(context).showSnackBar(snackBar);
     }
   }
 
@@ -1283,20 +1302,29 @@ class _PostCardState extends State<PostCard> {
           });
         }
 
-        final snackBar = SnackBar(
-          content:
-              Text("Posts from ${widget.post.userName} will not be shown."),
-          backgroundColor: Colors.red,
+        ToastService.showToast(
+          context,
+          backgroundColor: Theme.of(context).canvasColor,
+          shadowColor: Colors.transparent,
+          leading: const Icon(
+            FeatherIcons.xCircle,
+            color: Colors.redAccent,
+          ),
+          message: "Posts from ${widget.post.userName} will not be shown.",
         );
-        ScaffoldMessenger.of(context).showSnackBar(snackBar);
       }
     } catch (e) {
       debugPrint('Error reporting user: $e');
-      const snackBar = SnackBar(
-        content: Text("Failed to report user. Please try again."),
-        backgroundColor: Colors.red,
+      ToastService.showToast(
+        context,
+        backgroundColor: Theme.of(context).canvasColor,
+        shadowColor: Colors.transparent,
+        leading: const Icon(
+          FeatherIcons.xCircle,
+          color: Colors.redAccent,
+        ),
+        message: "Failed to report user. Please try again.",
       );
-      ScaffoldMessenger.of(context).showSnackBar(snackBar);
     }
   }
 

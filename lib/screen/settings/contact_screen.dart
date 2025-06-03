@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:inzone/components/ui/appbar.dart';
 import 'package:inzone/components/ui/button.dart';
+import 'package:toasty_box/toast_service.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class ContactScreen extends StatefulWidget {
@@ -177,9 +178,17 @@ class _ContactScreenState extends State<ContactScreen> {
                       if (await canLaunchUrl(email)) {
                         await launchUrl(email);
                       } else {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                              content: Text("Could not launch email")),
+                        ToastService.showToast(
+                          context,
+                          backgroundColor: Theme.of(context).canvasColor,
+                          shadowColor: Colors.transparent,
+                          leading: const Icon(
+                            Icons
+                                .error_outline, // or Icons.check_circle, Icons.warning_amber_rounded, etc.
+                            color: Colors
+                                .redAccent, // or Colors.greenAccent, Colors.orange
+                          ),
+                          message: "Could not launch email",
                         );
                       }
                     },

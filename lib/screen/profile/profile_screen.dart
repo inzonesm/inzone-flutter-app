@@ -10,6 +10,7 @@ import 'package:inzone/screen/chat/human_chat_screen.dart';
 import 'package:inzone/screen/chat/all_chats_screen.dart'; // For ChatUser class
 import 'package:inzone/services/inzone_database.dart';
 import 'package:go_router/go_router.dart';
+import 'package:toasty_box/toast_service.dart';
 
 class ProfileScreen extends StatefulWidget {
   final String uid;
@@ -120,9 +121,15 @@ class _ProfileScreenState extends State<ProfileScreen>
             onTap: () async {
               String? currentUserId = await InZoneDatabase.getCurrentUserUid();
               if (currentUserId == null) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                      content: Text('Please log in to send messages')),
+                ToastService.showToast(
+                  context,
+                  backgroundColor: Theme.of(context).canvasColor,
+                  shadowColor: Colors.transparent,
+                  leading: const Icon(
+                    FeatherIcons.xCircle,
+                    color: Colors.redAccent,
+                  ),
+                  message: 'Please log in to send messages',
                 );
                 return;
               }
@@ -177,15 +184,28 @@ class _ProfileScreenState extends State<ProfileScreen>
                       'otherUserId': targetUserId,
                     });
                   } catch (e) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                          content: Text('Failed to open conversation: $e')),
+                    ToastService.showToast(
+                      context,
+                      backgroundColor: Theme.of(context).canvasColor,
+                      shadowColor: Colors.transparent,
+                      leading: const Icon(
+                        FeatherIcons.xCircle,
+                        color: Colors.redAccent,
+                      ),
+                      message: 'Failed to open conversation: $e',
                     );
                   }
                 }
               } catch (e) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Error navigating to chat: $e')),
+                ToastService.showToast(
+                  context,
+                  backgroundColor: Theme.of(context).canvasColor,
+                  shadowColor: Colors.transparent,
+                  leading: const Icon(
+                    FeatherIcons.xCircle,
+                    color: Colors.redAccent,
+                  ),
+                  message: 'Error navigating to chat: $e',
                 );
               }
             },
@@ -403,8 +423,16 @@ class _ProfileScreenState extends State<ProfileScreen>
       });
 
       // Show error message to user
-      ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not load user profile')));
+      ToastService.showToast(
+        context,
+        backgroundColor: Theme.of(context).canvasColor,
+        shadowColor: Colors.transparent,
+        leading: const Icon(
+          FeatherIcons.xCircle,
+          color: Colors.redAccent,
+        ),
+        message: 'Could not load user profile',
+      );
     }
 
     // Check follow status for both human and AI users
@@ -490,8 +518,15 @@ class _ProfileScreenState extends State<ProfileScreen>
 
     String? currentUserId = await InZoneDatabase.getCurrentUserUid();
     if (currentUserId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please log in to follow users')),
+      ToastService.showToast(
+        context,
+        backgroundColor: Theme.of(context).canvasColor,
+        shadowColor: Colors.transparent,
+        leading: const Icon(
+          FeatherIcons.xCircle,
+          color: Colors.redAccent,
+        ),
+        message: 'Please log in to follow users',
       );
       return;
     }
@@ -516,15 +551,29 @@ class _ProfileScreenState extends State<ProfileScreen>
         if (newFollowState) {
           success = await InZoneDatabase.followAIUser(userId);
           if (success) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Following $username')),
+            ToastService.showToast(
+              context,
+              backgroundColor: Theme.of(context).canvasColor,
+              shadowColor: Colors.transparent,
+              leading: const Icon(
+                FeatherIcons.checkCircle,
+                color: Colors.greenAccent,
+              ),
+              message: 'Following $username',
             );
           }
         } else {
           success = await InZoneDatabase.unfollowAIUser(userId);
           if (success) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Unfollowed $username')),
+            ToastService.showToast(
+              context,
+              backgroundColor: Theme.of(context).canvasColor,
+              shadowColor: Colors.transparent,
+              leading: const Icon(
+                FeatherIcons.checkCircle,
+                color: Colors.greenAccent,
+              ),
+              message: 'Unfollowed $username',
             );
           }
         }
@@ -534,14 +583,28 @@ class _ProfileScreenState extends State<ProfileScreen>
           String currentUserName = await _getCurrentUserName(currentUserId);
           await InZoneDatabase.followUser(userId, currentUserName);
           success = true;
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Following $username')),
+          ToastService.showToast(
+            context,
+            backgroundColor: Theme.of(context).canvasColor,
+            shadowColor: Colors.transparent,
+            leading: const Icon(
+              FeatherIcons.checkCircle,
+              color: Colors.greenAccent,
+            ),
+            message: 'Following $username',
           );
         } else {
           await InZoneDatabase.unfollowUser(userId);
           success = true;
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Unfollowed $username')),
+          ToastService.showToast(
+            context,
+            backgroundColor: Theme.of(context).canvasColor,
+            shadowColor: Colors.transparent,
+            leading: const Icon(
+              FeatherIcons.checkCircle,
+              color: Colors.greenAccent,
+            ),
+            message: 'Unfollowed $username',
           );
         }
       }
@@ -560,9 +623,16 @@ class _ProfileScreenState extends State<ProfileScreen>
           }
         });
 
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text(
-                'Failed to ${newFollowState ? 'follow' : 'unfollow'} user')));
+        ToastService.showToast(
+          context,
+          backgroundColor: Theme.of(context).canvasColor,
+          shadowColor: Colors.transparent,
+          leading: const Icon(
+            FeatherIcons.xCircle,
+            color: Colors.redAccent,
+          ),
+          message: 'Failed to ${newFollowState ? 'follow' : 'unfollow'} user',
+        );
       }
     } catch (e) {
       // If there's an error, revert the UI change
@@ -576,9 +646,16 @@ class _ProfileScreenState extends State<ProfileScreen>
       });
 
       // Show error message
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(
-              'Failed to ${newFollowState ? 'follow' : 'unfollow'} user: $e')));
+      ToastService.showToast(
+        context,
+        backgroundColor: Theme.of(context).canvasColor,
+        shadowColor: Colors.transparent,
+        leading: const Icon(
+          FeatherIcons.xCircle,
+          color: Colors.redAccent,
+        ),
+        message: 'Failed to ${newFollowState ? 'follow' : 'unfollow'} user: $e',
+      );
     }
   }
 
@@ -633,8 +710,16 @@ class _ProfileScreenState extends State<ProfileScreen>
                   bool success =
                       await InZoneDatabase.removeFromFollowers(getUserId());
                   if (success) {
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                        content: Text('User removed from your followers')));
+                    ToastService.showToast(
+                      context,
+                      backgroundColor: Theme.of(context).canvasColor,
+                      shadowColor: Colors.transparent,
+                      leading: const Icon(
+                        Icons.person_remove,
+                        color: Colors.redAccent,
+                      ),
+                      message: 'User removed from your followers',
+                    );
                     // Refresh the profile data
                     fetchUserProfile();
                   }
@@ -693,20 +778,26 @@ class _ProfileScreenState extends State<ProfileScreen>
 
                       Positioned(
                         top: 10,
-                        left: 10,
+                        left: 15,
                         child: GestureDetector(
-                          onTap: () => context.pop(),
-                          child: Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color:
-                                  Theme.of(context).cardColor.withOpacity(0.7),
-                              shape: BoxShape.circle,
-                            ),
-                            child: Icon(
-                              Icons.arrow_back,
-                              color: Theme.of(context).primaryColor,
-                              size: 24,
+                          onTap: () {
+                            Navigator.pop(context);
+                          },
+                          child: CircleAvatar(
+                            radius: 22,
+                            backgroundColor:
+                                Theme.of(context).brightness == Brightness.dark
+                                    ? Colors.grey.shade800
+                                    : Colors.grey.shade200,
+                            child: Padding(
+                              padding: const EdgeInsets.only(left: 5),
+                              child: Center(
+                                child: Icon(
+                                  Icons.arrow_back_ios,
+                                  size: 18,
+                                  color: Theme.of(context).iconTheme.color,
+                                ),
+                              ),
                             ),
                           ),
                         ),

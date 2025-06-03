@@ -9,6 +9,7 @@ import 'package:shimmer/shimmer.dart';
 
 import 'package:inzone/data/inzone_post.dart';
 import 'package:inzone/services/inzone_database.dart';
+import 'package:toasty_box/toast_service.dart';
 
 class SavedScreen extends StatefulWidget {
   const SavedScreen({super.key});
@@ -235,8 +236,16 @@ class _SavedScreenState extends State<SavedScreen> {
                   await prefs.setString('likedPostDetails', '{}');
 
                   // Show confirmation
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text("All saved posts cleared")),
+                  ToastService.showToast(
+                    context,
+                    backgroundColor: Theme.of(context).canvasColor,
+                    leading: const Icon(
+                      Icons
+                          .check_circle, // or Icons.x_circle, Icons.error, etc.
+                      color: Colors
+                          .redAccent, // or Colors.greenAccent, Colors.orange
+                    ),
+                    message: "All saved posts cleared",
                   );
 
                   // Refresh the screen

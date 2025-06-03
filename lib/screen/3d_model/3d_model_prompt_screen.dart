@@ -12,6 +12,7 @@ import 'package:flutter_3d_controller/flutter_3d_controller.dart';
 import 'package:inzone/data/avatar_data.dart';
 import 'package:inzone/services/avatar_service.dart';
 import 'package:lottie/lottie.dart';
+import 'package:toasty_box/toast_service.dart';
 
 class ModelPromptScreen extends StatefulWidget {
   const ModelPromptScreen({super.key});
@@ -375,10 +376,17 @@ class _ModelPromptScreenState extends State<ModelPromptScreen>
                                       _previewModelUrl = null;
                                     });
                                     // Show error message
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                          content: Text(
-                                              '3D 모델 로딩 오류: $error. 다시 시도해주세요.')),
+                                    ToastService.showToast(
+                                      context,
+                                      backgroundColor:
+                                          Theme.of(context).canvasColor,
+                                      shadowColor: Colors.transparent,
+                                      leading: const Icon(
+                                        FeatherIcons.xCircle,
+                                        color: Colors.redAccent,
+                                      ),
+                                      message:
+                                          'Failed to load 3D model: $error',
                                     );
                                   },
                                 )

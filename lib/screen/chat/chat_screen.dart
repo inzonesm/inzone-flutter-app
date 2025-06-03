@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:inzone/components/chat/chat_app_bar.dart';
 import 'package:inzone/components/chat/chat_input.dart';
 import 'package:inzone/components/chat/message_bubble.dart';
@@ -122,12 +123,15 @@ class _ChatScreenState extends State<ChatScreen> {
                                     const EdgeInsets.only(right: 5.0, left: 5),
                                 child: ClipRRect(
                                   borderRadius: BorderRadius.circular(200.0),
-                                  child: Image.network(
-                                    widget.userData.profilePictureURL!,
+                                  child: CachedNetworkImage(
+                                    imageUrl:
+                                        widget.userData.profilePictureURL!,
                                     fit: BoxFit.fitWidth,
                                     width:
                                         MediaQuery.of(context).size.width - 60,
-                                    errorBuilder: (context, object, st) {
+                                    placeholder: (context, url) =>
+                                        const SizedBox(),
+                                    errorWidget: (context, url, error) {
                                       return const Icon(Icons.account_circle,
                                           size: 200);
                                     },

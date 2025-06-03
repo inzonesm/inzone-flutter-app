@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:inzone/components/chat/chat_app_bar.dart';
 import 'package:inzone/components/chat/chat_input.dart';
 import 'package:inzone/components/chat/date_header.dart';
@@ -9,6 +10,7 @@ import 'package:inzone/theme/light_theme.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter/foundation.dart';
 import 'package:go_router/go_router.dart';
+import 'package:toasty_box/toast_service.dart';
 
 class HumanChatScreen extends StatefulWidget {
   final String conversationId; // Unique ID for this conversation
@@ -140,8 +142,16 @@ class _HumanChatScreenState extends State<HumanChatScreen> {
       _scrollToEnd();
     } catch (e) {
       print('Error sending message: $e');
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Failed to send message. Please try again.')));
+      ToastService.showToast(
+        context,
+        backgroundColor: Theme.of(context).canvasColor,
+        shadowColor: Colors.transparent,
+        leading: const Icon(
+          Icons.error, // or Icons.check_circle, Icons.warning, etc.
+          color: Colors.redAccent, // or Colors.greenAccent, Colors.orange
+        ),
+        message: 'Failed to send message. Please try again.',
+      );
     }
   }
 
@@ -166,9 +176,30 @@ class _HumanChatScreenState extends State<HumanChatScreen> {
           backgroundColor: Colors.white,
           foregroundColor: Colors.black,
           elevation: 0,
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back_ios, size: 20),
-            onPressed: () => context.pop(),
+          leadingWidth: 50,
+          leading: Padding(
+            padding: const EdgeInsets.only(left: 12.0),
+            child: GestureDetector(
+              onTap: () {
+                context.pop();
+              },
+              child: CircleAvatar(
+                radius: 22,
+                backgroundColor: Theme.of(context).brightness == Brightness.dark
+                    ? Colors.grey.shade800
+                    : Colors.grey.shade200,
+                child: Padding(
+                  padding: const EdgeInsets.only(left: 8.0),
+                  child: Center(
+                    child: Icon(
+                      Icons.arrow_back_ios,
+                      size: 18,
+                      color: Theme.of(context).iconTheme.color,
+                    ),
+                  ),
+                ),
+              ),
+            ),
           ),
         ),
         body: const Center(child: CircularProgressIndicator()),
@@ -265,7 +296,7 @@ class _HumanChatScreenState extends State<HumanChatScreen> {
                               borderRadius: BorderRadius.circular(16),
                             ),
                             child: const Text(
-                              'Undated Messages',
+                              'Updated Messages',
                               style: TextStyle(
                                 color: Colors.grey,
                                 fontSize: 12,
@@ -307,13 +338,14 @@ class _HumanChatScreenState extends State<HumanChatScreen> {
                                 ),
                                 clipBehavior: Clip.antiAlias,
                                 child: _otherUserProfileImageUrl.isNotEmpty
-                                    ? Image.network(
-                                        _otherUserProfileImageUrl,
+                                    ? CachedNetworkImage(
+                                        imageUrl: _otherUserProfileImageUrl,
                                         width: 35,
                                         height: 35,
                                         fit: BoxFit.cover,
-                                        errorBuilder:
-                                            (context, error, stackTrace) {
+                                        placeholder: (context, url) =>
+                                            const SizedBox(),
+                                        errorWidget: (context, url, error) {
                                           return const Center(
                                             child: Icon(Icons.account_circle,
                                                 size: 35),

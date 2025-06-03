@@ -11,6 +11,7 @@ import 'package:inzone/components/ui/appbar.dart';
 import 'package:inzone/components/ui/button.dart';
 import 'package:inzone/services/monetization_service.dart';
 import 'package:inzone/screen/settings/referral_tile.dart';
+import 'package:toasty_box/toast_service.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:go_router/go_router.dart';
@@ -71,8 +72,15 @@ class _ReferralScreenState extends State<ReferralScreen>
         _isLoading = false;
       });
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error loading referral data: $e')),
+        ToastService.showToast(
+          context,
+          backgroundColor: Theme.of(context).canvasColor,
+          shadowColor: Colors.transparent,
+          leading: const Icon(
+            FeatherIcons.xCircle,
+            color: Colors.redAccent,
+          ),
+          message: 'Error loading referral data: $e',
         );
       }
     }
@@ -80,11 +88,16 @@ class _ReferralScreenState extends State<ReferralScreen>
 
   Future<void> _copyReferralLink(String link) async {
     await Clipboard.setData(ClipboardData(text: link));
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Referral link copied to clipboard')),
-      );
-    }
+    ToastService.showToast(
+      context,
+      backgroundColor: Theme.of(context).canvasColor,
+      shadowColor: Colors.transparent,
+      leading: const Icon(
+        FeatherIcons.checkCircle,
+        color: Colors.greenAccent,
+      ),
+      message: 'Referral link copied to clipboard',
+    );
   }
 
   Future<void> _launchInBrowser(String url) async {
@@ -106,8 +119,15 @@ class _ReferralScreenState extends State<ReferralScreen>
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error sending SMS: $e')),
+        ToastService.showToast(
+          context,
+          backgroundColor: Theme.of(context).canvasColor,
+          shadowColor: Colors.transparent,
+          leading: const Icon(
+            FeatherIcons.xCircle,
+            color: Colors.redAccent,
+          ),
+          message: 'Error sending SMS: $e',
         );
       }
       rethrow;
@@ -136,8 +156,15 @@ class _ReferralScreenState extends State<ReferralScreen>
       // await _monetizationService.addReferral(newReferral);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error adding to referral history: $e')),
+        ToastService.showToast(
+          context,
+          backgroundColor: Theme.of(context).canvasColor,
+          shadowColor: Colors.transparent,
+          leading: const Icon(
+            FeatherIcons.xCircle,
+            color: Colors.redAccent,
+          ),
+          message: 'Error adding to referral history: $e',
         );
       }
     }
@@ -166,9 +193,15 @@ class _ReferralScreenState extends State<ReferralScreen>
             await _addToReferralHistory(contact);
 
             if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                    content: Text('Referral message sent successfully!')),
+              ToastService.showToast(
+                context,
+                backgroundColor: Theme.of(context).canvasColor,
+                shadowColor: Colors.transparent,
+                leading: const Icon(
+                  FeatherIcons.checkCircle,
+                  color: Colors.greenAccent,
+                ),
+                message: 'Referral message sent successfully!',
               );
             }
           }
@@ -176,8 +209,15 @@ class _ReferralScreenState extends State<ReferralScreen>
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error selecting contact: $e')),
+        ToastService.showToast(
+          context,
+          backgroundColor: Theme.of(context).canvasColor,
+          shadowColor: Colors.transparent,
+          leading: const Icon(
+            FeatherIcons.xCircle,
+            color: Colors.redAccent,
+          ),
+          message: 'Error selecting contact: $e',
         );
       }
     }

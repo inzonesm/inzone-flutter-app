@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:inzone/components/settings/settings_tile.dart';
 import 'package:inzone/components/ui/appbar.dart';
+import 'package:toasty_box/toast_service.dart';
 import 'dart:io' show Platform;
 import 'package:url_launcher/url_launcher.dart';
 import 'package:go_router/go_router.dart';
@@ -110,11 +111,16 @@ class SettingsScreen extends StatelessWidget {
 
     if (currentUser == null) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('No user is signed in'),
-            backgroundColor: Colors.red,
+        ToastService.showToast(
+          context,
+          backgroundColor: Theme.of(context).canvasColor,
+          shadowColor: Colors.transparent,
+          leading: const Icon(
+            Icons
+                .error, // You can use Icons.check_circle, Icons.warning_amber_rounded, etc.
+            color: Colors.redAccent, // Or Colors.greenAccent, Colors.orange
           ),
+          message: 'No user is signed in',
         );
       }
       return;
@@ -135,42 +141,57 @@ class SettingsScreen extends StatelessWidget {
           await FirebaseAuth.instance.signOut();
 
           if (context.mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Please sign in again to delete your account'),
-                duration: Duration(seconds: 5),
-                backgroundColor: Colors.orange,
+            ToastService.showToast(
+              context,
+              backgroundColor: Theme.of(context).canvasColor,
+              shadowColor: Colors.transparent,
+              leading: const Icon(
+                Icons.warning_amber_rounded,
+                color: Colors.orange,
               ),
+              message: 'Please sign in again to delete your account',
             );
             context.go(Routes.login);
           }
         } catch (signOutError) {
           if (context.mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Error signing out: $signOutError'),
-                backgroundColor: Colors.red,
+            ToastService.showToast(
+              context,
+              backgroundColor: Theme.of(context).canvasColor,
+              shadowColor: Colors.transparent,
+              leading: const Icon(
+                Icons.error,
+                color: Colors.redAccent,
               ),
+              message: 'Error signing out: $signOutError',
             );
           }
         }
       } else {
         if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Error: ${e.message ?? e.toString()}'),
-              backgroundColor: Colors.red,
+          ToastService.showToast(
+            context,
+            backgroundColor: Theme.of(context).canvasColor,
+            shadowColor: Colors.transparent,
+            leading: const Icon(
+              Icons.error,
+              color: Colors.redAccent,
             ),
+            message: 'Error: ${e.message ?? e.toString()}',
           );
         }
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Unexpected error: $e'),
-            backgroundColor: Colors.red,
+        ToastService.showToast(
+          context,
+          backgroundColor: Theme.of(context).canvasColor,
+          shadowColor: Colors.transparent,
+          leading: const Icon(
+            Icons.error,
+            color: Colors.redAccent,
           ),
+          message: 'Unexpected error: $e',
         );
       }
     }
@@ -213,9 +234,15 @@ class SettingsScreen extends StatelessWidget {
         try {
           context.push(Routes.contentSelection);
         } catch (e) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-                content: Text('Error navigating to content selection: $e')),
+          ToastService.showToast(
+            context,
+            backgroundColor: Theme.of(context).canvasColor,
+            shadowColor: Colors.transparent,
+            leading: const Icon(
+              Icons.error,
+              color: Colors.redAccent,
+            ),
+            message: 'Error navigating to content selection: $e',
           );
         }
       },
@@ -224,8 +251,15 @@ class SettingsScreen extends StatelessWidget {
           // context.push(Routes.subscription);
           presentPaywall();
         } catch (e) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error navigating to subscription: $e')),
+          ToastService.showToast(
+            context,
+            backgroundColor: Theme.of(context).canvasColor,
+            shadowColor: Colors.transparent,
+            leading: const Icon(
+              Icons.error,
+              color: Colors.redAccent,
+            ),
+            message: 'Error navigating to subscription: $e',
           );
         }
       },
@@ -256,8 +290,15 @@ class SettingsScreen extends StatelessWidget {
         try {
           context.push(Routes.referral);
         } catch (e) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error navigating to referral: $e')),
+          ToastService.showToast(
+            context,
+            backgroundColor: Theme.of(context).canvasColor,
+            shadowColor: Colors.transparent,
+            leading: const Icon(
+              Icons.error,
+              color: Colors.redAccent,
+            ),
+            message: 'Error navigating to referral: $e',
           );
         }
       },
@@ -265,8 +306,15 @@ class SettingsScreen extends StatelessWidget {
         try {
           _launchInBrowser("https://inzone.ai/about");
         } catch (e) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error launching browser: $e')),
+          ToastService.showToast(
+            context,
+            backgroundColor: Theme.of(context).canvasColor,
+            shadowColor: Colors.transparent,
+            leading: const Icon(
+              Icons.error,
+              color: Colors.redAccent,
+            ),
+            message: 'Error launching browser: $e',
           );
         }
       },
@@ -274,8 +322,14 @@ class SettingsScreen extends StatelessWidget {
       //   try {
       //     context.push(Routes.unityWebGame);
       //   } catch (e) {
-      //     ScaffoldMessenger.of(context).showSnackBar(
-      //       SnackBar(content: Text('Error navigating to Unity game: $e')),
+      //     ToastService.showToast(
+      //       context,
+      //       backgroundColor: Theme.of(context).canvasColor,
+      //       leading: const Icon(
+      //         Icons.error,
+      //         color: Colors.redAccent,
+      //       ),
+      //       message: 'Error navigating to Unity game: $e',
       //     );
       //   }
       // },
@@ -283,8 +337,15 @@ class SettingsScreen extends StatelessWidget {
         try {
           context.push(Routes.privacyPolicy);
         } catch (e) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error navigating to referral: $e')),
+          ToastService.showToast(
+            context,
+            backgroundColor: Theme.of(context).canvasColor,
+            shadowColor: Colors.transparent,
+            leading: const Icon(
+              Icons.error,
+              color: Colors.redAccent,
+            ),
+            message: 'Error navigating to privacy policy: $e',
           );
         }
       },
@@ -292,8 +353,15 @@ class SettingsScreen extends StatelessWidget {
         try {
           context.push(Routes.termsConditions);
         } catch (e) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error navigating to referral: $e')),
+          ToastService.showToast(
+            context,
+            backgroundColor: Theme.of(context).canvasColor,
+            shadowColor: Colors.transparent,
+            leading: const Icon(
+              Icons.error,
+              color: Colors.redAccent,
+            ),
+            message: 'Error navigating to terms & conditions: $e',
           );
         }
       },
@@ -308,10 +376,27 @@ class SettingsScreen extends StatelessWidget {
           Purchases.logOut();
           FirebaseAuth.instance.signOut().then((value) {
             GoRouter.of(context).go(Routes.login);
+            ToastService.showToast(
+              context,
+              backgroundColor: Theme.of(context).canvasColor,
+              shadowColor: Colors.transparent,
+              leading: const Icon(
+                Icons.check_circle,
+                color: Colors.greenAccent,
+              ),
+              message: 'Logged out successfully',
+            );
           });
         } catch (e) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error signing out: $e')),
+          ToastService.showToast(
+            context,
+            backgroundColor: Theme.of(context).canvasColor,
+            shadowColor: Colors.transparent,
+            leading: const Icon(
+              Icons.error,
+              color: Colors.redAccent,
+            ),
+            message: 'Error signing out: $e',
           );
         }
       },

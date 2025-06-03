@@ -14,6 +14,7 @@ import 'package:inzone/router/routes.dart';
 import 'package:inzone/services/inzone_database.dart';
 import 'package:go_router/go_router.dart';
 import 'package:inzone/screen/common/search_explore_screen.dart';
+import 'package:toasty_box/toast_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key, this.controller});
@@ -585,8 +586,17 @@ class HomeScreenState extends State<HomeScreen> {
                           );
                         } catch (e) {
                           print('Error navigating to search: $e');
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('검색 화면으로 이동할 수 없습니다: $e')),
+                          ToastService.showToast(
+                            context,
+                            backgroundColor: Theme.of(context).canvasColor,
+                            shadowColor: Colors.transparent,
+                            leading: const Icon(
+                              Icons
+                                  .error_outline, // or Icons.check_circle, Icons.warning_amber_rounded, etc.
+                              color: Colors
+                                  .redAccent, // or Colors.greenAccent, Colors.orange
+                            ),
+                            message: 'Cannot navigate to search: $e',
                           );
                         }
                       },
@@ -686,8 +696,17 @@ class HomeScreenState extends State<HomeScreen> {
                             );
                           } catch (e) {
                             print('Error navigating to search: $e');
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text('검색 화면으로 이동할 수 없습니다: $e')),
+                            ToastService.showToast(
+                              context,
+                              backgroundColor: Theme.of(context).canvasColor,
+                              shadowColor: Colors.transparent,
+                              leading: const Icon(
+                                Icons
+                                    .error_outline, // or Icons.check_circle, Icons.warning_amber_rounded, etc.
+                                color: Colors
+                                    .redAccent, // or Colors.greenAccent, Colors.orange
+                              ),
+                              message: "Error navigating to search: $e",
                             );
                           }
                         },

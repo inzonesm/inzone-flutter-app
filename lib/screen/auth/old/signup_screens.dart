@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_feather_icons/flutter_feather_icons.dart';
 import 'dart:io' show Platform;
 import 'package:go_router/go_router.dart';
 
@@ -7,7 +8,8 @@ import 'package:inzone/components/settings/topic_selector_widget.dart';
 import 'package:inzone/router/routes.dart';
 import 'package:inzone/services/inzone_database.dart';
 import 'package:inzone/screen/auth/loading_screen.dart';
-import 'package:inzone/root_app.dart'; // Import this to detect the platform
+import 'package:inzone/root_app.dart';
+import 'package:toasty_box/toast_service.dart'; // Import this to detect the platform
 
 class SignUpScreens extends StatefulWidget {
   const SignUpScreens({super.key});
@@ -159,32 +161,46 @@ By using the Licensed Application, you agree to abide by these terms and conditi
             context.go(Routes.login);
           }
 
-          const snackBar = SnackBar(
-            content: Text("Error: Please fill all the fields!"),
-            backgroundColor: Colors.red,
+          ToastService.showToast(
+            context,
+            backgroundColor: Theme.of(context).canvasColor,
+            shadowColor: Colors.transparent,
+            leading: const Icon(
+              FeatherIcons.xCircle,
+              color: Colors.redAccent,
+            ),
+            message: "Error: Please fill all the fields!",
           );
-          ScaffoldMessenger.of(context).showSnackBar(snackBar);
         }
       } on FirebaseAuthException catch (e) {
         // 로딩 다이얼로그 닫기
         _dismissLoadingDialog();
-
         // Show an error message if something went wrong
-        final snackBar = SnackBar(
-          content: Text("Error: ${e.message}"),
-          backgroundColor: Colors.red,
+        ToastService.showToast(
+          context,
+          backgroundColor: Theme.of(context).canvasColor,
+          shadowColor: Colors.transparent,
+          leading: const Icon(
+            FeatherIcons.xCircle,
+            color: Colors.redAccent,
+          ),
+          message: "Error: ${e.message}",
         );
-        ScaffoldMessenger.of(context).showSnackBar(snackBar);
       } catch (e) {
         // 로딩 다이얼로그 닫기
         _dismissLoadingDialog();
 
         // Show a general error message
-        const snackBar = SnackBar(
-          content: Text("An unexpected error occurred. Please try again."),
-          backgroundColor: Colors.red,
+        ToastService.showToast(
+          context,
+          backgroundColor: Theme.of(context).canvasColor,
+          shadowColor: Colors.transparent,
+          leading: const Icon(
+            FeatherIcons.xCircle,
+            color: Colors.redAccent,
+          ),
+          message: "An unexpected error occurred. Please try again.",
         );
-        ScaffoldMessenger.of(context).showSnackBar(snackBar);
       }
     } else {
       // Handle non-loading screen navigation logic

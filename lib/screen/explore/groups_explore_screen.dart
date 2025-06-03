@@ -18,6 +18,8 @@ import 'package:purchases_flutter/purchases_flutter.dart';
 import 'package:purchases_ui_flutter/paywall_result.dart';
 import 'package:purchases_ui_flutter/purchases_ui_flutter.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter_feather_icons/flutter_feather_icons.dart';
+import 'package:toasty_box/toast_service.dart';
 
 class GroupsExploreScreen extends StatefulWidget {
   const GroupsExploreScreen({super.key});
@@ -55,36 +57,37 @@ class _GroupsExploreScreenState extends State<GroupsExploreScreen> {
       }
 
       debugPrint('Setting up balance stream for UID: ${currentUser.uid}');
-      
+
       _balanceSubscription = _firestore
           .collection('humanUsers')
           .doc(currentUser.uid)
           .snapshots()
           .listen(
-            (DocumentSnapshot userDoc) {
-              if (userDoc.exists && userDoc.data() != null) {
-                final userData = userDoc.data() as Map<String, dynamic>;
-                final balance = userData['balance'];
-                debugPrint('Balance from Firestore stream: $balance (type: ${balance.runtimeType})');
+        (DocumentSnapshot userDoc) {
+          if (userDoc.exists && userDoc.data() != null) {
+            final userData = userDoc.data() as Map<String, dynamic>;
+            final balance = userData['balance'];
+            debugPrint(
+                'Balance from Firestore stream: $balance (type: ${balance.runtimeType})');
 
-                setState(() {
-                  _userBalance = balance?.toString() ?? '0';
-                  debugPrint('Updated _userBalance to: $_userBalance');
-                });
-              } else {
-                debugPrint('User document does not exist in humanUsers collection');
-                setState(() {
-                  _userBalance = '0';
-                });
-              }
-            },
-            onError: (error) {
-              debugPrint('Error in balance stream: $error');
-              setState(() {
-                _userBalance = '0';
-              });
-            },
-          );
+            setState(() {
+              _userBalance = balance?.toString() ?? '0';
+              debugPrint('Updated _userBalance to: $_userBalance');
+            });
+          } else {
+            debugPrint('User document does not exist in humanUsers collection');
+            setState(() {
+              _userBalance = '0';
+            });
+          }
+        },
+        onError: (error) {
+          debugPrint('Error in balance stream: $error');
+          setState(() {
+            _userBalance = '0';
+          });
+        },
+      );
     } catch (e) {
       debugPrint('Error setting up balance stream: $e');
       setState(() {
@@ -287,10 +290,15 @@ class _GroupsExploreScreenState extends State<GroupsExploreScreen> {
                       // context.push(Routes.subscription);
                       presentPaywall();
                     } catch (e) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                            content:
-                                Text('Error navigating to subscription: $e')),
+                      ToastService.showToast(
+                        context,
+                        backgroundColor: Theme.of(context).canvasColor,
+                        shadowColor: Colors.transparent,
+                        leading: const Icon(
+                          FeatherIcons.xCircle,
+                          color: Colors.redAccent,
+                        ),
+                        message: 'Error navigating to subscription: $e',
                       );
                     }
                   },
@@ -546,8 +554,15 @@ class _GroupsExploreScreenState extends State<GroupsExploreScreen> {
               child: const Text('Create'),
               onPressed: () async {
                 if (nameController.text.trim().isEmpty) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Please enter a group name')),
+                  ToastService.showToast(
+                    context,
+                    backgroundColor: Theme.of(context).canvasColor,
+                    shadowColor: Colors.transparent,
+                    leading: const Icon(
+                      FeatherIcons.xCircle,
+                      color: Colors.redAccent,
+                    ),
+                    message: 'Please enter a group name',
                   );
                   return;
                 }
@@ -561,15 +576,28 @@ class _GroupsExploreScreenState extends State<GroupsExploreScreen> {
 
                   Navigator.of(dialogContext).pop();
 
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                        content: Text(
-                            'Group "${nameController.text}" created successfully')),
+                  ToastService.showToast(
+                    context,
+                    backgroundColor: Theme.of(context).canvasColor,
+                    shadowColor: Colors.transparent,
+                    leading: const Icon(
+                      FeatherIcons.checkCircle,
+                      color: Colors.greenAccent,
+                    ),
+                    message:
+                        'Group "${nameController.text}" created successfully',
                   );
                 } catch (e) {
                   print('Error creating group: $e');
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Error creating group: $e')),
+                  ToastService.showToast(
+                    context,
+                    backgroundColor: Theme.of(context).canvasColor,
+                    shadowColor: Colors.transparent,
+                    leading: const Icon(
+                      FeatherIcons.xCircle,
+                      color: Colors.redAccent,
+                    ),
+                    message: 'Error creating group: $e',
                   );
                 }
               },

@@ -6,6 +6,7 @@ import 'package:inzone/components/ui/appbar.dart';
 import 'package:go_router/go_router.dart';
 import 'package:inzone/components/ui/button.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:toasty_box/toast_service.dart';
 
 class ContentSelectionSettingsScreen extends StatefulWidget {
   const ContentSelectionSettingsScreen({super.key});
@@ -43,7 +44,7 @@ class _ContentSelectionSettingsScreenState
       if (docSnapshot.exists && docSnapshot.data() != null) {
         final data = docSnapshot.data()!;
         final categories = data['categories'] as Map<String, dynamic>?;
-        
+
         if (categories != null) {
           // Convert the Firestore data to our expected format
           Map<String, List<String>> convertedCategories = {};
@@ -52,7 +53,7 @@ class _ContentSelectionSettingsScreenState
               convertedCategories[key] = List<String>.from(value);
             }
           });
-          
+
           setState(() {
             topicCategories = convertedCategories;
             _isLoading = false;
@@ -83,11 +84,15 @@ class _ContentSelectionSettingsScreenState
   }
 
   void _saveSelection() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text("Saved"),
-        backgroundColor: Colors.blue,
+    ToastService.showToast(
+      context,
+      backgroundColor: Theme.of(context).canvasColor,
+      shadowColor: Colors.transparent,
+      leading: const Icon(
+        Icons.check_circle, // or Icons.error, Icons.warning, etc.
+        color: Colors.greenAccent, // or Colors.redAccent, Colors.orange, etc.
       ),
+      message: "Saved",
     );
     context.pop();
   }
@@ -105,28 +110,37 @@ class _ContentSelectionSettingsScreenState
         }
       }
     }
-    
+
     // Fallback icon mapping based on keywords in category name
     final lowercaseName = categoryName.toLowerCase();
     if (lowercaseName.contains('art') || lowercaseName.contains('creativity')) {
       return '🎨';
-    } else if (lowercaseName.contains('gaming') || lowercaseName.contains('game')) {
+    } else if (lowercaseName.contains('gaming') ||
+        lowercaseName.contains('game')) {
       return '🎮';
-    } else if (lowercaseName.contains('entertainment') || lowercaseName.contains('meme')) {
+    } else if (lowercaseName.contains('entertainment') ||
+        lowercaseName.contains('meme')) {
       return '🎥';
-    } else if (lowercaseName.contains('food') || lowercaseName.contains('diy')) {
+    } else if (lowercaseName.contains('food') ||
+        lowercaseName.contains('diy')) {
       return '👩‍🍳';
-    } else if (lowercaseName.contains('pet') || lowercaseName.contains('animal')) {
+    } else if (lowercaseName.contains('pet') ||
+        lowercaseName.contains('animal')) {
       return '🐾';
-    } else if (lowercaseName.contains('music') || lowercaseName.contains('dance')) {
+    } else if (lowercaseName.contains('music') ||
+        lowercaseName.contains('dance')) {
       return '🎵';
-    } else if (lowercaseName.contains('travel') || lowercaseName.contains('adventure')) {
+    } else if (lowercaseName.contains('travel') ||
+        lowercaseName.contains('adventure')) {
       return '🌍';
-    } else if (lowercaseName.contains('health') || lowercaseName.contains('wellness')) {
+    } else if (lowercaseName.contains('health') ||
+        lowercaseName.contains('wellness')) {
       return '🧠';
-    } else if (lowercaseName.contains('learning') || lowercaseName.contains('education')) {
+    } else if (lowercaseName.contains('learning') ||
+        lowercaseName.contains('education')) {
       return '📚';
-    } else if (lowercaseName.contains('environment') || lowercaseName.contains('community')) {
+    } else if (lowercaseName.contains('environment') ||
+        lowercaseName.contains('community')) {
       return '🌱';
     } else {
       return '⭐'; // Default fallback
@@ -331,7 +345,10 @@ class _ContentSelectionSettingsScreenState
                             Expanded(
                               child: Text(
                                 // Remove emoji from display name if it exists
-                                categoryName.replaceFirst(RegExp(r'^[\u{1F000}-\u{1F9FF}]\s*', unicode: true), ''),
+                                categoryName.replaceFirst(
+                                    RegExp(r'^[\u{1F000}-\u{1F9FF}]\s*',
+                                        unicode: true),
+                                    ''),
                                 style: const TextStyle(
                                   fontSize: 18,
                                   fontWeight: FontWeight.bold,
@@ -368,7 +385,8 @@ class _ContentSelectionSettingsScreenState
                                                 (topics.length / 2).ceil() >
                                                         topics.length
                                                     ? topics.length
-                                                    : (topics.length / 2).ceil())
+                                                    : (topics.length / 2)
+                                                        .ceil())
                                             .map((topic) => TopicSelectorWidget(
                                                   topic: topic,
                                                   callBack: addToList,
@@ -383,8 +401,10 @@ class _ContentSelectionSettingsScreenState
                                         children: topics.length >
                                                 (topics.length / 2).ceil()
                                             ? topics
-                                                .sublist((topics.length / 2).ceil())
-                                                .map((topic) => TopicSelectorWidget(
+                                                .sublist(
+                                                    (topics.length / 2).ceil())
+                                                .map((topic) =>
+                                                    TopicSelectorWidget(
                                                       topic: topic,
                                                       callBack: addToList,
                                                     ))

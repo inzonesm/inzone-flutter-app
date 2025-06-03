@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter_feather_icons/flutter_feather_icons.dart';
 import 'package:inzone/components/ui/button.dart';
 import 'package:inzone/services/inzone_database.dart';
 import 'package:colorful_safe_area/colorful_safe_area.dart';
@@ -7,6 +8,7 @@ import 'package:lottie/lottie.dart';
 import 'dart:math' as math;
 import 'package:go_router/go_router.dart';
 import 'package:inzone/router/routes.dart';
+import 'package:toasty_box/toast_service.dart';
 
 class AICharacterSelectionScreen extends StatefulWidget {
   final String name;
@@ -139,8 +141,15 @@ class _AICharacterSelectionScreenState extends State<AICharacterSelectionScreen>
 
   void _generateCharacter() async {
     if (_promptController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter a character description')),
+      ToastService.showToast(
+        context,
+        backgroundColor: Theme.of(context).canvasColor,
+        shadowColor: Colors.transparent,
+        leading: const Icon(
+          FeatherIcons.xCircle,
+          color: Colors.redAccent,
+        ),
+        message: 'Please enter a character description',
       );
       return;
     }
@@ -169,14 +178,6 @@ class _AICharacterSelectionScreenState extends State<AICharacterSelectionScreen>
       print("PPPPPPPPPPPP$result");
 
       if (result["success"] == true && mounted) {
-        // // Success - character created
-        // ScaffoldMessenger.of(context).showSnackBar(
-        //   const SnackBar(
-        //     content: Text('Character created successfully!'),
-        //     backgroundColor: Colors.green,
-        //   ),
-        // );
-
         setState(() {
           _isLoading = false;
           _isGenerating = false;
@@ -203,12 +204,16 @@ class _AICharacterSelectionScreenState extends State<AICharacterSelectionScreen>
             _isLoading = false;
           });
 
-          // Display error message
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Error: $errorMessage'),
-              backgroundColor: Colors.red,
+          // Display error message using ToastService
+          ToastService.showToast(
+            context,
+            backgroundColor: Theme.of(context).canvasColor,
+            shadowColor: Colors.transparent,
+            leading: const Icon(
+              FeatherIcons.xCircle,
+              color: Colors.redAccent,
             ),
+            message: 'Error: $errorMessage',
           );
         }
       }
@@ -220,12 +225,16 @@ class _AICharacterSelectionScreenState extends State<AICharacterSelectionScreen>
           _isLoading = false;
         });
 
-        // Display exception message
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Unexpected error: $e'),
-            backgroundColor: Colors.red,
+        // Display exception message using ToastService
+        ToastService.showToast(
+          context,
+          backgroundColor: Theme.of(context).canvasColor,
+          shadowColor: Colors.transparent,
+          leading: const Icon(
+            FeatherIcons.xCircle,
+            color: Colors.redAccent,
           ),
+          message: 'Unexpected error: $e',
         );
       }
     }
@@ -756,13 +765,16 @@ class _AICharacterSelectionScreenState extends State<AICharacterSelectionScreen>
           'selectedImageUrl': selectedImageUrl,
           'selectedImageIndex': _selectedImageIndex,
         };
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-                'Selected character: $name with image ${_selectedImageIndex + 1}'),
-            backgroundColor: Colors.green,
+        ToastService.showToast(
+          context,
+          shadowColor: Colors.transparent,
+          backgroundColor: Theme.of(context).canvasColor,
+          leading: const Icon(
+            FeatherIcons.checkCircle,
+            color: Colors.greenAccent,
           ),
+          message:
+              'Selected character: $name with image ${_selectedImageIndex + 1}',
         );
 
         // Add navigation or callback logic here
@@ -1027,10 +1039,15 @@ class _AICharacterSelectionScreenState extends State<AICharacterSelectionScreen>
           ElevatedButton(
             onPressed: () {
               // Handle character selection
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('Selected: ${widget.name}'),
+              ToastService.showToast(
+                context,
+                backgroundColor: Theme.of(context).canvasColor,
+                shadowColor: Colors.transparent,
+                leading: const Icon(
+                  FeatherIcons.checkCircle,
+                  color: Colors.redAccent,
                 ),
+                message: 'Selected: ${widget.name}',
               );
             },
             style: ElevatedButton.styleFrom(
@@ -1117,10 +1134,15 @@ class _AICharacterSelectionScreenState extends State<AICharacterSelectionScreen>
         ElevatedButton(
           onPressed: () {
             // Handle character selection
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Selected: $name'),
+            ToastService.showToast(
+              context,
+              backgroundColor: Theme.of(context).canvasColor,
+              shadowColor: Colors.transparent,
+              leading: const Icon(
+                FeatherIcons.checkCircle,
+                color: Colors.greenAccent,
               ),
+              message: 'Selected: $name',
             );
           },
           style: ElevatedButton.styleFrom(

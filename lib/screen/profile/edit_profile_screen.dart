@@ -12,6 +12,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:inzone/router/routes.dart';
 import 'package:inzone/theme/app_colors.dart';
+import 'package:toasty_box/toast_service.dart';
 
 class EditProfileScreen extends StatefulWidget {
   final String userId;
@@ -122,9 +123,16 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         await InZoneDatabase.updateUserProfileData(widget.userId, profileData);
 
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-                content: Text('Profile picture updated successfully')),
+          ToastService.showToast(
+            context,
+            backgroundColor: Theme.of(context).canvasColor,
+            shadowColor: Colors.transparent,
+            leading: const Icon(
+              Icons
+                  .check_circle, // or Icons.error_outline, Icons.warning_amber_rounded, etc.
+              color: Colors.greenAccent,
+            ),
+            message: 'Profile picture updated successfully',
           );
 
           setState(() {
@@ -135,8 +143,16 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error updating profile: $e')),
+        ToastService.showToast(
+          context,
+          backgroundColor: Theme.of(context).canvasColor,
+          shadowColor: Colors.transparent,
+          leading: const Icon(
+            Icons
+                .error_outline, // or Icons.check_circle, Icons.warning_amber_rounded, etc.
+            color: Colors.redAccent,
+          ),
+          message: 'Error updating profile: $e',
         );
       }
     } finally {

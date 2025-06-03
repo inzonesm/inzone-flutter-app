@@ -9,6 +9,7 @@ import 'package:inzone/router/routes.dart';
 import 'package:inzone/services/inzone_database.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:toasty_box/toast_service.dart';
 
 class InterestSelectionScreen extends StatefulWidget {
   final String email;
@@ -50,7 +51,7 @@ class _InterestSelectionScreenState extends State<InterestSelectionScreen> {
       if (docSnapshot.exists && docSnapshot.data() != null) {
         final data = docSnapshot.data()!;
         final categories = data['categories'] as Map<String, dynamic>?;
-        
+
         if (categories != null) {
           // Convert the Firestore data to our expected format
           Map<String, List<String>> convertedCategories = {};
@@ -59,7 +60,7 @@ class _InterestSelectionScreenState extends State<InterestSelectionScreen> {
               convertedCategories[key] = List<String>.from(value);
             }
           });
-          
+
           setState(() {
             topicCategories = convertedCategories;
             _isLoading = false;
@@ -104,28 +105,37 @@ class _InterestSelectionScreenState extends State<InterestSelectionScreen> {
         }
       }
     }
-    
+
     // Fallback icon mapping based on keywords in category name
     final lowercaseName = categoryName.toLowerCase();
     if (lowercaseName.contains('art') || lowercaseName.contains('creativity')) {
       return '🎨';
-    } else if (lowercaseName.contains('gaming') || lowercaseName.contains('game')) {
+    } else if (lowercaseName.contains('gaming') ||
+        lowercaseName.contains('game')) {
       return '🎮';
-    } else if (lowercaseName.contains('entertainment') || lowercaseName.contains('meme')) {
+    } else if (lowercaseName.contains('entertainment') ||
+        lowercaseName.contains('meme')) {
       return '🎥';
-    } else if (lowercaseName.contains('food') || lowercaseName.contains('diy')) {
+    } else if (lowercaseName.contains('food') ||
+        lowercaseName.contains('diy')) {
       return '👩‍🍳';
-    } else if (lowercaseName.contains('pet') || lowercaseName.contains('animal')) {
+    } else if (lowercaseName.contains('pet') ||
+        lowercaseName.contains('animal')) {
       return '🐾';
-    } else if (lowercaseName.contains('music') || lowercaseName.contains('dance')) {
+    } else if (lowercaseName.contains('music') ||
+        lowercaseName.contains('dance')) {
       return '🎵';
-    } else if (lowercaseName.contains('travel') || lowercaseName.contains('adventure')) {
+    } else if (lowercaseName.contains('travel') ||
+        lowercaseName.contains('adventure')) {
       return '🌍';
-    } else if (lowercaseName.contains('health') || lowercaseName.contains('wellness')) {
+    } else if (lowercaseName.contains('health') ||
+        lowercaseName.contains('wellness')) {
       return '🧠';
-    } else if (lowercaseName.contains('learning') || lowercaseName.contains('education')) {
+    } else if (lowercaseName.contains('learning') ||
+        lowercaseName.contains('education')) {
       return '📚';
-    } else if (lowercaseName.contains('environment') || lowercaseName.contains('community')) {
+    } else if (lowercaseName.contains('environment') ||
+        lowercaseName.contains('community')) {
       return '🌱';
     } else {
       return '⭐'; // Default fallback
@@ -136,11 +146,16 @@ class _InterestSelectionScreenState extends State<InterestSelectionScreen> {
     final user = FirebaseAuth.instance.currentUser;
 
     if (user == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("User not logged in."),
-          backgroundColor: Colors.red,
+      ToastService.showToast(
+        context,
+        backgroundColor: Theme.of(context).canvasColor,
+        shadowColor: Colors.transparent,
+        leading: const Icon(
+          Icons
+              .error_outline, // or Icons.check_circle, Icons.warning_amber_rounded, etc.
+          color: Colors.redAccent, // or Colors.greenAccent, Colors.orange, etc.
         ),
+        message: "User not logged in.",
       );
       return;
     }
@@ -214,11 +229,16 @@ class _InterestSelectionScreenState extends State<InterestSelectionScreen> {
       }
 
       print("InterestScreen - Error completing signup: $e");
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text("Failed to complete sign up: $e"),
-          backgroundColor: Colors.red,
+      ToastService.showToast(
+        context,
+        backgroundColor: Theme.of(context).canvasColor,
+        shadowColor: Colors.transparent,
+        leading: const Icon(
+          Icons
+              .error_outline, // or Icons.check_circle, Icons.warning_amber_rounded, etc.
+          color: Colors.redAccent, // or Colors.greenAccent, Colors.orange, etc.
         ),
+        message: "Failed to complete sign up: $e",
       );
     }
   }
@@ -401,7 +421,10 @@ class _InterestSelectionScreenState extends State<InterestSelectionScreen> {
                             Expanded(
                               child: Text(
                                 // Remove emoji from display name if it exists
-                                categoryName.replaceFirst(RegExp(r'^[\u{1F000}-\u{1F9FF}]\s*', unicode: true), ''),
+                                categoryName.replaceFirst(
+                                    RegExp(r'^[\u{1F000}-\u{1F9FF}]\s*',
+                                        unicode: true),
+                                    ''),
                                 style: const TextStyle(
                                   fontSize: 18,
                                   fontWeight: FontWeight.bold,
@@ -438,7 +461,8 @@ class _InterestSelectionScreenState extends State<InterestSelectionScreen> {
                                                 (topics.length / 2).ceil() >
                                                         topics.length
                                                     ? topics.length
-                                                    : (topics.length / 2).ceil())
+                                                    : (topics.length / 2)
+                                                        .ceil())
                                             .map((topic) => TopicSelectorWidget(
                                                   topic: topic,
                                                   callBack: _toggleInterest,
@@ -453,8 +477,10 @@ class _InterestSelectionScreenState extends State<InterestSelectionScreen> {
                                         children: topics.length >
                                                 (topics.length / 2).ceil()
                                             ? topics
-                                                .sublist((topics.length / 2).ceil())
-                                                .map((topic) => TopicSelectorWidget(
+                                                .sublist(
+                                                    (topics.length / 2).ceil())
+                                                .map((topic) =>
+                                                    TopicSelectorWidget(
                                                       topic: topic,
                                                       callBack: _toggleInterest,
                                                     ))

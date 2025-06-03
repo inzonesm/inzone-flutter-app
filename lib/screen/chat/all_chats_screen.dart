@@ -11,6 +11,8 @@ import 'package:inzone/data/group_data.dart';
 import 'package:inzone/screen/chat/group_chat_screen.dart';
 import 'package:inzone/router/routes.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:toasty_box/toast_service.dart';
 // import 'package:inzone/components/ui/inzone_text_field.dart';
 // import 'package:inzone/components/ui/my_button.dart';
 // import 'package:inzone/models/chat_model.dart';
@@ -127,14 +129,11 @@ class _AllChatsScreenState extends State<AllChatsScreen>
             if (groupDoc.exists && groupDoc.data() != null) {
               var groupData = groupDoc.data() as Map<String, dynamic>;
 
-
               // Try different possible field names for the group name
               groupName = groupData['name'] ??
                   groupData['groupName'] ??
                   data['groupName'] ??
                   'Group Chat';
-
-
             }
 
             allChats.add(ChatUser(
@@ -147,7 +146,6 @@ class _AllChatsScreenState extends State<AllChatsScreen>
               isGroupChat: true,
             ));
           } catch (e) {
-
             // Fallback to basic info if there's an error
             String groupName = data['groupName'] ?? 'Group Chat';
             allChats.add(ChatUser(
@@ -223,9 +221,16 @@ class _AllChatsScreenState extends State<AllChatsScreen>
       setState(() {
         _isLoading = false;
       });
-
-      ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error loading conversations: $e')));
+      ToastService.showToast(
+        context,
+        backgroundColor: Theme.of(context).canvasColor,
+        shadowColor: Colors.transparent,
+        leading: const Icon(
+          Icons.error, // or Icons.check_circle, Icons.warning, etc.
+          color: Colors.redAccent, // or Colors.greenAccent, Colors.orange
+        ),
+        message: 'Error loading conversations: $e',
+      );
     }
   }
 
@@ -516,16 +521,12 @@ class _ChatUserCardState extends State<ChatUserCard> {
               Navigator.of(context).pop();
 
               if (doc.exists) {
-
-
                 // Get the actual group name from the document
                 // First try to get it from the 'name' field, then from 'groupName', then fallback to userData name
                 final String groupName = doc.data()?['name'] ??
                     doc.data()?['groupName'] ??
                     widget.userData.name ??
                     'Group Chat';
-
-
 
                 // Extract avatars if available
                 List<String> avatars = [];
@@ -548,7 +549,6 @@ class _ChatUserCardState extends State<ChatUserCard> {
 
                 // Navigate to the group chat screen
 
-
                 // Try using Go Router first with fallback to direct navigation
                 try {
                   context.push(Routes.groupChat, extra: groupData).then((_) {
@@ -558,9 +558,7 @@ class _ChatUserCardState extends State<ChatUserCard> {
                           ?._fetchConversations();
                     }
                   });
-                } catch (e) {
-
-                }
+                } catch (e) {}
               } else {
                 // Fallback to regular chat if group data not found
                 context.pushNamed('chat', extra: {
@@ -609,12 +607,13 @@ class _ChatUserCardState extends State<ChatUserCard> {
           ),
           child: ClipOval(
             child: _profileImageUrl != null && _profileImageUrl!.isNotEmpty
-                ? Image.network(
-                    _profileImageUrl!,
+                ? CachedNetworkImage(
+                    imageUrl: _profileImageUrl!,
                     width: 50,
                     height: 50,
                     fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) => const Icon(
+                    placeholder: (context, url) => const SizedBox(),
+                    errorWidget: (context, url, error) => const Icon(
                         Icons.account_circle,
                         size: 30,
                         color: Colors.grey),
