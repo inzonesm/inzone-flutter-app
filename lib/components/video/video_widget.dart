@@ -8,7 +8,7 @@ import 'package:visibility_detector/visibility_detector.dart';
 
 // Global mute state manager
 class VideoMuteManager {
-  static bool _isMuted = false;
+  static bool _isMuted = true;
   static final StreamController<bool> _muteStateController =
       StreamController<bool>.broadcast();
 
@@ -38,6 +38,11 @@ class VideoAspectRatioNotification extends Notification {
 
   VideoAspectRatioNotification(this.aspectRatio);
 }
+
+// 비디오 플레이어 캐시를 위한 전역 맵
+final Map<String, Player> _cachedPlayers = {};
+final Map<String, VideoController> _cachedControllers = {};
+final Map<String, bool> _cachedInitStatus = {};
 
 class VideoWidget extends StatefulWidget {
   final String videoUrl;
@@ -74,11 +79,46 @@ class _VideoWidgetState extends State<VideoWidget> {
 
   // Subscription to mute state changes
   StreamSubscription? _muteSubscription;
+  StreamSubscription? _positionSubscription;
 
   @override
   void initState() {
     super.initState();
-    _initializeVideo();
+
+    // 이미 캐시된 플레이어가 있는지 확인
+    if (_cachedPlayers.containsKey(widget.videoUrl) &&
+        _cachedControllers.containsKey(widget.videoUrl) &&
+        _cachedInitStatus[widget.videoUrl] == true) {
+      debugPrint('Using cached player for URL: ${widget.videoUrl}');
+      _mediaKitPlayer = _cachedPlayers[widget.videoUrl];
+      _mediaKitVideoController = _cachedControllers[widget.videoUrl];
+      _isInitialized = true;
+      _isLoading = false;
+
+      // 비디오 크기 정보가 있으면 바로 비율 업데이트
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _mediaKitPlayer != null) {
+          final videoWidth = _mediaKitPlayer!.state.width?.toDouble();
+          final videoHeight = _mediaKitPlayer!.state.height?.toDouble();
+
+          if (videoWidth != null &&
+              videoHeight != null &&
+              videoWidth > 0 &&
+              videoHeight > 0 &&
+              widget.onAspectRatioUpdated != null) {
+            final aspectRatio = videoWidth / videoHeight;
+            widget.onAspectRatioUpdated!(aspectRatio);
+          }
+        }
+      });
+
+      // 볼륨 상태 동기화
+      if (_mediaKitPlayer != null) {
+        _mediaKitPlayer!.setVolume(VideoMuteManager.isMuted ? 0 : 100);
+      }
+    } else {
+      _initializeVideo();
+    }
 
     // Set a manual timeout for loading to prevent infinite spinner
     _loadingTimeoutTimer = Timer(const Duration(seconds: 15), () {
@@ -155,8 +195,9 @@ class _VideoWidgetState extends State<VideoWidget> {
     debugPrint('Starting MediaKit Player initialization: $videoPath');
 
     try {
-      // Dispose any existing MediaKit player
-      if (_mediaKitPlayer != null) {
+      // Dispose any existing MediaKit player if not cached
+      if (_mediaKitPlayer != null &&
+          !_cachedPlayers.containsKey(widget.videoUrl)) {
         await _mediaKitPlayer!.dispose();
         _mediaKitPlayer = null;
         _mediaKitVideoController = null;
@@ -164,6 +205,9 @@ class _VideoWidgetState extends State<VideoWidget> {
 
       // Initialize the player with configuration for showing controls
       _mediaKitPlayer = Player();
+
+      // Set volume immediately before opening media
+      await _mediaKitPlayer!.setVolume(VideoMuteManager.isMuted ? 0 : 100);
 
       // Create video controller with the proper configuration for the platform
       _mediaKitVideoController = VideoController(
@@ -178,6 +222,33 @@ class _VideoWidgetState extends State<VideoWidget> {
       final subscription = playerStateStream.listen((playing) {
         if (!mediaKitCompleter.isCompleted) {
           mediaKitCompleter.complete();
+        }
+      });
+
+      // 비디오 위치 업데이트를 통해 크기 정보를 더 빠르게 확인
+      _positionSubscription = _mediaKitPlayer!.stream.position.listen((_) {
+        if (mounted) {
+          final videoWidth = _mediaKitPlayer!.state.width?.toDouble();
+          final videoHeight = _mediaKitPlayer!.state.height?.toDouble();
+
+          if (videoWidth != null &&
+              videoHeight != null &&
+              videoWidth > 0 &&
+              videoHeight > 0) {
+            debugPrint('Early video dimensions: ${videoWidth}x$videoHeight');
+            final aspectRatio = videoWidth / videoHeight;
+            if (widget.onAspectRatioUpdated != null) {
+              widget.onAspectRatioUpdated!(aspectRatio);
+            }
+
+            // 비디오 크기를 확인했으면 캐시에 이 플레이어를 추가
+            if (!_cachedPlayers.containsKey(widget.videoUrl)) {
+              _cachedPlayers[widget.videoUrl] = _mediaKitPlayer!;
+              _cachedControllers[widget.videoUrl] = _mediaKitVideoController!;
+              _cachedInitStatus[widget.videoUrl] = true;
+              debugPrint('Player cached for URL: ${widget.videoUrl}');
+            }
+          }
         }
       });
 
@@ -203,12 +274,19 @@ class _VideoWidgetState extends State<VideoWidget> {
       // Cancel subscription after we're done
       subscription.cancel();
 
-      // Configure audio settings after successful initialization
-      await _mediaKitPlayer!.setVolume(VideoMuteManager.isMuted ? 0 : 100);
+      // Configure playback rate (volume is already set)
       await _mediaKitPlayer!.setRate(1.0);
 
       debugPrint('MediaKit Player opened successfully');
       _mediaKitPlayer!.pause();
+
+      // 비디오가 로드되었고 캐시에 없다면 캐시에 추가
+      if (!_cachedPlayers.containsKey(widget.videoUrl)) {
+        _cachedPlayers[widget.videoUrl] = _mediaKitPlayer!;
+        _cachedControllers[widget.videoUrl] = _mediaKitVideoController!;
+        _cachedInitStatus[widget.videoUrl] = true;
+        debugPrint('Player cached for URL: ${widget.videoUrl}');
+      }
 
       if (mounted) {
         setState(() {
@@ -232,7 +310,8 @@ class _VideoWidgetState extends State<VideoWidget> {
   @override
   Widget build(BuildContext context) {
     final double width = MediaQuery.of(context).size.width - 60;
-    double aspectRatio = 16 / 9; // Default fallback aspect ratio
+    // 기본 비율을 정사각형(1:1)으로 설정
+    double aspectRatio = 1;
 
     if (_mediaKitPlayer != null) {
       final videoWidth = _mediaKitPlayer!.state.width?.toDouble();
@@ -242,9 +321,12 @@ class _VideoWidgetState extends State<VideoWidget> {
           videoHeight != null &&
           videoWidth > 0 &&
           videoHeight > 0) {
+        // 실제 비디오 치수 사용
         aspectRatio = videoWidth / videoHeight;
+        debugPrint(
+            'Video dimensions: ${videoWidth}x$videoHeight, aspect ratio: $aspectRatio');
 
-        // Call the callback to inform parent about aspect ratio
+        // 부모에게 종횡비 정보 전달
         if (widget.onAspectRatioUpdated != null) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (mounted) {
@@ -253,13 +335,13 @@ class _VideoWidgetState extends State<VideoWidget> {
           });
         }
 
-        // Dispatch notification with aspect ratio
+        // 종횡비 알림 발송
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted) {
             VideoAspectRatioNotification(aspectRatio).dispatch(context);
           }
         });
-      } else {}
+      }
     }
 
     // Show loading indicator
@@ -321,8 +403,8 @@ class _VideoWidgetState extends State<VideoWidget> {
           // Auto-play when video becomes sufficiently visible
           if (_mediaKitPlayer != null) {
             _mediaKitPlayer!.play();
-            // Ensure volume is set when playing
-            _mediaKitPlayer!.setVolume(100);
+            // Ensure volume is set according to global mute state when playing
+            _mediaKitPlayer!.setVolume(VideoMuteManager.isMuted ? 0 : 100);
           }
         } else if (info.visibleFraction == 0) {
           // Pause when video is not visible
@@ -571,12 +653,17 @@ class _VideoWidgetState extends State<VideoWidget> {
 
     // Cancel mute state subscription
     _muteSubscription?.cancel();
+    _positionSubscription?.cancel();
 
-    // Dispose of the media kit player
-    if (_mediaKitPlayer != null) {
+    // 캐시된 플레이어는 계속 유지, 캐시되지 않은 플레이어만 dispose
+    if (_mediaKitPlayer != null &&
+        !_cachedPlayers.containsKey(widget.videoUrl)) {
       _mediaKitPlayer!.pause();
       _mediaKitPlayer!.dispose();
       _mediaKitPlayer = null;
+    } else if (_mediaKitPlayer != null) {
+      // 캐시된 플레이어는 일시 정지만 함
+      _mediaKitPlayer!.pause();
     }
 
     super.dispose();

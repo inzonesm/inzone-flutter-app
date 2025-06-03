@@ -1,7 +1,12 @@
+import 'dart:async';
+import 'dart:io';
+
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:comment_tree/widgets/comment_tree_widget.dart';
 import 'package:comment_tree/widgets/tree_theme_data.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -176,10 +181,18 @@ class _PostCardState extends State<PostCard> {
   }
 
   void _loadNativeAd() {
-    // Use production ad units
-    final adUnitId = Platform.isAndroid
+    // Test ad unit IDs for development
+    final testAdUnitId = Platform.isAndroid
+        ? 'ca-app-pub-3940256099942544/2247696110' // Test Android native ad unit
+        : 'ca-app-pub-3940256099942544/3986624511'; // Test iOS native ad unit
+
+    // Production ad unit IDs
+    final prodAdUnitId = Platform.isAndroid
         ? 'ca-app-pub-4474122990542651/3780044430' // Production Android native ad unit
         : 'ca-app-pub-4474122990542651/5132045741'; // Production iOS native ad unit
+
+    // Use test ads in debug mode, production ads in release mode
+    final adUnitId = kDebugMode ? testAdUnitId : prodAdUnitId;
 
     _nativeAd = NativeAd(
       adUnitId: adUnitId,
@@ -1853,6 +1866,10 @@ class _DynamicPageViewState extends State<_DynamicPageView> {
   final Set<String> _loadedItems = {};
   int _currentIndex = 0;
 
+  // 이미지 캐싱을 위한 맵
+  static final Map<String, ImageProvider> _cachedImages = {};
+  static final Map<String, double> _cachedImageHeights = {};
+
   @override
   void initState() {
     super.initState();
@@ -1873,6 +1890,9 @@ class _DynamicPageViewState extends State<_DynamicPageView> {
     if (_loadedItems.contains(id)) return;
     _loadedItems.add(id);
     _heights[index] = newHeight;
+
+    // 이미지 높이 캐싱
+    _cachedImageHeights[key] = newHeight;
 
     if (_currentIndex == index && mounted) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -1908,9 +1928,8 @@ class _DynamicPageViewState extends State<_DynamicPageView> {
     final totalItems = validImages.length + widget.videos.length;
 
     return Center(
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.fastEaseInToSlowEaseOut,
+      child: Container(
+        // Remove animation, use fixed height instead of AnimatedContainer
         height: _currentHeight,
         decoration: BoxDecoration(
           color: Theme.of(context).cardColor,
@@ -1925,26 +1944,57 @@ class _DynamicPageViewState extends State<_DynamicPageView> {
               final imageUrl = validImages[index];
               return LayoutBuilder(
                 builder: (context, constraints) {
+                  // 캐시된 이미지 높이가 있으면 바로 사용
+                  if (_cachedImageHeights.containsKey(imageUrl)) {
+                    _heights[index] = _cachedImageHeights[imageUrl]!;
+                    if (_currentIndex == index) {
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        if (mounted) {
+                          setState(() {
+                            _currentHeight = _cachedImageHeights[imageUrl]!;
+                          });
+                        }
+                      });
+                    }
+                  }
+
+                  // 캐시된 이미지 있는지 확인
+                  ImageProvider? cachedImage;
+                  if (_cachedImages.containsKey(imageUrl)) {
+                    cachedImage = _cachedImages[imageUrl];
+                    debugPrint('Using cached image for URL: $imageUrl');
+                  } else {
+                    cachedImage = NetworkImage(imageUrl);
+                    _cachedImages[imageUrl] = cachedImage;
+                  }
+
                   return ClipRRect(
                     borderRadius: BorderRadius.circular(12),
-                    child: Image.network(
-                      imageUrl,
+                    child: Image(
+                      image: cachedImage!,
                       fit: BoxFit.contain,
                       loadingBuilder: (context, child, loadingProgress) {
                         if (loadingProgress == null) {
-                          final image = NetworkImage(imageUrl);
-                          image.resolve(const ImageConfiguration()).addListener(
-                                ImageStreamListener((imageInfo, _) {
-                                  double calculatedHeight =
-                                      imageInfo.image.height *
-                                          (constraints.maxWidth /
-                                              imageInfo.image.width);
-                                  _updateHeightOnce(
-                                      imageUrl, index, calculatedHeight);
-                                }, onError: (error, stackTrace) {
-                                  debugPrint('Image load error: $error');
-                                }),
-                              );
+                          // 로딩이 완료된 경우 캐시된 높이가 없으면 높이 계산
+                          if (!_cachedImageHeights.containsKey(imageUrl)) {
+                            cachedImage!
+                                .resolve(const ImageConfiguration())
+                                .addListener(
+                                  ImageStreamListener((imageInfo, _) {
+                                    double calculatedHeight =
+                                        imageInfo.image.height *
+                                            (constraints.maxWidth /
+                                                imageInfo.image.width);
+                                    _updateHeightOnce(
+                                        imageUrl, index, calculatedHeight);
+                                  }, onError: (error, stackTrace) {
+                                    debugPrint('Image load error: $error');
+                                  }),
+                                );
+                          }
+                          return child;
+                        } else if (_cachedImageHeights.containsKey(imageUrl)) {
+                          // 이미지 로딩 중이지만 이미 높이 알고 있는 경우 이전 이미지 표시
                           return child;
                         } else {
                           return Center(child: ImageLoading(context));
@@ -1965,18 +2015,27 @@ class _DynamicPageViewState extends State<_DynamicPageView> {
 
               return LayoutBuilder(
                 builder: (context, constraints) {
-                  double initialHeight = constraints.maxWidth * 9 / 16;
-                  _updateHeightOnce(videoUrl, index, initialHeight);
+                  // 비디오 컨테이너의 기본 크기 설정
+                  double width = constraints.maxWidth;
+                  // 기본값으로 정사각형(1:1) 비율 사용
+                  double aspectRatio = 1;
+                  double initialHeight = width / aspectRatio;
+
+                  // 초기 높이 설정
+                  _heights[index] = initialHeight;
+                  if (_currentIndex == index) {
+                    _currentHeight = initialHeight;
+                  }
 
                   return ClipRRect(
                     borderRadius: BorderRadius.circular(12),
                     child: _VideoWidgetWrapper(
                       videoUrl: videoUrl,
-                      maxWidth: constraints.maxWidth,
+                      maxWidth: width,
                       index: index,
                       onAspectRatioUpdated: (aspectRatio) {
-                        double calculatedHeight =
-                            constraints.maxWidth / aspectRatio;
+                        // 실제 비디오 크기를 받으면 높이 업데이트
+                        double calculatedHeight = width / aspectRatio;
                         updateVideoHeight(index, calculatedHeight);
                       },
                     ),
