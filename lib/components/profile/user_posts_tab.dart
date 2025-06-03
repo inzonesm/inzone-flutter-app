@@ -69,6 +69,7 @@ class _UserPostsTabState extends State<UserPostsTab> {
                 profileImageUrl: widget.profileImageUrl,
                 showHue: false,
                 onTap: (postId) {},
+                inProfile: true,
               ));
             } catch (e) {}
           }
@@ -87,9 +88,7 @@ class _UserPostsTabState extends State<UserPostsTab> {
   @override
   Widget build(BuildContext context) {
     if (isLoading) {
-      return const Center(
-        child: CircularProgressIndicator(),
-      );
+      return const SizedBox();
     }
 
     if (postWidgets.isEmpty) {

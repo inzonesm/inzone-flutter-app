@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_feather_icons/flutter_feather_icons.dart';
 import 'package:inzone/screen/settings/settings_screen.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 class ProfileAppbar extends StatelessWidget {
   final String name;
@@ -57,27 +58,16 @@ class ProfileAppbar extends StatelessWidget {
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(20),
                   child: profileImageUrl.isNotEmpty
-                      ? Image.network(
-                          profileImageUrl,
+                      ? CachedNetworkImage(
+                          imageUrl: profileImageUrl,
                           width: 80,
                           height: 80,
                           fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) {
+                          errorWidget: (context, url, error) {
                             debugPrint('Error loading profile image: $error');
                             return const Icon(Icons.account_circle, size: 80);
                           },
-                          loadingBuilder: (context, child, loadingProgress) {
-                            if (loadingProgress == null) return child;
-                            return Center(
-                              child: CircularProgressIndicator(
-                                value: loadingProgress.expectedTotalBytes !=
-                                        null
-                                    ? loadingProgress.cumulativeBytesLoaded /
-                                        loadingProgress.expectedTotalBytes!
-                                    : null,
-                              ),
-                            );
-                          },
+                          placeholder: (context, url) => const SizedBox(),
                         )
                       : const Icon(Icons.account_circle, size: 80),
                 ),

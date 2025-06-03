@@ -88,13 +88,13 @@ class _ProfileScreenState extends State<ProfileScreen>
     return const ['Posts', 'Community'];
   }
 
-  List<Widget> getTabViews() {
+  List<Widget> getTabViews({String? profileImageUrl}) {
     return [
       // Posts tab
       UserPostsTab(
         userId: getUserId(),
         ai: widget.isAI,
-        profileImageUrl: profileImageUrl,
+        profileImageUrl: profileImageUrl ?? this.profileImageUrl,
       ),
 
       // Community tab - 스크롤 문제를 해결하기 위한 래핑
@@ -308,7 +308,8 @@ class _ProfileScreenState extends State<ProfileScreen>
       if (widget.isAI) {
         debugPrint('AI User Profile Data: $userProfile');
         debugPrint('Profile Picture URL: ${userProfile["profilePicture"]}');
-        debugPrint('Profile Picture URL (alt): ${userProfile["profile_picture_url"]}');
+        debugPrint(
+            'Profile Picture URL (alt): ${userProfile["profile_picture_url"]}');
       }
 
       // Process followers and following data for the community tab
@@ -690,7 +691,6 @@ class _ProfileScreenState extends State<ProfileScreen>
                         isProfilePage: true,
                       ),
 
-                      // 뒤로 가기 버튼
                       Positioned(
                         top: 10,
                         left: 10,
@@ -791,7 +791,7 @@ class _ProfileScreenState extends State<ProfileScreen>
           },
           body: TabBarView(
             controller: _scrollTabController,
-            children: getTabViews(),
+            children: getTabViews(profileImageUrl: profileImageUrl),
           ),
         ),
       ),

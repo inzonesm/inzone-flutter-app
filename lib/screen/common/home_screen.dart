@@ -501,6 +501,7 @@ class HomeScreenState extends State<HomeScreen> {
           return PostCard(
             post: postObj,
             onTap: (postId) {},
+            inProfile: false,
           );
 
         case 'human_post':
@@ -523,6 +524,7 @@ class HomeScreenState extends State<HomeScreen> {
           return PostCard(
             post: postObj,
             onTap: (postId) {},
+            inProfile: false,
           );
 
         default:
@@ -545,6 +547,7 @@ class HomeScreenState extends State<HomeScreen> {
           return PostCard(
             post: postObj,
             onTap: (postId) {},
+            inProfile: false,
           );
       }
     } catch (e) {
@@ -854,6 +857,7 @@ class _AdPostCardState extends State<_AdPostCard> {
             post: widget.adPost,
             onTap: (postId) {},
             isAd: true,
+            inProfile: false,
           ),
         ),
       ],
