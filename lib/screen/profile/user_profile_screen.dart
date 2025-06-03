@@ -460,6 +460,7 @@ class _PersonalFeedScreenState extends State<PersonalFeedScreen> {
         post: post,
         showHue: false,
         onTap: (postId) {},
+        inProfile: true,
       ));
     }
     setState(() {

@@ -30,7 +30,8 @@ class PostCard extends StatefulWidget {
   final Function(String)? onTap;
   final String? profileImageUrl;
   final bool showHue;
-  final bool isAd; // Flag to determine if this is an ad
+  final bool isAd;
+  final bool inProfile;
 
   InZonePost getPost() {
     return post;
@@ -43,6 +44,7 @@ class PostCard extends StatefulWidget {
     this.showHue = true,
     this.profileImageUrl,
     this.isAd = false, // Default to false
+    this.inProfile = false,
   });
 
   @override
@@ -473,21 +475,23 @@ class _PostCardState extends State<PostCard> {
                   ClipRRect(
                     borderRadius: BorderRadius.circular(20),
                     child: widget.profileImageUrl != null
-                        ? Image.network(
-                            widget.profileImageUrl!,
+                        ? CachedNetworkImage(
+                            imageUrl: widget.profileImageUrl!,
                             width: 40,
                             height: 40,
                             fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) =>
+                            placeholder: (context, url) => const SizedBox(),
+                            errorWidget: (context, url, error) =>
                                 const Icon(Icons.account_circle, size: 40),
                           )
                         : profileImageUrl.isNotEmpty
-                            ? Image.network(
-                                profileImageUrl,
+                            ? CachedNetworkImage(
+                                imageUrl: profileImageUrl,
                                 width: 40,
                                 height: 40,
                                 fit: BoxFit.cover,
-                                errorBuilder: (context, error, stackTrace) =>
+                                placeholder: (context, url) => const SizedBox(),
+                                errorWidget: (context, url, error) =>
                                     const Icon(Icons.account_circle, size: 40),
                               )
                             : const Icon(Icons.account_circle, size: 40),
@@ -503,13 +507,17 @@ class _PostCardState extends State<PostCard> {
                     children: [
                       GestureDetector(
                         onTap: () {
-                          if (widget.post.isAi) {
-                            print(widget.post.userName);
-                            context.push(
-                                Routes.aiProfilePath(widget.post.userName));
+                          if (widget.inProfile == true) {
+                            return;
                           } else {
-                            context.push(Routes.regularProfilePath(
-                                widget.post.userReference));
+                            if (widget.post.isAi) {
+                              print(widget.post.userName);
+                              context.push(
+                                  Routes.aiProfilePath(widget.post.userName));
+                            } else {
+                              context.push(Routes.regularProfilePath(
+                                  widget.post.userReference));
+                            }
                           }
                         },
                         child: SizedBox(
