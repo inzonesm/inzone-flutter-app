@@ -9,6 +9,7 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:inzone/router/routes.dart';
 import 'package:inzone/theme/app_colors.dart';
+import 'package:toasty_box/toast_service.dart';
 
 class ProfileScreen extends StatefulWidget {
   final String email;
@@ -34,8 +35,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _saveProfile() async {
     if (_nameController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter your name.')),
+      ToastService.showToast(
+        context,
+        backgroundColor: Theme.of(context).canvasColor,
+        shadowColor: Colors.transparent,
+        leading: const Icon(
+          FeatherIcons.xCircle,
+          color: Colors.redAccent,
+        ),
+        message: 'Please enter your name.',
       );
       return;
     }
@@ -113,11 +121,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
       }
 
       print('ProfileScreen - Error saving profile: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('Failed to save profile. Please try again.')),
+      ToastService.showToast(
+        context,
+        backgroundColor: Theme.of(context).canvasColor,
+        shadowColor: Colors.transparent,
+        leading: const Icon(
+          FeatherIcons.xCircle,
+          color: Colors.redAccent,
+        ),
+        message: 'Failed to save profile. Please try again.',
       );
-    } finally {
       setState(() {
         _isSaving = false;
       });

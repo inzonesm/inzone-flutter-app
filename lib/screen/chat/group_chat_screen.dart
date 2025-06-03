@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_feather_icons/flutter_feather_icons.dart';
 import 'package:get/get_connect/http/src/utils/utils.dart';
 import 'package:inzone/services/inzone_database.dart';
 import 'package:inzone/services/monetization_service.dart';
@@ -19,6 +20,8 @@ import 'package:go_router/go_router.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
 import 'package:purchases_ui_flutter/paywall_result.dart';
 import 'package:purchases_ui_flutter/purchases_ui_flutter.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:toasty_box/toast_service.dart';
 
 class GroupChatScreen extends StatefulWidget {
   final GroupData group;
@@ -94,9 +97,15 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     final currentUserId = FirebaseAuth.instance.currentUser?.uid;
     if (currentUserId == null) {
       // Handle not logged in case
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('You need to be logged in to send messages')),
+      ToastService.showToast(
+        context,
+        backgroundColor: Theme.of(context).canvasColor,
+        shadowColor: Colors.transparent,
+        leading: const Icon(
+          FeatherIcons.xCircle,
+          color: Colors.redAccent,
+        ),
+        message: 'You need to be logged in to send messages',
       );
       return;
     }
@@ -104,10 +113,15 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     // Check if user has paid for the group chat
     final hasPaid = await _hasPaidForGroup();
     if (!hasPaid) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content:
-                Text('You need to join this group before sending messages')),
+      ToastService.showToast(
+        context,
+        backgroundColor: Theme.of(context).canvasColor,
+        shadowColor: Colors.transparent,
+        leading: const Icon(
+          FeatherIcons.xCircle,
+          color: Colors.orange,
+        ),
+        message: 'You need to join this group before sending messages',
       );
       return;
     }
@@ -337,12 +351,13 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                         shape: BoxShape.circle,
                         color: Theme.of(context).cardColor,
                       ),
-                      child: Image.network(
-                        imageUrl,
+                      child: CachedNetworkImage(
+                        imageUrl: imageUrl,
                         height: 40,
                         width: 40,
                         fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) {
+                        placeholder: (context, url) => const SizedBox(),
+                        errorWidget: (context, url, error) {
                           print('Error loading group image: $error');
                           // Fallback to icon if image fails to load
                           return const Center(
@@ -367,12 +382,13 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                           shape: BoxShape.circle,
                           color: Theme.of(context).cardColor,
                         ),
-                        child: Image.network(
-                          avatars[0].toString(),
+                        child: CachedNetworkImage(
+                          imageUrl: avatars[0].toString(),
                           height: 40,
                           width: 40,
                           fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) {
+                          placeholder: (context, url) => const SizedBox(),
+                          errorWidget: (context, url, error) {
                             return const Center(
                               child: Icon(Icons.account_circle, size: 40),
                             );
@@ -390,17 +406,31 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
             return AppBar(
               elevation: 0,
               backgroundColor: Theme.of(context).canvasColor,
-              leadingWidth: 30,
-              leading: IconButton(
-                icon: const Icon(Icons.arrow_back_ios_rounded),
-                onPressed: () {
-                  try {
+              leadingWidth: 50,
+              leading: Padding(
+                padding: const EdgeInsets.only(left: 12.0),
+                child: GestureDetector(
+                  onTap: () {
                     context.pop();
-                  } catch (e) {
-                    // Fallback to Navigator if Go Router fails
-                    Navigator.of(context).pop();
-                  }
-                },
+                  },
+                  child: CircleAvatar(
+                    radius: 22,
+                    backgroundColor:
+                        Theme.of(context).brightness == Brightness.dark
+                            ? Colors.grey.shade800
+                            : Colors.grey.shade200,
+                    child: Padding(
+                      padding: const EdgeInsets.only(left: 8.0),
+                      child: Center(
+                        child: Icon(
+                          Icons.arrow_back_ios,
+                          size: 18,
+                          color: Theme.of(context).iconTheme.color,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
               ),
               title: Row(
                 children: [
@@ -534,7 +564,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                       );
                     }
 
-
                     // Convert the data to GroupChatData
                     _groupChatData = GroupChatData.fromSnapshot(snapshot.data!);
 
@@ -544,7 +573,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                             'No messages parsed correctly. Check data format.'),
                       );
                     }
-
 
                     // Scroll to bottom when new messages come in
                     WidgetsBinding.instance
@@ -577,12 +605,11 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       );
     }
 
-
     // Create a single list of widgets if there are no timestamps
     bool hasTimestamps = messages.any((msg) => msg.timestamp != null);
 
     if (!hasTimestamps) {
-  List<Widget> messageWidgets = [];
+      List<Widget> messageWidgets = [];
 
       // Add a "Today" header
       messageWidgets.add(
@@ -679,7 +706,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: Text(
-                  'Undated Messages',
+                  'Updated Messages',
                   style: TextStyle(
                     color: Theme.of(context).textTheme.bodySmall?.color,
                     fontSize: 12,
@@ -761,19 +788,20 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
           (p) => p.uid == sender.uid && p.type == 'ai',
           orElse: () => Participant(uid: '', type: '', name: ''),
         );
-        
-        if (participant.profilePictureUrl != null && 
+
+        if (participant.profilePictureUrl != null &&
             participant.profilePictureUrl!.isNotEmpty) {
           return ClipOval(
-            child: Image.network(
-              participant.profilePictureUrl!,
+            child: CachedNetworkImage(
+              imageUrl: participant.profilePictureUrl!,
               fit: BoxFit.cover,
               height: 35,
               width: 35,
-              errorBuilder: (context, error, stackTrace) {
+              placeholder: (context, url) => const SizedBox(),
+              errorWidget: (context, url, error) {
                 return const Center(
-                  child: Icon(Icons.smart_toy,
-                      color: Colors.blueAccent, size: 35),
+                  child:
+                      Icon(Icons.smart_toy, color: Colors.blueAccent, size: 35),
                 );
               },
             ),
@@ -809,12 +837,13 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
             if (profileImage != null && profileImage.toString().isNotEmpty) {
               return ClipOval(
-                child: Image.network(
-                  profileImage.toString(),
+                child: CachedNetworkImage(
+                  imageUrl: profileImage.toString(),
                   fit: BoxFit.cover,
                   height: 35,
                   width: 35,
-                  errorBuilder: (context, error, stackTrace) {
+                  placeholder: (context, url) => const SizedBox(),
+                  errorWidget: (context, url, error) {
                     return const Center(
                       child: Icon(Icons.account_circle,
                           color: Colors.blueAccent, size: 35),
@@ -935,9 +964,24 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                                 ),
                           ),
                           const Spacer(),
-                          IconButton(
-                            icon: const Icon(Icons.close),
-                            onPressed: () => Navigator.of(context).pop(),
+                          GestureDetector(
+                            onTap: () {
+                              context.pop();
+                            },
+                            child: CircleAvatar(
+                              radius: 22,
+                              backgroundColor: Theme.of(context).brightness ==
+                                      Brightness.dark
+                                  ? Colors.grey.shade800
+                                  : Colors.grey.shade200,
+                              child: Center(
+                                child: Icon(
+                                  FeatherIcons.x,
+                                  size: 18,
+                                  color: Theme.of(context).iconTheme.color,
+                                ),
+                              ),
+                            ),
                           ),
                         ],
                       ),
@@ -1054,9 +1098,15 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   Future<void> _joinGroup(BuildContext context) async {
     final currentUserId = FirebaseAuth.instance.currentUser?.uid;
     if (currentUserId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('You need to be logged in to join this group')),
+      ToastService.showToast(
+        context,
+        backgroundColor: Theme.of(context).canvasColor,
+        shadowColor: Colors.transparent,
+        leading: const Icon(
+          FeatherIcons.xCircle,
+          color: Colors.redAccent,
+        ),
+        message: 'You need to be logged in to join this group',
       );
       return;
     }
@@ -1117,9 +1167,15 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
           'lastMessage': 'You joined the group',
           'lastMessageTime': FieldValue.serverTimestamp(),
         }, SetOptions(merge: true));
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Successfully joined the group!')),
+        ToastService.showToast(
+          context,
+          backgroundColor: Theme.of(context).canvasColor,
+          shadowColor: Colors.transparent,
+          leading: const Icon(
+            FeatherIcons.checkCircle,
+            color: Colors.greenAccent,
+          ),
+          message: 'Successfully joined the group!',
         );
       } else {
         // Show insufficient InCash popup if the error is about insufficient balance
@@ -1142,10 +1198,15 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                     try {
                       presentPaywall();
                     } catch (e) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                            content:
-                                Text('Error opening purchase options: $e')),
+                      ToastService.showToast(
+                        context,
+                        backgroundColor: Theme.of(context).canvasColor,
+                        shadowColor: Colors.transparent,
+                        leading: const Icon(
+                          FeatherIcons.xCircle,
+                          color: Colors.redAccent,
+                        ),
+                        message: 'Error opening purchase options: $e',
                       );
                     }
                   },
@@ -1162,10 +1223,16 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
             ),
           );
         } else {
-          // Show generic error message for other errors
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-                content: Text(response['error'] ?? 'Failed to join the group')),
+          // Show generic error message for other errors using ToastService
+          ToastService.showToast(
+            context,
+            backgroundColor: Theme.of(context).canvasColor,
+            shadowColor: Colors.transparent,
+            leading: const Icon(
+              FeatherIcons.xCircle,
+              color: Colors.redAccent,
+            ),
+            message: response['error'] ?? 'Failed to join the group',
           );
         }
       }
@@ -1173,8 +1240,15 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       // Close loading dialog if still showing
       if (context.mounted) Navigator.of(context).pop();
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error joining group: $e')),
+      ToastService.showToast(
+        context,
+        backgroundColor: Theme.of(context).canvasColor,
+        shadowColor: Colors.transparent,
+        leading: const Icon(
+          FeatherIcons.xCircle,
+          color: Colors.redAccent,
+        ),
+        message: 'Error joining group: $e',
       );
     }
   }
@@ -1189,18 +1263,19 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
     // For AI users, use profile picture URL from participant data
     if (participant.type == 'ai') {
-      if (participant.profilePictureUrl != null && 
+      if (participant.profilePictureUrl != null &&
           participant.profilePictureUrl!.isNotEmpty) {
         return ClipOval(
-          child: Image.network(
-            participant.profilePictureUrl!,
+          child: CachedNetworkImage(
+            imageUrl: participant.profilePictureUrl!,
             fit: BoxFit.cover,
             width: 24,
             height: 24,
-            errorBuilder: (context, error, stackTrace) {
+            placeholder: (context, url) => const SizedBox(),
+            errorWidget: (context, url, error) {
               return const Center(
-                child: Icon(Icons.smart_toy,
-                    color: Colors.blueAccent, size: 24),
+                child:
+                    Icon(Icons.smart_toy, color: Colors.blueAccent, size: 24),
               );
             },
           ),

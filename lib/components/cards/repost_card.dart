@@ -3,6 +3,7 @@ import 'package:comment_tree/widgets/comment_tree_widget.dart';
 import 'package:comment_tree/widgets/tree_theme_data.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_feather_icons/flutter_feather_icons.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:inzone/screen/chat/all_chats_screen.dart';
@@ -14,6 +15,7 @@ import 'package:inzone/data/inzone_post.dart';
 import 'package:inzone/services/inzone_database.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:inzone/router/routes.dart';
+import 'package:toasty_box/toast_service.dart';
 
 class RepostCard extends StatefulWidget {
   InZonePost post;
@@ -283,18 +285,27 @@ class _RepostCardState extends State<RepostCard> {
           String? chatID =
               await InZoneDatabase.startConversation(widget.post.id);
         } else if (value == "not_interested") {
-          const snackBar = SnackBar(
-            content: Text("This post has been flagged for review."),
-            backgroundColor: Colors.red,
+          ToastService.showToast(
+            context,
+            backgroundColor: Theme.of(context).canvasColor,
+            shadowColor: Colors.transparent,
+            leading: const Icon(
+              FeatherIcons.xCircle,
+              color: Colors.redAccent,
+            ),
+            message: "This post has been flagged for review.",
           );
-          ScaffoldMessenger.of(context).showSnackBar(snackBar);
         } else if (value == "dont_show") {
-          final snackBar = SnackBar(
-            content:
-                Text("Posts from ${widget.post.userName} will not be shown."),
-            backgroundColor: Colors.red,
+          ToastService.showToast(
+            context,
+            backgroundColor: Theme.of(context).canvasColor,
+            shadowColor: Colors.transparent,
+            leading: const Icon(
+              FeatherIcons.xCircle,
+              color: Colors.redAccent,
+            ),
+            message: "Posts from ${widget.post.userName} will not be shown.",
           );
-          ScaffoldMessenger.of(context).showSnackBar(snackBar);
         }
       },
       child: Padding(

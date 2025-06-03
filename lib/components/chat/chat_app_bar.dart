@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
   final String title;
@@ -40,12 +41,13 @@ class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
             ),
             clipBehavior: Clip.antiAlias,
             child: avatarUrl != null && avatarUrl!.isNotEmpty
-                ? Image.network(
-                    avatarUrl!,
+                ? CachedNetworkImage(
+                    imageUrl: avatarUrl!,
                     width: 40,
                     height: 40,
                     fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) {
+                    placeholder: (context, url) => const SizedBox(),
+                    errorWidget: (context, url, error) {
                       return const Center(
                         child: Icon(Icons.account_circle, size: 40),
                       );

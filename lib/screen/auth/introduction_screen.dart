@@ -10,6 +10,7 @@ import 'package:inzone/router/routes.dart';
 import 'package:inzone/screen/auth/profile_screen.dart';
 import 'package:inzone/screen/auth/signin_login_screen.dart';
 import 'package:inzone/theme/app_colors.dart';
+import 'package:toasty_box/toast_service.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class IntroductionScreen extends StatefulWidget {
@@ -198,10 +199,16 @@ class _IntroductionScreenState extends State<IntroductionScreen> {
                                   _launchInBrowser(
                                       "https://inzone.ai/terms-conditions");
                                 } catch (e) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                        content: Text(
-                                            'Error launching browser: $e')),
+                                  ToastService.showToast(
+                                    context,
+                                    backgroundColor:
+                                        Theme.of(context).canvasColor,
+                                    shadowColor: Colors.transparent,
+                                    leading: const Icon(
+                                      Icons.error_outline,
+                                      color: Colors.redAccent,
+                                    ),
+                                    message: 'Error launching browser: $e',
                                   );
                                 }
                               },
@@ -221,10 +228,16 @@ class _IntroductionScreenState extends State<IntroductionScreen> {
                                   _launchInBrowser(
                                       "https://inzone.ai/privacy-policy");
                                 } catch (e) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                        content: Text(
-                                            'Error launching browser: $e')),
+                                  ToastService.showToast(
+                                    context,
+                                    backgroundColor:
+                                        Theme.of(context).canvasColor,
+                                    shadowColor: Colors.transparent,
+                                    leading: const Icon(
+                                      Icons.error_outline,
+                                      color: Colors.redAccent,
+                                    ),
+                                    message: 'Error launching browser: $e',
                                   );
                                 }
                               },

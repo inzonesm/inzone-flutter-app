@@ -1,8 +1,10 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_feather_icons/flutter_feather_icons.dart';
 import 'package:go_router/go_router.dart';
 import 'package:inzone/services/inzone_database.dart';
 import 'package:inzone/theme/app_colors.dart';
+import 'package:toasty_box/toast_service.dart';
 
 enum FieldType {
   name,
@@ -44,10 +46,15 @@ class _EditFieldScreenState extends State<EditFieldScreen> {
 
   Future<void> _saveChanges() async {
     if (_controller.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('This field cannot be empty'),
+      ToastService.showToast(
+        context,
+        backgroundColor: Theme.of(context).canvasColor,
+        shadowColor: Colors.transparent,
+        leading: const Icon(
+          FeatherIcons.xCircle,
+          color: Colors.redAccent,
         ),
+        message: 'This field cannot be empty',
       );
       return;
     }
@@ -83,8 +90,15 @@ class _EditFieldScreenState extends State<EditFieldScreen> {
       await InZoneDatabase.updateUserProfileData(widget.userId, profileData);
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Updated successfully')),
+        ToastService.showToast(
+          context,
+          backgroundColor: Theme.of(context).canvasColor,
+          shadowColor: Colors.transparent,
+          leading: const Icon(
+            FeatherIcons.checkCircle,
+            color: Colors.greenAccent,
+          ),
+          message: 'Updated successfully',
         );
 
         // Return true to indicate successful update and trigger profile refresh
@@ -104,9 +118,19 @@ class _EditFieldScreenState extends State<EditFieldScreen> {
         } else {
           errorMessage += e.toString().replaceAll('Exception: ', '');
         }
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(errorMessage)),
+        ToastService.showToast(
+          context,
+          backgroundColor: Theme.of(context).canvasColor,
+          shadowColor: Colors.transparent,
+          leading: Icon(
+            errorMessage.contains('success')
+                ? FeatherIcons.checkCircle
+                : FeatherIcons.xCircle,
+            color: errorMessage.contains('success')
+                ? Colors.greenAccent
+                : Colors.redAccent,
+          ),
+          message: errorMessage,
         );
       }
     } finally {

@@ -6,6 +6,8 @@ import 'package:inzone/data/inzone_post.dart';
 import 'package:inzone/services/inzone_database.dart';
 import 'package:go_router/go_router.dart';
 import 'package:inzone/theme/light_theme.dart'; // Import for ChatTheme extension
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:toasty_box/toast_service.dart';
 
 class PostChatScreen extends StatefulWidget {
   String name;
@@ -107,12 +109,18 @@ class _PostChatScreenState extends State<PostChatScreen> {
 
                     // Show error message and return if content is inappropriate
                     if (sentiment == -1) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: const Text(
-                              'Your post contains inappropriate content. Please revise and try again.'),
-                          backgroundColor: theme.colorScheme.error,
+                      ToastService.showToast(
+                        context,
+                        backgroundColor: theme.canvasColor,
+                        shadowColor: Colors.transparent,
+                        leading: const Icon(
+                          Icons
+                              .error, // or Icons.check_circle, Icons.cancel, etc.
+                          color: Colors
+                              .redAccent, // or Colors.greenAccent, Colors.orange, etc.
                         ),
+                        message:
+                            'Your post contains inappropriate content. Please revise and try again.',
                       );
                       return;
                     }
@@ -129,38 +137,51 @@ class _PostChatScreenState extends State<PostChatScreen> {
                     );
 
                     if (!result["success"]) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                              result["error"] ?? 'Failed to create repost'),
-                          backgroundColor: theme.colorScheme.error,
+                      ToastService.showToast(
+                        context,
+                        backgroundColor: theme.canvasColor,
+                        shadowColor: Colors.transparent,
+                        leading: const Icon(
+                          Icons
+                              .error, // or Icons.check_circle, Icons.cancel, etc.
+                          color: Colors
+                              .redAccent, // or Colors.greenAccent, Colors.orange, etc.
                         ),
+                        message: result["error"] ?? 'Failed to create repost',
                       );
                       return;
                     }
 
                     Navigator.pop(context);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: const Text("Post Successful"),
-                        backgroundColor: theme.colorScheme.primary,
+                    ToastService.showToast(
+                      context,
+                      backgroundColor: theme.colorScheme.primary,
+                      leading: const Icon(
+                        Icons.check_circle,
+                        color: Colors.greenAccent,
                       ),
+                      message: "Post Successful",
                     );
                   } catch (e) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Error creating repost: $e'),
-                        backgroundColor: theme.colorScheme.error,
+                    ToastService.showToast(
+                      context,
+                      backgroundColor: theme.colorScheme.error,
+                      leading: const Icon(
+                        Icons.error,
+                        color: Colors.redAccent,
                       ),
+                      message: 'Error creating repost: $e',
                     );
                   }
                 } else {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content:
-                          const Text('Please enter some text for your post'),
-                      backgroundColor: theme.colorScheme.error,
+                  ToastService.showToast(
+                    context,
+                    backgroundColor: theme.colorScheme.error,
+                    leading: const Icon(
+                      Icons.error,
+                      color: Colors.redAccent,
                     ),
+                    message: 'Please enter some text for your post',
                   );
                 }
               },
@@ -353,11 +374,12 @@ class _RepostPostCardState extends State<RepostPostCard> {
                             )
                           : ClipRRect(
                               borderRadius: BorderRadius.circular(8.0),
-                              child: Image.network(
-                                widget.profileImageURL!,
+                              child: CachedNetworkImage(
+                                imageUrl: widget.profileImageURL!,
                                 fit: BoxFit.fitWidth,
                                 width: MediaQuery.of(context).size.width - 60,
-                                errorBuilder: (context, object, st) {
+                                placeholder: (context, url) => const SizedBox(),
+                                errorWidget: (context, url, error) {
                                   return Icon(
                                     Icons.account_circle,
                                     size: 40,

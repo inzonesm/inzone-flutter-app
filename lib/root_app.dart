@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_feather_icons/flutter_feather_icons.dart';
 import 'package:go_router/go_router.dart';
 import 'package:inzone/router/routes.dart';
 import 'package:animated_bottom_navigation_bar/animated_bottom_navigation_bar.dart';
@@ -14,6 +15,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:iconify_flutter/icons/ph.dart';
 import 'package:iconify_flutter/icons/heroicons_solid.dart';
 import 'package:in_app_review/in_app_review.dart';
+import 'package:toasty_box/toast_service.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -711,12 +713,16 @@ class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
                                 ? null
                                 : () async {
                                     if (feedbackController.text.isEmpty) {
-                                      ScaffoldMessenger.of(context)
-                                          .showSnackBar(
-                                        const SnackBar(
-                                          content: Text(
-                                              'Please enter your feedback'),
+                                      ToastService.showToast(
+                                        context,
+                                        backgroundColor:
+                                            Theme.of(context).canvasColor,
+                                        shadowColor: Colors.transparent,
+                                        leading: const Icon(
+                                          FeatherIcons.xCircle,
+                                          color: Colors.redAccent,
                                         ),
+                                        message: "Please enter your feedback'",
                                       );
                                       return;
                                     }
@@ -741,15 +747,22 @@ class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
                                     if (dialogContext.mounted) {
                                       Navigator.of(dialogContext).pop();
 
-                                      ScaffoldMessenger.of(context)
-                                          .showSnackBar(
-                                        SnackBar(
-                                          content: Text(
-                                            feedbackSent
-                                                ? 'Thank you for your feedback!'
-                                                : 'Could not send feedback. Please try again later.',
-                                          ),
+                                      ToastService.showToast(
+                                        context,
+                                        backgroundColor:
+                                            Theme.of(context).canvasColor,
+                                        shadowColor: Colors.transparent,
+                                        leading: Icon(
+                                          feedbackSent
+                                              ? FeatherIcons.checkCircle
+                                              : FeatherIcons.xCircle,
+                                          color: feedbackSent
+                                              ? Colors.green
+                                              : Colors.redAccent,
                                         ),
+                                        message: feedbackSent
+                                            ? 'Thank you for your feedback!'
+                                            : 'Could not send feedback. Please try again later.',
                                       );
                                     }
                                   },
