@@ -18,12 +18,19 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
   @override
   void initState() {
     super.initState();
-    _videoPlayerController = VideoPlayerController.network(widget.videoUrl)
-      ..initialize().then((_) {
-        setState(() {
-          _isInitialized = true;
-        });
+
+    // Create controller with volume set to 0 before any initialization
+    _videoPlayerController = VideoPlayerController.network(widget.videoUrl);
+
+    // Set volume to 0 (muted) immediately
+    _videoPlayerController.setVolume(0);
+
+    // Then initialize the player
+    _videoPlayerController.initialize().then((_) {
+      setState(() {
+        _isInitialized = true;
       });
+    });
   }
 
   @override
@@ -36,44 +43,44 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
   Widget build(BuildContext context) {
     return _isPlaying
         ? AspectRatio(
-      aspectRatio: _videoPlayerController.value.aspectRatio,
-      child: VideoPlayer(_videoPlayerController),
-    )
-        : GestureDetector(
-      onTap: () {
-        setState(() {
-          _isPlaying = true;
-        });
-        _videoPlayerController.play();
-      },
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          // Show the first frame as the thumbnail if video is initialized
-          _isInitialized
-              ? AspectRatio(
             aspectRatio: _videoPlayerController.value.aspectRatio,
             child: VideoPlayer(_videoPlayerController),
           )
-              : Container(
-            color: Colors.black, // A simple background color
-            width: MediaQuery.of(context).size.width - 60,
-            child: const Center(
-              child: Icon(
-                Icons.play_circle_outline,
-                color: Colors.white,
-                size: 60,
-              ),
-            ),
-          ),
+        : GestureDetector(
+            onTap: () {
+              setState(() {
+                _isPlaying = true;
+              });
+              _videoPlayerController.play();
+            },
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                // Show the first frame as the thumbnail if video is initialized
+                _isInitialized
+                    ? AspectRatio(
+                        aspectRatio: _videoPlayerController.value.aspectRatio,
+                        child: VideoPlayer(_videoPlayerController),
+                      )
+                    : Container(
+                        color: Colors.black, // A simple background color
+                        width: MediaQuery.of(context).size.width - 60,
+                        child: const Center(
+                          child: Icon(
+                            Icons.play_circle_outline,
+                            color: Colors.white,
+                            size: 60,
+                          ),
+                        ),
+                      ),
 
-           const Icon(
-            Icons.play_circle_outline,
-            color: Colors.white,
-            size: 60,
-          ),
-        ],
-      ),
-    );
+                const Icon(
+                  Icons.play_circle_outline,
+                  color: Colors.white,
+                  size: 60,
+                ),
+              ],
+            ),
+          );
   }
 }

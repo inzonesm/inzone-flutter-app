@@ -77,12 +77,18 @@ class NativeAdFactoryExample(private val context: Context) : NativeAdFactory {
                 background = drawable
                 clipToOutline = true
                 
-                // Add increased margin around media view for more padding
+                // layoutParams with dimension ratio
                 val layoutParams = ConstraintLayout.LayoutParams(
                     ConstraintLayout.LayoutParams.MATCH_CONSTRAINT,
-                    ConstraintLayout.LayoutParams.WRAP_CONTENT
+                    0 // very important! use 0 height to apply dimensionRatio
                 )
                 layoutParams.setMargins(48, 24, 48, 24)
+                
+                // Get aspect ratio
+                val aspectRatio = nativeAd.mediaContent?.aspectRatio ?: 1.0f
+                // Apply ratio (format: "W:H" → in this case "1:aspectRatioInverse")
+                layoutParams.dimensionRatio = "H,1:$aspectRatio"
+                
                 this.layoutParams = layoutParams
             }
             mainContainer.addView(mediaView)

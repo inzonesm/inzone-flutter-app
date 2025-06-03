@@ -71,11 +71,12 @@ Future<void> requestTrackingPermission() async {
   if (Platform.isIOS) {
     final TrackingStatus status =
         await AppTrackingTransparency.requestTrackingAuthorization();
-    
+
     // If authorized, fetch IDFA (else, fall back to SKAdNetwork or do nothing)
     if (status == TrackingStatus.authorized) {
       try {
-        final String advertisingId = await AppTrackingTransparency.getAdvertisingIdentifier();
+        final String advertisingId =
+            await AppTrackingTransparency.getAdvertisingIdentifier();
         // Now you have the IDFA in `advertisingId`
         print('IDFA = $advertisingId');
         // …send it to your server or to your ad SDK
