@@ -12,6 +12,7 @@ import 'package:inzone/screen/auth/signin_login_screen.dart';
 import 'package:inzone/theme/app_colors.dart';
 import 'package:toasty_box/toast_service.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:inzone/screen/common/home_screen.dart';
 
 class IntroductionScreen extends StatefulWidget {
   const IntroductionScreen({super.key});
@@ -54,9 +55,13 @@ class _IntroductionScreenState extends State<IntroductionScreen> {
 
     _dismissLoadingDialog();
     if (isProfileCompleted) {
-      context.go(Routes.home);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        context.go(Routes.home);
+      });
     } else {
-      context.go(Routes.profileWithEmail(user.email ?? ""));
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        context.go(Routes.profileWithEmail(user.email ?? ""));
+      });
     }
   }
 
@@ -71,7 +76,7 @@ class _IntroductionScreenState extends State<IntroductionScreen> {
   }
 
   void _dismissLoadingDialog() {
-    if (mounted && GoRouter.of(context).canPop()) {
+    if (mounted && Navigator.of(context).canPop()) {
       Navigator.of(context).pop();
     }
   }
@@ -126,20 +131,24 @@ class _IntroductionScreenState extends State<IntroductionScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.transparent,
+      backgroundColor: Theme.of(context).canvasColor,
       body: ColorfulSafeArea(
         bottom: false,
-        child: Stack(
+        child: Column(
           children: [
-            Positioned.fill(
-              child: Transform.scale(
-                scale: 1.008,
+            const Spacer(),
+            SizedBox(
+              height: MediaQuery.of(context).size.height * 0.25,
+              width: MediaQuery.of(context).size.height * 0.25,
+              child: Hero(
+                tag: 'logo',
                 child: Image.asset(
-                  "assets/images/intropic.png",
+                  'assets/auth/logo.png',
                   fit: BoxFit.cover,
                 ),
               ),
             ),
+            const Spacer(),
             Align(
               alignment: Alignment.bottomCenter,
               child: Column(
@@ -151,25 +160,31 @@ class _IntroductionScreenState extends State<IntroductionScreen> {
                   const SizedBox(height: 12),
                   GestureDetector(
                     onTap: () {
-                      context.push('/auth/signin');
+                      Navigator.of(context).push(
+                        PageRouteBuilder(
+                          pageBuilder:
+                              (context, animation, secondaryAnimation) =>
+                                  const SignInLoginScreen(),
+                          transitionsBuilder:
+                              (context, animation, secondaryAnimation, child) {
+                            return FadeTransition(
+                              opacity: animation,
+                              child: child,
+                            );
+                          },
+                          transitionDuration: const Duration(milliseconds: 400),
+                        ),
+                      );
                     },
-                    child: RichText(
-                      text: const TextSpan(
-                        children: [
-                          TextSpan(
-                            text: "Do not have an account? Sign in with ",
-                            style: TextStyle(color: Colors.white),
+                    child: Text(
+                      'Already have an account?',
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                            color:
+                                Theme.of(context).brightness == Brightness.dark
+                                    ? Colors.white
+                                    : Colors.black,
+                            fontSize: 14,
                           ),
-                          TextSpan(
-                            text: "Email",
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              decoration: TextDecoration.underline,
-                            ),
-                          ),
-                        ],
-                      ),
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -256,23 +271,30 @@ class _IntroductionScreenState extends State<IntroductionScreen> {
   }
 
   Widget appleLoginButton(BuildContext context, VoidCallback onPressed) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       width: double.infinity,
       margin: const EdgeInsets.symmetric(horizontal: 18),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
-        color: Colors.white,
+        borderRadius: BorderRadius.circular(30),
+        color: !isDark ? Colors.black : Colors.white,
+        border: Border.all(
+          color: isDark ? Colors.white : Colors.black,
+        ),
       ),
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: OutlinedButton.icon(
         onPressed: onPressed,
-        icon: Image.asset('assets/auth/apple.png', height: 30),
+        icon: Image.asset(
+          !isDark ? 'assets/auth/apple_white.png' : 'assets/auth/apple.png',
+          height: 30,
+        ),
         label: Text(
           'Sign in with Apple',
-          style: Theme.of(context)
-              .textTheme
-              .titleLarge
-              ?.copyWith(color: Colors.black, fontSize: 18),
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                color: !isDark ? Colors.white : Colors.black,
+                fontSize: 18,
+              ),
         ),
         style: OutlinedButton.styleFrom(
           backgroundColor: Colors.transparent,
@@ -284,12 +306,16 @@ class _IntroductionScreenState extends State<IntroductionScreen> {
   }
 
   Widget googleLoginButton(BuildContext context, VoidCallback onPressed) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       width: double.infinity,
       margin: const EdgeInsets.symmetric(horizontal: 18),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
-        color: Colors.white,
+        borderRadius: BorderRadius.circular(30),
+        color: isDark ? Colors.black : Colors.white,
+        border: Border.all(
+          color: isDark ? Colors.white24 : Colors.transparent,
+        ),
       ),
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: OutlinedButton.icon(
@@ -297,10 +323,10 @@ class _IntroductionScreenState extends State<IntroductionScreen> {
         icon: Image.asset('assets/auth/google.png', height: 40),
         label: Text(
           'Sign in with Google',
-          style: Theme.of(context)
-              .textTheme
-              .titleLarge
-              ?.copyWith(color: Colors.black, fontSize: 18),
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                color: isDark ? Colors.white : Colors.black,
+                fontSize: 18,
+              ),
         ),
         style: OutlinedButton.styleFrom(
           backgroundColor: Colors.transparent,

@@ -235,7 +235,7 @@ class _VideoWidgetState extends State<VideoWidget> {
               videoHeight != null &&
               videoWidth > 0 &&
               videoHeight > 0) {
-            debugPrint('Early video dimensions: ${videoWidth}x$videoHeight');
+            // debugPrint('Early video dimensions: ${videoWidth}x$videoHeight');
             final aspectRatio = videoWidth / videoHeight;
             if (widget.onAspectRatioUpdated != null) {
               widget.onAspectRatioUpdated!(aspectRatio);
@@ -323,8 +323,8 @@ class _VideoWidgetState extends State<VideoWidget> {
           videoHeight > 0) {
         // 실제 비디오 치수 사용
         aspectRatio = videoWidth / videoHeight;
-        debugPrint(
-            'Video dimensions: ${videoWidth}x$videoHeight, aspect ratio: $aspectRatio');
+        // debugPrint(
+        //     'Video dimensions: ${videoWidth}x$videoHeight, aspect ratio: $aspectRatio');
 
         // 부모에게 종횡비 정보 전달
         if (widget.onAspectRatioUpdated != null) {
