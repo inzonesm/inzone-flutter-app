@@ -200,7 +200,18 @@ class AppRouter {
         routes: [
           GoRoute(
             path: Routes.home,
-            builder: (context, state) => const HomeScreen(),
+            pageBuilder: (context, state) => CustomTransitionPage(
+              key: state.pageKey,
+              child: const HomeScreen(),
+              transitionsBuilder:
+                  (context, animation, secondaryAnimation, child) {
+                return FadeTransition(
+                  opacity: animation,
+                  child: child,
+                );
+              },
+              transitionDuration: const Duration(milliseconds: 400),
+            ),
           ),
           GoRoute(
             path: Routes.groups,

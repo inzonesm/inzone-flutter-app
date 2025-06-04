@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_feather_icons/flutter_feather_icons.dart';
 import 'package:get/get_connect/http/src/utils/utils.dart';
@@ -39,6 +40,8 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
   GroupChatData? _groupChatData;
   late String _groupId;
+  final Map<String, String> _userProfileImages =
+      {}; // Cache for user profile images
 
   // Define the cost to join a group chat
   final int _joinGroupCost = 100; // Cost in InCash to join the group
@@ -58,6 +61,125 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     // Update the group's isMember status if not already a member
     if (!widget.group.isMember) {
       widget.group.isMember = true;
+    }
+
+    // Fetch user profile images
+    _fetchUserProfileImages();
+  }
+
+  // Fetch user profile images for the participants
+  Future<void> _fetchUserProfileImages() async {
+    try {
+      print('Starting to fetch user profile images');
+
+      // Get the group chat document to find all participants
+      final groupChatDoc = await FirebaseFirestore.instance
+          .collection('groupChats')
+          .doc(_groupId)
+          .get();
+
+      if (groupChatDoc.exists) {
+        final data = groupChatDoc.data();
+        if (data != null && data['participants'] is List) {
+          List<dynamic> participants = data['participants'];
+          print('Found ${participants.length} participants in the group');
+
+          // Loop through all participants to fetch profile images
+          for (var participant in participants) {
+            if (participant is Map) {
+              String type = participant['type'] as String? ?? '';
+              String uid = participant['uid'] as String? ?? '';
+
+              print('Processing participant: $uid, type: $type');
+
+              // For regular users, try to fetch from users collection
+              if (type == 'user' && uid.isNotEmpty) {
+                // First check if there's already a profilePictureUrl in participant data
+                if (participant['profilePictureUrl'] != null &&
+                    participant['profilePictureUrl'].toString().isNotEmpty) {
+                  print(
+                      'Found profilePictureUrl directly in participant data for $uid');
+                  setState(() {
+                    _userProfileImages[uid] =
+                        participant['profilePictureUrl'].toString();
+                  });
+                  continue; // Skip to next participant if we already have the picture
+                }
+
+                // Try two different profile picture field names
+                final userDocRef =
+                    FirebaseFirestore.instance.collection('users').doc(uid);
+                final userDoc = await userDocRef.get();
+
+                if (userDoc.exists) {
+                  final userData = userDoc.data();
+                  if (userData != null) {
+                    // Try different possible field names for profile picture
+                    String? profileUrl;
+                    if (userData['profilePictureUrl'] != null &&
+                        userData['profilePictureUrl'].toString().isNotEmpty) {
+                      profileUrl = userData['profilePictureUrl'].toString();
+                    } else if (userData['profileImage'] != null &&
+                        userData['profileImage'].toString().isNotEmpty) {
+                      profileUrl = userData['profileImage'].toString();
+                    } else if (userData['photoURL'] != null &&
+                        userData['photoURL'].toString().isNotEmpty) {
+                      profileUrl = userData['photoURL'].toString();
+                    } else if (userData['avatar'] != null &&
+                        userData['avatar'].toString().isNotEmpty) {
+                      profileUrl = userData['avatar'].toString();
+                    }
+
+                    if (profileUrl != null) {
+                      print('Found profile picture for user $uid: $profileUrl');
+                      setState(() {
+                        _userProfileImages[uid] = profileUrl!;
+                      });
+                    } else {
+                      print('No profile picture found in user data for $uid');
+                    }
+                  }
+                } else {
+                  print('User document not found for $uid');
+
+                  // As a fallback, try to get from auth user data
+                  if (FirebaseAuth.instance.currentUser?.uid == uid) {
+                    final photoURL =
+                        FirebaseAuth.instance.currentUser?.photoURL;
+                    if (photoURL != null && photoURL.isNotEmpty) {
+                      print(
+                          'Using photoURL from FirebaseAuth for current user');
+                      setState(() {
+                        _userProfileImages[uid] = photoURL;
+                      });
+                    }
+                  }
+                }
+              }
+
+              // For AI users, ensure we have their profile picture
+              else if (type == 'ai' &&
+                  uid.isNotEmpty &&
+                  participant['profilePictureUrl'] != null &&
+                  participant['profilePictureUrl'].toString().isNotEmpty) {
+                print(
+                    'Found AI profile picture for $uid: ${participant['profilePictureUrl']}');
+                setState(() {
+                  _userProfileImages[uid] =
+                      participant['profilePictureUrl'].toString();
+                });
+              }
+            }
+          }
+          print(
+              'Finished processing all participants. Profile image cache size: ${_userProfileImages.length}');
+        }
+      }
+
+      // Force UI update
+      setState(() {});
+    } catch (e) {
+      print('Error fetching user profile images: $e');
     }
   }
 
@@ -753,6 +875,14 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     final bool isMe =
         message.sender.uid == FirebaseAuth.instance.currentUser?.uid;
 
+    // Debug print to check sender data
+    print(
+        'Building message bubble for sender: ${message.sender.name}, type: ${message.sender.type}, uid: ${message.sender.uid}');
+    if (_userProfileImages.containsKey(message.sender.uid)) {
+      print(
+          'Profile image found in cache for this sender: ${_userProfileImages[message.sender.uid]}');
+    }
+
     return MessageBubble(
       message: message.content,
       isMe: isMe,
@@ -780,93 +910,87 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       );
     }
 
-    // For AI users, check if we have profile picture URL from participant data
-    if (sender.type == 'ai') {
-      // First try to get profile picture from the current group's participant data
-      if (_groupChatData != null) {
-        final participant = _groupChatData!.participants.firstWhere(
-          (p) => p.uid == sender.uid && p.type == 'ai',
-          orElse: () => Participant(uid: '', type: '', name: ''),
-        );
+    // Check for cached user profile image first for regular users
+    if (sender.type == 'user' && _userProfileImages.containsKey(sender.uid)) {
+      return ClipOval(
+        child: CachedNetworkImage(
+          imageUrl: _userProfileImages[sender.uid]!,
+          fit: BoxFit.cover,
+          height: 35,
+          width: 35,
+          placeholder: (context, url) => const SizedBox(),
+          errorWidget: (context, url, error) {
+            return Center(
+              child: Text(
+                sender.name.isNotEmpty ? sender.name[0].toUpperCase() : '?',
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.primary,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            );
+          },
+        ),
+      );
+    }
 
-        if (participant.profilePictureUrl != null &&
-            participant.profilePictureUrl!.isNotEmpty) {
-          return ClipOval(
-            child: CachedNetworkImage(
-              imageUrl: participant.profilePictureUrl!,
-              fit: BoxFit.cover,
-              height: 35,
-              width: 35,
-              placeholder: (context, url) => const SizedBox(),
-              errorWidget: (context, url, error) {
+    // For both AI users and regular users, check for profile picture URL
+    if (_groupChatData != null) {
+      final participant = _groupChatData!.participants.firstWhere(
+        (p) => p.uid == sender.uid,
+        orElse: () => Participant(uid: '', type: '', name: ''),
+      );
+
+      if (participant.profilePictureUrl != null &&
+          participant.profilePictureUrl!.isNotEmpty) {
+        return ClipOval(
+          child: CachedNetworkImage(
+            imageUrl: participant.profilePictureUrl!,
+            fit: BoxFit.cover,
+            height: 35,
+            width: 35,
+            placeholder: (context, url) => const SizedBox(),
+            errorWidget: (context, url, error) {
+              // For AI fallback to AI icon, for users fallback to initials
+              if (sender.type == 'ai') {
                 return const Center(
                   child:
                       Icon(Icons.smart_toy, color: Colors.blueAccent, size: 35),
                 );
-              },
-            ),
-          );
-        }
+              } else {
+                return Center(
+                  child: Text(
+                    sender.name.isNotEmpty ? sender.name[0].toUpperCase() : '?',
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.primary,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                );
+              }
+            },
+          ),
+        );
       }
+    }
 
-      // Fallback to AI icon if no profile image is found
+    // Fallback based on user type
+    if (sender.type == 'ai') {
       return const Center(
         child: Icon(Icons.smart_toy, color: Colors.blueAccent, size: 35),
       );
-    }
-
-    // For human users, try to load their profile image from Firebase
-    if (sender.type != 'ai' && sender.uid.isNotEmpty) {
-      return FutureBuilder<DocumentSnapshot>(
-        future: FirebaseFirestore.instance
-            .collection('humanUsers')
-            .doc(sender.uid)
-            .get(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(
-              child: Icon(Icons.account_circle,
-                  color: Colors.blueAccent, size: 35),
-            );
-          }
-
-          if (snapshot.hasData && snapshot.data!.exists) {
-            final userData = snapshot.data!.data() as Map<String, dynamic>?;
-            final profileImage =
-                userData?['profilePicture'] ?? userData?['profileImage'];
-
-            if (profileImage != null && profileImage.toString().isNotEmpty) {
-              return ClipOval(
-                child: CachedNetworkImage(
-                  imageUrl: profileImage.toString(),
-                  fit: BoxFit.cover,
-                  height: 35,
-                  width: 35,
-                  placeholder: (context, url) => const SizedBox(),
-                  errorWidget: (context, url, error) {
-                    return const Center(
-                      child: Icon(Icons.account_circle,
-                          color: Colors.blueAccent, size: 35),
-                    );
-                  },
-                ),
-              );
-            }
-          }
-
-          // Fallback to icon if no profile image is found
-          return const Center(
-            child:
-                Icon(Icons.account_circle, color: Colors.blueAccent, size: 35),
-          );
-        },
+    } else {
+      // For regular users with no profile image
+      return Center(
+        child: Text(
+          sender.name.isNotEmpty ? sender.name[0].toUpperCase() : '?',
+          style: TextStyle(
+            color: Theme.of(context).colorScheme.primary,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
       );
     }
-
-    // Fallback to icon
-    return const Center(
-      child: Icon(Icons.account_circle, color: Colors.blueAccent, size: 35),
-    );
   }
 
   String _formatMessageTime(DateTime dateTime) {
@@ -921,27 +1045,12 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                 List<Participant> participants =
                     _parseParticipantsList(participantsData);
 
-                // MODIFIED: Filter to only show AI participants
-                // Original code (commented out for future use):
-                /*
-                // Sort participants - AI participants first, then others
+                // Sort participants with AI first, then alphabetically by name
                 participants.sort((a, b) {
-                  if (a.type == 'ai' && b.type != 'ai') {
-                    return -1; // a comes before b
-                  } else if (a.type != 'ai' && b.type == 'ai') {
-                    return 1; // b comes before a
-                  } else {
-                    // If both same type, sort alphabetically by name
-                    return a.name.compareTo(b.name);
-                  }
+                  if (a.type == 'ai' && b.type != 'ai') return -1;
+                  if (a.type != 'ai' && b.type == 'ai') return 1;
+                  return a.name.compareTo(b.name);
                 });
-                */
-
-                // New code: Filter to only show AI participants
-                participants =
-                    participants.where((p) => p.type == 'ai').toList();
-                // Sort AI participants alphabetically by name
-                participants.sort((a, b) => a.name.compareTo(b.name));
 
                 final groupName = data['name'] ?? widget.group.name;
 
@@ -1048,7 +1157,29 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                                         ),
                                       ),
                                     )
-                                  : null,
+                                  : GestureDetector(
+                                      onTap: () {
+                                        _showReportDialog(context, participant);
+                                      },
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 8, vertical: 4),
+                                        decoration: BoxDecoration(
+                                          color: Colors.blueAccent
+                                              .withOpacity(0.1),
+                                          borderRadius:
+                                              BorderRadius.circular(12),
+                                        ),
+                                        child: const Text(
+                                          'Report',
+                                          style: TextStyle(
+                                            color: Colors.redAccent,
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 12,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
                             );
                           },
                         ),
@@ -1063,6 +1194,25 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                           fontSize: 12,
                           fontStyle: FontStyle.italic,
                         ),
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.start,
+                        children: [
+                          Icon(
+                            CupertinoIcons.flag,
+                            size: 16,
+                            color: Theme.of(context).hintColor,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            "Report",
+                            style: TextStyle(
+                              color: Theme.of(context).hintColor,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
@@ -1085,7 +1235,19 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   List<Participant> _parseParticipantsList(List<dynamic> participantsData) {
     return participantsData.map((participant) {
       if (participant is Map) {
-        return Participant.fromMap(participant.cast<String, dynamic>());
+        Map<String, dynamic> participantMap =
+            participant.cast<String, dynamic>();
+
+        // If this is a user (AI or regular) and we have a cached profile picture, add it to the map
+        if (participantMap['uid'] != null &&
+            _userProfileImages.containsKey(participantMap['uid'])) {
+          print(
+              'Adding cached profile picture to participant: ${participantMap['uid']}');
+          participantMap['profilePictureUrl'] =
+              _userProfileImages[participantMap['uid']];
+        }
+
+        return Participant.fromMap(participantMap);
       } else {
         // Return a default participant if the format is unexpected
         return Participant(uid: '', type: 'unknown', name: 'Unknown');
@@ -1094,6 +1256,96 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   }
 
   // Build avatar for participant
+  Widget _buildParticipantAvatar(Participant participant) {
+    // For Messi (special AI user), use Barcelona crest
+    if (participant.type == 'ai' && participant.name == 'Lionel Messi') {
+      return const Center(
+        child: Icon(Icons.smart_toy, color: Colors.blueAccent, size: 24),
+      );
+    }
+
+    // For regular users, check cached profile pictures first
+    if (participant.type == 'user' &&
+        _userProfileImages.containsKey(participant.uid)) {
+      return ClipOval(
+        child: CachedNetworkImage(
+          imageUrl: _userProfileImages[participant.uid]!,
+          fit: BoxFit.cover,
+          width: 24,
+          height: 24,
+          placeholder: (context, url) => const SizedBox(),
+          errorWidget: (context, url, error) {
+            return Center(
+              child: Text(
+                participant.name.isNotEmpty
+                    ? participant.name[0].toUpperCase()
+                    : '?',
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.primary,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            );
+          },
+        ),
+      );
+    }
+
+    // For both AI and regular users, try to use profile picture if available
+    if (participant.profilePictureUrl != null &&
+        participant.profilePictureUrl!.isNotEmpty) {
+      return ClipOval(
+        child: CachedNetworkImage(
+          imageUrl: participant.profilePictureUrl!,
+          fit: BoxFit.cover,
+          width: 24,
+          height: 24,
+          placeholder: (context, url) => const SizedBox(),
+          errorWidget: (context, url, error) {
+            // Different fallbacks based on user type
+            if (participant.type == 'ai') {
+              return const Center(
+                child:
+                    Icon(Icons.smart_toy, color: Colors.blueAccent, size: 24),
+              );
+            } else {
+              return Center(
+                child: Text(
+                  participant.name.isNotEmpty
+                      ? participant.name[0].toUpperCase()
+                      : '?',
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.primary,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              );
+            }
+          },
+        ),
+      );
+    }
+
+    // Fallback based on user type
+    if (participant.type == 'ai') {
+      // Fallback to AI icon if no profile image is found
+      return const Center(
+        child: Icon(Icons.smart_toy, color: Colors.blueAccent, size: 24),
+      );
+    } else {
+      // For regular users with no profile image
+      return Center(
+        child: Text(
+          participant.name.isNotEmpty ? participant.name[0].toUpperCase() : '?',
+          style: TextStyle(
+            color: Theme.of(context).colorScheme.primary,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      );
+    }
+  }
+
   // Method to join a group chat with InCash payment
   Future<void> _joinGroup(BuildContext context) async {
     final currentUserId = FirebaseAuth.instance.currentUser?.uid;
@@ -1253,51 +1505,114 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     }
   }
 
-  Widget _buildParticipantAvatar(Participant participant) {
-    // For Messi (special AI user), use Barcelona crest
-    if (participant.type == 'ai' && participant.name == 'Lionel Messi') {
-      return const Center(
-        child: Icon(Icons.smart_toy, color: Colors.blueAccent, size: 24),
-      );
-    }
-
-    // For AI users, use profile picture URL from participant data
-    if (participant.type == 'ai') {
-      if (participant.profilePictureUrl != null &&
-          participant.profilePictureUrl!.isNotEmpty) {
-        return ClipOval(
-          child: CachedNetworkImage(
-            imageUrl: participant.profilePictureUrl!,
-            fit: BoxFit.cover,
-            width: 24,
-            height: 24,
-            placeholder: (context, url) => const SizedBox(),
-            errorWidget: (context, url, error) {
-              return const Center(
-                child:
-                    Icon(Icons.smart_toy, color: Colors.blueAccent, size: 24),
-              );
-            },
+  // Show a dialog to report a participant
+  void _showReportDialog(BuildContext context, Participant participant) {
+    final TextEditingController reasonController = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text('Report ${participant.name}'),
+          content: TextField(
+            controller: reasonController,
+            decoration: const InputDecoration(
+              labelText: 'Reason',
+              hintText: 'Enter the reason for reporting',
+            ),
+            autofocus: true,
           ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () async {
+                final reason = reasonController.text.trim();
+                if (reason.isNotEmpty) {
+                  await _submitGroupParticipantReport(participant, reason);
+                  context.pop();
+
+                  ToastService.showToast(
+                    context,
+                    backgroundColor: Theme.of(context).canvasColor,
+                    shadowColor: Colors.transparent,
+                    leading: const Icon(
+                      FeatherIcons.checkCircle,
+                      color: Colors.greenAccent,
+                    ),
+                    message: "Report submitted.",
+                  );
+                  context.pop();
+                }
+              },
+              child: const Text('Submit'),
+            ),
+          ],
         );
-      }
-
-      // Fallback to AI icon if no profile image is found
-      return const Center(
-        child: Icon(Icons.smart_toy, color: Colors.blueAccent, size: 24),
-      );
-    }
-
-    // For regular users
-    return Center(
-      child: Text(
-        participant.name.isNotEmpty ? participant.name[0].toUpperCase() : '?',
-        style: TextStyle(
-          color: Theme.of(context).colorScheme.primary,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
+      },
     );
+  }
+
+  // Submit group chat participant report to Firestore
+  Future<void> _submitGroupParticipantReport(
+      Participant participant, String reason) async {
+    try {
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser != null && currentUser.uid.isNotEmpty) {
+        final groupId = _groupId;
+        final reportedUserId = participant.uid;
+        final reporterUserId = currentUser.uid;
+
+        // Check if a report for this group/user already exists
+        final querySnapshot = await FirebaseFirestore.instance
+            .collection('reportGroupParticipant')
+            .where('groupId', isEqualTo: groupId)
+            .where('reportedUserId', isEqualTo: reportedUserId)
+            .get();
+
+        if (querySnapshot.docs.isNotEmpty) {
+          // Report exists, increment count and update arrays
+          final existingReport = querySnapshot.docs.first;
+          final int currentCount = existingReport['count'] ?? 0;
+
+          List<dynamic> existingReasons = existingReport['reasons'] ?? [];
+          if (existingReasons is String) existingReasons = [existingReasons];
+
+          List<dynamic> existingReporters = existingReport['reporters'] ?? [];
+          if (existingReporters is String)
+            existingReporters = [existingReporters];
+
+          List<dynamic> existingDates = existingReport['dates'] ?? [];
+
+          existingReasons.add(reason);
+          existingReporters.add(reporterUserId);
+          existingDates.add(Timestamp.now());
+
+          await existingReport.reference.update({
+            'count': currentCount + 1,
+            'reasons': existingReasons,
+            'reporters': existingReporters,
+            'dates': existingDates,
+          });
+        } else {
+          // Create new report
+          final reportDocRef = FirebaseFirestore.instance
+              .collection('reportGroupParticipant')
+              .doc();
+          await reportDocRef.set({
+            'groupId': groupId,
+            'reportedUserId': reportedUserId,
+            'reporters': [reporterUserId],
+            'reasons': [reason],
+            'dates': [Timestamp.now()],
+            'count': 1,
+          });
+        }
+      }
+    } catch (e) {
+      print('Error submitting group participant report: $e');
+    }
   }
 }
 

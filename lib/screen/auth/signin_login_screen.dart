@@ -12,6 +12,7 @@ import 'package:inzone/screen/auth/interesting_select_screen.dart';
 import 'package:inzone/root_app.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:inzone/screen/auth/loading_screen.dart';
+import 'package:inzone/screen/common/home_screen.dart';
 
 class SignInLoginScreen extends StatefulWidget {
   const SignInLoginScreen({super.key});
@@ -138,7 +139,6 @@ class _SignInLoginScreenState extends State<SignInLoginScreen> {
     }
   }
 
-  // 로그인/회원가입 처리 함수
   void _handleAuthentication() async {
     FocusScope.of(context).unfocus();
 
@@ -162,29 +162,25 @@ class _SignInLoginScreenState extends State<SignInLoginScreen> {
         password: _passwordController.text,
       );
 
-      // result가 null이면 로그인 성공, 'signed-up'이면 회원가입 성공, 그 외는 에러
       if (result == null) {
-        // 로그인 성공
         if (mounted) {
-          // 홈 화면으로 이동
-          context.go(Routes.home);
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            context.go(Routes.home);
+          });
         }
       } else if (result == 'signed-up') {
-        // 회원가입 성공
         final user = FirebaseAuth.instance.currentUser;
         final docRef =
             FirebaseFirestore.instance.collection('humanUsers').doc(user?.uid);
         await docRef.set({
           'email': _emailController.text.trim(),
-          'createdAt': null, // 프로필 설정 후 업데이트될 값
+          'createdAt': null,
         });
 
         if (mounted) {
-          // 프로필 설정 화면으로 이동
           context.push(Routes.profileWithEmail(_emailController.text.trim()));
         }
       } else {
-        // 에러 발생
         setState(() {
           _isLoading = false;
           _errorMessage = _getUserFriendlyErrorMessage(result);
@@ -385,41 +381,6 @@ class _SignInLoginScreenState extends State<SignInLoginScreen> {
     return Scaffold(
       resizeToAvoidBottomInset: true,
       backgroundColor: Theme.of(context).canvasColor,
-      appBar: AppBar(
-        automaticallyImplyLeading: false,
-        backgroundColor: Theme.of(context).canvasColor,
-        title: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            GestureDetector(
-              onTap: () {
-                context.pop();
-              },
-              child: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Theme.of(context).canvasColor,
-                ),
-                child: Icon(
-                  Icons.arrow_back_ios_rounded,
-                  size: 18,
-                  color: Theme.of(context).primaryColor,
-                ),
-              ),
-            ),
-            Text(
-              "Sign In or Sign Up",
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
-            const SizedBox(
-              width: 20,
-            )
-          ],
-        ),
-        elevation: 0,
-      ),
       body: ColorfulSafeArea(
         child: Container(
           margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
@@ -427,6 +388,44 @@ class _SignInLoginScreenState extends State<SignInLoginScreen> {
             mainAxisAlignment: MainAxisAlignment.start,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.pop(context);
+                    },
+                    child: CircleAvatar(
+                      radius: 22,
+                      backgroundColor:
+                          Theme.of(context).brightness == Brightness.dark
+                              ? Colors.grey.shade800
+                              : Colors.grey.shade200,
+                      child: Padding(
+                        padding: const EdgeInsets.only(left: 5),
+                        child: Center(
+                          child: Icon(
+                            Icons.arrow_back_ios,
+                            size: 18,
+                            color: Theme.of(context).iconTheme.color,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              Center(
+                child: Hero(
+                  tag: 'logo',
+                  child: Image.asset(
+                    'assets/auth/logo.png',
+                    height: 60,
+                    width: 60,
+                    fit: BoxFit.contain,
+                  ),
+                ),
+              ),
               const SizedBox(height: 30),
               // Email field
               _buildCustomContainer(
