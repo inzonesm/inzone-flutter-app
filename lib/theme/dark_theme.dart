@@ -9,6 +9,7 @@ class DarkTheme {
         primaryColor: AppColors.primaryBlue,
         canvasColor: AppColors.darkBackground,
         scaffoldBackgroundColor: AppColors.darkBackground,
+        fontFamily: 'AppleSDGothicNeo',
 
         // Color scheme
         colorScheme: const ColorScheme(

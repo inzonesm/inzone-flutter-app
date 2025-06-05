@@ -27,6 +27,7 @@ class LightTheme {
         primaryColor: AppColors.primaryBlue,
         canvasColor: AppColors.lightBackground,
         scaffoldBackgroundColor: AppColors.lightBackground,
+        fontFamily: 'AppleSDGothicNeo',
 
         // Color scheme
         colorScheme: const ColorScheme(
