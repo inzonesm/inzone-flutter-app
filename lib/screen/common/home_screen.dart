@@ -15,6 +15,7 @@ import 'package:inzone/services/inzone_database.dart';
 import 'package:go_router/go_router.dart';
 import 'package:inzone/screen/common/search_explore_screen.dart';
 import 'package:toasty_box/toast_service.dart';
+import 'package:pull_to_refresh_flutter3/pull_to_refresh_flutter3.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key, this.controller});
@@ -26,6 +27,9 @@ class HomeScreen extends StatefulWidget {
 
 class HomeScreenState extends State<HomeScreen> {
   late ScrollController _scrollController;
+  final RefreshController _refreshController =
+      RefreshController(initialRefresh: false);
+
   List<Widget> feedItems = [];
   List<Widget> originalFeedItems = []; // Store the original order of feed items
   List<String> categoriesList = [];
@@ -65,6 +69,7 @@ class HomeScreenState extends State<HomeScreen> {
     if (widget.controller == null) {
       _scrollController.dispose();
     }
+    _refreshController.dispose(); // Dispose the RefreshController
     DateTime endTime = DateTime.now();
     Duration timeSpent = endTime.difference(_startTime);
     InZoneDatabase.logEvent('home_screen', {
@@ -100,6 +105,38 @@ class HomeScreenState extends State<HomeScreen> {
         !isLoadingMore &&
         hasMorePosts) {
       _loadMorePosts();
+    }
+  }
+
+  // Handle refresh completion
+  void _onRefresh() async {
+    try {
+      // Only increment reload count if the previous load finished
+      if (!isLoading && !isLoadingMore) {
+        setState(() {
+          reloadCount++;
+        });
+        await loadFeed(isRefresh: true);
+      }
+    } catch (e) {
+      print('Error during refresh: $e');
+    } finally {
+      // Tell the RefreshController to finish the refresh process
+      _refreshController.refreshCompleted();
+    }
+  }
+
+  // Handle loading more data
+  void _onLoading() async {
+    try {
+      if (!isLoadingMore && hasMorePosts) {
+        await _loadMorePosts();
+      }
+    } catch (e) {
+      print('Error loading more: $e');
+    } finally {
+      // Tell the RefreshController to finish the loading process
+      _refreshController.loadComplete();
     }
   }
 
@@ -557,6 +594,14 @@ class HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  Widget refreshIcon() {
+    return Image.asset(
+      'assets/icons/dark.png',
+      width: 35,
+      height: 35,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -612,171 +657,109 @@ class HomeScreenState extends State<HomeScreen> {
                   ],
                 ),
               )
-            : CustomScrollView(
-                controller: _scrollController,
-                physics: const AlwaysScrollableScrollPhysics(),
-                // Cache extent to prebuild the next ~3 cards (assuming ~200px per card)
-                cacheExtent: 600.0,
-                slivers: [
-                  // iOS 스타일 리프레시 컨트롤
-                  CupertinoSliverRefreshControl(
-                    onRefresh: () async {
-                      try {
-                        // Only increment reload count if the previous load finished
-                        if (!isLoading && !isLoadingMore) {
-                          setState(() {
-                            reloadCount++;
-                          });
-                          await loadFeed(isRefresh: true);
-                        } else {
-                          // Cancel refresh if already loading
-                          setState(() {
-                            // Just complete the refresh without doing anything
-                          });
-                        }
-                      } catch (e) {
-                        // Handle refresh errors gracefully
-                        print('Error during refresh: $e');
-                        setState(() {
-                          isLoading = false;
-                          isLoadingMore = false;
-                        });
-                      }
-                    },
-                    refreshTriggerPullDistance: 120.0,
-                    refreshIndicatorExtent: 60.0,
-                    builder: (
-                      BuildContext context,
-                      RefreshIndicatorMode refreshState,
-                      double pulledExtent,
-                      double refreshTriggerPullDistance,
-                      double refreshIndicatorExtent,
-                    ) {
-                      return Center(
-                        child: Stack(
-                          alignment: Alignment.center,
-                          children: [
-                            const CupertinoActivityIndicator(radius: 14.0),
-                            Positioned(
-                              left: MediaQuery.of(context).size.width / 2 + 20,
-                              child: Container(
-                                width: 100,
-                                height: 20,
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(4),
-                                  color: Theme.of(context).cardColor,
+            : SmartRefresher(
+                enablePullDown: true,
+                controller: _refreshController,
+                onRefresh: _onRefresh,
+                physics: const BouncingScrollPhysics(),
+                header: ClassicHeader(
+                  releaseIcon: refreshIcon(),
+                  refreshingIcon: refreshIcon(),
+                  completeIcon: refreshIcon(),
+                  idleIcon: refreshIcon(),
+                  failedIcon: refreshIcon(),
+                ),
+                child: CustomScrollView(
+                  controller: _scrollController,
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  // Cache extent to prebuild the next ~3 cards (assuming ~200px per card)
+                  cacheExtent: 600.0,
+                  slivers: [
+                    SliverPersistentHeader(
+                      floating: true,
+                      pinned: false,
+                      delegate: CustomAppBarDelegate(
+                        child: CustomAppBar(
+                          isHome: true,
+                          userPoints: "100",
+                          profileImageUrl: null,
+                          onSearchTap: () {
+                            try {
+                              // context.push(Routes.searchExplore);
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (context) =>
+                                      const SearchExploreScreen(),
                                 ),
-                                child:
-                                    const SizedBox(), // Remove CategoryLoading from here
-                              ),
-                            ),
-                          ],
+                              );
+                            } catch (e) {
+                              print('Error navigating to search: $e');
+                              ToastService.showToast(
+                                context,
+                                backgroundColor: Theme.of(context).canvasColor,
+                                shadowColor: Colors.transparent,
+                                leading: const Icon(
+                                  Icons
+                                      .error_outline, // or Icons.check_circle, Icons.warning_amber_rounded, etc.
+                                  color: Colors
+                                      .redAccent, // or Colors.greenAccent, Colors.orange
+                                ),
+                                message: "Error navigating to search: $e",
+                              );
+                            }
+                          },
+                          onProfileTap: () {},
+                          onPointsTap: () {},
                         ),
-                      );
-                    },
-                  ),
-
-                  // Add Avatar Carousel above category selector bar
-                  SliverPersistentHeader(
-                    floating: true,
-                    pinned: false,
-                    delegate: CustomAppBarDelegate(
-                      child: CustomAppBar(
-                        isHome: true,
-                        userPoints: "100",
-                        profileImageUrl: null,
-                        onSearchTap: () {
-                          try {
-                            // context.push(Routes.searchExplore);
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (context) =>
-                                    const SearchExploreScreen(),
-                              ),
-                            );
-                          } catch (e) {
-                            print('Error navigating to search: $e');
-                            ToastService.showToast(
-                              context,
-                              backgroundColor: Theme.of(context).canvasColor,
-                              shadowColor: Colors.transparent,
-                              leading: const Icon(
-                                Icons
-                                    .error_outline, // or Icons.check_circle, Icons.warning_amber_rounded, etc.
-                                color: Colors
-                                    .redAccent, // or Colors.greenAccent, Colors.orange
-                              ),
-                              message: "Error navigating to search: $e",
-                            );
-                          }
-                        },
-                        onProfileTap: () {},
-                        onPointsTap: () {},
                       ),
                     ),
-                  ),
-                  SliverToBoxAdapter(
-                    child: avatarStoryComponents.isNotEmpty
-                        ? _buildAvatarStories()
-                        : const SizedBox.shrink(),
-                  ),
-                  // SliverToBoxAdapter(
-                  //   child: Padding(
-                  //     padding: const EdgeInsets.only(top: 10.0),
-                  //     child: categoriesList.isNotEmpty
-                  //         ? Padding(
-                  //       padding: const EdgeInsets.only(bottom: 10.0),
-                  //       child: CategorySelectorBar(
-                  //         categories: categoriesList,
-                  //         onTap: (selectedCat) {
-                  //           _filterPostsByCategory(selectedCat);
-                  //         },
-                  //       ),
-                  //     )
-                  //         : CategoryLoading(context),
-                  //   ),
-                  // ),
-                  SliverList(
-                    delegate: SliverChildBuilderDelegate(
-                      (context, index) {
-                        // Calculate total items including ads
-                        int totalItemsWithAds =
-                            posts.length + (posts.length ~/ 10);
-
-                        if (index == totalItemsWithAds && isLoadingMore) {
-                          return const SizedBox(height: 1);
-                        } else if (index ==
-                            totalItemsWithAds + (isLoadingMore ? 1 : 0)) {
-                          // Bottom padding for navigation bar
-                          return const SizedBox(height: 100);
-                        }
-
-                        // If within range, build the post widget
-                        if (index < totalItemsWithAds) {
-                          return Padding(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 16.0, vertical: 0),
-                            child: _buildPostWidget(null, index),
-                          );
-                        }
-
-                        return const SizedBox.shrink(); // Safety fallback
-                      },
-                      childCount: posts.isEmpty
-                          ? 1 // Just show bottom padding if no posts
-                          : posts.length +
-                              (posts.length ~/ 10) +
-                              (isLoadingMore ? 1 : 0) +
-                              1, // +ads +loading +bottom padding
-                      // Enable automatic keep alives to maintain built widgets
-                      addAutomaticKeepAlives: true,
-                      // Enable repaint boundaries for better performance
-                      addRepaintBoundaries: true,
-                      // Prebuild next 3 items by setting semantic index
-                      addSemanticIndexes: true,
+                    SliverToBoxAdapter(
+                      child: avatarStoryComponents.isNotEmpty
+                          ? _buildAvatarStories()
+                          : const SizedBox.shrink(),
                     ),
-                  ),
-                ],
+                    SliverList(
+                      delegate: SliverChildBuilderDelegate(
+                        (context, index) {
+                          // Calculate total items including ads
+                          int totalItemsWithAds =
+                              posts.length + (posts.length ~/ 10);
+
+                          if (index == totalItemsWithAds && isLoadingMore) {
+                            return const SizedBox(height: 1);
+                          } else if (index ==
+                              totalItemsWithAds + (isLoadingMore ? 1 : 0)) {
+                            // Bottom padding for navigation bar
+                            return const SizedBox(height: 100);
+                          }
+
+                          // If within range, build the post widget
+                          if (index < totalItemsWithAds) {
+                            return Padding(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 16.0, vertical: 0),
+                              child: _buildPostWidget(null, index),
+                            );
+                          }
+
+                          return const SizedBox.shrink(); // Safety fallback
+                        },
+                        childCount: posts.isEmpty
+                            ? 1 // Just show bottom padding if no posts
+                            : posts.length +
+                                (posts.length ~/ 10) +
+                                (isLoadingMore ? 1 : 0) +
+                                1, // +ads +loading +bottom padding
+                        // Enable automatic keep alives to maintain built widgets
+                        addAutomaticKeepAlives: true,
+                        // Enable repaint boundaries for better performance
+                        addRepaintBoundaries: true,
+                        // Prebuild next 3 items by setting semantic index
+                        addSemanticIndexes: true,
+                      ),
+                    ),
+                  ],
+                ),
               ),
       ),
     );
