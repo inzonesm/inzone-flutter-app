@@ -1,14 +1,17 @@
 flutter_launcher_icons:
   android: "launcher_icon"
   ios: true
-  image_path: "assets/icons/white.png"
+  image_path: "assets/icons/white_android.png"
   # Optional customizations:
   adaptive_icon_background: "#000000"
-  adaptive_icon_foreground: "assets/icons/white.png"
-  adaptive_icon_monochrome: "assets/icons/white.png"
+  adaptive_icon_foreground: "assets/icons/white_android.png"
+  adaptive_icon_monochrome: "assets/icons/white_android.png"
   min_sdk_android: 21
   image_path_ios: "assets/icons/white.png"
   remove_alpha_ios: true
+  
+  # Dark mode icon for Android
+  adaptive_icon_foreground_dark: "assets/icons/dark_android.png"
 
   image_path_ios_dark_transparent: "assets/icons/dark.png"
   web:

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_feather_icons/flutter_feather_icons.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:inzone/theme/app_colors.dart';
 
 class SubscriptionTile extends StatefulWidget {
@@ -104,7 +103,7 @@ class _SubscriptionTileState extends State<SubscriptionTile> {
                     children: [
                       Text(
                         "${widget.price}  ${widget.isMonth ? '/ Month' : ''}",
-                        style: GoogleFonts.outfit(
+                        style: TextStyle(
                           color: widget.isSelected
                               ? selectedTextColor
                               : unselectedTextColor,
@@ -130,7 +129,7 @@ class _SubscriptionTileState extends State<SubscriptionTile> {
                           const SizedBox(width: 6),
                           Text(
                             "${widget.coins} Coins ${widget.isMonth ? '/ Month' : ''}",
-                            style: GoogleFonts.outfit(
+                            style: TextStyle(
                               color: widget.isSelected
                                   ? selectedTextColor.withOpacity(0.8)
                                   : unselectedTextColor.withOpacity(0.6),

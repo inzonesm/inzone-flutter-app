@@ -5,7 +5,6 @@
 // import 'dart:async';
 // import 'dart:convert';
 // import 'dart:io';
-// import 'package:google_fonts/google_fonts.dart';
 // import 'package:inzone/components/bottom-sheet/bottom_sheet_bar.dart';
 // import 'package:inzone/components/bottom-sheet/custom_bottom_sheet.dart';
 // import 'package:inzone/screen/settings/subcription_tile.dart';
@@ -360,7 +359,7 @@
 //                       const SizedBox(height: 16),
 //                       Text(
 //                         "In Cash $_selectedPlan Plan",
-//                         style: GoogleFonts.outfit(
+//                         style: TextStyle(
 //                             color: Theme.of(context).colorScheme.onSurface,
 //                             fontSize: 18,
 //                             fontWeight: FontWeight.w600),
@@ -419,7 +418,7 @@
 //               child: Text(
 //                 "Buy Now",
 //                 textAlign: TextAlign.center,
-//                 style: GoogleFonts.outfit(
+//                 style: TextStyle(
 //                   color: Colors.white,
 //                   fontSize: 16,
 //                   fontWeight: FontWeight.w600,
@@ -693,10 +692,12 @@
 //                 Expanded(
 //                     child: Text(
 //                   "Balance",
-//                   style: GoogleFonts.outfit(
-//                       color: Theme.of(context).colorScheme.onSurface,
-//                       fontSize: 16,
-//                       fontWeight: FontWeight.w600),
+//                   style: Theme.of(context)
+//                       .textTheme
+//                       .bodySmall!
+//                       .copyWith(
+//                         fontSize: 16,
+//                         fontWeight: FontWeight.w600),
 //                   maxLines: 1,
 //                 )),
 //                 Row(
@@ -706,10 +707,12 @@
 //                     const SizedBox(width: 5),
 //                     Text(
 //                       _balance.toString(),
-//                       style: GoogleFonts.outfit(
-//                           color: Theme.of(context).colorScheme.onSurface,
-//                           fontSize: 16,
-//                           fontWeight: FontWeight.w600),
+//                       style: Theme.of(context)
+//                           .textTheme
+//                           .bodySmall!
+//                           .copyWith(
+//                             fontSize: 16,
+//                             fontWeight: FontWeight.w600),
 //                       maxLines: 1,
 //                     )
 //                   ],
@@ -731,11 +734,13 @@
 //               children: [
 //                 Text(
 //                   'InCash ${widget.planName}',
-//                   style: GoogleFonts.outfit(
-//                     color: Theme.of(context).colorScheme.onSurface,
-//                     fontSize: 16,
-//                     fontWeight: FontWeight.w500,
-//                   ),
+//                   style: Theme.of(context)
+//                       .textTheme
+//                       .bodyLarge!
+//                       .copyWith(
+//                         fontSize: 16,
+//                         fontWeight: FontWeight.w500,
+//                       ),
 //                 ),
 //                 const SizedBox(height: 16),
 //                 Row(
@@ -748,39 +753,47 @@
 //                           Text(
 //                             'Monthly',
 //                             textAlign: TextAlign.center,
-//                             style: GoogleFonts.outfit(
-//                               color: Theme.of(context).colorScheme.onSurface,
-//                               fontSize: 16,
-//                               fontWeight: FontWeight.w500,
-//                             ),
+//                             style: Theme.of(context)
+//                                 .textTheme
+//                                 .bodySmall!
+//                                 .copyWith(
+//                                   fontSize: 16,
+//                                   fontWeight: FontWeight.w500,
+//                                 ),
 //                           ),
 //                           Text(
 //                             'Renews on: 10/08/2024',
 //                             textAlign: TextAlign.center,
-//                             style: GoogleFonts.outfit(
-//                               color: Theme.of(context).colorScheme.onSurface,
-//                               fontSize: 16,
-//                               fontWeight: FontWeight.w500,
-//                             ),
+//                             style: Theme.of(context)
+//                                 .textTheme
+//                                 .bodySmall!
+//                                 .copyWith(
+//                                   fontSize: 16,
+//                                   fontWeight: FontWeight.w500,
+//                                 ),
 //                           ),
 //                         ] else ...[
 //                           Text(
 //                             'One-time Purchase',
 //                             textAlign: TextAlign.center,
-//                             style: GoogleFonts.outfit(
-//                               color: Theme.of(context).colorScheme.onSurface,
-//                               fontSize: 16,
-//                               fontWeight: FontWeight.w500,
-//                             ),
+//                             style: Theme.of(context)
+//                                 .textTheme
+//                                 .bodySmall!
+//                                 .copyWith(
+//                                   fontSize: 16,
+//                                   fontWeight: FontWeight.w500,
+//                                 ),
 //                           ),
 //                           Text(
 //                             '${widget.coins} Coins',
 //                             textAlign: TextAlign.center,
-//                             style: GoogleFonts.outfit(
-//                               color: Theme.of(context).colorScheme.onSurface,
-//                               fontSize: 16,
-//                               fontWeight: FontWeight.w500,
-//                             ),
+//                             style: Theme.of(context)
+//                                 .textTheme
+//                                 .bodySmall!
+//                                 .copyWith(
+//                                   fontSize: 16,
+//                                   fontWeight: FontWeight.w500,
+//                                 ),
 //                           ),
 //                         ],
 //                       ],
@@ -788,11 +801,13 @@
 //                     Text(
 //                       '\$${widget.price.toStringAsFixed(2)}',
 //                       textAlign: TextAlign.center,
-//                       style: GoogleFonts.outfit(
-//                         color: Theme.of(context).colorScheme.onSurface,
-//                         fontSize: 26,
-//                         fontWeight: FontWeight.w600,
-//                       ),
+//                       style: Theme.of(context)
+//                           .textTheme
+//                           .bodyLarge!
+//                           .copyWith(
+//                             fontSize: 26,
+//                             fontWeight: FontWeight.w600,
+//                           ),
 //                     ),
 //                   ],
 //                 ),
@@ -802,20 +817,24 @@
 //           const SizedBox(height: 10),
 //           RichText(
 //             text: TextSpan(
-//               style: GoogleFonts.outfit(
-//                   color: Theme.of(context).colorScheme.onSurface,
-//                   fontSize: 12,
-//                   fontWeight: FontWeight.w400),
+//               style: Theme.of(context)
+//                   .textTheme
+//                   .bodySmall!
+//                   .copyWith(
+//                     fontSize: 12,
+//                     fontWeight: FontWeight.w400),
 //               children: <TextSpan>[
 //                 const TextSpan(
 //                     text:
 //                         "By clicking Purchase you acknowledge that you are 18 years of age, or that you are the parent or legal guardian of the account owner, and that you agree to our"),
 //                 TextSpan(
 //                     text: ' Terms of Use',
-//                     style: GoogleFonts.outfit(
-//                         color: Theme.of(context).colorScheme.onSurface,
-//                         fontSize: 12,
-//                         fontWeight: FontWeight.w700),
+//                     style: Theme.of(context)
+//                         .textTheme
+//                         .bodySmall!
+//                         .copyWith(
+//                           fontSize: 12,
+//                           fontWeight: FontWeight.w700),
 //                     recognizer: TapGestureRecognizer()
 //                       ..onTap = () {
 //                         _launchInBrowser("https://inzone.ai/terms-conditions");
@@ -823,10 +842,12 @@
 //                 const TextSpan(text: ' and '),
 //                 TextSpan(
 //                     text: 'Privacy Policy',
-//                     style: GoogleFonts.outfit(
-//                         color: Theme.of(context).colorScheme.onSurface,
-//                         fontSize: 12,
-//                         fontWeight: FontWeight.w700),
+//                     style: Theme.of(context)
+//                         .textTheme
+//                         .bodySmall!
+//                         .copyWith(
+//                           fontSize: 12,
+//                           fontWeight: FontWeight.w700),
 //                     recognizer: TapGestureRecognizer()
 //                       ..onTap = () {
 //                         _launchInBrowser("https://inzone.ai/privacy-policy");
@@ -834,10 +855,12 @@
 //                 const TextSpan(text: ", including the arbitration clause and "),
 //                 TextSpan(
 //                     text: 'revocation policy',
-//                     style: GoogleFonts.outfit(
-//                         color: Theme.of(context).colorScheme.onSurface,
-//                         fontSize: 12,
-//                         fontWeight: FontWeight.w700),
+//                     style: Theme.of(context)
+//                         .textTheme
+//                         .bodySmall!
+//                         .copyWith(
+//                           fontSize: 12,
+//                           fontWeight: FontWeight.w700),
 //                     recognizer: TapGestureRecognizer()
 //                       ..onTap = () {
 //                         _launchInBrowser("https://inzone.ai/revocation-policy");
@@ -849,10 +872,12 @@
 //                 if (widget.isSubscription)
 //                   TextSpan(
 //                       text: ' here',
-//                       style: GoogleFonts.outfit(
-//                           color: Theme.of(context).colorScheme.onSurface,
-//                           fontSize: 12,
-//                           fontWeight: FontWeight.w700),
+//                       style: Theme.of(context)
+//                           .textTheme
+//                           .bodySmall!
+//                           .copyWith(
+//                             fontSize: 12,
+//                             fontWeight: FontWeight.w700),
 //                       recognizer: TapGestureRecognizer()
 //                         ..onTap = () {
 //                           _launchInBrowser(
@@ -912,11 +937,14 @@
 //                     child: Text(
 //                       _isPurchasing ? 'Processing...' : 'Purchase',
 //                       textAlign: TextAlign.center,
-//                       style: GoogleFonts.outfit(
-//                         color: Colors.white,
-//                         fontSize: 14,
-//                         fontWeight: FontWeight.w600,
-//                       ),
+//                       style: Theme.of(context)
+//                           .textTheme
+//                           .bodySmall!
+//                           .copyWith(
+//                             fontSize: 14,
+//                             fontWeight: FontWeight.w600,
+//                             color: Colors.white,
+//                           ),
 //                     ),
 //                   ),
 //                 ),

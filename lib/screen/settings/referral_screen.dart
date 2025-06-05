@@ -6,7 +6,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_native_contact_picker/flutter_native_contact_picker.dart';
 import 'package:flutter_native_contact_picker/model/contact.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:inzone/components/ui/appbar.dart';
 import 'package:inzone/components/ui/button.dart';
 import 'package:inzone/services/monetization_service.dart';

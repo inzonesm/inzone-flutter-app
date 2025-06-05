@@ -8,7 +8,6 @@ import 'package:media_kit/media_kit.dart';
 import 'package:inzone/theme/theme_manager.dart';
 import 'package:provider/provider.dart';
 import 'package:inzone/router/app_router.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
 import 'package:inzone/services/appsflyer_service.dart';
 import 'package:purchases_flutter/models/purchases_configuration.dart'
@@ -104,9 +103,6 @@ void main() async {
   // prefs.clear();
 
   MediaKit.ensureInitialized();
-
-  // Initialize Google Fonts
-  GoogleFonts.config.allowRuntimeFetching = true;
 
   // Firebase initialization
   await Firebase.initializeApp(
