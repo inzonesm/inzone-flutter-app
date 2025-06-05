@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 class ReferralTile extends StatelessWidget {
   final String photoUrl;
@@ -59,7 +58,7 @@ class ReferralTile extends StatelessWidget {
                 const SizedBox(width: 16),
                 Text(
                   name,
-                  style: GoogleFonts.outfit(
+                  style: TextStyle(
                     color: theme.textTheme.bodyLarge?.color ??
                         const Color(0xFF212121),
                     fontSize: 16,
@@ -70,7 +69,7 @@ class ReferralTile extends StatelessWidget {
             ),
             Text(
               date,
-              style: GoogleFonts.outfit(
+              style: TextStyle(
                 color:
                     theme.textTheme.bodySmall?.color ?? const Color(0xFF999999),
                 fontSize: 14,
