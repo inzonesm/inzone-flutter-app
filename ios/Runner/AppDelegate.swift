@@ -138,26 +138,26 @@ class NativeAdFactoryExample: NSObject, FLTNativeAdFactory {
             nativeAdView.mediaView = mediaView
             
             if nativeAd.mediaContent != nil && nativeAd.mediaContent.aspectRatio > 0 {
-                let aspectRatio = CGFloat(nativeAd.mediaContent.aspectRatio)
-                
-                NSLayoutConstraint.activate([
-                    mediaView.topAnchor.constraint(equalTo: mediaContainer.topAnchor, constant: 16),
-                    mediaView.leadingAnchor.constraint(equalTo: mediaContainer.leadingAnchor, constant: 16),
-                    mediaView.trailingAnchor.constraint(equalTo: mediaContainer.trailingAnchor, constant: -16),
-                    mediaView.bottomAnchor.constraint(equalTo: mediaContainer.bottomAnchor, constant: -16),
-                    
-                    // Maintain aspect ratio
-                    mediaView.heightAnchor.constraint(equalTo: mediaView.widthAnchor, multiplier: 1 / aspectRatio)
-                ])
-            } else {
-                // fallback (ex: no aspect ratio info)
-                NSLayoutConstraint.activate([
-                    mediaView.topAnchor.constraint(equalTo: mediaContainer.topAnchor, constant: 16),
-                    mediaView.leadingAnchor.constraint(equalTo: mediaContainer.leadingAnchor, constant: 16),
-                    mediaView.trailingAnchor.constraint(equalTo: mediaContainer.trailingAnchor, constant: -16),
-                    mediaView.bottomAnchor.constraint(equalTo: mediaContainer.bottomAnchor, constant: -16)
-                ])
-            }
+    let aspectRatio = CGFloat(nativeAd.mediaContent.aspectRatio)
+    
+    NSLayoutConstraint.activate([
+        mediaView.topAnchor.constraint(equalTo: mediaContainer.topAnchor),
+        mediaView.leadingAnchor.constraint(equalTo: mediaContainer.leadingAnchor),
+        mediaView.trailingAnchor.constraint(equalTo: mediaContainer.trailingAnchor),
+        mediaView.bottomAnchor.constraint(equalTo: mediaContainer.bottomAnchor),
+        
+        // Maintain aspect ratio
+        mediaView.heightAnchor.constraint(equalTo: mediaView.widthAnchor, multiplier: 1 / aspectRatio)
+    ])
+} else {
+    NSLayoutConstraint.activate([
+        mediaView.topAnchor.constraint(equalTo: mediaContainer.topAnchor),
+        mediaView.leadingAnchor.constraint(equalTo: mediaContainer.leadingAnchor),
+        mediaView.trailingAnchor.constraint(equalTo: mediaContainer.trailingAnchor),
+        mediaView.bottomAnchor.constraint(equalTo: mediaContainer.bottomAnchor)
+    ])
+}
+
             
             // Flexible growth
             mediaContainer.setContentHuggingPriority(UILayoutPriority(249), for: .vertical)
