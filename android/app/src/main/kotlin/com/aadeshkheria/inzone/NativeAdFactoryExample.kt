@@ -24,15 +24,21 @@ class NativeAdFactoryExample(private val context: Context) : NativeAdFactory {
         val isDarkMode = (context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
         
         // Make background transparent to inherit card color
+        nativeAdView.layoutParams = android.view.ViewGroup.LayoutParams(
+            android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+            android.view.ViewGroup.LayoutParams.WRAP_CONTENT
+        )
+
         nativeAdView.setBackgroundColor(Color.TRANSPARENT)
-        
+
         // Create main container
         val mainContainer = ConstraintLayout(context)
         mainContainer.id = View.generateViewId()
         mainContainer.layoutParams = ConstraintLayout.LayoutParams(
             ConstraintLayout.LayoutParams.MATCH_PARENT,
-            ConstraintLayout.LayoutParams.MATCH_PARENT
+            ConstraintLayout.LayoutParams.WRAP_CONTENT
         )
+
         nativeAdView.addView(mainContainer)
         
         // Create headline TextView
@@ -42,7 +48,13 @@ class NativeAdFactoryExample(private val context: Context) : NativeAdFactory {
             textSize = 14f
             setTypeface(null, android.graphics.Typeface.BOLD)
             maxLines = 2
-            setTextColor(if (isDarkMode) Color.WHITE else Color.BLACK)
+            val headlineTextColor = if (isDarkMode) {
+                ContextCompat.getColor(context, android.R.color.primary_text_dark)
+            } else {
+                ContextCompat.getColor(context, android.R.color.primary_text_light)
+            }
+            setTextColor(headlineTextColor)
+
             setPadding(32, 32, 32, 8)
         }
         mainContainer.addView(headlineView)
@@ -80,16 +92,27 @@ class NativeAdFactoryExample(private val context: Context) : NativeAdFactory {
                 // layoutParams with dimension ratio
                 val layoutParams = ConstraintLayout.LayoutParams(
                     ConstraintLayout.LayoutParams.MATCH_CONSTRAINT,
-                    0 // very important! use 0 height to apply dimensionRatio
+                    0 // height 0 for ratio
                 )
                 layoutParams.setMargins(48, 24, 48, 24)
-                
-                // Get aspect ratio
-                val aspectRatio = nativeAd.mediaContent?.aspectRatio ?: 1.0f
-                // Apply ratio (format: "W:H" → in this case "1:aspectRatioInverse")
-                layoutParams.dimensionRatio = "H,1:$aspectRatio"
-                
+
+// Convert aspectRatio to integers
+                val aspectRatioFloat = nativeAd.mediaContent?.aspectRatio ?: 1.0f
+                val ratioWidth: Int
+                val ratioHeight: Int
+
+                if (aspectRatioFloat >= 1.0f) {
+                    ratioWidth = (aspectRatioFloat * 1000).toInt()
+                    ratioHeight = 1000
+                } else {
+                    ratioWidth = 1000
+                    ratioHeight = (1000 / aspectRatioFloat).toInt()
+                }
+
+                layoutParams.dimensionRatio = "W,$ratioWidth:$ratioHeight"
+
                 this.layoutParams = layoutParams
+
             }
             mainContainer.addView(mediaView)
             nativeAdView.mediaView = mediaView

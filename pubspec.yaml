@@ -61,7 +61,7 @@ dependencies:
   animated_bottom_navigation_bar: ^1.4.0
   flutter_feather_icons: ^2.0.0
   purchases_flutter: ^8.8.0
-
+  pull_to_refresh_flutter3: ^2.0.2
 
   path_provider: any
   flutter_native_splash: ^2.4.4
@@ -109,12 +109,14 @@ flutter_native_splash:
   color: "#E8F5FE"
   image: assets/splash.png
   color_dark: "#121212"
+  image_dark: assets/splash.png
   android_12:
     color: "#E8F5FE"
     color_dark: "#121212"
-    background_image: assets/splash.png
-    icon_background_color: null     
-    icon_background_color_dark: null
+    image: assets/splash_android_12.png
+    image_dark: assets/splash_android_12.png
+    icon_background_color: "#E8F5FE"
+    icon_background_color_dark: "#121212"
   android: true
   ios: true
   web: false

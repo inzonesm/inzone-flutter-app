@@ -22,12 +22,15 @@ import google_mobile_ads
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
 }
-
 // Native Ad Factory implementation
 class NativeAdFactoryExample: NSObject, FLTNativeAdFactory {
     func createNativeAd(_ nativeAd: NativeAd, customOptions: [AnyHashable: Any]?) -> NativeAdView {
         // Create a simple native ad view
         let nativeAdView = NativeAdView()
+        
+        // Fluid behavior: enable hugging/compression priority
+        nativeAdView.setContentHuggingPriority(UILayoutPriority(251), for: .vertical)
+        nativeAdView.setContentCompressionResistancePriority(UILayoutPriority(751), for: .vertical)
         
         // Make background transparent to inherit card color
         nativeAdView.backgroundColor = UIColor.clear
@@ -51,7 +54,7 @@ class NativeAdFactoryExample: NSObject, FLTNativeAdFactory {
         // Create header container for headline and body text
         let headerContainer = UIView()
         headerContainer.translatesAutoresizingMaskIntoConstraints = false
-        headerContainer.heightAnchor.constraint(equalToConstant: 60).isActive = true
+        // Removed fixed height for fluid behavior
         stackView.addArrangedSubview(headerContainer)
         
         // Create and add the headline label
@@ -60,6 +63,10 @@ class NativeAdFactoryExample: NSObject, FLTNativeAdFactory {
             headlineLabel.font = UIFont.boldSystemFont(ofSize: 14)
             headlineLabel.text = headline
             headlineLabel.numberOfLines = 2
+
+             if #available(iOS 13.0, *) {
+                       nativeAdView.overrideUserInterfaceStyle = .unspecified
+            }    
             
             // Support dark mode for headline text
             if #available(iOS 13.0, *) {
@@ -84,6 +91,10 @@ class NativeAdFactoryExample: NSObject, FLTNativeAdFactory {
                 bodyLabel.font = UIFont.systemFont(ofSize: 14)
                 bodyLabel.text = body
                 bodyLabel.numberOfLines = 2
+
+                if #available(iOS 13.0, *) {
+                       nativeAdView.overrideUserInterfaceStyle = .unspecified
+                }           
                 
                 // Support dark mode for body text
                 if #available(iOS 13.0, *) {
@@ -99,14 +110,19 @@ class NativeAdFactoryExample: NSObject, FLTNativeAdFactory {
                 NSLayoutConstraint.activate([
                     bodyLabel.topAnchor.constraint(equalTo: headlineLabel.bottomAnchor, constant: 2),
                     bodyLabel.leadingAnchor.constraint(equalTo: headerContainer.leadingAnchor, constant: 8),
-                    bodyLabel.trailingAnchor.constraint(equalTo: headerContainer.trailingAnchor, constant: -8)
+                    bodyLabel.trailingAnchor.constraint(equalTo: headerContainer.trailingAnchor, constant: -8),
+                    bodyLabel.bottomAnchor.constraint(equalTo: headerContainer.bottomAnchor, constant: -8)
+                ])
+            } else {
+                // If no body text, anchor headline to bottom
+                NSLayoutConstraint.activate([
+                    headlineLabel.bottomAnchor.constraint(equalTo: headerContainer.bottomAnchor, constant: -8)
                 ])
             }
         }
         
         // Create and add media view if available - takes most of the space
         if nativeAd.mediaContent != nil {
-            // Create a container for the media view with padding
             let mediaContainer = UIView()
             mediaContainer.translatesAutoresizingMaskIntoConstraints = false
             stackView.addArrangedSubview(mediaContainer)
@@ -121,7 +137,6 @@ class NativeAdFactoryExample: NSObject, FLTNativeAdFactory {
             mediaContainer.addSubview(mediaView)
             nativeAdView.mediaView = mediaView
             
-            // Apply constraints with aspect ratio
             if nativeAd.mediaContent != nil && nativeAd.mediaContent.aspectRatio > 0 {
                 let aspectRatio = CGFloat(nativeAd.mediaContent.aspectRatio)
                 
@@ -131,7 +146,7 @@ class NativeAdFactoryExample: NSObject, FLTNativeAdFactory {
                     mediaView.trailingAnchor.constraint(equalTo: mediaContainer.trailingAnchor, constant: -16),
                     mediaView.bottomAnchor.constraint(equalTo: mediaContainer.bottomAnchor, constant: -16),
                     
-                    // Key: maintain aspect ratio
+                    // Maintain aspect ratio
                     mediaView.heightAnchor.constraint(equalTo: mediaView.widthAnchor, multiplier: 1 / aspectRatio)
                 ])
             } else {
@@ -144,7 +159,7 @@ class NativeAdFactoryExample: NSObject, FLTNativeAdFactory {
                 ])
             }
             
-            // Make media container flexible and take most space
+            // Flexible growth
             mediaContainer.setContentHuggingPriority(UILayoutPriority(249), for: .vertical)
             mediaContainer.setContentCompressionResistancePriority(UILayoutPriority(749), for: .vertical)
         }
@@ -152,7 +167,7 @@ class NativeAdFactoryExample: NSObject, FLTNativeAdFactory {
         // Create footer container for CTA button
         let footerContainer = UIView()
         footerContainer.translatesAutoresizingMaskIntoConstraints = false
-        footerContainer.heightAnchor.constraint(equalToConstant: 50).isActive = true
+        // Removed fixed height for fluid behavior
         stackView.addArrangedSubview(footerContainer)
         
         // Create and add the call to action button if available
@@ -173,7 +188,9 @@ class NativeAdFactoryExample: NSObject, FLTNativeAdFactory {
                 ctaButton.trailingAnchor.constraint(equalTo: footerContainer.trailingAnchor, constant: -8),
                 ctaButton.centerYAnchor.constraint(equalTo: footerContainer.centerYAnchor),
                 ctaButton.heightAnchor.constraint(equalToConstant: 36),
-                ctaButton.widthAnchor.constraint(greaterThanOrEqualToConstant: 80)
+                ctaButton.widthAnchor.constraint(greaterThanOrEqualToConstant: 80),
+                ctaButton.topAnchor.constraint(equalTo: footerContainer.topAnchor, constant: 8),
+                ctaButton.bottomAnchor.constraint(equalTo: footerContainer.bottomAnchor, constant: -8)
             ])
         }
         
@@ -181,5 +198,5 @@ class NativeAdFactoryExample: NSObject, FLTNativeAdFactory {
         nativeAdView.nativeAd = nativeAd
         
         return nativeAdView
-  }
+    }
 }
