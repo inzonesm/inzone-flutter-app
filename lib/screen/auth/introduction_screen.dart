@@ -56,7 +56,9 @@ class _IntroductionScreenState extends State<IntroductionScreen> {
     _dismissLoadingDialog();
     if (isProfileCompleted) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        context.go(Routes.home);
+        if (mounted) {
+          context.go(Routes.home);
+        }
       });
     } else {
       WidgetsBinding.instance.addPostFrameCallback((_) {

@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:math';
 
+import 'package:bounce/bounce.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:comment_tree/widgets/comment_tree_widget.dart';
@@ -432,8 +434,6 @@ class _PostCardState extends State<PostCard> {
     final totalMediaCount = validImages.length + validVideos.length;
 
     return GestureDetector(
-      onDoubleTap: handleLike, // Handle like on double tap
-
       child: Padding(
         padding: const EdgeInsets.only(bottom: 20.0),
         child: Container(
@@ -1789,7 +1789,8 @@ class _PostCardState extends State<PostCard> {
                                                 children: [
                                                   FutureBuilder<
                                                       DocumentSnapshot>(
-                                                    future: data.userId.isNotEmpty
+                                                    future: data
+                                                            .userId.isNotEmpty
                                                         ? FirebaseFirestore
                                                             .instance
                                                             .collection(
@@ -1815,11 +1816,11 @@ class _PostCardState extends State<PostCard> {
                                                               null &&
                                                           snapshot
                                                               .data!.exists) {
-                                                        final userData = snapshot
-                                                                .data!
-                                                                .data()
-                                                            as Map<String,
-                                                                dynamic>;
+                                                        final userData =
+                                                            snapshot.data!
+                                                                    .data()
+                                                                as Map<String,
+                                                                    dynamic>;
                                                         username = userData[
                                                                 'username'] ??
                                                             data.author;
@@ -1831,8 +1832,9 @@ class _PostCardState extends State<PostCard> {
                                                             .textTheme
                                                             .bodySmall
                                                             ?.copyWith(
-                                                                fontWeight: FontWeight
-                                                                    .w600,
+                                                                fontWeight:
+                                                                    FontWeight
+                                                                        .w600,
                                                                 color: Theme.of(
                                                                         context)
                                                                     .textTheme
@@ -2034,40 +2036,64 @@ class _DynamicPageViewState extends State<_DynamicPageView> {
 
                   return ClipRRect(
                     borderRadius: BorderRadius.circular(12),
-                    child: Image(
-                      image: cachedImage!,
-                      fit: BoxFit.contain,
-                      loadingBuilder: (context, child, loadingProgress) {
-                        if (loadingProgress == null) {
-                          // 로딩이 완료된 경우 캐시된 높이가 없으면 높이 계산
-                          if (!_cachedImageHeights.containsKey(imageUrl)) {
-                            cachedImage!
-                                .resolve(const ImageConfiguration())
-                                .addListener(
-                                  ImageStreamListener((imageInfo, _) {
-                                    double calculatedHeight =
-                                        imageInfo.image.height *
-                                            (constraints.maxWidth /
-                                                imageInfo.image.width);
-                                    _updateHeightOnce(
-                                        imageUrl, index, calculatedHeight);
-                                  }, onError: (error, stackTrace) {
-                                    debugPrint('Image load error: $error');
-                                  }),
-                                );
-                          }
-                          return child;
-                        } else if (_cachedImageHeights.containsKey(imageUrl)) {
-                          // 이미지 로딩 중이지만 이미 높이 알고 있는 경우 이전 이미지 표시
-                          return child;
-                        } else {
-                          return Center(child: ImageLoading(context));
+                    child: GestureDetector(
+                      onTap: () {
+                        // Open the image in fullscreen
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (context) =>
+                                _FullScreenImageViewer(imageUrl: imageUrl),
+                          ),
+                        );
+                      },
+                      onDoubleTap: () {
+                        // Find parent PostCard state and trigger like
+                        final PostCard postCard =
+                            context.findAncestorWidgetOfExactType<PostCard>()!;
+                        final _PostCardState? postCardState =
+                            context.findAncestorStateOfType<_PostCardState>();
+                        if (postCardState != null) {
+                          postCardState.handleLike();
+                          HapticFeedback
+                              .mediumImpact(); // Add haptic feedback for better UX
                         }
                       },
-                      errorBuilder: (context, error, stackTrace) {
-                        debugPrint("Failed to load image: $imageUrl");
-                        return const Icon(Icons.broken_image, size: 48);
-                      },
+                      child: Image(
+                        image: cachedImage!,
+                        fit: BoxFit.contain,
+                        loadingBuilder: (context, child, loadingProgress) {
+                          if (loadingProgress == null) {
+                            // 로딩이 완료된 경우 캐시된 높이가 없으면 높이 계산
+                            if (!_cachedImageHeights.containsKey(imageUrl)) {
+                              cachedImage!
+                                  .resolve(const ImageConfiguration())
+                                  .addListener(
+                                    ImageStreamListener((imageInfo, _) {
+                                      double calculatedHeight =
+                                          imageInfo.image.height *
+                                              (constraints.maxWidth /
+                                                  imageInfo.image.width);
+                                      _updateHeightOnce(
+                                          imageUrl, index, calculatedHeight);
+                                    }, onError: (error, stackTrace) {
+                                      debugPrint('Image load error: $error');
+                                    }),
+                                  );
+                            }
+                            return child;
+                          } else if (_cachedImageHeights
+                              .containsKey(imageUrl)) {
+                            // 이미지 로딩 중이지만 이미 높이 알고 있는 경우 이전 이미지 표시
+                            return child;
+                          } else {
+                            return Center(child: ImageLoading(context));
+                          }
+                        },
+                        errorBuilder: (context, error, stackTrace) {
+                          debugPrint("Failed to load image: $imageUrl");
+                          return const Icon(Icons.broken_image, size: 48);
+                        },
+                      ),
                     ),
                   );
                 },
@@ -2102,6 +2128,15 @@ class _DynamicPageViewState extends State<_DynamicPageView> {
                         double calculatedHeight = width / aspectRatio;
                         updateVideoHeight(index, calculatedHeight);
                       },
+                      onDoubleTap: () {
+                        // Find parent PostCard state and trigger like
+                        final _PostCardState? postCardState =
+                            context.findAncestorStateOfType<_PostCardState>();
+                        if (postCardState != null) {
+                          postCardState.handleLike();
+                          HapticFeedback.mediumImpact(); // Add haptic feedback
+                        }
+                      },
                     ),
                   );
                 },
@@ -2120,12 +2155,14 @@ class _VideoWidgetWrapper extends StatefulWidget {
   final double maxWidth;
   final int index;
   final Function(double) onAspectRatioUpdated;
+  final Function() onDoubleTap;
 
   const _VideoWidgetWrapper({
     required this.videoUrl,
     required this.maxWidth,
     required this.index,
     required this.onAspectRatioUpdated,
+    required this.onDoubleTap,
   });
 
   @override
@@ -2137,13 +2174,176 @@ class _VideoWidgetWrapperState extends State<_VideoWidgetWrapper> {
 
   @override
   Widget build(BuildContext context) {
-    return VideoWidget(
-      key: _videoKey,
-      videoUrl: widget.videoUrl,
-      onAspectRatioUpdated: (aspectRatio) {
-        // When aspect ratio changes, notify parent
-        widget.onAspectRatioUpdated(aspectRatio);
+    return GestureDetector(
+      onDoubleTap: widget.onDoubleTap,
+      child: VideoWidget(
+        key: _videoKey,
+        videoUrl: widget.videoUrl,
+        onAspectRatioUpdated: (aspectRatio) {
+          // When aspect ratio changes, notify parent
+          widget.onAspectRatioUpdated(aspectRatio);
+        },
+      ),
+    );
+  }
+}
+
+// Fullscreen image viewer with proper orientation handling
+class _FullScreenImageViewer extends StatefulWidget {
+  final String imageUrl;
+
+  const _FullScreenImageViewer({required this.imageUrl});
+
+  @override
+  _FullScreenImageViewerState createState() => _FullScreenImageViewerState();
+}
+
+class _FullScreenImageViewerState extends State<_FullScreenImageViewer> {
+  bool _isLoading = true;
+  double? _imageWidth;
+  double? _imageHeight;
+  bool _isFullscreen = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadImageInfo();
+  }
+
+  Future<void> _loadImageInfo() async {
+    final imageProvider = NetworkImage(widget.imageUrl);
+    final completer = Completer<ImageInfo>();
+
+    final imageStream = imageProvider.resolve(const ImageConfiguration());
+    final listener = ImageStreamListener(
+      (ImageInfo info, bool _) {
+        completer.complete(info);
       },
+      onError: (dynamic exception, StackTrace? stackTrace) {
+        completer.completeError(exception);
+      },
+    );
+
+    imageStream.addListener(listener);
+
+    try {
+      final imageInfo = await completer.future;
+      setState(() {
+        _imageWidth = imageInfo.image.width.toDouble();
+        _imageHeight = imageInfo.image.height.toDouble();
+        _isLoading = false;
+      });
+    } catch (e) {
+      debugPrint('Error loading image: $e');
+      setState(() {
+        _isLoading = false;
+      });
+    } finally {
+      imageStream.removeListener(listener);
+    }
+  }
+
+  void _toggleFullscreen() {
+    setState(() {
+      _isFullscreen = !_isFullscreen;
+    });
+
+    if (_isFullscreen) {
+      // Always use portrait orientation for fullscreen
+      SystemChrome.setPreferredOrientations([
+        DeviceOrientation.portraitUp,
+      ]);
+
+      // Hide system UI
+      SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+    } else {
+      // Exit fullscreen - reset to portrait
+      SystemChrome.setPreferredOrientations([
+        DeviceOrientation.portraitUp,
+      ]);
+
+      // Show system UI
+      SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+    }
+  }
+
+  @override
+  void dispose() {
+    // Make sure to reset orientation and UI when viewer is closed
+    if (_isFullscreen) {
+      SystemChrome.setPreferredOrientations([
+        DeviceOrientation.portraitUp,
+      ]);
+      SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+    }
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const Scaffold(
+        backgroundColor: Colors.black,
+        body: Center(
+          child: CircularProgressIndicator(color: Colors.white),
+        ),
+      );
+    }
+
+    final Size screenSize = MediaQuery.of(context).size;
+
+    Widget imageWidget = Image.network(
+      widget.imageUrl,
+      fit: BoxFit.contain,
+      loadingBuilder: (context, child, loadingProgress) {
+        if (loadingProgress == null) return child;
+        return Center(
+          child: CircularProgressIndicator(
+            value: loadingProgress.expectedTotalBytes != null
+                ? loadingProgress.cumulativeBytesLoaded /
+                    loadingProgress.expectedTotalBytes!
+                : null,
+            color: Colors.white,
+          ),
+        );
+      },
+      errorBuilder: (context, error, stackTrace) {
+        return const Center(
+          child: Icon(Icons.broken_image, size: 64, color: Colors.white),
+        );
+      },
+    );
+
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: _isFullscreen
+          ? null
+          : AppBar(
+              backgroundColor: Colors.black,
+              elevation: 0,
+              iconTheme: const IconThemeData(color: Colors.white),
+            ),
+      body: GestureDetector(
+        onTap: _toggleFullscreen,
+        child: _isFullscreen
+            ? Container(
+                width: screenSize.width,
+                height: screenSize.height,
+                color: Colors.black,
+                child: SafeArea(
+                  child: Center(child: imageWidget),
+                ),
+              )
+            : Center(child: imageWidget),
+      ),
+      floatingActionButton: !_isFullscreen
+          ? FloatingActionButton(
+              onPressed: _toggleFullscreen,
+              backgroundColor: Colors.black.withOpacity(0.7),
+              mini: true,
+              child: const Icon(Icons.fullscreen, color: Colors.white),
+            )
+          : null,
     );
   }
 }
