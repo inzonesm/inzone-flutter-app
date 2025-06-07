@@ -1,4 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="ic_launcher_background">#000000</color>
+    
+    <!-- Light Mode Colors -->
+    <color name="ad_background_light">#FFFFFF</color>
+    <color name="ad_text_primary_light">#212121</color>
+    <color name="ad_text_secondary_light">#757575</color>
+    <color name="ad_media_background_light">#F5F5F5</color>
+    <color name="ad_button_background_light">#FF8400</color>
+    <color name="ad_button_text_light">#FFFFFF</color>
 </resources>

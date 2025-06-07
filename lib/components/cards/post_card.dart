@@ -201,8 +201,8 @@ class _PostCardState extends State<PostCard> {
 
     _nativeAd = NativeAd(
       adUnitId: adUnitId,
-      factoryId:
-          'adFactoryExample', // Must match the factory ID registered in native code
+      factoryId: 'listTileMedium',
+      request: const AdRequest(),
       listener: NativeAdListener(
         onAdLoaded: (ad) {
           debugPrint('Native ad loaded');
@@ -222,7 +222,6 @@ class _PostCardState extends State<PostCard> {
           debugPrint('Native ad impression');
         },
       ),
-      request: const AdRequest(),
     );
 
     _nativeAd!.load();
