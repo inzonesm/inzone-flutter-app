@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Theme-aware colors that will automatically switch between light/dark -->
+    <color name="ad_background">@color/ad_background_light</color>
+    <color name="ad_text_primary">@color/ad_text_primary_light</color>
+    <color name="ad_text_secondary">@color/ad_text_secondary_light</color>
+    <color name="ad_media_background">@color/ad_media_background_light</color>
+    <color name="ad_button_background">@color/ad_button_background_light</color>
+    <color name="ad_button_text">@color/ad_button_text_light</color>
+</resources> 

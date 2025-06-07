@@ -341,9 +341,8 @@ class _VideoWidgetState extends State<VideoWidget> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
-    final double width = MediaQuery.of(context).size.width - 60;
-    // 기본 비율을 정사각형(1:1)으로 설정
-    double aspectRatio = 1;
+    // Calculate aspect ratio from the player state
+    double aspectRatio = 16 / 9; // Default aspect ratio
 
     if (_mediaKitPlayer != null) {
       final videoWidth = _mediaKitPlayer!.state.width?.toDouble();
@@ -353,12 +352,10 @@ class _VideoWidgetState extends State<VideoWidget> with WidgetsBindingObserver {
           videoHeight != null &&
           videoWidth > 0 &&
           videoHeight > 0) {
-        // 실제 비디오 치수 사용
+        // Use actual video dimensions
         aspectRatio = videoWidth / videoHeight;
-        // debugPrint(
-        //     'Video dimensions: ${videoWidth}x$videoHeight, aspect ratio: $aspectRatio');
 
-        // 부모에게 종횡비 정보 전달
+        // Notify parent of aspect ratio update if needed
         if (widget.onAspectRatioUpdated != null) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (mounted) {
@@ -366,91 +363,38 @@ class _VideoWidgetState extends State<VideoWidget> with WidgetsBindingObserver {
             }
           });
         }
-
-        // 종횡비 알림 발송
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) {
-            VideoAspectRatioNotification(aspectRatio).dispatch(context);
-          }
-        });
       }
     }
 
-    // Show loading indicator
-    if (_isLoading) {
-      return Container(
-        width: width,
-        height: width / aspectRatio,
+    // Determine the actual widget size based on fullscreen state
+    Widget videoWidget;
+    if (_isFullscreen) {
+      // In fullscreen, take up the entire screen in portrait mode
+      videoWidget = Container(
+        width: MediaQuery.of(context).size.width,
+        height: MediaQuery.of(context).size.height,
         color: Colors.black,
-        child: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const CircularProgressIndicator(),
-              const SizedBox(height: 10),
-              const Text(
-                'Loading video...',
-                style: TextStyle(color: Colors.white),
-              ),
-              const SizedBox(height: 20),
-              TextButton(
-                onPressed: () {
-                  debugPrint('Retry button pressed');
-                  _initializeVideo();
-                },
-                child:
-                    const Text('Retry', style: TextStyle(color: Colors.white)),
-              ),
-            ],
+        child: SafeArea(
+          child: Center(
+            child: AspectRatio(
+              aspectRatio: aspectRatio,
+              child: _mediaKitVideoController != null
+                  ? Video(controller: _mediaKitVideoController!)
+                  : Container(color: Colors.black),
+            ),
           ),
         ),
       );
-    }
-
-    // Show error message if video is not playable
-    if (!_isInitialized || !_isPlayable) {
-      debugPrint(
-          'Building error view - isInitialized: $_isInitialized, isPlayable: $_isPlayable');
-      return Container(
-        width: width,
-        height: width / aspectRatio,
-        color: Colors.grey[300],
-        child: Center(
-          child: Text(
-            _errorMessage,
-            style: const TextStyle(color: Colors.red),
-            textAlign: TextAlign.center,
-          ),
-        ),
-      );
-    }
-
-    // Display video with MediaKit's controls
-    return VisibilityDetector(
-      key: Key(widget.videoUrl),
-      onVisibilityChanged: (info) {
-        if (!mounted) return;
-
-        if (info.visibleFraction > 0.7) {
-          // Auto-play when video becomes sufficiently visible
-          if (_mediaKitPlayer != null) {
-            _mediaKitPlayer!.play();
-            // Ensure volume is set according to global mute state when playing
-            _mediaKitPlayer!.setVolume(VideoMuteManager.isMuted ? 0 : 100);
-          }
-        } else if (info.visibleFraction == 0) {
-          // Pause when video is not visible
-          if (_mediaKitPlayer != null && _mediaKitPlayer!.state.playing) {
-            _mediaKitPlayer!.pause();
-          }
-        }
-      },
-      child: AspectRatio(
+    } else {
+      // Regular display with aspect ratio
+      videoWidget = AspectRatio(
         aspectRatio: aspectRatio,
         child: Stack(
           children: [
             // The video player
-            Video(controller: _mediaKitVideoController!),
+            _mediaKitVideoController != null
+                ? Video(controller: _mediaKitVideoController!)
+                : Container(color: Colors.black),
 
             // Custom overlay for capturing tap to pause/play
             Positioned.fill(
@@ -553,53 +497,53 @@ class _VideoWidgetState extends State<VideoWidget> with WidgetsBindingObserver {
               ),
             ),
 
-            // Full screen button
-            Positioned(
-              bottom: 10,
-              right: 56, // Position it to the left of the mute button
-              child: GestureDetector(
-                onTap: () {
-                  // Toggle fullscreen
-                  if (_mediaKitPlayer != null) {
-                    setState(() {
-                      _isFullscreen = !_isFullscreen;
-                    });
+            // // Full screen button
+            // Positioned(
+            //   bottom: 10,
+            //   right: 56, // Position it to the left of the mute button
+            //   child: GestureDetector(
+            //     onTap: () {
+            //       // Toggle fullscreen
+            //       if (_mediaKitPlayer != null) {
+            //         setState(() {
+            //           _isFullscreen = !_isFullscreen;
+            //         });
 
-                    if (_isFullscreen) {
-                      // Enter fullscreen mode
-                      SystemChrome.setPreferredOrientations([
-                        DeviceOrientation.landscapeLeft,
-                        DeviceOrientation.landscapeRight,
-                      ]);
-                      SystemChrome.setEnabledSystemUIMode(
-                        SystemUiMode.immersive,
-                      );
-                    } else {
-                      // Exit fullscreen mode
-                      SystemChrome.setPreferredOrientations([
-                        DeviceOrientation.portraitUp,
-                      ]);
-                      SystemChrome.setEnabledSystemUIMode(
-                        SystemUiMode.edgeToEdge,
-                      );
-                    }
-                  }
-                },
-                child: Container(
-                  width: 36,
-                  height: 36,
-                  decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.6),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    _isFullscreen ? Icons.fullscreen_exit : Icons.fullscreen,
-                    color: Colors.white,
-                    size: 20,
-                  ),
-                ),
-              ),
-            ),
+            //         if (_isFullscreen) {
+            //           // Enter fullscreen mode - always use portrait orientation
+            //           SystemChrome.setPreferredOrientations([
+            //             DeviceOrientation.portraitUp,
+            //           ]);
+
+            //           SystemChrome.setEnabledSystemUIMode(
+            //             SystemUiMode.immersiveSticky,
+            //           );
+            //         } else {
+            //           // Exit fullscreen mode
+            //           SystemChrome.setPreferredOrientations([
+            //             DeviceOrientation.portraitUp,
+            //           ]);
+            //           SystemChrome.setEnabledSystemUIMode(
+            //             SystemUiMode.edgeToEdge,
+            //           );
+            //         }
+            //       }
+            //     },
+            //     child: Container(
+            //       width: 36,
+            //       height: 36,
+            //       decoration: BoxDecoration(
+            //         color: Colors.black.withOpacity(0.6),
+            //         shape: BoxShape.circle,
+            //       ),
+            //       child: Icon(
+            //         _isFullscreen ? Icons.fullscreen_exit : Icons.fullscreen,
+            //         color: Colors.white,
+            //         size: 20,
+            //       ),
+            //     ),
+            //   ),
+            // ),
 
             // Timestamp overlay during scrubbing
             if (_isScrubbing)
@@ -719,8 +663,59 @@ class _VideoWidgetState extends State<VideoWidget> with WidgetsBindingObserver {
             ),
           ],
         ),
-      ),
-    );
+      );
+    }
+
+    // Show loading indicator
+    if (_isLoading) {
+      return Container(
+        width: MediaQuery.of(context).size.width,
+        height: MediaQuery.of(context).size.height,
+        color: Colors.black,
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const CircularProgressIndicator(),
+              const SizedBox(height: 10),
+              const Text(
+                'Loading video...',
+                style: TextStyle(color: Colors.white),
+              ),
+              const SizedBox(height: 20),
+              TextButton(
+                onPressed: () {
+                  debugPrint('Retry button pressed');
+                  _initializeVideo();
+                },
+                child:
+                    const Text('Retry', style: TextStyle(color: Colors.white)),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // Show error message if video is not playable
+    if (!_isInitialized || !_isPlayable) {
+      debugPrint(
+          'Building error view - isInitialized: $_isInitialized, isPlayable: $_isPlayable');
+      return Container(
+        width: MediaQuery.of(context).size.width,
+        height: MediaQuery.of(context).size.height,
+        color: Colors.grey[300],
+        child: Center(
+          child: Text(
+            _errorMessage,
+            style: const TextStyle(color: Colors.red),
+            textAlign: TextAlign.center,
+          ),
+        ),
+      );
+    }
+
+    return videoWidget;
   }
 
   @override

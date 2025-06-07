@@ -19,4 +19,10 @@
     <style name="NormalTheme" parent="@android:style/Theme.Light.NoTitleBar">
         <item name="android:windowBackground">?android:colorBackground</item>
     </style>
+    
+    <!-- Style for rounded MediaView -->
+    <style name="RoundedMediaView">
+        <item name="android:background">@drawable/rounded_media</item>
+        <item name="android:clipToOutline">true</item>
+    </style>
 </resources>

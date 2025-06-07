@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Theme-aware colors for dark mode -->
+    <color name="ad_background">@color/ad_background_dark</color>
+    <color name="ad_text_primary">@color/ad_text_primary_dark</color>
+    <color name="ad_text_secondary">@color/ad_text_secondary_dark</color>
+    <color name="ad_media_background">@color/ad_media_background_dark</color>
+    <color name="ad_button_background">@color/ad_button_background_dark</color>
+    <color name="ad_button_text">@color/ad_button_text_dark</color>
+</resources> 

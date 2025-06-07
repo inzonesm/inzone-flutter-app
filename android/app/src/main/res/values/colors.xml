@@ -7,6 +7,14 @@
     <color name="ad_text_primary_light">#212121</color>
     <color name="ad_text_secondary_light">#757575</color>
     <color name="ad_media_background_light">#F5F5F5</color>
-    <color name="ad_button_background_light">#FF8400</color>
+    <color name="ad_button_background_light">#3F51B5</color>
     <color name="ad_button_text_light">#FFFFFF</color>
+    
+    <!-- Default declarations for dark mode colors to prevent crashes -->
+    <color name="ad_background_dark">#121212</color>
+    <color name="ad_text_primary_dark">#FFFFFF</color>
+    <color name="ad_text_secondary_dark">#B0B0B0</color>
+    <color name="ad_media_background_dark">#1F1F1F</color>
+    <color name="ad_button_background_dark">#3F51B5</color>
+    <color name="ad_button_text_dark">#FFFFFF</color>
 </resources>
