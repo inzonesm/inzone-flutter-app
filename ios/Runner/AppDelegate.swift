@@ -5,22 +5,22 @@ import google_mobile_ads
 
 @main
 @objc class AppDelegate: FlutterAppDelegate {
-  override func application(
-    _ application: UIApplication,
-    didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
-  ) -> Bool {
-    GeneratedPluginRegistrant.register(with: self)
-    
-    // Register the native ad factory
-    let factory = NativeAdFactoryExample()
-    FLTGoogleMobileAdsPlugin.registerNativeAdFactory(
-        self, 
-        factoryId: "adFactoryExample", 
-        nativeAdFactory: factory
-    )
-    
-    return super.application(application, didFinishLaunchingWithOptions: launchOptions)
-  }
+    override func application(
+        _ application: UIApplication,
+        didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
+    ) -> Bool {
+        GeneratedPluginRegistrant.register(with: self)
+        
+        // Register the native ad factory
+        let factory = NativeAdFactoryExample()
+        FLTGoogleMobileAdsPlugin.registerNativeAdFactory(
+            self,
+            factoryId: "adFactoryExample",
+            nativeAdFactory: factory
+        )
+        
+        return super.application(application, didFinishLaunchingWithOptions: launchOptions)
+    }
 }
 // Native Ad Factory implementation
 class NativeAdFactoryExample: NSObject, FLTNativeAdFactory {
@@ -35,27 +35,30 @@ class NativeAdFactoryExample: NSObject, FLTNativeAdFactory {
         // Make background transparent to inherit card color
         nativeAdView.backgroundColor = UIColor.clear
         
-        // Set up the ad view with a simple layout - no padding
+        // Set up the ad view with a simple layout - left aligned with small margin
         let stackView = UIStackView()
         stackView.axis = .vertical
-        stackView.spacing = 0
+        stackView.spacing = 4 // Reduced spacing between components
         stackView.distribution = .fill
+        stackView.alignment = .leading // Left alignment instead of center
         stackView.translatesAutoresizingMaskIntoConstraints = false
         nativeAdView.addSubview(stackView)
         
-        // Setup constraints for the stack view - no padding
+        // Setup constraints for the stack view with padding
         NSLayoutConstraint.activate([
-            stackView.topAnchor.constraint(equalTo: nativeAdView.topAnchor),
-            stackView.leadingAnchor.constraint(equalTo: nativeAdView.leadingAnchor),
-            stackView.trailingAnchor.constraint(equalTo: nativeAdView.trailingAnchor),
-            stackView.bottomAnchor.constraint(equalTo: nativeAdView.bottomAnchor)
+            stackView.topAnchor.constraint(equalTo: nativeAdView.topAnchor, constant: 8),
+            stackView.leadingAnchor.constraint(equalTo: nativeAdView.leadingAnchor, constant: 12), // Small left margin
+            stackView.trailingAnchor.constraint(equalTo: nativeAdView.trailingAnchor, constant: -8),
+            stackView.bottomAnchor.constraint(equalTo: nativeAdView.bottomAnchor, constant: -8)
         ])
         
         // Create header container for headline and body text
         let headerContainer = UIView()
         headerContainer.translatesAutoresizingMaskIntoConstraints = false
-        // Removed fixed height for fluid behavior
         stackView.addArrangedSubview(headerContainer)
+        
+        // Ensure header container takes full width
+        headerContainer.widthAnchor.constraint(equalTo: stackView.widthAnchor).isActive = true
         
         // Create and add the headline label
         if let headline = nativeAd.headline {
@@ -63,10 +66,11 @@ class NativeAdFactoryExample: NSObject, FLTNativeAdFactory {
             headlineLabel.font = UIFont.boldSystemFont(ofSize: 14)
             headlineLabel.text = headline
             headlineLabel.numberOfLines = 2
-
-             if #available(iOS 13.0, *) {
-                       nativeAdView.overrideUserInterfaceStyle = .unspecified
-            }    
+            headlineLabel.textAlignment = .left // Left text alignment
+            
+            if #available(iOS 13.0, *) {
+                nativeAdView.overrideUserInterfaceStyle = .unspecified
+            }
             
             // Support dark mode for headline text
             if #available(iOS 13.0, *) {
@@ -78,11 +82,11 @@ class NativeAdFactoryExample: NSObject, FLTNativeAdFactory {
             headerContainer.addSubview(headlineLabel)
             nativeAdView.headlineView = headlineLabel
             
-            // Position headline at top of header container
+            // Position headline at top of header container with left alignment and small margin
             NSLayoutConstraint.activate([
-                headlineLabel.topAnchor.constraint(equalTo: headerContainer.topAnchor, constant: 8),
-                headlineLabel.leadingAnchor.constraint(equalTo: headerContainer.leadingAnchor, constant: 8),
-                headlineLabel.trailingAnchor.constraint(equalTo: headerContainer.trailingAnchor, constant: -8)
+                headlineLabel.topAnchor.constraint(equalTo: headerContainer.topAnchor, constant: 4),
+                headlineLabel.leadingAnchor.constraint(equalTo: headerContainer.leadingAnchor, constant: 4),
+                headlineLabel.trailingAnchor.constraint(equalTo: headerContainer.trailingAnchor, constant: -4)
             ])
             
             // Create and add the body text if available
@@ -91,10 +95,11 @@ class NativeAdFactoryExample: NSObject, FLTNativeAdFactory {
                 bodyLabel.font = UIFont.systemFont(ofSize: 14)
                 bodyLabel.text = body
                 bodyLabel.numberOfLines = 2
-
+                bodyLabel.textAlignment = .left // Left text alignment
+                
                 if #available(iOS 13.0, *) {
-                       nativeAdView.overrideUserInterfaceStyle = .unspecified
-                }           
+                    nativeAdView.overrideUserInterfaceStyle = .unspecified
+                }
                 
                 // Support dark mode for body text
                 if #available(iOS 13.0, *) {
@@ -106,17 +111,17 @@ class NativeAdFactoryExample: NSObject, FLTNativeAdFactory {
                 headerContainer.addSubview(bodyLabel)
                 nativeAdView.bodyView = bodyLabel
                 
-                // Position body text below headline
+                // Position body text below headline with minimal spacing
                 NSLayoutConstraint.activate([
-                    bodyLabel.topAnchor.constraint(equalTo: headlineLabel.bottomAnchor, constant: 2),
-                    bodyLabel.leadingAnchor.constraint(equalTo: headerContainer.leadingAnchor, constant: 8),
-                    bodyLabel.trailingAnchor.constraint(equalTo: headerContainer.trailingAnchor, constant: -8),
-                    bodyLabel.bottomAnchor.constraint(equalTo: headerContainer.bottomAnchor, constant: -8)
+                    bodyLabel.topAnchor.constraint(equalTo: headlineLabel.bottomAnchor, constant: 0), // No spacing between headline and body
+                    bodyLabel.leadingAnchor.constraint(equalTo: headerContainer.leadingAnchor, constant: 4),
+                    bodyLabel.trailingAnchor.constraint(equalTo: headerContainer.trailingAnchor, constant: -4),
+                    bodyLabel.bottomAnchor.constraint(equalTo: headerContainer.bottomAnchor, constant: -4)
                 ])
             } else {
                 // If no body text, anchor headline to bottom
                 NSLayoutConstraint.activate([
-                    headlineLabel.bottomAnchor.constraint(equalTo: headerContainer.bottomAnchor, constant: -8)
+                    headlineLabel.bottomAnchor.constraint(equalTo: headerContainer.bottomAnchor, constant: -4)
                 ])
             }
         }
@@ -130,69 +135,36 @@ class NativeAdFactoryExample: NSObject, FLTNativeAdFactory {
             let mediaView = MediaView()
             mediaView.translatesAutoresizingMaskIntoConstraints = false
             mediaView.mediaContent = nativeAd.mediaContent
-            mediaView.contentMode = .scaleAspectFill
+            mediaView.contentMode = .scaleAspectFit // Use scaleAspectFit to ensure content is not cut off
             mediaView.clipsToBounds = true
             mediaView.layer.cornerRadius = 12
             mediaView.layer.masksToBounds = true
             mediaContainer.addSubview(mediaView)
             nativeAdView.mediaView = mediaView
             
-            if nativeAd.mediaContent != nil && nativeAd.mediaContent.aspectRatio > 0 {
-    let aspectRatio = CGFloat(nativeAd.mediaContent.aspectRatio)
-    
-    NSLayoutConstraint.activate([
-        mediaView.topAnchor.constraint(equalTo: mediaContainer.topAnchor),
-        mediaView.leadingAnchor.constraint(equalTo: mediaContainer.leadingAnchor),
-        mediaView.trailingAnchor.constraint(equalTo: mediaContainer.trailingAnchor),
-        mediaView.bottomAnchor.constraint(equalTo: mediaContainer.bottomAnchor),
-        
-        // Maintain aspect ratio
-        mediaView.heightAnchor.constraint(equalTo: mediaView.widthAnchor, multiplier: 1 / aspectRatio)
-    ])
-} else {
-    NSLayoutConstraint.activate([
-        mediaView.topAnchor.constraint(equalTo: mediaContainer.topAnchor),
-        mediaView.leadingAnchor.constraint(equalTo: mediaContainer.leadingAnchor),
-        mediaView.trailingAnchor.constraint(equalTo: mediaContainer.trailingAnchor),
-        mediaView.bottomAnchor.constraint(equalTo: mediaContainer.bottomAnchor)
-    ])
-}
-
-            
-            // Flexible growth
-            mediaContainer.setContentHuggingPriority(UILayoutPriority(249), for: .vertical)
-            mediaContainer.setContentCompressionResistancePriority(UILayoutPriority(749), for: .vertical)
-        }
-        
-        // Create footer container for CTA button
-        let footerContainer = UIView()
-        footerContainer.translatesAutoresizingMaskIntoConstraints = false
-        // Removed fixed height for fluid behavior
-        stackView.addArrangedSubview(footerContainer)
-        
-        // Create and add the call to action button if available
-        if let callToAction = nativeAd.callToAction, !callToAction.isEmpty {
-            let ctaButton = UIButton(type: .system)
-            ctaButton.setTitle(callToAction, for: .normal)
-            ctaButton.setTitleColor(.white, for: .normal)
-            ctaButton.titleLabel?.font = UIFont.boldSystemFont(ofSize: 12)
-            ctaButton.backgroundColor = UIColor(red: 0.259, green: 0.522, blue: 0.957, alpha: 1.0) // #4286F4
-            ctaButton.layer.cornerRadius = 6
-            ctaButton.contentEdgeInsets = UIEdgeInsets(top: 8, left: 16, bottom: 8, right: 16)
-            ctaButton.translatesAutoresizingMaskIntoConstraints = false
-            footerContainer.addSubview(ctaButton)
-            nativeAdView.callToActionView = ctaButton
-            
-            // Position CTA button on the right
+            // Center the media view horizontally but keep it top-aligned
             NSLayoutConstraint.activate([
-                ctaButton.trailingAnchor.constraint(equalTo: footerContainer.trailingAnchor, constant: -8),
-                ctaButton.centerYAnchor.constraint(equalTo: footerContainer.centerYAnchor),
-                ctaButton.heightAnchor.constraint(equalToConstant: 36),
-                ctaButton.widthAnchor.constraint(greaterThanOrEqualToConstant: 80),
-                ctaButton.topAnchor.constraint(equalTo: footerContainer.topAnchor, constant: 8),
-                ctaButton.bottomAnchor.constraint(equalTo: footerContainer.bottomAnchor, constant: -8)
+                mediaView.centerXAnchor.constraint(equalTo: mediaContainer.centerXAnchor),
+                mediaView.topAnchor.constraint(equalTo: mediaContainer.topAnchor),
+                mediaView.leadingAnchor.constraint(equalTo: mediaContainer.leadingAnchor),
+                mediaView.trailingAnchor.constraint(equalTo: mediaContainer.trailingAnchor),
+                mediaView.bottomAnchor.constraint(equalTo: mediaContainer.bottomAnchor)
             ])
+            
+            // Ensure media container takes full width 
+            mediaContainer.widthAnchor.constraint(equalTo: stackView.widthAnchor).isActive = true
+            
+            if nativeAd.mediaContent != nil && nativeAd.mediaContent.aspectRatio > 0 {
+                let aspectRatio = CGFloat(nativeAd.mediaContent.aspectRatio)
+                // Set height based on aspect ratio to maintain proportions
+                mediaContainer.heightAnchor.constraint(equalTo: mediaContainer.widthAnchor, multiplier: 1 / aspectRatio).isActive = true
+            } else {
+                // Fallback minimum height if aspect ratio is not available
+                mediaContainer.heightAnchor.constraint(greaterThanOrEqualToConstant: 120).isActive = true
+            }
         }
+        
+        // No CTA button as requested
         
         // Associate the native ad with the view
         nativeAdView.nativeAd = nativeAd
