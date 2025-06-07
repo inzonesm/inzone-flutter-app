@@ -34,10 +34,9 @@ class InZoneDatabase {
     if (page != null) {
       if (page != 0) {
         url =
-            'https://inzoneapi-912424781531.us-central1.run.app/feed/posts-flow?user_id=${FirebaseAuth.instance.currentUser!.uid}&page=$page';
+            '$url?user_id=${FirebaseAuth.instance.currentUser!.uid}&page=$page';
       } else {
-        url =
-            'https://inzoneapi-912424781531.us-central1.run.app/feed/posts-flow?user_id=${FirebaseAuth.instance.currentUser!.uid}&page=1';
+        url = '$url?user_id=${FirebaseAuth.instance.currentUser!.uid}&page=1';
       }
     }
 
