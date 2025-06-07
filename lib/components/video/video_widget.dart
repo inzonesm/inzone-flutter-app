@@ -58,7 +58,7 @@ class VideoWidget extends StatefulWidget {
   _VideoWidgetState createState() => _VideoWidgetState();
 }
 
-class _VideoWidgetState extends State<VideoWidget> {
+class _VideoWidgetState extends State<VideoWidget> with WidgetsBindingObserver {
   Player? _mediaKitPlayer;
   VideoController? _mediaKitVideoController;
   bool _isInitialized = false;
@@ -77,6 +77,9 @@ class _VideoWidgetState extends State<VideoWidget> {
   bool _showPlayPauseButton = true;
   Timer? _hideControlsTimer;
 
+  // Track fullscreen state
+  bool _isFullscreen = false;
+
   // Subscription to mute state changes
   StreamSubscription? _muteSubscription;
   StreamSubscription? _positionSubscription;
@@ -84,6 +87,9 @@ class _VideoWidgetState extends State<VideoWidget> {
   @override
   void initState() {
     super.initState();
+
+    // Register this object as an observer for app lifecycle changes
+    WidgetsBinding.instance.addObserver(this);
 
     // 이미 캐시된 플레이어가 있는지 확인
     if (_cachedPlayers.containsKey(widget.videoUrl) &&
@@ -143,6 +149,32 @@ class _VideoWidgetState extends State<VideoWidget> {
     // Apply current global mute state
     if (_mediaKitPlayer != null) {
       _mediaKitPlayer!.setVolume(VideoMuteManager.isMuted ? 0 : 100);
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+
+    // Handle app lifecycle changes
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive) {
+      // App is going to background or is inactive
+      if (_isFullscreen) {
+        // Exit fullscreen mode
+        _isFullscreen = false;
+        SystemChrome.setPreferredOrientations([
+          DeviceOrientation.portraitUp,
+        ]);
+        SystemChrome.setEnabledSystemUIMode(
+          SystemUiMode.edgeToEdge,
+        );
+      }
+
+      // Pause video when app goes to background
+      if (_mediaKitPlayer != null && _mediaKitPlayer!.state.playing) {
+        _mediaKitPlayer!.pause();
+      }
     }
   }
 
@@ -521,6 +553,54 @@ class _VideoWidgetState extends State<VideoWidget> {
               ),
             ),
 
+            // Full screen button
+            Positioned(
+              bottom: 10,
+              right: 56, // Position it to the left of the mute button
+              child: GestureDetector(
+                onTap: () {
+                  // Toggle fullscreen
+                  if (_mediaKitPlayer != null) {
+                    setState(() {
+                      _isFullscreen = !_isFullscreen;
+                    });
+
+                    if (_isFullscreen) {
+                      // Enter fullscreen mode
+                      SystemChrome.setPreferredOrientations([
+                        DeviceOrientation.landscapeLeft,
+                        DeviceOrientation.landscapeRight,
+                      ]);
+                      SystemChrome.setEnabledSystemUIMode(
+                        SystemUiMode.immersive,
+                      );
+                    } else {
+                      // Exit fullscreen mode
+                      SystemChrome.setPreferredOrientations([
+                        DeviceOrientation.portraitUp,
+                      ]);
+                      SystemChrome.setEnabledSystemUIMode(
+                        SystemUiMode.edgeToEdge,
+                      );
+                    }
+                  }
+                },
+                child: Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.6),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    _isFullscreen ? Icons.fullscreen_exit : Icons.fullscreen,
+                    color: Colors.white,
+                    size: 20,
+                  ),
+                ),
+              ),
+            ),
+
             // Timestamp overlay during scrubbing
             if (_isScrubbing)
               Positioned(
@@ -646,10 +726,23 @@ class _VideoWidgetState extends State<VideoWidget> {
   @override
   void dispose() {
     debugPrint('Disposing VideoWidget for URL: ${widget.videoUrl}');
+    // Remove observer
+    WidgetsBinding.instance.removeObserver(this);
+
     // Cancel timers
     _loadingTimeoutTimer?.cancel();
     _scrubbingTimer?.cancel();
     _hideControlsTimer?.cancel();
+
+    // Make sure to reset orientation and UI mode when disposing
+    if (_isFullscreen) {
+      SystemChrome.setPreferredOrientations([
+        DeviceOrientation.portraitUp,
+      ]);
+      SystemChrome.setEnabledSystemUIMode(
+        SystemUiMode.edgeToEdge,
+      );
+    }
 
     // Cancel mute state subscription
     _muteSubscription?.cancel();
