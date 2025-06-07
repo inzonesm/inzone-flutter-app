@@ -1681,7 +1681,7 @@ class _PostCardState extends State<PostCard> {
                                   const EdgeInsets.fromLTRB(20, 5, 20, 100),
                               itemCount: comments.length,
                               itemBuilder: (BuildContext context, int index) {
-                                comment = comments[index];
+                                final comment = comments[index];
                                 return AnimatedContainer(
                                   duration: const Duration(seconds: 1),
                                   child: Padding(
@@ -1689,18 +1689,7 @@ class _PostCardState extends State<PostCard> {
                                         horizontal: 10.0, vertical: 10),
                                     child: CommentTreeWidget<CommentClass,
                                         CommentClass>(
-                                      CommentClass(
-                                          author: comment == null
-                                              ? "john!"
-                                              : comment!.author,
-                                          text: comment == null
-                                              ? "Great!"
-                                              : comment!.text,
-                                          timestamp: "",
-                                          replies: [],
-                                          id: "",
-                                          postId: "",
-                                          userId: ""),
+                                      comment,
                                       const [],
                                       treeThemeData: TreeThemeData(
                                           lineColor:
@@ -1799,25 +1788,65 @@ class _PostCardState extends State<PostCard> {
                                                 crossAxisAlignment:
                                                     CrossAxisAlignment.start,
                                                 children: [
-                                                  Text(
-                                                    data.author,
-                                                    style: Theme.of(context)
-                                                        .textTheme
-                                                        .bodySmall
-                                                        ?.copyWith(
-                                                            fontWeight:
-                                                                FontWeight.w600,
-                                                            color: Theme.of(
-                                                                    context)
-                                                                .textTheme
-                                                                .titleMedium
-                                                                ?.color),
+                                                  FutureBuilder<
+                                                      DocumentSnapshot>(
+                                                    future: data.userId.isNotEmpty
+                                                        ? FirebaseFirestore
+                                                            .instance
+                                                            .collection(
+                                                                'humanUsers')
+                                                            .doc(data.userId)
+                                                            .get()
+                                                        : null,
+                                                    builder: (BuildContext
+                                                            context,
+                                                        AsyncSnapshot<
+                                                                DocumentSnapshot>
+                                                            snapshot) {
+                                                      String username =
+                                                          data.author;
+                                                      if (snapshot
+                                                              .connectionState ==
+                                                          ConnectionState
+                                                              .waiting) {
+                                                        username = '...';
+                                                      } else if (snapshot
+                                                              .hasData &&
+                                                          snapshot.data !=
+                                                              null &&
+                                                          snapshot
+                                                              .data!.exists) {
+                                                        final userData = snapshot
+                                                                .data!
+                                                                .data()
+                                                            as Map<String,
+                                                                dynamic>;
+                                                        username = userData[
+                                                                'username'] ??
+                                                            data.author;
+                                                      }
+
+                                                      return Text(
+                                                        username,
+                                                        style: Theme.of(context)
+                                                            .textTheme
+                                                            .bodySmall
+                                                            ?.copyWith(
+                                                                fontWeight: FontWeight
+                                                                    .w600,
+                                                                color: Theme.of(
+                                                                        context)
+                                                                    .textTheme
+                                                                    .titleMedium
+                                                                    ?.color),
+                                                      );
+                                                    },
                                                   ),
                                                   const SizedBox(
                                                     height: 4,
                                                   ),
                                                   Text(
-                                                    '${data.content}',
+                                                    data.text,
                                                     style: TextStyle(
                                                         color: Theme.of(context)
                                                             .textTheme
