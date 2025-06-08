@@ -2175,15 +2175,174 @@ class _VideoWidgetWrapperState extends State<_VideoWidgetWrapper> {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
+      onTap: () {
+        // Open fullscreen video viewer
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (context) => _FullScreenVideoViewer(videoUrl: widget.videoUrl),
+            fullscreenDialog: true,
+          ),
+        );
+      },
       onDoubleTap: widget.onDoubleTap,
-      child: VideoWidget(
-        key: _videoKey,
-        videoUrl: widget.videoUrl,
-        onAspectRatioUpdated: (aspectRatio) {
-          // When aspect ratio changes, notify parent
-          widget.onAspectRatioUpdated(aspectRatio);
-        },
+      child: Stack(
+        children: [
+          VideoWidget(
+            key: _videoKey,
+            videoUrl: widget.videoUrl,
+            onAspectRatioUpdated: (aspectRatio) {
+              // When aspect ratio changes, notify parent
+              widget.onAspectRatioUpdated(aspectRatio);
+            },
+          ),
+          // Add fullscreen button overlay
+          Positioned(
+            bottom: 8,
+            right: 8,
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.black.withOpacity(0.6),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: IconButton(
+                icon: const Icon(
+                  Icons.fullscreen,
+                  color: Colors.white,
+                  size: 20,
+                ),
+                onPressed: () {
+                  // Open fullscreen video viewer
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (context) => _FullScreenVideoViewer(videoUrl: widget.videoUrl),
+                      fullscreenDialog: true,
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
+        ],
       ),
+    );
+  }
+}
+
+// Fullscreen video viewer with proper orientation handling
+class _FullScreenVideoViewer extends StatefulWidget {
+  final String videoUrl;
+
+  const _FullScreenVideoViewer({required this.videoUrl});
+
+  @override
+  _FullScreenVideoViewerState createState() => _FullScreenVideoViewerState();
+}
+
+class _FullScreenVideoViewerState extends State<_FullScreenVideoViewer> {
+  bool _isFullscreen = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Start in fullscreen mode
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _enterFullscreen();
+    });
+  }
+
+  void _enterFullscreen() {
+    setState(() {
+      _isFullscreen = true;
+    });
+
+    // Set landscape orientation for better video viewing
+    SystemChrome.setPreferredOrientations([
+      DeviceOrientation.landscapeRight,
+      DeviceOrientation.landscapeLeft,
+      DeviceOrientation.portraitUp,
+    ]);
+
+    // Hide system UI
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+  }
+
+  void _exitFullscreen() {
+    setState(() {
+      _isFullscreen = false;
+    });
+
+    // Reset to portrait orientation
+    SystemChrome.setPreferredOrientations([
+      DeviceOrientation.portraitUp,
+    ]);
+
+    // Show system UI
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+
+    // Close the viewer
+    Navigator.of(context).pop();
+  }
+
+  @override
+  void dispose() {
+    // Make sure to reset orientation and UI when viewer is closed
+    SystemChrome.setPreferredOrientations([
+      DeviceOrientation.portraitUp,
+    ]);
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: _isFullscreen
+          ? null
+          : AppBar(
+              backgroundColor: Colors.black,
+              elevation: 0,
+              iconTheme: const IconThemeData(color: Colors.white),
+            ),
+      body: GestureDetector(
+        onTap: () {
+          // Toggle system UI visibility on tap
+          SystemChrome.setEnabledSystemUIMode(
+            SystemUiMode.manual,
+            overlays: SystemUiOverlay.values,
+          );
+          
+          // Hide system UI again after 3 seconds
+          Future.delayed(const Duration(seconds: 3), () {
+            if (mounted && _isFullscreen) {
+              SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+            }
+          });
+        },
+        child: Container(
+          width: double.infinity,
+          height: double.infinity,
+          color: Colors.black,
+          child: Center(
+            child: VideoWidget(
+              videoUrl: widget.videoUrl,
+              onAspectRatioUpdated: (aspectRatio) {
+                // Handle aspect ratio updates if needed
+              },
+            ),
+          ),
+        ),
+      ),
+      floatingActionButton: Padding(
+        padding: const EdgeInsets.only(top: 50.0),
+        child: FloatingActionButton(
+          onPressed: _exitFullscreen,
+          backgroundColor: Colors.black.withOpacity(0.7),
+          mini: true,
+          child: const Icon(Icons.close, color: Colors.white),
+        ),
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.endTop,
     );
   }
 }
