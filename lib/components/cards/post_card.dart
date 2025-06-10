@@ -728,6 +728,11 @@ class _PostCardState extends State<PostCard> {
               "Report ${widget.post.userName}",
               "dont_show",
             ),
+            // _optionItem(
+            //   CustomIcons.games,
+            //   "Tip ${widget.post.userName}",
+            //   "tip",
+            // ),
             const SizedBox(height: 15),
           ],
         ),
@@ -761,6 +766,9 @@ class _PostCardState extends State<PostCard> {
         } else if (value == "dont_show") {
           // Show reason input dialog for user
           _showReportUserDialog(context);
+        } else if (value == "tip") {
+          // Show tip dialog
+          _showTipDialog(context);
         }
       },
       child: Padding(
@@ -780,6 +788,10 @@ class _PostCardState extends State<PostCard> {
         ),
       ),
     );
+  }
+
+  void _showTipDialog(BuildContext context) {
+    // TODO: Implement tip dialog
   }
 
   // Show dialog to get report reason from user for post reporting

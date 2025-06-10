@@ -509,19 +509,19 @@ class _VideoWidgetState extends State<VideoWidget> with WidgetsBindingObserver {
 
             // Mute button overlay
             Positioned(
-              bottom: 10,
-              right: 10,
+              bottom: 60,
+              right: 8,
               child: GestureDetector(
                 onTap: () {
                   // Toggle the global mute state
                   VideoMuteManager.toggleMute();
                 },
                 child: Container(
-                  width: 36,
-                  height: 36,
+                  width: 50,
+                  height: 50,
                   decoration: BoxDecoration(
                     color: Colors.black.withOpacity(0.6),
-                    shape: BoxShape.circle,
+                    borderRadius: BorderRadius.circular(22),
                   ),
                   child: Icon(
                     VideoMuteManager.isMuted
