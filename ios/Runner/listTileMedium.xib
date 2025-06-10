@@ -14,13 +14,13 @@
             <rect key="frame" x="0.0" y="0.0" width="375" height="667"/>
             <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
             <subviews>
-                <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="Advertiser" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="GTT-Yh-eSq">
+                <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="Advertiser" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="GTT-Yh-eSq" numberOfLines="1">
                     <rect key="frame" x="42" y="37.5" width="132.5" height="17"/>
                     <fontDescription key="fontDescription" type="system" pointSize="14"/>
                     <color key="textColor" systemColor="darkTextColor"/>
                     <nil key="highlightedColor"/>
                 </label>
-                <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" verticalCompressionResistancePriority="751" misplaced="YES" text="Body that is really really long and can take up to two lines or sometimes even more." textAlignment="justified" lineBreakMode="tailTruncation" numberOfLines="0" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="PEQ-D9-2Vv">
+                <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" verticalCompressionResistancePriority="751" misplaced="YES" text="Body that is really really long and can take up to two lines or sometimes even more." textAlignment="justified" lineBreakMode="tailTruncation" numberOfLines="2" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="PEQ-D9-2Vv">
                     <rect key="frame" x="16" y="68" width="343" height="34"/>
                     <fontDescription key="fontDescription" type="system" pointSize="14"/>
                     <color key="textColor" systemColor="darkTextColor"/>
@@ -86,12 +86,12 @@
                 <constraint firstAttribute="trailing" secondItem="beR-eV-DX1" secondAttribute="trailing" constant="16" id="BcE-do-dNl"/>
                 <constraint firstItem="fNp-yu-K4i" firstAttribute="trailing" secondItem="PEQ-D9-2Vv" secondAttribute="trailing" id="Bev-f8-CJl"/>
                 <constraint firstItem="GTT-Yh-eSq" firstAttribute="top" secondItem="beR-eV-DX1" secondAttribute="bottom" constant="0" id="CCg-xe-cKg"/>
-                <constraint firstItem="fNp-yu-K4i" firstAttribute="top" secondItem="PEQ-D9-2Vv" secondAttribute="bottom" constant="20" id="GrW-yR-pzW"/>
+                <constraint firstItem="fNp-yu-K4i" firstAttribute="top" secondItem="PEQ-D9-2Vv" secondAttribute="bottom" constant="6" id="GrW-yR-pzW"/>
                 <constraint firstItem="beR-eV-DX1" firstAttribute="leading" secondItem="lp1-oz-XOs" secondAttribute="trailing" constant="11" id="MRN-dd-Oip"/>
                 <constraint firstItem="2Of-AP-0h9" firstAttribute="leading" secondItem="GTT-Yh-eSq" secondAttribute="trailing" constant="7.5" id="Med-Nd-wEo"/>
                 <constraint firstItem="beR-eV-DX1" firstAttribute="top" secondItem="iN0-l3-epB" secondAttribute="top" constant="17" id="Mvs-eV-Wzb"/>
                 <constraint firstItem="fNp-yu-K4i" firstAttribute="trailing" secondItem="2Of-AP-0h9" secondAttribute="trailing" id="Nlk-nt-eQp"/>
-                <constraint firstItem="PEQ-D9-2Vv" firstAttribute="top" secondItem="GTT-Yh-eSq" secondAttribute="bottom" constant="15" id="PGV-Mv-vJ4"/>
+                <constraint firstItem="PEQ-D9-2Vv" firstAttribute="top" secondItem="GTT-Yh-eSq" secondAttribute="bottom" constant="1" id="PGV-Mv-vJ4"/>
                 <constraint firstItem="GTT-Yh-eSq" firstAttribute="centerY" secondItem="2Of-AP-0h9" secondAttribute="centerY" id="YgR-kp-age"/>
                 <constraint firstItem="lp1-oz-XOs" firstAttribute="centerY" secondItem="beR-eV-DX1" secondAttribute="centerY" id="doz-tQ-lWI"/>
                 <constraint firstAttribute="bottom" secondItem="fNp-yu-K4i" secondAttribute="bottom" constant="414" id="ePJ-kL-HEb"/>

@@ -16,6 +16,7 @@ import 'package:go_router/go_router.dart';
 import 'package:inzone/screen/common/search_explore_screen.dart';
 import 'package:toasty_box/toast_service.dart';
 import 'package:pull_to_refresh_flutter3/pull_to_refresh_flutter3.dart';
+import 'dart:async';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key, this.controller});
@@ -41,11 +42,12 @@ class HomeScreenState extends State<HomeScreen> {
   late DateTime _startTime;
   int pageOpened = 0;
   int _currentPage = 0;
-  final int _pageSize = 20;
+  final int _pageSize = 10; // 페이지 사이즈 감소 (기존 20)
   bool hasMorePosts = true;
   String? selectedCategory; // Track the currently selected category
   int reloadCount = 0; // Track number of reloads
   int _currentVisibleIndex = 0; // Track current visible card index
+  Timer? _scrollThrottleTimer; // 스크롤 이벤트 제한용 타이머
 
   // Store the actual posts data from API
   List<dynamic> posts = [];
@@ -70,6 +72,7 @@ class HomeScreenState extends State<HomeScreen> {
       _scrollController.dispose();
     }
     _refreshController.dispose(); // Dispose the RefreshController
+    _scrollThrottleTimer?.cancel(); // 타이머 해제
     DateTime endTime = DateTime.now();
     Duration timeSpent = endTime.difference(_startTime);
     InZoneDatabase.logEvent('home_screen', {
@@ -80,32 +83,37 @@ class HomeScreenState extends State<HomeScreen> {
   }
 
   void _onScroll() {
-    // Calculate approximate current visible index based on scroll position
-    // Assuming average card height of ~200px
-    double scrollPosition = _scrollController.position.pixels;
-    int estimatedVisibleIndex = (scrollPosition / 200).floor();
+    // 스크롤 이벤트 제한 (300ms 마다만 처리)
+    if (_scrollThrottleTimer?.isActive ?? false) return;
 
-    // Update current visible index if it has changed significantly
-    if (estimatedVisibleIndex != _currentVisibleIndex) {
-      _currentVisibleIndex = estimatedVisibleIndex;
+    _scrollThrottleTimer = Timer(const Duration(milliseconds: 300), () {
+      // Calculate approximate current visible index based on scroll position
+      // Assuming average card height of ~200px
+      double scrollPosition = _scrollController.position.pixels;
+      int estimatedVisibleIndex = (scrollPosition / 200).floor();
 
-      // Ensure we have enough posts loaded ahead
-      int totalItemsWithAds = posts.length + (posts.length ~/ 10);
-      int remainingItems = totalItemsWithAds - _currentVisibleIndex;
+      // Update current visible index if it has changed significantly
+      if ((estimatedVisibleIndex - _currentVisibleIndex).abs() > 3) {
+        _currentVisibleIndex = estimatedVisibleIndex;
 
-      // If we're within 5 items of the end, load more
-      if (remainingItems <= 5 && !isLoadingMore && hasMorePosts) {
+        // Ensure we have enough posts loaded ahead
+        int totalItemsWithAds = posts.length + (posts.length ~/ 10);
+        int remainingItems = totalItemsWithAds - _currentVisibleIndex;
+
+        // If we're within 10 items of the end, load more (더 빨리 로드 시작)
+        if (remainingItems <= 10 && !isLoadingMore && hasMorePosts) {
+          _loadMorePosts();
+        }
+      }
+
+      // Original logic: 화면 끝에서 더 일찍(800픽셀 전) 데이터 로딩을 시작 (기존 500)
+      if (_scrollController.position.pixels >=
+              _scrollController.position.maxScrollExtent - 800 &&
+          !isLoadingMore &&
+          hasMorePosts) {
         _loadMorePosts();
       }
-    }
-
-    // Original logic: 화면 끝에서 더 일찍(500픽셀 전) 데이터 로딩을 시작
-    if (_scrollController.position.pixels >=
-            _scrollController.position.maxScrollExtent - 500 &&
-        !isLoadingMore &&
-        hasMorePosts) {
-      _loadMorePosts();
-    }
+    });
   }
 
   // Handle refresh completion
@@ -310,24 +318,6 @@ class HomeScreenState extends State<HomeScreen> {
         setState(() {
           isLoadingMore = false;
         });
-      }
-    }
-  }
-
-  Future<void> _preloadNextPage() async {
-    if (isLoadingMore || !mounted) return;
-
-    bool wasLoading = isLoadingMore;
-    isLoadingMore = true;
-
-    try {
-      // Use _currentPage + 1 instead of reloadCount for better pagination
-      await InZoneDatabase.getFeed(page: _currentPage + 1);
-    } catch (e) {
-      print('Error preloading next page: $e');
-    } finally {
-      if (mounted) {
-        isLoadingMore = wasLoading;
       }
     }
   }

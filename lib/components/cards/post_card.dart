@@ -27,6 +27,7 @@ import 'package:smooth_page_indicator/smooth_page_indicator.dart';
 import 'package:go_router/go_router.dart';
 import 'package:inzone/router/routes.dart';
 import 'dart:io' show Platform;
+import 'package:visibility_detector/visibility_detector.dart';
 
 import 'package:toasty_box/toast_service.dart';
 
@@ -1932,9 +1933,20 @@ class _DynamicPageViewState extends State<_DynamicPageView> {
   final Set<String> _loadedItems = {};
   int _currentIndex = 0;
 
-  // 이미지 캐싱을 위한 맵
+  // 이미지 캐싱을 위한 맵 - 크기 제한 추가
   static final Map<String, ImageProvider> _cachedImages = {};
   static final Map<String, double> _cachedImageHeights = {};
+  static final List<String> _cacheQueue = []; // LRU 캐시 관리를 위한 큐
+  static const int _maxImageCacheSize = 30; // 최대 30개 이미지만 캐싱
+
+  // 이미지 캐시 정리 함수
+  static void _cleanupImageCache() {
+    while (_cacheQueue.length > _maxImageCacheSize) {
+      String oldestUrl = _cacheQueue.removeAt(0);
+      _cachedImages.remove(oldestUrl);
+      _cachedImageHeights.remove(oldestUrl);
+    }
+  }
 
   @override
   void initState() {
@@ -1959,6 +1971,11 @@ class _DynamicPageViewState extends State<_DynamicPageView> {
 
     // 이미지 높이 캐싱
     _cachedImageHeights[key] = newHeight;
+
+    // 캐시 큐 업데이트
+    _cacheQueue.remove(key);
+    _cacheQueue.add(key);
+    _cleanupImageCache();
 
     if (_currentIndex == index && mounted) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -2022,77 +2039,111 @@ class _DynamicPageViewState extends State<_DynamicPageView> {
                         }
                       });
                     }
+
+                    // 캐시 큐 업데이트 (LRU)
+                    _cacheQueue.remove(imageUrl);
+                    _cacheQueue.add(imageUrl);
                   }
 
                   // 캐시된 이미지 있는지 확인
                   ImageProvider? cachedImage;
                   if (_cachedImages.containsKey(imageUrl)) {
                     cachedImage = _cachedImages[imageUrl];
-                    // debugPrint('Using cached image for URL: $imageUrl');
+                    // 캐시 큐 업데이트 (LRU)
+                    _cacheQueue.remove(imageUrl);
+                    _cacheQueue.add(imageUrl);
                   } else {
-                    cachedImage = NetworkImage(imageUrl);
+                    // 저해상도 미리보기 이미지 URL 생성 (가능한 경우)
+                    String optimizedUrl = imageUrl;
+                    // 고화질 이미지를 중간 해상도로 최적화
+                    if (imageUrl.contains('?')) {
+                      optimizedUrl = '$imageUrl&quality=70&width=800';
+                    } else {
+                      optimizedUrl = '$imageUrl?quality=70&width=800';
+                    }
+
+                    cachedImage = CachedNetworkImageProvider(
+                      optimizedUrl,
+                      cacheKey: imageUrl,
+                      maxWidth: 800, // 최대 너비 제한
+                    );
+
                     _cachedImages[imageUrl] = cachedImage;
+                    _cacheQueue.add(imageUrl);
+                    _cleanupImageCache();
                   }
 
-                  return ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: GestureDetector(
-                      onTap: () {
-                        // Open the image in fullscreen
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (context) =>
-                                _FullScreenImageViewer(imageUrl: imageUrl),
-                          ),
-                        );
-                      },
-                      onDoubleTap: () {
-                        // Find parent PostCard state and trigger like
-                        final PostCard postCard =
-                            context.findAncestorWidgetOfExactType<PostCard>()!;
-                        final _PostCardState? postCardState =
-                            context.findAncestorStateOfType<_PostCardState>();
-                        if (postCardState != null) {
-                          postCardState.handleLike();
-                          HapticFeedback
-                              .mediumImpact(); // Add haptic feedback for better UX
-                        }
-                      },
-                      child: Image(
-                        image: cachedImage!,
-                        fit: BoxFit.contain,
-                        loadingBuilder: (context, child, loadingProgress) {
-                          if (loadingProgress == null) {
-                            // 로딩이 완료된 경우 캐시된 높이가 없으면 높이 계산
-                            if (!_cachedImageHeights.containsKey(imageUrl)) {
-                              cachedImage!
-                                  .resolve(const ImageConfiguration())
-                                  .addListener(
-                                    ImageStreamListener((imageInfo, _) {
-                                      double calculatedHeight =
-                                          imageInfo.image.height *
-                                              (constraints.maxWidth /
-                                                  imageInfo.image.width);
-                                      _updateHeightOnce(
-                                          imageUrl, index, calculatedHeight);
-                                    }, onError: (error, stackTrace) {
-                                      debugPrint('Image load error: $error');
-                                    }),
-                                  );
-                            }
-                            return child;
-                          } else if (_cachedImageHeights
-                              .containsKey(imageUrl)) {
-                            // 이미지 로딩 중이지만 이미 높이 알고 있는 경우 이전 이미지 표시
-                            return child;
-                          } else {
-                            return Center(child: ImageLoading(context));
+                  return VisibilityDetector(
+                    key: Key('image-$imageUrl'),
+                    onVisibilityChanged: (info) {
+                      // 화면에 보이지 않는 이미지는 캐시에서 우선순위를 낮춤
+                      if (info.visibleFraction < 0.1 &&
+                          _cacheQueue.contains(imageUrl)) {
+                        _cacheQueue.remove(imageUrl);
+                        _cacheQueue.insert(
+                            0, imageUrl); // 가장 앞으로 이동 (가장 먼저 제거될 수 있도록)
+                      }
+                    },
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: GestureDetector(
+                        onTap: () {
+                          // Open the image in fullscreen
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (context) =>
+                                  _FullScreenImageViewer(imageUrl: imageUrl),
+                            ),
+                          );
+                        },
+                        onDoubleTap: () {
+                          // Find parent PostCard state and trigger like
+                          final PostCard postCard = context
+                              .findAncestorWidgetOfExactType<PostCard>()!;
+                          final _PostCardState? postCardState =
+                              context.findAncestorStateOfType<_PostCardState>();
+                          if (postCardState != null) {
+                            postCardState.handleLike();
+                            HapticFeedback
+                                .mediumImpact(); // Add haptic feedback for better UX
                           }
                         },
-                        errorBuilder: (context, error, stackTrace) {
-                          debugPrint("Failed to load image: $imageUrl");
-                          return const Icon(Icons.broken_image, size: 48);
-                        },
+                        child: Image(
+                          image: cachedImage!,
+                          fit: BoxFit.contain,
+                          loadingBuilder: (context, child, loadingProgress) {
+                            if (loadingProgress == null) {
+                              // 로딩이 완료된 경우 캐시된 높이가 없으면 높이 계산
+                              if (!_cachedImageHeights.containsKey(imageUrl)) {
+                                cachedImage!
+                                    .resolve(const ImageConfiguration())
+                                    .addListener(
+                                      ImageStreamListener((imageInfo, _) {
+                                        double calculatedHeight =
+                                            imageInfo.image.height *
+                                                (constraints.maxWidth /
+                                                    imageInfo.image.width);
+                                        _updateHeightOnce(
+                                            imageUrl, index, calculatedHeight);
+                                      }, onError: (error, stackTrace) {
+                                        debugPrint('Image load error: $error');
+                                      }),
+                                    );
+                              }
+                              return child;
+                            } else if (_cachedImageHeights
+                                .containsKey(imageUrl)) {
+                              // 이미지 로딩 중이지만 이미 높이 알고 있는 경우 이전 이미지 표시
+                              return child;
+                            } else {
+                              return Center(child: ImageLoading(context));
+                            }
+                          },
+                          errorBuilder: (context, error, stackTrace) {
+                            debugPrint("Failed to load image: $imageUrl");
+                            return const Icon(Icons.broken_image, size: 48);
+                          },
+                        ),
                       ),
                     ),
                   );
@@ -2179,7 +2230,8 @@ class _VideoWidgetWrapperState extends State<_VideoWidgetWrapper> {
         // Open fullscreen video viewer
         Navigator.of(context).push(
           MaterialPageRoute(
-            builder: (context) => _FullScreenVideoViewer(videoUrl: widget.videoUrl),
+            builder: (context) =>
+                _FullScreenVideoViewer(videoUrl: widget.videoUrl),
             fullscreenDialog: true,
           ),
         );
@@ -2214,7 +2266,8 @@ class _VideoWidgetWrapperState extends State<_VideoWidgetWrapper> {
                   // Open fullscreen video viewer
                   Navigator.of(context).push(
                     MaterialPageRoute(
-                      builder: (context) => _FullScreenVideoViewer(videoUrl: widget.videoUrl),
+                      builder: (context) =>
+                          _FullScreenVideoViewer(videoUrl: widget.videoUrl),
                       fullscreenDialog: true,
                     ),
                   );
@@ -2311,7 +2364,7 @@ class _FullScreenVideoViewerState extends State<_FullScreenVideoViewer> {
             SystemUiMode.manual,
             overlays: SystemUiOverlay.values,
           );
-          
+
           // Hide system UI again after 3 seconds
           Future.delayed(const Duration(seconds: 3), () {
             if (mounted && _isFullscreen) {
