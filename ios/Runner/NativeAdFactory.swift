@@ -27,7 +27,7 @@ class NativeAdFactory: NSObject, FLTNativeAdFactory {
       if #available(iOS 15.0, *) {
         var buttonConfig = UIButton.Configuration.filled()
         buttonConfig.baseBackgroundColor = androidButtonColor
-        buttonConfig.baseForegroundColor = UIColor.clear
+        buttonConfig.baseForegroundColor = UIColor.white
         buttonConfig.cornerStyle = .medium
         buttonConfig.title = nativeAd.callToAction
         callToActionButton.configuration = buttonConfig
@@ -42,18 +42,29 @@ class NativeAdFactory: NSObject, FLTNativeAdFactory {
     adView.callToActionView?.isHidden = nativeAd.callToAction == nil
 
     (adView.advertiserView as? UILabel)?.text = nativeAd.advertiser
+      if nativeAd.advertiser == nil {
+        adView.advertiserView?.removeFromSuperview()
+      }
     adView.advertiserView?.isHidden = nativeAd.advertiser == nil
     
     // Apply text colors based on dark/light mode
     updateColorsForCurrentTraitCollection(adView: adView)
     
     // Configure media view with rounded corners
-    if let mediaView = adView.mediaView {
-      mediaView.layer.cornerRadius = 12.0
-      mediaView.layer.masksToBounds = true
-      mediaView.clipsToBounds = true
-      mediaView.backgroundColor = UIColor.clear
-    }
+      if let mediaView = adView.mediaView {
+        mediaView.layer.cornerRadius = 12.0
+        mediaView.layer.masksToBounds = true
+        mediaView.clipsToBounds = true
+
+        // Apply background color based on interface style
+        if #available(iOS 13.0, *) {
+          let userInterfaceStyle = UITraitCollection.current.userInterfaceStyle
+          mediaView.backgroundColor = (userInterfaceStyle == .dark) ? UIColor.black : UIColor.white
+        } else {
+          mediaView.backgroundColor = UIColor.white // Default to light mode for iOS 12 and below
+        }
+      }
+
 
     adView.nativeAd = nativeAd
 
