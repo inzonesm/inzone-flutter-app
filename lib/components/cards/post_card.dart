@@ -5,8 +5,6 @@ import 'dart:math';
 import 'package:bounce/bounce.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:comment_tree/widgets/comment_tree_widget.dart';
-import 'package:comment_tree/widgets/tree_theme_data.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -31,6 +29,7 @@ import 'package:visibility_detector/visibility_detector.dart';
 
 import 'package:toasty_box/toast_service.dart';
 import 'package:inzone/components/cards/tip_screen.dart';
+import 'package:inzone/components/cards/comments_tile.dart';
 
 class PostCard extends StatefulWidget {
   InZonePost post;
@@ -1713,14 +1712,25 @@ class _PostCardState extends State<PostCard> {
                             final commentsList = data['comments'] ?? [];
                             final comments =
                                 commentsList.map<CommentClass>((comment) {
+                              print("FULL COMMENT DATA: $comment");
+                              print(
+                                  "COMMENT AUTHOR DATA: ${comment['author']}");
                               return CommentClass(
-                                author: comment['author'],
-                                text: comment['text'],
+                                author:
+                                    comment['author'] ?? comment['name'] ?? '',
+                                text: comment['text'] ?? '',
                                 replies: [], // Assuming you will handle replies separately
-                                timestamp: "",
+                                timestamp: comment['timestamp'] ?? "",
                                 id: '', // Make sure each comment has a unique ID
                                 postId: widget.post.id.toString(),
-                                userId: comment['userId'],
+                                userId: comment['userId'] ?? '',
+                                likedBy: comment['likedBy'] != null
+                                    ? List<String>.from(comment['likedBy'])
+                                    : [],
+                                dislikedBy: comment['dislikedBy'] != null
+                                    ? List<String>.from(comment['dislikedBy'])
+                                    : [],
+                                profilePictureUrl: '',
                               );
                             }).toList();
 
@@ -1743,196 +1753,54 @@ class _PostCardState extends State<PostCard> {
                                   duration: const Duration(seconds: 1),
                                   child: Padding(
                                     padding: const EdgeInsets.symmetric(
-                                        horizontal: 10.0, vertical: 10),
-                                    child: CommentTreeWidget<CommentClass,
-                                        CommentClass>(
-                                      comment,
-                                      const [],
-                                      treeThemeData: TreeThemeData(
-                                          lineColor:
-                                              Theme.of(context).cardColor,
-                                          lineWidth: 0),
-                                      avatarRoot: (context, data) =>
-                                          const PreferredSize(
-                                        preferredSize: Size.fromRadius(12),
-                                        child: Icon(Icons.account_circle,
-                                            size: 40),
-                                      ),
-                                      avatarChild: (context, data) =>
-                                          const PreferredSize(
-                                        preferredSize: Size.fromRadius(12),
-                                        child: Icon(Icons.account_circle,
-                                            size: 40),
-                                      ),
-                                      contentChild: (context, data) {
-                                        return Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            Container(
-                                              padding:
-                                                  const EdgeInsets.symmetric(
-                                                      vertical: 8,
-                                                      horizontal: 8),
-                                              decoration: BoxDecoration(
-                                                  color: Theme.of(context)
-                                                      .colorScheme
-                                                      .surfaceContainerHighest
-                                                      .withOpacity(0.5),
-                                                  borderRadius:
-                                                      BorderRadius.circular(
-                                                          12)),
-                                              child: Column(
-                                                crossAxisAlignment:
-                                                    CrossAxisAlignment.start,
-                                                children: [
-                                                  Text(
-                                                    "aadesh18",
-                                                    style: Theme.of(context)
-                                                        .textTheme
-                                                        .bodySmall
-                                                        ?.copyWith(
-                                                            fontWeight:
-                                                                FontWeight.w600,
-                                                            color: Theme.of(
-                                                                    context)
-                                                                .textTheme
-                                                                .titleMedium
-                                                                ?.color),
-                                                  ),
-                                                  const SizedBox(
-                                                    height: 4,
-                                                  ),
-                                                  Text(
-                                                    "",
-                                                    style: Theme.of(context)
-                                                        .textTheme
-                                                        .bodySmall
-                                                        ?.copyWith(
-                                                            fontWeight:
-                                                                FontWeight.w300,
-                                                            color: Theme.of(
-                                                                    context)
-                                                                .textTheme
-                                                                .bodyMedium
-                                                                ?.color),
-                                                  ),
-                                                ],
-                                              ),
-                                            ),
-                                          ],
-                                        );
-                                      },
-                                      contentRoot: (context, data) {
-                                        return Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            Container(
-                                              padding:
-                                                  const EdgeInsets.symmetric(
-                                                      vertical: 8,
-                                                      horizontal: 8),
-                                              decoration: BoxDecoration(
-                                                  color: Theme.of(context)
-                                                      .colorScheme
-                                                      .surfaceContainerHighest
-                                                      .withOpacity(0.5),
-                                                  borderRadius:
-                                                      BorderRadius.circular(
-                                                          12)),
-                                              child: Column(
-                                                crossAxisAlignment:
-                                                    CrossAxisAlignment.start,
-                                                children: [
-                                                  FutureBuilder<
-                                                      DocumentSnapshot>(
-                                                    future: data
-                                                            .userId.isNotEmpty
-                                                        ? FirebaseFirestore
-                                                            .instance
-                                                            .collection(
-                                                                'humanUsers')
-                                                            .doc(data.userId)
-                                                            .get()
-                                                        : null,
-                                                    builder: (BuildContext
-                                                            context,
-                                                        AsyncSnapshot<
-                                                                DocumentSnapshot>
-                                                            snapshot) {
-                                                      String username =
-                                                          data.author;
-                                                      if (snapshot
-                                                              .connectionState ==
-                                                          ConnectionState
-                                                              .waiting) {
-                                                        username = '...';
-                                                      } else if (snapshot
-                                                              .hasData &&
-                                                          snapshot.data !=
-                                                              null &&
-                                                          snapshot
-                                                              .data!.exists) {
-                                                        final userData =
-                                                            snapshot.data!
-                                                                    .data()
-                                                                as Map<String,
-                                                                    dynamic>;
-                                                        username = userData[
-                                                                'username'] ??
-                                                            data.author;
-                                                      }
+                                        horizontal: 0.0, vertical: 10),
+                                    child: FutureBuilder<DocumentSnapshot>(
+                                      future: comment.userId.isNotEmpty
+                                          ? FirebaseFirestore.instance
+                                              .collection('humanUsers')
+                                              .doc(comment.userId)
+                                              .get()
+                                          : null,
+                                      builder: (BuildContext context,
+                                          AsyncSnapshot<DocumentSnapshot>
+                                              snapshot) {
+                                        String username = comment.author;
+                                        String profilePicUrl = '';
 
-                                                      return Text(
-                                                        username,
-                                                        style: Theme.of(context)
-                                                            .textTheme
-                                                            .bodySmall
-                                                            ?.copyWith(
-                                                                fontWeight:
-                                                                    FontWeight
-                                                                        .w600,
-                                                                color: Theme.of(
-                                                                        context)
-                                                                    .textTheme
-                                                                    .titleMedium
-                                                                    ?.color),
-                                                      );
-                                                    },
-                                                  ),
-                                                  const SizedBox(
-                                                    height: 4,
-                                                  ),
-                                                  Text(
-                                                    data.text,
-                                                    style: TextStyle(
-                                                        color: Theme.of(context)
-                                                            .textTheme
-                                                            .bodyMedium
-                                                            ?.color),
-                                                  ),
-                                                ],
-                                              ),
-                                            ),
-                                            // Padding(
-                                            //   padding: const EdgeInsets.all(0),
-                                            //   child: TextButton(
-                                            //     child: const  Text(
-                                            //       'Reply',
-                                            //       style: TextStyle(
-                                            //         color: Colors.blue,
-                                            //       ),
-                                            //     ),
-                                            //     onPressed: () {},
-                                            //     style: ButtonStyle(
-                                            //       padding: MaterialStateProperty
-                                            //           .all<EdgeInsets>(
-                                            //           EdgeInsets.zero),
-                                            //     ),
-                                            //   ),
-                                            // )
-                                          ],
+                                        if (snapshot.hasData &&
+                                            snapshot.data != null &&
+                                            snapshot.data!.exists) {
+                                          final userData = snapshot.data!.data()
+                                              as Map<String, dynamic>;
+                                          username = userData['username'] ??
+                                              userData['name'] ??
+                                              comment.author;
+                                          profilePicUrl =
+                                              userData['profilePicture'] ??
+                                                  userData['profileImage'] ??
+                                                  '';
+                                        }
+
+                                        return CommentsTile(
+                                          commentText: comment.text,
+                                          profilePictureUrl: profilePicUrl,
+                                          author: username,
+                                          timestamp: comment.timestamp,
+                                          likedBy: comment.likedBy ?? [],
+                                          dislikedBy: comment.dislikedBy ?? [],
+                                          currentUserId: FirebaseAuth
+                                                  .instance.currentUser?.uid ??
+                                              '',
+                                          onLike: () {
+                                            // Implement database update for likes
+                                            _updateCommentLikes(
+                                                comment, index, comments);
+                                          },
+                                          onDislike: () {
+                                            // Implement database update for dislikes
+                                            _updateCommentDislikes(
+                                                comment, index, comments);
+                                          },
                                         );
                                       },
                                     ),
@@ -1965,6 +1833,69 @@ class _PostCardState extends State<PostCard> {
         },
       ),
     );
+  }
+
+  // Add new methods for updating comment likes and dislikes
+  void _updateCommentLikes(
+      CommentClass comment, int index, List<CommentClass> comments) async {
+    try {
+      DocumentReference postDocumentReference =
+          _firestore.collection('postComments').doc(widget.post.id.toString());
+
+      // Get the document
+      DocumentSnapshot postSnapshot = await postDocumentReference.get();
+      if (postSnapshot.exists) {
+        // Get the comments array
+        List<dynamic> commentsList = postSnapshot['comments'] ?? [];
+
+        // Make sure we have the correct index
+        if (index < commentsList.length) {
+          // Update the likedBy field for the specific comment
+          commentsList[index]['likedBy'] = comment.likedBy;
+
+          // If this was previously disliked, update dislikedBy as well
+          if (comment.dislikedBy != null) {
+            commentsList[index]['dislikedBy'] = comment.dislikedBy;
+          }
+
+          // Update the document
+          await postDocumentReference.update({'comments': commentsList});
+        }
+      }
+    } catch (e) {
+      debugPrint('Error updating comment like: $e');
+    }
+  }
+
+  void _updateCommentDislikes(
+      CommentClass comment, int index, List<CommentClass> comments) async {
+    try {
+      DocumentReference postDocumentReference =
+          _firestore.collection('postComments').doc(widget.post.id.toString());
+
+      // Get the document
+      DocumentSnapshot postSnapshot = await postDocumentReference.get();
+      if (postSnapshot.exists) {
+        // Get the comments array
+        List<dynamic> commentsList = postSnapshot['comments'] ?? [];
+
+        // Make sure we have the correct index
+        if (index < commentsList.length) {
+          // Update the dislikedBy field for the specific comment
+          commentsList[index]['dislikedBy'] = comment.dislikedBy;
+
+          // If this was previously liked, update likedBy as well
+          if (comment.likedBy != null) {
+            commentsList[index]['likedBy'] = comment.likedBy;
+          }
+
+          // Update the document
+          await postDocumentReference.update({'comments': commentsList});
+        }
+      }
+    } catch (e) {
+      debugPrint('Error updating comment dislike: $e');
+    }
   }
 }
 
