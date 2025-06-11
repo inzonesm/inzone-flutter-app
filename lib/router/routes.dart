@@ -14,6 +14,7 @@ class Routes {
   static const String profile_tab = '/profile';
   static const String searchExplore = '/search_explore';
   static const String characters = '/characters';
+  static const String tipScreen = '/tip-screen';
 
   // Feature routes
   static const String post = '/post';
