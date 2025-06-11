@@ -483,6 +483,9 @@ class _PostCardState extends State<PostCard> {
                             width: 40,
                             height: 40,
                             fit: BoxFit.cover,
+                            color: null, // Remove any color overlay
+                            colorBlendMode:
+                                BlendMode.srcOver, // Use default blend mode
                             placeholder: (context, url) => const SizedBox(),
                             errorWidget: (context, url, error) =>
                                 const Icon(Icons.account_circle, size: 40),
@@ -493,6 +496,9 @@ class _PostCardState extends State<PostCard> {
                                 width: 40,
                                 height: 40,
                                 fit: BoxFit.cover,
+                                color: null, // Remove any color overlay
+                                colorBlendMode:
+                                    BlendMode.srcOver, // Use default blend mode
                                 placeholder: (context, url) => const SizedBox(),
                                 errorWidget: (context, url, error) =>
                                     const Icon(Icons.account_circle, size: 40),
@@ -2099,6 +2105,14 @@ class _DynamicPageViewState extends State<_DynamicPageView> {
                         child: Image(
                           image: cachedImage!,
                           fit: BoxFit.contain,
+                          color: null, // Remove any color overlay
+                          colorBlendMode:
+                              BlendMode.srcOver, // Use default blend mode
+                          filterQuality: FilterQuality
+                              .high, // Ensure high quality rendering
+                          gaplessPlayback:
+                              true, // Smooth transitions between images
+                          isAntiAlias: true, // Enable anti-aliasing
                           loadingBuilder: (context, child, loadingProgress) {
                             if (loadingProgress == null) {
                               // 로딩이 완료된 경우 캐시된 높이가 없으면 높이 계산
@@ -2495,6 +2509,11 @@ class _FullScreenImageViewerState extends State<_FullScreenImageViewer> {
     Widget imageWidget = Image.network(
       widget.imageUrl,
       fit: BoxFit.contain,
+      color: null, // Remove any color overlay
+      colorBlendMode: BlendMode.srcOver, // Use default blend mode
+      filterQuality: FilterQuality.high, // Ensure high quality rendering
+      gaplessPlayback: true, // Smooth transitions between images
+      isAntiAlias: true, // Enable anti-aliasing
       loadingBuilder: (context, child, loadingProgress) {
         if (loadingProgress == null) return child;
         return Center(
