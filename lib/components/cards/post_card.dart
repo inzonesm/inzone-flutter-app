@@ -30,6 +30,7 @@ import 'dart:io' show Platform;
 import 'package:visibility_detector/visibility_detector.dart';
 
 import 'package:toasty_box/toast_service.dart';
+import 'package:inzone/components/cards/tip_screen.dart';
 
 class PostCard extends StatefulWidget {
   InZonePost post;
@@ -719,20 +720,20 @@ class _PostCardState extends State<PostCard> {
             ),
             const SizedBox(height: 15),
             _optionItem(
-              CustomIcons.notInterested,
+              FeatherIcons.alertCircle,
               "Report this post",
               "not_interested",
             ),
             _optionItem(
-              CustomIcons.dontShow,
+              FeatherIcons.userX,
               "Report ${widget.post.userName}",
               "dont_show",
             ),
-            // _optionItem(
-            //   CustomIcons.games,
-            //   "Tip ${widget.post.userName}",
-            //   "tip",
-            // ),
+            _optionItem(
+              FeatherIcons.gift,
+              "Tip ${widget.post.userName}",
+              "tip",
+            ),
             const SizedBox(height: 15),
           ],
         ),
@@ -756,7 +757,7 @@ class _PostCardState extends State<PostCard> {
     );
   }
 
-  Widget _optionItem(String iconPath, String title, String value) {
+  Widget _optionItem(IconData icon, String title, String value) {
     return InkWell(
       onTap: () async {
         Navigator.pop(context); // Close the bottom sheet
@@ -775,13 +776,23 @@ class _PostCardState extends State<PostCard> {
         padding: const EdgeInsets.symmetric(vertical: 15),
         child: Row(
           children: [
-            SvgPicture.asset(iconPath),
+            if (!title.contains("Report")) const SizedBox(width: 4),
+            if (title.contains("Report") && title != "Report this post")
+              const SizedBox(width: 5),
+            Icon(
+              icon,
+              size: 28,
+            ),
             const SizedBox(width: 16),
-            Text(
-              title,
-              style: TextStyle(
-                fontSize: 16,
-                color: Theme.of(context).textTheme.bodyLarge?.color,
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text(
+                title,
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w500,
+                  color: Theme.of(context).textTheme.bodyLarge?.color,
+                ),
               ),
             ),
           ],
@@ -791,7 +802,41 @@ class _PostCardState extends State<PostCard> {
   }
 
   void _showTipDialog(BuildContext context) {
-    // TODO: Implement tip dialog
+    // Show TipScreen as a bottom sheet
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.only(
+          topLeft: Radius.circular(20),
+          topRight: Radius.circular(20),
+        ),
+      ),
+      builder: (context) {
+        return FractionallySizedBox(
+          heightFactor: 0.9,
+          child: Container(
+            decoration: BoxDecoration(
+              color: Theme.of(context).canvasColor,
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(20),
+                topRight: Radius.circular(20),
+              ),
+            ),
+            child: TipScreen(
+              recipient: {
+                'id': widget.post.userReference,
+                'name': widget.post.userName,
+                'username':
+                    widget.post.userName.toLowerCase().replaceAll(' ', '_'),
+                'profilePicture': profileImageUrl,
+              },
+            ),
+          ),
+        );
+      },
+    );
   }
 
   // Show dialog to get report reason from user for post reporting

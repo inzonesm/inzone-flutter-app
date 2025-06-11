@@ -384,6 +384,35 @@ class MonetizationService {
     }
   }
 
+  // Send tip to another user
+  Future<Map<String, dynamic>> sendTip(String recipientId, int amount) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) throw Exception('User not logged in');
+
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/wallet/send-tip'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({
+          'UserDocumentId': user.uid,
+          'RecipientId': recipientId,
+          'Amount': amount,
+        }),
+      );
+
+      final responseData = json.decode(response.body);
+
+      if (response.statusCode == 200 && responseData['success'] == true) {
+        return responseData;
+      } else {
+        throw Exception(responseData['error'] ?? 'Failed to send tip');
+      }
+    } catch (e) {
+      debugPrint('Error in sendTip: $e');
+      return {'success': false, 'error': e.toString()};
+    }
+  }
+
 //   // Check subscription status
 //   Future<bool> isSubscribed({bool verify = false}) async {
 //     try {

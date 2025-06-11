@@ -35,6 +35,7 @@ import 'package:inzone/screen/3d_model/3d_model_prompt_screen.dart';
 import 'package:inzone/screen/3d_model/3d_model_select_screen.dart';
 import 'package:inzone/screen/3d_model/3d_model_intro.dart';
 import 'package:inzone/screen/settings/unity_webview_screen.dart';
+import 'package:inzone/components/cards/tip_screen.dart';
 
 // Models
 import 'package:inzone/data/group_data.dart';
@@ -520,6 +521,19 @@ class AppRouter {
         path: Routes.settings,
         parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) => SettingsScreen(),
+      ),
+
+      GoRoute(
+        path: Routes.tipScreen,
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) => TipScreen(
+          recipient: {
+            'id': FirebaseAuth.instance.currentUser?.uid ?? '',
+            'name': 'User',
+            'username': 'user',
+            'profilePicture': '',
+          },
+        ),
       ),
 
       GoRoute(
