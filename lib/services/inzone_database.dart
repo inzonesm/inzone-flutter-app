@@ -575,11 +575,26 @@ class InZoneDatabase {
       String postId =
           "post_${FirebaseAuth.instance.currentUser!.uid}_${DateTime.now().millisecondsSinceEpoch}";
 
+      // Get user profile to get the username
+      var userProfile = await getCurrentUserProfile();
+      String username = "Unknown";
+
+      if (userProfile != null) {
+        // Try to get username from profile
+        username = userProfile['username'] ?? userProfile['name'] ?? "Unknown";
+      }
+
+      // If still unknown, try Firebase Auth displayName as fallback
+      if (username == "Unknown" &&
+          FirebaseAuth.instance.currentUser?.displayName != null) {
+        username = FirebaseAuth.instance.currentUser!.displayName!;
+      }
+
       String url =
           'https://inzoneapi-912424781531.us-central1.run.app/feed/create-human-post';
 
       Map<String, dynamic> postData = {
-        "UserName": FirebaseAuth.instance.currentUser!.displayName,
+        "UserName": username, // Use the retrieved username instead
         "UserDocumentId": FirebaseAuth.instance.currentUser!.uid,
         "Category": analysis["category"],
         "Id": postId,

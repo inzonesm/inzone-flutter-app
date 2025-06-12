@@ -53,26 +53,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
       barrierDismissible: false,
       builder: (BuildContext context) {
         return Dialog(
-          backgroundColor: Colors.transparent,
           elevation: 0,
-          child: Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const CircularProgressIndicator(
-                  valueColor: AlwaysStoppedAnimation<Color>(Colors.blue),
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  "Saving profile...",
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-              ],
+          backgroundColor: Colors.transparent,
+          child: Center(
+            child: Container(
+              width: 100, // Adjust as needed
+              height: 100, // Adjust as needed
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.primaryContainer,
+                borderRadius: BorderRadius.circular(100), // Adjust as needed
+              ),
+              child: Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: CircularProgressIndicator(
+                    color: Theme.of(context).colorScheme.outline,
+                  )),
             ),
           ),
         );
