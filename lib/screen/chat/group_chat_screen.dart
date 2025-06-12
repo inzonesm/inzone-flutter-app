@@ -307,7 +307,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
             .doc(_groupId)
             .update({
           'participants': FieldValue.arrayUnion([currentParticipant]),
-          'updatedAt': Timestamp.now(),
+          'updatedAt': Timestamp.fromDate(DateTime.now().toUtc()),
         });
 
         print('Added current user to participants');
@@ -801,7 +801,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       // Add date header
       if (dateKey != 'No Date') {
         DateTime headerDate;
-        final now = DateTime.now();
+        final now = DateTime.now().toUtc();
         final today = DateTime(now.year, now.month, now.day);
 
         if (dateKey == 'Today') {
@@ -857,7 +857,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   }
 
   String _getDateKey(DateTime dateTime) {
-    final now = DateTime.now();
+    final now = DateTime.now().toUtc();
     final today = DateTime(now.year, now.month, now.day);
     final yesterday = today.subtract(const Duration(days: 1));
     final messageDate = DateTime(dateTime.year, dateTime.month, dateTime.day);
@@ -867,7 +867,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     } else if (messageDate == yesterday) {
       return 'Yesterday';
     } else {
-      return DateFormat('MMMM d, yyyy').format(dateTime);
+      return DateFormat('MMMM d, yyyy').format(dateTime.toLocal());
     }
   }
 
@@ -994,14 +994,14 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   }
 
   String _formatMessageTime(DateTime dateTime) {
-    final now = DateTime.now();
+    final now = DateTime.now().toUtc();
     final today = DateTime(now.year, now.month, now.day);
     final messageDate = DateTime(dateTime.year, dateTime.month, dateTime.day);
 
     if (messageDate == today) {
-      return DateFormat('h:mm a').format(dateTime);
+      return DateFormat('h:mm a').format(dateTime.toLocal());
     } else {
-      return DateFormat('MMM d, h:mm a').format(dateTime);
+      return DateFormat('MMM d, h:mm a').format(dateTime.toLocal());
     }
   }
 

@@ -20,12 +20,12 @@ class AICharactersCache {
   static bool get hasCachedCharacters =>
       _cachedCharacters != null &&
       _lastFetchTime != null &&
-      DateTime.now().difference(_lastFetchTime!).inMinutes <
+      DateTime.now().toUtc().difference(_lastFetchTime!).inMinutes <
           30; // Cache valid for 30 minutes
 
   static void cacheCharacters(List<dynamic> characters) {
     _cachedCharacters = characters;
-    _lastFetchTime = DateTime.now();
+    _lastFetchTime = DateTime.now().toUtc();
   }
 
   static void clearCache() {

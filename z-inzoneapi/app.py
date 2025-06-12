@@ -1479,7 +1479,7 @@ def purchase_incash():
                 "packageId": package_id,
                 "platform": platform,
                 "amount": amount,
-                "date": datetime.now().isoformat(),
+                "date": datetime.now().toUtc().isoformat(),
                 "receiptData": receipt_data,
             }
         )

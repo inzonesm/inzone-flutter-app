@@ -33,7 +33,7 @@ class DateHeader extends StatelessWidget {
   }
 
   String _getDateString(DateTime dateTime) {
-    final now = DateTime.now();
+    final now = DateTime.now().toUtc();
     final today = DateTime(now.year, now.month, now.day);
     final yesterday = today.subtract(const Duration(days: 1));
     final messageDate = DateTime(dateTime.year, dateTime.month, dateTime.day);
@@ -43,7 +43,7 @@ class DateHeader extends StatelessWidget {
     } else if (messageDate == yesterday) {
       return 'Yesterday';
     } else {
-      return DateFormat('MMMM d, yyyy').format(dateTime);
+      return DateFormat('MMMM d, yyyy').format(dateTime.toLocal());
     }
   }
 }

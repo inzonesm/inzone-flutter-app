@@ -17,7 +17,7 @@ class InZoneDatabase {
     // Throttle API requests to prevent overloading
     if (_lastFeedApiCallTime != null) {
       final timeSinceLastCall =
-          DateTime.now().difference(_lastFeedApiCallTime!);
+          DateTime.now().toUtc().difference(_lastFeedApiCallTime!);
       if (timeSinceLastCall < _minTimeBetweenCalls) {
         // Wait for the minimum time between calls
         await Future.delayed(_minTimeBetweenCalls - timeSinceLastCall);
@@ -25,7 +25,7 @@ class InZoneDatabase {
     }
 
     // Update the last API call time
-    _lastFeedApiCallTime = DateTime.now();
+    _lastFeedApiCallTime = DateTime.now().toUtc();
 
     String url =
         'https://inzoneapi-912424781531.us-central1.run.app/feed/posts-flow';
@@ -189,7 +189,7 @@ class InZoneDatabase {
           return 'Unexpected response format from server';
         } else {
           // Return an error message if status code is not 200
-          return 'Failed to send message. Status code: ${response.body}';
+          return 'Failed to send message. Status code: ${response.statusCode}';
         }
       } catch (e) {
         return 'Error occurred: $e';
@@ -573,7 +573,7 @@ class InZoneDatabase {
 
       // Generate a unique post ID
       String postId =
-          "post_${FirebaseAuth.instance.currentUser!.uid}_${DateTime.now().millisecondsSinceEpoch}";
+          "post_${FirebaseAuth.instance.currentUser!.uid}_${DateTime.now().toUtc().millisecondsSinceEpoch}";
 
       // Get user profile to get the username
       var userProfile = await getCurrentUserProfile();

@@ -129,14 +129,14 @@ class MessageBubble extends StatelessWidget {
   }
 
   String _formatTimestamp(DateTime dateTime) {
-    final now = DateTime.now();
+    final now = DateTime.now().toUtc();
     final today = DateTime(now.year, now.month, now.day);
     final messageDate = DateTime(dateTime.year, dateTime.month, dateTime.day);
 
     if (messageDate == today) {
-      return DateFormat('h:mm a').format(dateTime);
+      return DateFormat('h:mm a').format(dateTime.toLocal());
     } else {
-      return DateFormat('MMM d, h:mm a').format(dateTime);
+      return DateFormat('MMM d, h:mm a').format(dateTime.toLocal());
     }
   }
 }

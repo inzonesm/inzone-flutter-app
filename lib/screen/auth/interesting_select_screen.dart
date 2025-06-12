@@ -189,8 +189,8 @@ class _InterestSelectionScreenState extends State<InterestSelectionScreen> {
       print("InterestScreen - Finishing signup for user: ${user.uid}");
       print("InterestScreen - Selected interests: $_interests");
 
-      // Set a timestamp to mark profile completion
-      final timestamp = DateTime.now().toIso8601String();
+      // Set a timestamp to mark profile completion using UTC time
+      final timestamp = DateTime.now().toUtc().toIso8601String();
       print("InterestScreen - Setting createdAt timestamp: $timestamp");
 
       // Update the user document with interests and createdAt timestamp

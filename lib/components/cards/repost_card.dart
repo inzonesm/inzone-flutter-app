@@ -446,7 +446,7 @@ class _RepostCardState extends State<RepostCard> {
       'author': FirebaseAuth.instance.currentUser!.uid,
       'text': commentText,
       'userId': FirebaseAuth.instance.currentUser!.uid,
-      'timestamp': DateTime.now().toString(),
+      'timestamp': DateTime.now().toUtc().millisecondsSinceEpoch.toString(),
       'likedBy': [], // Initialize likedBy as an empty list
     };
 

@@ -59,7 +59,7 @@ class HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _scrollController = widget.controller ?? ScrollController();
-    _startTime = DateTime.now();
+    _startTime = DateTime.now().toUtc();
     loadFeed();
     loadAvatars();
     _scrollController.addListener(_onScroll);
@@ -72,8 +72,8 @@ class HomeScreenState extends State<HomeScreen> {
       _scrollController.dispose();
     }
     _refreshController.dispose(); // Dispose the RefreshController
-    _scrollThrottleTimer?.cancel(); // 타이머 해제
-    DateTime endTime = DateTime.now();
+    _scrollThrottleTimer?.cancel();
+    DateTime endTime = DateTime.now().toUtc();
     Duration timeSpent = endTime.difference(_startTime);
     InZoneDatabase.logEvent('home_screen', {
       "timeSpent": timeSpent.inSeconds,
@@ -443,7 +443,7 @@ class HomeScreenState extends State<HomeScreen> {
         category: '',
         userName: '',
         comments: [],
-        datePosted: DateTime.now(),
+        datePosted: DateTime.now().toUtc(),
         likes: 0,
         id: 'ad_$index',
         imageContent: [],

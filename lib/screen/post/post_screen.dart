@@ -106,14 +106,14 @@ class _PostScreenState extends State<PostScreen> {
       _focusNode.requestFocus();
     });
     _loadPreferences();
-    _startTime = DateTime.now();
+    _startTime = DateTime.now().toUtc();
     pageOpened += 1;
   }
 
   @override
   void dispose() {
     // TODO: implement dispose
-    DateTime endTime = DateTime.now();
+    DateTime endTime = DateTime.now().toUtc();
     Duration timeSpent = endTime.difference(_startTime);
     InZoneDatabase.logEvent('post_screen',
         {"timeSpent": timeSpent.inSeconds, "pageOpenedCount": pageOpened});

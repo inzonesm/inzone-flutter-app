@@ -46,7 +46,7 @@ class _AllChatsScreenState extends State<AllChatsScreen>
   void initState() {
     super.initState();
     _isLoading = true;
-    _startTime = DateTime.now();
+    _startTime = DateTime.now().toUtc();
     _tabController = TabController(length: 2, vsync: this);
     _tabController.addListener(_handleTabChange);
     _loadCurrentUser();
@@ -64,7 +64,7 @@ class _AllChatsScreenState extends State<AllChatsScreen>
   void dispose() {
     _tabController.removeListener(_handleTabChange);
     _tabController.dispose();
-    DateTime endTime = DateTime.now();
+    DateTime endTime = DateTime.now().toUtc();
     Duration timeSpent = endTime.difference(_startTime);
     InZoneDatabase.logEvent('all_chats_screen',
         {"timeSpent": timeSpent.inSeconds, "pageOpenedCount": pageOpened});
@@ -480,20 +480,21 @@ class _ChatUserCardState extends State<ChatUserCard> {
   Widget build(BuildContext context) {
     String formattedTime = '';
     if (widget.userData.lastMessageTime != null) {
-      DateTime messageTime = widget.userData.lastMessageTime!.toDate();
-      DateTime now = DateTime.now();
+      DateTime messageTime = widget.userData.lastMessageTime!.toDate().toUtc();
+      DateTime now = DateTime.now().toUtc();
 
       if (now.difference(messageTime).inDays == 0) {
         // Today - show time
+        DateTime localTime = messageTime.toLocal();
         formattedTime =
-            '${messageTime.hour.toString().padLeft(2, '0')}:${messageTime.minute.toString().padLeft(2, '0')}';
+            '${localTime.hour.toString().padLeft(2, '0')}:${localTime.minute.toString().padLeft(2, '0')}';
       } else if (now.difference(messageTime).inDays == 1) {
         // Yesterday
         formattedTime = 'Yesterday';
       } else {
         // Other days - show date
-        formattedTime =
-            '${messageTime.day}/${messageTime.month}/${messageTime.year}';
+        DateTime localTime = messageTime.toLocal();
+        formattedTime = '${localTime.day}/${localTime.month}/${localTime.year}';
       }
     }
 
