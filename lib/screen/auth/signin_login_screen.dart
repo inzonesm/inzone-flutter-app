@@ -210,7 +210,7 @@ class _SignInLoginScreenState extends State<SignInLoginScreen> {
     if (!doc.exists) {
       await docRef.set({
         'email': user.email ?? '',
-        'createdAt': null, // 아직 프로필 설정 안 했으면 createdAt 비워둬야 구분 가능
+        'createdAt': null,
       });
       doc = await docRef.get();
     }

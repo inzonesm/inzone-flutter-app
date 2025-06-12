@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:math' as math;
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:colorful_safe_area/colorful_safe_area.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -14,6 +15,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:lottie/lottie.dart';
 import 'package:inzone/auth/auth_work.dart';
 import 'package:go_router/go_router.dart';
+import 'package:toasty_box/toast_service.dart';
 
 class PostScreen extends StatefulWidget {
   const PostScreen({super.key});
@@ -165,17 +167,60 @@ class _PostScreenState extends State<PostScreen> {
                             )
                           : GestureDetector(
                               onTap: () async {
-                                if (postContent.trim().isEmpty || isPosting)
+                                if (postContent.trim().isEmpty || isPosting) {
+                                  print(
+                                      "Post validation failed: Empty content or already posting");
+
+                                  ToastService.showToast(
+                                    context,
+                                    backgroundColor:
+                                        Theme.of(context).canvasColor,
+                                    shadowColor: Colors.transparent,
+                                    leading: const Icon(
+                                      FeatherIcons.xCircle,
+                                      color: Colors.redAccent,
+                                    ),
+                                    message: postContent.trim().isEmpty
+                                        ? "Please enter some content before posting"
+                                        : "Already processing your post",
+                                  );
+
                                   return;
+                                }
 
                                 setState(() {
                                   isPosting = true;
+                                });
+
+                                // Add a timeout to ensure the UI doesn't get stuck
+                                Timer postTimeout =
+                                    Timer(const Duration(seconds: 15), () {
+                                  if (mounted && isPosting) {
+                                    setState(() {
+                                      isPosting = false;
+                                    });
+
+                                    ToastService.showToast(
+                                      context,
+                                      backgroundColor:
+                                          Theme.of(context).canvasColor,
+                                      shadowColor: Colors.transparent,
+                                      leading: const Icon(
+                                        FeatherIcons.xCircle,
+                                        color: Colors.redAccent,
+                                      ),
+                                      message:
+                                          "Post timed out. Please try again.",
+                                    );
+                                  }
                                 });
 
                                 try {
                                   var analysis =
                                       await InZoneDatabase.analyzeSentiment(
                                           postContent);
+
+                                  print("Sentiment analysis result: $analysis");
 
                                   int sentiment = analysis["sentiment"] as int;
                                   setState(() {
@@ -195,8 +240,26 @@ class _PostScreenState extends State<PostScreen> {
                                     setState(() {
                                       isPosting = false;
                                     });
+
+                                    ToastService.showToast(
+                                      context,
+                                      backgroundColor:
+                                          Theme.of(context).canvasColor,
+                                      shadowColor: Colors.transparent,
+                                      leading: const Icon(
+                                        FeatherIcons.xCircle,
+                                        color: Colors.redAccent,
+                                      ),
+                                      message:
+                                          "Your post violates our guidelines. Please rephrase it.",
+                                    );
                                     return;
                                   }
+
+                                  print(
+                                      "Starting to create post with content: $postContent");
+                                  print(
+                                      "Images: ${imageUrls.length}, Videos: ${videoUrls.length}");
 
                                   final result =
                                       await InZoneDatabase.createHumanPost(
@@ -205,10 +268,38 @@ class _PostScreenState extends State<PostScreen> {
                                     videoRefs: videoUrls,
                                   );
 
-                                  if (!result["success"]) {
+                                  print("Create post result: $result");
+
+                                  if (result["success"] != true) {
                                     setState(() {
                                       isPosting = false;
                                     });
+
+                                    String errorMessage =
+                                        "Failed to create post. Please try again.";
+
+                                    // Check for specific error messages from the backend
+                                    if (result["error"] != null) {
+                                      errorMessage = result["error"].toString();
+                                    } else if (result["message"] != null) {
+                                      errorMessage =
+                                          result["message"].toString();
+                                    }
+
+                                    print(
+                                        "Post failed with error: $errorMessage");
+
+                                    ToastService.showToast(
+                                      context,
+                                      backgroundColor:
+                                          Theme.of(context).canvasColor,
+                                      shadowColor: Colors.transparent,
+                                      leading: const Icon(
+                                        FeatherIcons.xCircle,
+                                        color: Colors.redAccent,
+                                      ),
+                                      message: errorMessage,
+                                    );
                                     return;
                                   }
 
@@ -261,10 +352,31 @@ class _PostScreenState extends State<PostScreen> {
                                   });
                                 } catch (e) {
                                   // Handle error
+                                  print("Post error: $e");
+                                  if (mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                          "Failed to post: ${e.toString().substring(0, math.min(e.toString().length, 100))}",
+                                          style: TextStyle(
+                                              color: Theme.of(context)
+                                                  .colorScheme
+                                                  .onError),
+                                        ),
+                                        backgroundColor:
+                                            Theme.of(context).colorScheme.error,
+                                        duration: const Duration(seconds: 2),
+                                      ),
+                                    );
+                                  }
                                 } finally {
-                                  setState(() {
-                                    isUploading = false;
-                                  });
+                                  postTimeout.cancel();
+                                  if (mounted) {
+                                    setState(() {
+                                      isUploading = false;
+                                      isPosting = false;
+                                    });
+                                  }
                                 }
                               },
                               child: Text(

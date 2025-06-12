@@ -103,6 +103,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           .update({
         'profilePicture': profileImageUrl ?? "",
         'name': _nameController.text.trim(),
+        'username': _nameController.text.trim().toLowerCase(),
       });
 
       print(
