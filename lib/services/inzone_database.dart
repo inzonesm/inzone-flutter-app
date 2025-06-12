@@ -571,6 +571,10 @@ class InZoneDatabase {
       // First analyze sentiment
       var analysis = await analyzeSentiment(content);
 
+      // Generate a unique post ID
+      String postId =
+          "post_${FirebaseAuth.instance.currentUser!.uid}_${DateTime.now().millisecondsSinceEpoch}";
+
       String url =
           'https://inzoneapi-912424781531.us-central1.run.app/feed/create-human-post';
 
@@ -578,12 +582,15 @@ class InZoneDatabase {
         "UserName": FirebaseAuth.instance.currentUser!.displayName,
         "UserDocumentId": FirebaseAuth.instance.currentUser!.uid,
         "Category": analysis["category"],
+        "Id": postId,
         "Post": {
           "TextContent": content,
           "ImageContent": imageRefs,
           "VideoContent": videoRefs
         }
       };
+
+      print("Sending post data: $postData");
 
       final response = await http.post(
         Uri.parse(url),
