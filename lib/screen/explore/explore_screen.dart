@@ -37,7 +37,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
   @override
   void initState() {
     super.initState();
-    _startTime = DateTime.now();
+    _startTime = DateTime.now().toUtc();
     getFeed(); // Initial data fetch
     _scrollController
         .addListener(_onScroll); // Attach scroll listener for lazy loading
@@ -46,7 +46,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
   @override
   void dispose() {
     _scrollController.dispose(); // Dispose of the scroll controller
-    DateTime endTime = DateTime.now();
+    DateTime endTime = DateTime.now().toUtc();
     Duration timeSpent = endTime.difference(_startTime);
     InZoneDatabase.logEvent('explore_screen', {
       "timeSpent": timeSpent.inSeconds,

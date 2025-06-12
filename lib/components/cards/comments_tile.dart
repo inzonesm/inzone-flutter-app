@@ -88,8 +88,8 @@ class _CommentsTileState extends State<CommentsTile> {
 
   String formatTimestamp(String timestamp) {
     try {
-      final DateTime date = DateTime.parse(timestamp);
-      final Duration difference = DateTime.now().difference(date);
+      final DateTime date = DateTime.parse(timestamp).toUtc();
+      final Duration difference = DateTime.now().toUtc().difference(date);
 
       if (difference.inDays > 365) {
         return '${(difference.inDays / 365).floor()} years ago';

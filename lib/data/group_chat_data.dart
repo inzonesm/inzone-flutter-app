@@ -35,7 +35,7 @@ class GroupChatData {
 
   factory GroupChatData.fromSnapshot(DocumentSnapshot snapshot) {
     final data = snapshot.data() as Map<String, dynamic>;
-    
+
     return GroupChatData(
       id: snapshot.id,
       name: data['name'] ?? '',
@@ -55,24 +55,25 @@ class GroupChatData {
   }
 
   static DateTime _parseTimestamp(dynamic timestamp) {
-    if (timestamp == null) return DateTime.now();
-    
+    if (timestamp == null) return DateTime.now().toUtc();
+
     if (timestamp is Timestamp) {
-      return timestamp.toDate();
+      return timestamp.toDate().toUtc();
     } else if (timestamp is String) {
-      return DateTime.parse(timestamp);
+      return DateTime.parse(timestamp).toUtc();
     } else {
-      return DateTime.now();
+      return DateTime.now().toUtc();
     }
   }
 
   static List<Participant> _parseParticipants(List<dynamic> participantsData) {
-    return participantsData.map((participant) => Participant.fromMap(participant)).toList();
+    return participantsData
+        .map((participant) => Participant.fromMap(participant))
+        .toList();
   }
 
   static List<ChatMessage> _parseMessages(List<dynamic> messagesData) {
     try {
-
       List<ChatMessage> messages = [];
       for (var i = 0; i < messagesData.length; i++) {
         try {
@@ -80,28 +81,25 @@ class GroupChatData {
           // Debug data type
 
           // Handle if it's already a Map
-          final map = messageData is Map ? 
-                      (messageData).cast<String, dynamic>() :
-                      messageData as Map<String, dynamic>;
-          
+          final map = messageData is Map
+              ? (messageData).cast<String, dynamic>()
+              : messageData as Map<String, dynamic>;
 
           // First check if we have the required fields
-          if (!map.containsKey('id') || 
-              !map.containsKey('sender') || 
+          if (!map.containsKey('id') ||
+              !map.containsKey('sender') ||
               !map.containsKey('content')) {
             continue;
           }
-          
+
           final message = ChatMessage.fromMap(map);
           messages.add(message);
-
         } catch (e) {
           print('Error parsing message at index $i: $e');
           // Continue to next message instead of failing the whole list
           continue;
         }
       }
-      
 
       return messages;
     } catch (e) {
@@ -158,26 +156,24 @@ class ChatMessage {
       } else {
         senderMap = {};
       }
-    
+
       return ChatMessage(
         id: map['id']?.toString() ?? '',
         sender: MessageSender.fromMap(senderMap),
         content: map['content']?.toString() ?? '',
         isProcessed: map['isProcessed'] == true,
-        timestamp: map['timestamp'] != null 
+        timestamp: map['timestamp'] != null
             ? GroupChatData._parseTimestamp(map['timestamp'])
             : null,
       );
     } catch (e) {
-
-      
       // Return a placeholder message instead of failing
       return ChatMessage(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        id: DateTime.now().toUtc().millisecondsSinceEpoch.toString(),
         sender: MessageSender(uid: '', type: 'error', name: 'Error'),
         content: 'Error parsing message: $e',
         isProcessed: true,
-        timestamp: DateTime.now(),
+        timestamp: DateTime.now().toUtc(),
       );
     }
   }
@@ -209,4 +205,4 @@ class MessageSender {
       );
     }
   }
-} 
+}

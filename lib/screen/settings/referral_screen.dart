@@ -141,9 +141,11 @@ class _ReferralScreenState extends State<ReferralScreen>
     try {
       final newReferral = {
         'name': contact.fullName ?? 'Referred User',
-        'photo_url': '', // You can add a default avatar if needed
-        'date':
-            DateTime.now().toString().split(' ')[0], // Only keep the date part
+        'photo_url': '', // You can add a default avat r if needed
+        'date': DateTime.now()
+            .toUtc()
+            .toString()
+            .split(' ')[0], // Only keep the date part
         'phone': contact.phoneNumbers?.first.toString() ?? '',
       };
 

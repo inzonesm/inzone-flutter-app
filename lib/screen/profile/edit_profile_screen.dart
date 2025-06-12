@@ -90,7 +90,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
       // Create a unique filename
       final String fileName =
-          '${widget.userId}_${DateTime.now().millisecondsSinceEpoch}.$ext';
+          '${widget.userId}_${DateTime.now().toUtc().millisecondsSinceEpoch}.$ext';
 
       // Create reference to storage location
       final ref = _storage.ref().child('profile_pictures/$fileName');

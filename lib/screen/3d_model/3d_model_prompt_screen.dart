@@ -105,7 +105,7 @@ class _ModelPromptScreenState extends State<ModelPromptScreen>
 
     setState(() {
       _isGenerating = true;
-      _generationStartTime = DateTime.now();
+      _generationStartTime = DateTime.now().toUtc();
       _elapsedSeconds = 0;
     });
 
@@ -115,8 +115,10 @@ class _ModelPromptScreenState extends State<ModelPromptScreen>
       await Future.delayed(const Duration(seconds: 1));
       if (mounted && _isGenerating && _generationStartTime != null) {
         setState(() {
-          _elapsedSeconds =
-              DateTime.now().difference(_generationStartTime!).inSeconds;
+          _elapsedSeconds = DateTime.now()
+              .toUtc()
+              .difference(_generationStartTime!)
+              .inSeconds;
         });
       }
       return _isGenerating && mounted;

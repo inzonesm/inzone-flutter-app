@@ -1519,7 +1519,7 @@ class _PostCardState extends State<PostCard> {
       'author': FirebaseAuth.instance.currentUser!.displayName,
       'text': commentText,
       'userId': FirebaseAuth.instance.currentUser!.uid,
-      'timestamp': DateTime.now().toString(),
+      'timestamp': DateTime.now().toUtc().millisecondsSinceEpoch.toString(),
       'likedBy': [], // Initialize likedBy as an empty list
     };
 

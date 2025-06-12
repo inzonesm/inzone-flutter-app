@@ -241,7 +241,7 @@ class _SearchExploreScreenState extends State<SearchExploreScreen> {
               id: id,
               userName: 'AI User',
               comments: [], // Empty comments list
-              datePosted: DateTime.now(),
+              datePosted: DateTime.now().toUtc(),
               likes: 0,
               textContent: textContent,
               imageContent: imageContent,

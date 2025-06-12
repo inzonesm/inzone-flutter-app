@@ -34,7 +34,7 @@ class GroupChatService {
         print('Creating default group chat document');
 
         // Create a new document if it doesn't exist
-        final timestamp = Timestamp.now();
+        final timestamp = Timestamp.fromDate(DateTime.now().toUtc());
         // Barcelona crest image URL
         const imageUrl =
             "https://upload.wikimedia.org/wikipedia/sco/4/47/FC_Barcelona_%28crest%29.svg";
@@ -101,9 +101,9 @@ class GroupChatService {
       };
 
       // Create the message with Timestamp instead of DateTime for Firestore compatibility
-      final timestamp = Timestamp.now();
+      final timestamp = Timestamp.fromDate(DateTime.now().toUtc());
       final message = {
-        'id': DateTime.now().millisecondsSinceEpoch.toString(),
+        'id': DateTime.now().toUtc().millisecondsSinceEpoch.toString(),
         'sender': currentParticipant,
         'content': content,
         'isProcessed': false,
@@ -265,8 +265,8 @@ class GroupChatService {
       'groupChatType': "premium",
       'groupChatStatus': "active",
       'groupChatCategory': "sports",
-      'createdAt': timestamp,
-      'updatedAt': timestamp,
+      'createdAt': Timestamp.fromDate(DateTime.now().toUtc()),
+      'updatedAt': Timestamp.fromDate(DateTime.now().toUtc()),
       'participants': [currentParticipant, messiParticipant],
       'messages': [message],
       'lastProcessedMessageId': message['id'],
@@ -286,7 +286,7 @@ class GroupChatService {
       String name, String description, String imageUrl) async {
     try {
       // Generate a unique ID with timestamp
-      final timestamp = DateTime.now();
+      final timestamp = DateTime.now().toUtc();
       final String docId = 'group_chat_${timestamp.millisecondsSinceEpoch}';
 
       // Create the group document reference
@@ -321,8 +321,8 @@ class GroupChatService {
         'groupChatType': 'standard',
         'groupChatStatus': 'active',
         'groupChatCategory': 'general',
-        'createdAt': Timestamp.now(),
-        'updatedAt': Timestamp.now(),
+        'createdAt': Timestamp.fromDate(DateTime.now().toUtc()),
+        'updatedAt': Timestamp.fromDate(DateTime.now().toUtc()),
         'participants': [currentParticipant],
         'messages': [],
         'lastProcessedMessageId': '',

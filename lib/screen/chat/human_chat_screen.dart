@@ -147,8 +147,8 @@ class _HumanChatScreenState extends State<HumanChatScreen> {
         backgroundColor: Theme.of(context).canvasColor,
         shadowColor: Colors.transparent,
         leading: const Icon(
-          Icons.error, // or Icons.check_circle, Icons.warning, etc.
-          color: Colors.redAccent, // or Colors.greenAccent, Colors.orange
+          Icons.error,
+          color: Colors.redAccent,
         ),
         message: 'Failed to send message. Please try again.',
       );
@@ -244,7 +244,7 @@ class _HumanChatScreenState extends State<HumanChatScreen> {
                   Timestamp? timestamp = messageData['timestamp'] as Timestamp?;
 
                   if (timestamp != null) {
-                    final DateTime dateTime = timestamp.toDate();
+                    final DateTime dateTime = timestamp.toDate().toUtc();
                     final String dateKey = _getDateKey(dateTime);
 
                     if (!messagesByDate.containsKey(dateKey)) {
@@ -269,7 +269,7 @@ class _HumanChatScreenState extends State<HumanChatScreen> {
                   // Add date header
                   if (dateKey != 'No Date') {
                     DateTime headerDate;
-                    final now = DateTime.now();
+                    final now = DateTime.now().toUtc();
                     final today = DateTime(now.year, now.month, now.day);
 
                     if (dateKey == 'Today') {
@@ -319,7 +319,7 @@ class _HumanChatScreenState extends State<HumanChatScreen> {
 
                     // Check if message is from current user
                     bool isMe = senderId == currentUserId;
-                    DateTime? messageDateTime = timestamp?.toDate();
+                    DateTime? messageDateTime = timestamp?.toDate().toUtc();
 
                     messageWidgets.add(
                       MessageBubble(
@@ -381,7 +381,7 @@ class _HumanChatScreenState extends State<HumanChatScreen> {
   }
 
   String _getDateKey(DateTime dateTime) {
-    final now = DateTime.now();
+    final now = DateTime.now().toUtc();
     final today = DateTime(now.year, now.month, now.day);
     final yesterday = today.subtract(const Duration(days: 1));
     final messageDate = DateTime(dateTime.year, dateTime.month, dateTime.day);
@@ -391,7 +391,7 @@ class _HumanChatScreenState extends State<HumanChatScreen> {
     } else if (messageDate == yesterday) {
       return 'Yesterday';
     } else {
-      return DateFormat('MMMM d, yyyy').format(dateTime);
+      return DateFormat('MMMM d, yyyy').format(dateTime.toLocal());
     }
   }
 }
