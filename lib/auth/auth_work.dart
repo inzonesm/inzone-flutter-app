@@ -38,7 +38,7 @@ class AuthWork {
 
       // Storage file ref with path for video
       final ref = storage.ref().child(
-          'videos/$chatUserID/${DateTime.now().millisecondsSinceEpoch}.$ext');
+          'videos/$chatUserID/${DateTime.now().toUtc().millisecondsSinceEpoch}.$ext');
 
       // Uploading video
       await ref
@@ -53,7 +53,7 @@ class AuthWork {
 
       // Storage file ref with path for thumbnail
       final thumbnailRef = storage.ref().child(
-          'thumbnails/$chatUserID/${DateTime.now().millisecondsSinceEpoch}_thumbnail.jpg');
+          'thumbnails/$chatUserID/${DateTime.now().toUtc().millisecondsSinceEpoch}_thumbnail.jpg');
 
       // Uploading thumbnail
       final thumbnailTask = thumbnailRef.putFile(thumbnail);
@@ -77,7 +77,7 @@ class AuthWork {
 
     //storage file ref with path
     final ref = storage.ref().child(
-        'images/$chatUserID/${DateTime.now().millisecondsSinceEpoch}.$ext');
+        'images/$chatUserID/${DateTime.now().toUtc().millisecondsSinceEpoch}.$ext');
 
     //uploading image
     await ref
@@ -94,7 +94,7 @@ class AuthWork {
     // Define the path for the thumbnail
     final tempDir = await getTemporaryDirectory();
     final thumbnailPath =
-        '${tempDir.path}/${DateTime.now().millisecondsSinceEpoch}_thumbnail.jpg';
+        '${tempDir.path}/${DateTime.now().toUtc().millisecondsSinceEpoch}_thumbnail.jpg';
 
     try {
       // video_player를 사용하여 비디오의 첫 프레임 가져오기
