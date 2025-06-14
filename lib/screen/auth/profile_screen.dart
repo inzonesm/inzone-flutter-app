@@ -32,7 +32,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       });
     }
   }
-
   Future<void> _saveProfile() async {
     if (_nameController.text.trim().isEmpty) {
       ToastService.showToast(
@@ -92,14 +91,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
         print("ProfileScreen - Uploaded profile image: $profileImageUrl");
       }
 
-      await FirebaseFirestore.instance
+      // Check if document exists first
+      final docRef = FirebaseFirestore.instance
           .collection('humanUsers')
-          .doc(currentUser.uid)
-          .update({
-        'profilePicture': profileImageUrl ?? "",
-        'name': _nameController.text.trim(),
-        'username': _nameController.text.trim().toLowerCase(),
-      });
+          .doc(currentUser.uid);
+      
+      final docSnapshot = await docRef.get();
+      
+      if (docSnapshot.exists) {
+        await docRef.update({
+          'profilePicture': profileImageUrl ?? "",
+          'name': _nameController.text.trim(),
+          'username': _nameController.text.trim().toLowerCase(),
+        });
+      } else {
+        await docRef.set({
+          'profilePicture': profileImageUrl ?? "",
+          'name': _nameController.text.trim(),
+          'username': _nameController.text.trim().toLowerCase(),
+        });
+      }
 
       print(
           "ProfileScreen - Profile saved successfully, navigating to interests screen");
@@ -125,7 +136,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           FeatherIcons.xCircle,
           color: Colors.redAccent,
         ),
-        message: 'Failed to save profile. Please try again.',
+        message: 'Failed to save profile: ${e.toString()}',
       );
       setState(() {
         _isSaving = false;
