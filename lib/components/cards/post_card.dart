@@ -734,11 +734,11 @@ class _PostCardState extends State<PostCard> {
               "Report ${widget.post.userName}",
               "dont_show",
             ),
-            _optionItem(
-              FeatherIcons.gift,
-              "Tip ${widget.post.userName}",
-              "tip",
-            ),
+            // _optionItem(
+            //   FeatherIcons.gift,
+            //   "Tip ${widget.post.userName}",
+            //   "tip",
+            // ),
             const SizedBox(height: 15),
           ],
         ),
