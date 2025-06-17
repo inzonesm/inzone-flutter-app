@@ -290,7 +290,7 @@ Widget GroupCardLoading(BuildContext context) {
   return Padding(
     padding: const EdgeInsets.all(4),
     child: Container(
-      height: 220,
+      height: 130,
       width: double.infinity,
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
@@ -304,46 +304,50 @@ Widget GroupCardLoading(BuildContext context) {
         ],
       ),
       child: const Padding(
-        padding: EdgeInsets.symmetric(vertical: 18, horizontal: 18),
+        padding: EdgeInsets.symmetric(vertical: 10, horizontal: 18),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Title area
-            SkeletonContainer.rounded(
-              height: 60,
-              width: double.infinity,
-            ),
-            SizedBox(height: 4),
-
-            // Description area
-            SkeletonContainer.rounded(
-              height: 80,
-              width: double.infinity,
-            ),
             SizedBox(height: 8),
-
-            // Stats row
             Row(
               children: [
-                SkeletonContainer.circular(
-                  height: 24,
-                  width: 60,
+                Expanded(
+                  child: SkeletonContainer.rounded(
+                    height: 10,
+                  ),
                 ),
-                Spacer(),
-                SkeletonContainer.circular(
-                  height: 24,
-                  width: 60,
+                SizedBox(width: 12),
+                SkeletonContainer.rounded(
+                  height: 10,
+                  width: 30,
+                ),
+                SizedBox(width: 8),
+                SkeletonContainer.rounded(
+                  height: 10,
+                  width: 30,
+                ),
+                SizedBox(width: 8),
+                SkeletonContainer.rounded(
+                  height: 10,
+                  width: 30,
                 ),
               ],
             ),
 
-            SizedBox(height: 16),
+            SizedBox(height: 12),
 
-            // Avatar stack at bottom
-            SkeletonContainer.circular(
-              height: 40,
-              width: 120,
+            // Title area
+            SkeletonContainer.rounded(
+              height: 12,
+              width: double.infinity,
+            ),
+            SizedBox(height: 12),
+
+            // Description area
+            SkeletonContainer.rounded(
+              height: 48,
+              width: double.infinity,
             ),
           ],
         ),

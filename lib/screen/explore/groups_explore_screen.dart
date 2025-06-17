@@ -9,6 +9,7 @@ import 'package:inzone/data/group_data.dart';
 import 'package:inzone/data/group_chat_data.dart';
 import 'package:inzone/data/group_data_mapper.dart';
 import 'package:inzone/components/cards/group_card.dart';
+import 'package:inzone/components/cards/ad_card.dart';
 import 'package:inzone/router/routes.dart';
 import 'package:inzone/services/group_chat_service.dart';
 import 'package:inzone/services/monetization_service.dart';
@@ -391,17 +392,13 @@ class _GroupsExploreScreenState extends State<GroupsExploreScreen> {
                   ...commonSlivers,
                   SliverPadding(
                     padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                    sliver: SliverGrid(
-                      gridDelegate:
-                          const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 2,
-                        childAspectRatio: 0.65,
-                        mainAxisSpacing: 0.0,
-                        crossAxisSpacing: 0.0,
-                      ),
+                    sliver: SliverList(
                       delegate: SliverChildBuilderDelegate(
                         (context, index) {
-                          return GroupCardLoading(context);
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 8.0),
+                            child: GroupCardLoading(context),
+                          );
                         },
                         childCount: 8, // Show 8 loading cards
                       ),
@@ -465,28 +462,34 @@ class _GroupsExploreScreenState extends State<GroupsExploreScreen> {
                   .toList();
             }
 
+            List<dynamic> listItems = List.from(groups);
+            if (listItems.length > 5) {
+              listItems.insert(5, 'ad');
+            }
+            if (listItems.length > 11) {
+              listItems.insert(11, 'ad');
+            }
+
             return CustomScrollView(
               slivers: [
                 ...commonSlivers,
                 SliverPadding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                  sliver: groups.isEmpty
+                  padding: const EdgeInsets.symmetric(horizontal: 12.0),
+                  sliver: listItems.isEmpty
                       ? const SliverFillRemaining(
                           child: Center(child: Text('No groups available')),
                         )
-                      : SliverGrid(
-                          gridDelegate:
-                              const SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 2,
-                            childAspectRatio: 0.65,
-                            mainAxisSpacing: 0.0,
-                            crossAxisSpacing: 0.0,
-                          ),
+                      : SliverList(
                           delegate: SliverChildBuilderDelegate(
                             (context, index) {
-                              return GroupCard(group: groups[index]);
+                              if (listItems[index] is String &&
+                                  listItems[index] == 'ad') {
+                                return const AdCard();
+                              }
+                              final group = listItems[index] as GroupData;
+                              return GroupCard(group: group);
                             },
-                            childCount: groups.length,
+                            childCount: listItems.length,
                           ),
                         ),
                 ),
