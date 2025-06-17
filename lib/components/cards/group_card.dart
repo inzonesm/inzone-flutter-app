@@ -4,7 +4,7 @@ import 'dart:math';
 import 'package:image_stack/image_stack.dart';
 import 'package:go_router/go_router.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-
+import 'dart:io';
 import 'package:inzone/data/group_data.dart';
 import 'package:inzone/data/group_chat_data.dart';
 import 'package:inzone/screen/chat/group_chat_screen.dart';
@@ -65,7 +65,7 @@ class GroupCard extends StatelessWidget {
             highlightColor:
                 Theme.of(context).colorScheme.primary.withOpacity(0.05),
             child: Container(
-              height: 128,
+              height: Platform.isAndroid ? 150 : 130,
               width: double.infinity,
               decoration: BoxDecoration(
                 color: Theme.of(context).cardColor,
@@ -80,18 +80,18 @@ class GroupCard extends StatelessWidget {
               ),
               child: Padding(
                 padding:
-                    const EdgeInsets.symmetric(vertical: 8, horizontal: 18),
+                    const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // Title section - always fully visible
-                    const SizedBox(height: 12),
+                    SizedBox(height: Platform.isAndroid ? 18 : 12),
                     Row(
                       children: [
                         // Avatar stack
                         Container(
-                          width: 50,
-                          height: 50,
+                          width: 64,
+                          height: 64,
                           decoration: BoxDecoration(
                             color: Theme.of(context).colorScheme.primary,
                             borderRadius: BorderRadius.circular(12),
