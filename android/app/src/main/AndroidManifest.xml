@@ -13,10 +13,10 @@
         android:icon="@mipmap/launcher_icon">
         
         <!-- Add meta-data for the Facebook App ID -->
-        <meta-data android:name="com.appsflyer.FacebookApplicationId" android:value="@string/3421498634819032" />
+        <meta-data android:name="com.appsflyer.FacebookApplicationId" android:value="@string/facebook_app_id" />
         <meta-data
             android:name="com.facebook.sdk.ApplicationId"
-            android:value="@string/3421498634819032" />
+            android:value="@string/facebook_app_id" />
         <meta-data
             android:name="com.google.android.gms.ads.APPLICATION_ID"
             android:value="ca-app-pub-4474122990542651~2720978162"/>

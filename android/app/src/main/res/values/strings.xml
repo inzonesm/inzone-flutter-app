@@ -2,5 +2,7 @@
 <resources>
     <string name="app_name">InZone</string>
     <string name="facebook_app_id">3421498634819032</string>
-    <string name="facebook_application_id" translatable="false"><3421498634819032></string>
+    <string name="facebook_application_id" translatable="false">3421498634819032</string>
+    <string name="ad">Ad badge</string>
+
 </resources>
