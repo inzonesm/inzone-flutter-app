@@ -13,6 +13,7 @@ class Routes {
   static const String chats = '/chats';
   static const String profile_tab = '/profile';
   static const String searchExplore = '/search_explore';
+  static const String notifications = '/notifications';
   static const String characters = '/characters';
   static const String tipScreen = '/tip-screen';
 

@@ -11,6 +11,7 @@ import 'package:inzone/components/ui/appbar.dart';
 import 'package:inzone/data/inzone_avatar.dart';
 import 'package:inzone/data/inzone_post.dart';
 import 'package:inzone/router/routes.dart';
+import 'package:inzone/screen/common/notificationScreen.dart';
 import 'package:inzone/services/inzone_database.dart';
 import 'package:go_router/go_router.dart';
 import 'package:inzone/screen/common/search_explore_screen.dart';
@@ -673,9 +674,18 @@ class HomeScreenState extends State<HomeScreen> {
                           isHome: true,
                           userPoints: "100",
                           profileImageUrl: null,
+                          onNotificationTap: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (context) =>
+                                    const NotificationScreen(),
+                              ),
+                            );
+                          },
                           onSearchTap: () {
                             try {
                               // context.push(Routes.searchExplore);
+
                               Navigator.of(context).push(
                                 MaterialPageRoute(
                                   builder: (context) =>

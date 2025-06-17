@@ -12,6 +12,7 @@ import google_mobile_ads
 
   GeneratedPluginRegistrant.register(with: self)
     let factory = NativeAdFactory()
+    let groupfactory = GroupNativeAdFactory()
 
     // Pass 'self' as the registry, not binaryMessenger
     FLTGoogleMobileAdsPlugin.registerNativeAdFactory(
@@ -19,6 +20,12 @@ import google_mobile_ads
       factoryId: "listTileMedium",
       nativeAdFactory: factory
     )
+      
+      FLTGoogleMobileAdsPlugin.registerNativeAdFactory(
+           self,
+           factoryId: "groupTileSmall",
+           nativeAdFactory: groupfactory
+         )
 
 
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)

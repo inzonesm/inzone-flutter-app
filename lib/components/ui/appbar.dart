@@ -11,6 +11,7 @@ class CustomAppBar extends StatefulWidget implements PreferredSizeWidget {
   final VoidCallback? onSearchTap;
   final VoidCallback? onProfileTap;
   final VoidCallback? onPointsTap;
+  final VoidCallback? onNotificationTap;
   final bool isHome;
   final bool isGroup;
   final bool isChat;
@@ -28,6 +29,7 @@ class CustomAppBar extends StatefulWidget implements PreferredSizeWidget {
     this.onSearchTap,
     this.onProfileTap,
     this.onPointsTap,
+    this.onNotificationTap,
     this.isHome = false,
     this.isGroup = false,
     this.isChat = false,
@@ -119,6 +121,27 @@ class _CustomAppBarState extends State<CustomAppBar> {
                         ),
                         child: Icon(
                           Icons.search,
+                          color: Theme.of(context).iconTheme.color,
+                          size: 28,
+                        ),
+                      ),
+                    ),
+                  const SizedBox(width: 8),
+                  if (widget.isHome &&
+                      !widget.isGroup &&
+                      !widget.isChat &&
+                      !widget.isSettings)
+                    GestureDetector(
+                      onTap: widget.onNotificationTap,
+                      child: Container(
+                        width: 48,
+                        height: 48,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Theme.of(context).cardColor,
+                        ),
+                        child: Icon(
+                          Icons.notifications,
                           color: Theme.of(context).iconTheme.color,
                           size: 28,
                         ),

@@ -333,7 +333,7 @@ class _SearchExploreScreenState extends State<SearchExploreScreen> {
         bottom: false,
         child: Column(
           children: [
-            // Top search bar and back button - 항상 표시됨
+            // Top search bar and back button
             Padding(
               padding: const EdgeInsets.only(
                   top: 8.0, left: 8.0, right: 16.0, bottom: 8.0),
