@@ -6,6 +6,59 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:developer';
 
+// Post View Tracking Helper
+class PostViewTracker {
+  static final Map<String, DateTime> _postViewStartTimes = {};
+  static final Map<String, int> _postRewatchCounts = {};
+
+  static void startViewingPost(String postId) {
+    _postViewStartTimes[postId] = DateTime.now();
+  }
+
+  static void stopViewingPost(String postId, {
+    String? category,
+    String? postType,
+    String? authorId,
+  }) {
+    final startTime = _postViewStartTimes[postId];
+    if (startTime != null) {
+      final viewDuration = DateTime.now().difference(startTime).inSeconds;
+      final userId = AppsFlyerService().getCurrentUserId();
+      
+      if (userId != null && viewDuration > 1) { // Only track views longer than 1 second
+        AppsFlyerService().trackPostView(
+          postId: postId,
+          timeSpentSeconds: viewDuration,
+          category: category ?? 'unknown',
+          userId: userId,
+          postType: postType,
+          authorId: authorId,
+        );
+      }
+      
+      _postViewStartTimes.remove(postId);
+    }
+  }
+
+  static void trackRewatch(String postId) {
+    _postRewatchCounts[postId] = (_postRewatchCounts[postId] ?? 0) + 1;
+    final userId = AppsFlyerService().getCurrentUserId();
+    
+    if (userId != null) {
+      AppsFlyerService().trackPostRewatch(
+        postId: postId,
+        userId: userId,
+        rewatchCount: _postRewatchCounts[postId]!,
+      );
+    }
+  }
+
+  static void clearPostTracking(String postId) {
+    _postViewStartTimes.remove(postId);
+    _postRewatchCounts.remove(postId);
+  }
+}
+
 class AppsFlyerService {
   static final AppsFlyerService _instance = AppsFlyerService._internal();
   late AppsflyerSdk appsflyerSdk;
@@ -242,7 +295,16 @@ class AppsFlyerService {
 
   Future<bool?> logEvent( 
       String eventName, Map<String, dynamic>? eventValues) async {
-    return await appsflyerSdk.logEvent(eventName, eventValues);
+    // Debug logging for testing
+    print('🔥 AppsFlyer Event: $eventName');
+    if (eventValues != null) {
+      print('📊 Parameters: ${eventValues.toString()}');
+    }
+    
+    final result = await appsflyerSdk.logEvent(eventName, eventValues);
+    print('✅ Event sent successfully: $result');
+    
+    return result;
   }
 
   Future<String?> getAdvertisingId() async {
@@ -276,6 +338,479 @@ class AppsFlyerService {
     });
   }
 
+  // ==================== BEHAVIORAL TRACKING METHODS ====================
+  
+  // Post Engagement Tracking
+  Future<bool?> trackPostView({
+    required String postId,
+    required int timeSpentSeconds,
+    required String category,
+    required String userId,
+    String? postType,
+    String? authorId,
+  }) {
+    return logEvent('post_view', {
+      'post_id': postId,
+      'time_spent_sec': timeSpentSeconds,
+      'category': category,
+      'user_id': userId,
+      'post_type': postType,
+      'author_id': authorId,
+      'timestamp': DateTime.now().millisecondsSinceEpoch,
+    });
+  }
+
+  Future<bool?> trackPostLike({
+    required String postId,
+    required String userId,
+    required bool isLiked, // true for like, false for unlike
+    String? category,
+    String? authorId,
+  }) {
+    return logEvent('post_like', {
+      'post_id': postId,
+      'user_id': userId,
+      'action': isLiked ? 'like' : 'unlike',
+      'category': category,
+      'author_id': authorId,
+      'timestamp': DateTime.now().millisecondsSinceEpoch,
+    });
+  }
+
+  Future<bool?> trackPostComment({
+    required String postId,
+    required String userId,
+    required String commentText,
+    String? category,
+    String? authorId,
+  }) {
+    return logEvent('post_comment', {
+      'post_id': postId,
+      'user_id': userId,
+      'comment_length': commentText.length,
+      'category': category,
+      'author_id': authorId,
+      'timestamp': DateTime.now().millisecondsSinceEpoch,
+    });
+  }
+
+  Future<bool?> trackVideoCompletion({
+    required String postId,
+    required String userId,
+    required double watchedPercent,
+    required int durationSeconds,
+    required bool completed,
+  }) {
+    return logEvent('video_completion', {
+      'post_id': postId,
+      'user_id': userId,
+      'watched_percent': watchedPercent,
+      'duration_sec': durationSeconds,
+      'completed': completed,
+      'timestamp': DateTime.now().millisecondsSinceEpoch,
+    });
+  }
+
+  Future<bool?> trackPostRewatch({
+    required String postId,
+    required String userId,
+    required int rewatchCount,
+  }) {
+    return logEvent('post_rewatch', {
+      'post_id': postId,
+      'user_id': userId,
+      'rewatch_count': rewatchCount,
+      'timestamp': DateTime.now().millisecondsSinceEpoch,
+    });
+  }
+
+  // AI Character Interaction Tracking
+  Future<bool?> trackAICharacterInteraction({
+    required String characterId,
+    required String userId,
+    required int durationSeconds,
+    required int messageCount,
+    String? interactionType,
+  }) {
+    return logEvent('ai_character_interaction', {
+      'character_id': characterId,
+      'user_id': userId,
+      'duration_sec': durationSeconds,
+      'message_count': messageCount,
+      'interaction_type': interactionType ?? 'chat',
+      'timestamp': DateTime.now().millisecondsSinceEpoch,
+    });
+  }
+
+  // Group Chat Tracking
+  Future<bool?> trackGroupChatJoined({
+    required String groupId,
+    required String userId,
+  }) {
+    return logEvent('groupchat_joined', {
+      'group_id': groupId,
+      'user_id': userId,
+      'timestamp': DateTime.now().millisecondsSinceEpoch,
+    });
+  }
+
+  Future<bool?> trackGroupChatActivity({
+    required String groupId,
+    required String userId,
+    required int durationSeconds,
+    required int messagesSent,
+  }) {
+    return logEvent('groupchat_activity', {
+      'group_id': groupId,
+      'user_id': userId,
+      'duration_sec': durationSeconds,
+      'messages_sent': messagesSent,
+      'timestamp': DateTime.now().millisecondsSinceEpoch,
+    });
+  }
+
+  // Scroll & Navigation Tracking
+  Future<bool?> trackScrollBehavior({
+    required String screenName,
+    required double scrollSpeedPxPerSec,
+    required String scrollDirection,
+    required int durationSeconds,
+    required String userId,
+  }) {
+    return logEvent('scroll_behavior', {
+      'screen_name': screenName,
+      'scroll_speed_px_per_sec': scrollSpeedPxPerSec,
+      'scroll_direction': scrollDirection,
+      'duration_sec': durationSeconds,
+      'user_id': userId,
+      'timestamp': DateTime.now().millisecondsSinceEpoch,
+    });
+  }
+
+  // Search Tracking
+  Future<bool?> trackSearchQuery({
+    required String query,
+    required String userId,
+    required int resultCount,
+    String? category,
+  }) {
+    return logEvent('search_query', {
+      'query': query,
+      'user_id': userId,
+      'result_count': resultCount,
+      'category': category,
+      'query_length': query.length,
+      'timestamp': DateTime.now().millisecondsSinceEpoch,
+    });
+  }
+
+  // Content Creation Tracking
+  Future<bool?> trackContentCreation({
+    required String userId,
+    required String postType,
+    required String category,
+    required int contentLength,
+    required String mediaType,
+    List<String>? tags,
+  }) {
+    return logEvent('content_created', {
+      'user_id': userId,
+      'post_type': postType,
+      'category': category,
+      'content_length': contentLength,
+      'media_type': mediaType,
+      'tags': tags?.join(','),
+      'timestamp': DateTime.now().millisecondsSinceEpoch,
+    });
+  }
+
+  // Session & App Usage Tracking
+  Future<bool?> trackSessionStart({
+    required String userId,
+    String? location,
+    String? deviceModel,
+  }) {
+    return logEvent('session_start', {
+      'user_id': userId,
+      'location': location,
+      'device_model': deviceModel,
+      'timestamp': DateTime.now().millisecondsSinceEpoch,
+    });
+  }
+
+  Future<bool?> trackSessionEnd({
+    required String userId,
+    required int sessionDurationSeconds,
+  }) {
+    return logEvent('session_end', {
+      'user_id': userId,
+      'session_duration_sec': sessionDurationSeconds,
+      'timestamp': DateTime.now().millisecondsSinceEpoch,
+    });
+  }
+
+  Future<bool?> trackDailyActiveTime({
+    required String userId,
+    required int totalMinutesActive,
+    required String date,
+  }) {
+    return logEvent('daily_active_time', {
+      'user_id': userId,
+      'total_minutes_active': totalMinutesActive,
+      'date': date,
+      'timestamp': DateTime.now().millisecondsSinceEpoch,
+    });
+  }
+
+  // Device & Settings Tracking
+  Future<bool?> trackDeviceInfo({
+    required String userId,
+    required String deviceModel,
+    required String osVersion,
+    required String appVersion,
+  }) {
+    return logEvent('device_info', {
+      'user_id': userId,
+      'device_model': deviceModel,
+      'os_version': osVersion,
+      'app_version': appVersion,
+      'platform': _getPlatform(),
+      'timestamp': DateTime.now().millisecondsSinceEpoch,
+    });
+  }
+
+  Future<bool?> trackLanguageSettings({
+    required String userId,
+    required String languageCode,
+  }) {
+    return logEvent('language_setting', {
+      'user_id': userId,
+      'language_code': languageCode,
+      'timestamp': DateTime.now().millisecondsSinceEpoch,
+    });
+  }
+
+  Future<bool?> trackLocationUpdate({
+    required String userId,
+    required String city,
+    required String country,
+    double? latitude,
+    double? longitude,
+  }) {
+    return logEvent('location_update', {
+      'user_id': userId,
+      'city': city,
+      'country': country,
+      'latitude': latitude,
+      'longitude': longitude,
+      'timestamp': DateTime.now().millisecondsSinceEpoch,
+    });
+  }
+
+  // Social Features Tracking
+  Future<bool?> trackFollowAction({
+    required String userId,
+    required String targetUserId,
+    required bool isFollowing, // true for follow, false for unfollow
+  }) {
+    return logEvent('follow_action', {
+      'user_id': userId,
+      'target_user_id': targetUserId,
+      'action': isFollowing ? 'follow' : 'unfollow',
+      'timestamp': DateTime.now().millisecondsSinceEpoch,
+    });
+  }
+
+  // ==================== ADVANCED ANALYTICS METHODS ====================
+  
+  // AI Character Advanced Analytics
+  Future<bool?> trackAICharacterRecommendation({
+    required String characterId,
+    required String userId,
+    required String recommendationType, // 'popular', 'similar', 'trending', 'personalized'
+    List<String>? basedOnCharacters,
+    String? algorithmVersion,
+  }) {
+    return logEvent('ai_character_recommendation', {
+      'character_id': characterId,
+      'user_id': userId,
+      'recommendation_type': recommendationType,
+      'based_on_characters': basedOnCharacters?.join(','),
+      'algorithm_version': algorithmVersion,
+      'timestamp': DateTime.now().millisecondsSinceEpoch,
+    });
+  }
+
+  Future<bool?> trackAICharacterConversationQuality({
+    required String characterId,
+    required String userId,
+    required int conversationTurns,
+    required double averageResponseTime,
+    required String userSatisfaction, // 'high', 'medium', 'low'
+    bool conversationCompleted = false,
+  }) {
+    return logEvent('ai_character_conversation_quality', {
+      'character_id': characterId,
+      'user_id': userId,
+      'conversation_turns': conversationTurns,
+      'avg_response_time_ms': averageResponseTime,
+      'user_satisfaction': userSatisfaction,
+      'conversation_completed': conversationCompleted,
+      'timestamp': DateTime.now().millisecondsSinceEpoch,
+    });
+  }
+
+  Future<bool?> trackAICharacterRetention({
+    required String characterId,
+    required String userId,
+    required int daysSinceFirstChat,
+    required int totalChats,
+    required int totalMessages,
+    required bool returningUser,
+  }) {
+    return logEvent('ai_character_retention', {
+      'character_id': characterId,
+      'user_id': userId,
+      'days_since_first_chat': daysSinceFirstChat,
+      'total_chats': totalChats,
+      'total_messages': totalMessages,
+      'returning_user': returningUser,
+      'timestamp': DateTime.now().millisecondsSinceEpoch,
+    });
+  }
+
+  // Group Chat Advanced Analytics
+  Future<bool?> trackGroupChatCohesion({
+    required String groupId,
+    required String userId,
+    required double participationRate, // % of messages user contributed
+    required int activeParticipants,
+    required double averageResponseTime,
+    List<String>? topContributors,
+  }) {
+    return logEvent('group_chat_cohesion', {
+      'group_id': groupId,
+      'user_id': userId,
+      'participation_rate': participationRate,
+      'active_participants': activeParticipants,
+      'avg_response_time_sec': averageResponseTime,
+      'top_contributors': topContributors?.join(','),
+      'timestamp': DateTime.now().millisecondsSinceEpoch,
+    });
+  }
+
+  Future<bool?> trackGroupChatModerationEvent({
+    required String groupId,
+    required String userId,
+    required String moderationAction, // 'warning', 'mute', 'kick', 'report'
+    required String reason,
+    String? moderatorId,
+  }) {
+    return logEvent('group_chat_moderation', {
+      'group_id': groupId,
+      'user_id': userId,
+      'moderation_action': moderationAction,
+      'reason': reason,
+      'moderator_id': moderatorId,
+      'timestamp': DateTime.now().millisecondsSinceEpoch,
+    });
+  }
+
+  Future<bool?> trackGroupChatGrowth({
+    required String groupId,
+    required int memberCount,
+    required int newMembersToday,
+    required int activeMembersToday,
+    required double growthRate,
+  }) {
+    return logEvent('group_chat_growth', {
+      'group_id': groupId,
+      'member_count': memberCount,
+      'new_members_today': newMembersToday,
+      'active_members_today': activeMembersToday,
+      'growth_rate': growthRate,
+      'timestamp': DateTime.now().millisecondsSinceEpoch,
+    });
+  }
+
+  // User Behavior Pattern Analytics
+  Future<bool?> trackUserJourneyMilestone({
+    required String userId,
+    required String milestone, // 'first_ai_chat', 'first_group_join', 'first_week_active', etc.
+    required int daysFromSignup,
+    Map<String, dynamic>? additionalData,
+  }) {
+    return logEvent('user_journey_milestone', {
+      'user_id': userId,
+      'milestone': milestone,
+      'days_from_signup': daysFromSignup,
+      'additional_data': additionalData?.toString(),
+      'timestamp': DateTime.now().millisecondsSinceEpoch,
+    });
+  }
+
+  Future<bool?> trackPersonalizationInsight({
+    required String userId,
+    required String insightType, // 'preferred_ai_personality', 'active_time_pattern', 'content_preference'
+    required Map<String, dynamic> insights,
+    String? confidenceLevel,
+  }) {
+    return logEvent('personalization_insight', {
+      'user_id': userId,
+      'insight_type': insightType,
+      'insights': insights.toString(),
+      'confidence_level': confidenceLevel,
+      'timestamp': DateTime.now().millisecondsSinceEpoch,
+    });
+  }
+
+  // Cross-Feature Analytics
+  Future<bool?> trackFeatureTransition({
+    required String userId,
+    required String fromFeature,
+    required String toFeature,
+    required int sessionDurationBeforeTransition,
+    String? transitionTrigger,
+  }) {
+    return logEvent('feature_transition', {
+      'user_id': userId,
+      'from_feature': fromFeature,
+      'to_feature': toFeature,
+      'session_duration_before_transition': sessionDurationBeforeTransition,
+      'transition_trigger': transitionTrigger,
+      'timestamp': DateTime.now().millisecondsSinceEpoch,
+    });
+  }
+
+  Future<bool?> trackEngagementHeatmap({
+    required String userId,
+    required String featureArea,
+    required Map<String, int> interactionCounts,
+    required int totalSessionTime,
+  }) {
+    return logEvent('engagement_heatmap', {
+      'user_id': userId,
+      'feature_area': featureArea,
+      'interaction_counts': interactionCounts.toString(),
+      'total_session_time': totalSessionTime,
+      'timestamp': DateTime.now().millisecondsSinceEpoch,
+    });
+  }
+
+  // ==================== UTILITY METHODS ====================
+  
+  // Get current user ID from Firebase Auth
+  String? getCurrentUserId() {
+    return FirebaseAuth.instance.currentUser?.uid;
+  }
+
+  // Batch event logging for performance
+  Future<void> logBatchEvents(List<Map<String, dynamic>> events) async {
+    for (var event in events) {
+      await logEvent(event['event_name'], event['parameters']);
+    }
+  }
+
   // Get attribution data
   Map<String, dynamic>? getAttributionData() {
     return _attributionData;
@@ -283,5 +818,62 @@ class AppsFlyerService {
 
   Map<String, dynamic>? getConversionData() {
     return _conversionData;
+  }
+
+  // ==================== TESTING METHODS ====================
+  
+  /// Test method to fire sample events for verification
+  Future<void> testAllAnalytics() async {
+    final userId = getCurrentUserId() ?? 'test_user';
+    
+    print('🧪 Starting AppsFlyer Analytics Test...');
+    
+    // Test 1: AI Character Analytics
+    await Future.delayed(const Duration(milliseconds: 500));
+    await trackAICharacterInteraction(
+      characterId: 'test_char_001',
+      userId: userId,
+      durationSeconds: 120,
+      messageCount: 5,
+      interactionType: 'test_chat',
+    );
+    
+    // Test 2: Group Chat Analytics
+    await Future.delayed(const Duration(milliseconds: 500));
+    await trackGroupChatActivity(
+      groupId: 'test_group_001',
+      userId: userId,
+      durationSeconds: 180,
+      messagesSent: 3,
+    );
+    
+    // Test 3: Search Analytics
+    await Future.delayed(const Duration(milliseconds: 500));
+    await trackSearchQuery(
+      query: 'test search',
+      userId: userId,
+      resultCount: 10,
+      category: 'test',
+    );
+    
+    // Test 4: Post Engagement
+    await Future.delayed(const Duration(milliseconds: 500));
+    await trackPostView(
+      postId: 'test_post_001',
+      timeSpentSeconds: 45,
+      category: 'test',
+      userId: userId,
+      postType: 'video',
+    );
+    
+    // Test 5: Session Analytics
+    await Future.delayed(const Duration(milliseconds: 500));
+    await trackSessionStart(
+      userId: userId,
+      location: 'test_location',
+      deviceModel: 'test_device',
+    );
+    
+    print('✅ Analytics Test Complete! Check console for event logs.');
   }
 }

@@ -23,6 +23,85 @@ import 'package:purchases_ui_flutter/paywall_result.dart';
 import 'package:purchases_ui_flutter/purchases_ui_flutter.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:toasty_box/toast_service.dart';
+import 'package:inzone/services/appsflyer_service.dart';
+
+// Group Chat Session Tracker
+class GroupChatSessionTracker {
+  static final Map<String, DateTime> _sessionStartTimes = {};
+  static final Map<String, int> _sessionMessageCounts = {};
+  static final Map<String, Set<String>> _sessionParticipants = {};
+  static final Map<String, List<String>> _sessionActivityTypes = {};
+
+  static void startSession(String groupId, String userId) {
+    _sessionStartTimes[groupId] = DateTime.now();
+    _sessionMessageCounts[groupId] = 0;
+    _sessionParticipants[groupId] = <String>{userId};
+    _sessionActivityTypes[groupId] = ['session_start'];
+    
+    // Track group chat joined event
+    AppsFlyerService().trackGroupChatJoined(
+      groupId: groupId,
+      userId: userId,
+    );
+  }
+
+  static void incrementActivity(String groupId, String userId, String activityType) {
+    _sessionMessageCounts[groupId] = (_sessionMessageCounts[groupId] ?? 0) + 1;
+    _sessionParticipants[groupId]?.add(userId);
+    _sessionActivityTypes[groupId]?.add(activityType);
+  }
+
+  static void endSession(String groupId, String userId) {
+    final startTime = _sessionStartTimes[groupId];
+    if (startTime != null) {
+      final duration = DateTime.now().difference(startTime).inSeconds;
+      final messageCount = _sessionMessageCounts[groupId] ?? 0;
+      final participants = _sessionParticipants[groupId]?.length ?? 0;
+      final activities = _sessionActivityTypes[groupId] ?? [];
+      
+      if (duration > 10) { // Only track sessions longer than 10 seconds
+        AppsFlyerService().trackGroupChatActivity(
+          groupId: groupId,
+          userId: userId,
+          durationSeconds: duration,
+          messagesSent: messageCount,
+        );
+
+        // Track detailed group engagement
+        AppsFlyerService().logEvent('group_chat_session_end', {
+          'group_id': groupId,
+          'user_id': userId,
+          'session_duration_sec': duration,
+          'messages_sent': messageCount,
+          'active_participants': participants,
+          'activity_types': activities.join(','),
+          'engagement_quality': _calculateEngagementQuality(duration, messageCount),
+          'timestamp': DateTime.now().millisecondsSinceEpoch,
+        });
+      }
+      
+      _sessionStartTimes.remove(groupId);
+      _sessionMessageCounts.remove(groupId);
+      _sessionParticipants.remove(groupId);
+      _sessionActivityTypes.remove(groupId);
+    }
+  }
+
+  static String _calculateEngagementQuality(int duration, int messageCount) {
+    if (messageCount == 0) return 'lurker';
+    if (duration < 60) return 'brief';
+    if (messageCount < 3) return 'low';
+    if (messageCount < 10) return 'medium';
+    return 'high';
+  }
+
+  static void clearSession(String groupId) {
+    _sessionStartTimes.remove(groupId);
+    _sessionMessageCounts.remove(groupId);
+    _sessionParticipants.remove(groupId);
+    _sessionActivityTypes.remove(groupId);
+  }
+}
 
 class GroupChatScreen extends StatefulWidget {
   final GroupData group;
@@ -43,6 +122,14 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   final Map<String, String> _userProfileImages =
       {}; // Cache for user profile images
 
+  // Group Chat Activity Tracking
+  late DateTime _sessionStartTime;
+  late String _currentUserId;
+  int _messagesSentThisSession = 0;
+  int _totalMessagesViewed = 0;
+  final Set<String> _observedParticipants = <String>{};
+  final List<String> _sessionActivities = [];
+
   // Define the cost to join a group chat
   final int _joinGroupCost = 100; // Cost in InCash to join the group
 
@@ -58,13 +145,98 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
     print('Opening group chat with ID: $_groupId');
 
+    // Initialize session tracking
+    _sessionStartTime = DateTime.now();
+    _currentUserId = FirebaseAuth.instance.currentUser?.uid ?? 'anonymous';
+    
+    // Start group chat session tracking
+    GroupChatSessionTracker.startSession(_groupId, _currentUserId);
+    
+    // Track group chat session start
+    AppsFlyerService().logEvent('group_chat_session_start', {
+      'group_id': _groupId,
+      'group_name': widget.group.name,
+      'user_id': _currentUserId,
+      'member_count': widget.group.memberCount,
+      'timestamp': DateTime.now().millisecondsSinceEpoch,
+    });
+
     // Update the group's isMember status if not already a member
     if (!widget.group.isMember) {
       widget.group.isMember = true;
+      _trackGroupJoinEvent();
     }
 
     // Fetch user profile images
     _fetchUserProfileImages();
+  }
+
+  void _trackGroupJoinEvent() {
+    AppsFlyerService().logEvent('group_chat_join_action', {
+      'group_id': _groupId,
+      'group_name': widget.group.name,
+      'user_id': _currentUserId,
+      'join_method': 'direct', // or 'payment', 'invitation', etc.
+      'member_count_at_join': widget.group.memberCount,
+      'timestamp': DateTime.now().millisecondsSinceEpoch,
+    });
+  }
+
+  @override
+  void dispose() {
+    // End group chat session tracking
+    GroupChatSessionTracker.endSession(_groupId, _currentUserId);
+    
+    // Track comprehensive session analytics
+    final sessionDuration = DateTime.now().difference(_sessionStartTime).inSeconds;
+    
+    if (sessionDuration > 5) {
+      AppsFlyerService().logEvent('group_chat_engagement_summary', {
+        'group_id': _groupId,
+        'group_name': widget.group.name,
+        'user_id': _currentUserId,
+        'session_duration_sec': sessionDuration,
+        'messages_sent': _messagesSentThisSession,
+        'messages_viewed': _totalMessagesViewed,
+        'participants_observed': _observedParticipants.length,
+        'activities_performed': _sessionActivities.join(','),
+        'engagement_score': _calculateEngagementScore(),
+        'is_active_participant': _messagesSentThisSession > 0,
+        'timestamp': DateTime.now().millisecondsSinceEpoch,
+      });
+
+      // Track group popularity metrics
+      AppsFlyerService().logEvent('group_chat_popularity', {
+        'group_id': _groupId,
+        'group_name': widget.group.name,
+        'member_count': widget.group.memberCount,
+        'session_count': 1, // This session
+        'avg_session_duration': sessionDuration,
+        'active_messaging': _messagesSentThisSession > 0,
+        'timestamp': DateTime.now().millisecondsSinceEpoch,
+      });
+    }
+
+    super.dispose();
+  }
+
+  double _calculateEngagementScore() {
+    double score = 0.0;
+    final sessionMinutes = DateTime.now().difference(_sessionStartTime).inMinutes;
+    
+    // Base score from time spent
+    score += sessionMinutes * 0.1;
+    
+    // Bonus for sending messages
+    score += _messagesSentThisSession * 2.0;
+    
+    // Bonus for viewing messages
+    score += _totalMessagesViewed * 0.5;
+    
+    // Bonus for observing multiple participants
+    score += _observedParticipants.length * 1.0;
+    
+    return score.clamp(0.0, 100.0);
   }
 
   // Fetch user profile images for the participants
@@ -213,6 +385,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     if (_msgController.text.trim().isEmpty) return;
 
     final content = _msgController.text.trim();
+    final messageLength = content.length;
     _msgController.clear();
 
     // Get current user ID
@@ -231,6 +404,24 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       );
       return;
     }
+
+    // Track message sending analytics
+    _messagesSentThisSession++;
+    _sessionActivities.add('message_sent');
+    GroupChatSessionTracker.incrementActivity(_groupId, currentUserId, 'message_sent');
+    
+    final sessionDurationSoFar = DateTime.now().difference(_sessionStartTime).inSeconds;
+    
+    AppsFlyerService().logEvent('group_chat_message_sent', {
+      'group_id': _groupId,
+      'group_name': widget.group.name,
+      'user_id': currentUserId,
+      'message_length': messageLength,
+      'message_number': _messagesSentThisSession,
+      'session_duration_so_far': sessionDurationSoFar,
+      'member_count': widget.group.memberCount,
+      'timestamp': DateTime.now().millisecondsSinceEpoch,
+    });
 
     // Check if user has paid for the group chat
     final hasPaid = await _hasPaidForGroup();
@@ -696,6 +887,13 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                       );
                     }
 
+                    // Track message viewing analytics
+                    _totalMessagesViewed = _groupChatData!.messages.length;
+                    for (var message in _groupChatData!.messages) {
+                      _observedParticipants.add(message.sender.uid);
+                    }
+                    _sessionActivities.add('messages_viewed');
+
                     // Scroll to bottom when new messages come in
                     WidgetsBinding.instance
                         .addPostFrameCallback((_) => _scrollToBottom());
@@ -1007,6 +1205,15 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
   // Method to show the participants dialog
   void _showParticipantsDialog(BuildContext context) {
+    // Track participants dialog viewing
+    _sessionActivities.add('participants_viewed');
+    AppsFlyerService().logEvent('group_chat_participants_viewed', {
+      'group_id': _groupId,
+      'group_name': widget.group.name,
+      'user_id': _currentUserId,
+      'timestamp': DateTime.now().millisecondsSinceEpoch,
+    });
+
     showDialog(
       context: context,
       builder: (context) {
@@ -1419,6 +1626,20 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
           'lastMessage': 'You joined the group',
           'lastMessageTime': FieldValue.serverTimestamp(),
         }, SetOptions(merge: true));
+
+        // Track successful group join with payment
+        AppsFlyerService().logEvent('group_chat_join_success', {
+          'group_id': _groupId,
+          'group_name': widget.group.name,
+          'user_id': currentUserId,
+          'join_method': 'payment',
+          'cost_paid': _joinGroupCost,
+          'member_count_after_join': widget.group.memberCount + 1,
+          'timestamp': DateTime.now().millisecondsSinceEpoch,
+        });
+
+        _sessionActivities.add('group_joined_with_payment');
+
         ToastService.showToast(
           context,
           backgroundColor: Theme.of(context).canvasColor,

@@ -31,6 +31,14 @@
           }
         },
         {
+          "client_id": "912424781531-8lbvkekmq7l6994t3d006g1hent9q08q.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.aadeshkheria.inzone",
+            "certificate_hash": "8d7995131f554805db36a6eea7665cbb688284df"
+          }
+        },
+        {
           "client_id": "912424781531-crkdkedm0hlubfkckuj5njpnudeun8an.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
