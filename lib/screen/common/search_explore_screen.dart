@@ -16,6 +16,88 @@ import 'package:inzone/router/routes.dart';
 import 'package:inzone/screen/common/characters_screen.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:inzone/services/appsflyer_service.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+
+// Search Session Tracker
+class SearchSessionTracker {
+  static final Map<String, DateTime> _sessionStartTimes = {};
+  static final Map<String, List<String>> _sessionQueries = {};
+  static final Map<String, int> _sessionResultClicks = {};
+  static final Map<String, Set<String>> _sessionCategories = {};
+
+  static void startSession(String userId) {
+    final sessionId = _generateSessionId(userId);
+    _sessionStartTimes[sessionId] = DateTime.now();
+    _sessionQueries[sessionId] = [];
+    _sessionResultClicks[sessionId] = 0;
+    _sessionCategories[sessionId] = <String>{};
+  }
+
+  static void trackQuery(String userId, String query, int resultCount, String category) {
+    final sessionId = _generateSessionId(userId);
+    _sessionQueries[sessionId]?.add(query);
+    _sessionCategories[sessionId]?.add(category);
+    
+    // Track individual search query
+    AppsFlyerService().trackSearchQuery(
+      query: query,
+      userId: userId,
+      resultCount: resultCount,
+      category: category,
+    );
+  }
+
+  static void trackResultClick(String userId, String query, int resultIndex, String contentType) {
+    final sessionId = _generateSessionId(userId);
+    _sessionResultClicks[sessionId] = (_sessionResultClicks[sessionId] ?? 0) + 1;
+    
+    // Track search result interaction
+    AppsFlyerService().logEvent('search_result_clicked', {
+      'user_id': userId,
+      'search_query': query,
+      'result_index': resultIndex,
+      'content_type': contentType,
+      'timestamp': DateTime.now().millisecondsSinceEpoch,
+    });
+  }
+
+  static void endSession(String userId) {
+    final sessionId = _generateSessionId(userId);
+    final startTime = _sessionStartTimes[sessionId];
+    
+    if (startTime != null) {
+      final duration = DateTime.now().difference(startTime).inSeconds;
+      final queries = _sessionQueries[sessionId] ?? [];
+      final clicks = _sessionResultClicks[sessionId] ?? 0;
+      final categories = _sessionCategories[sessionId] ?? <String>{};
+      
+      if (duration > 5 && queries.isNotEmpty) {
+        AppsFlyerService().logEvent('search_session_summary', {
+          'user_id': userId,
+          'session_duration_sec': duration,
+          'total_searches': queries.length,
+          'total_result_clicks': clicks,
+          'unique_categories_searched': categories.length,
+          'search_queries': queries.join('|'),
+          'categories_explored': categories.join(','),
+          'click_through_rate': queries.isNotEmpty ? clicks / queries.length : 0,
+          'timestamp': DateTime.now().millisecondsSinceEpoch,
+        });
+      }
+      
+      // Clean up session data
+      _sessionStartTimes.remove(sessionId);
+      _sessionQueries.remove(sessionId);
+      _sessionResultClicks.remove(sessionId);
+      _sessionCategories.remove(sessionId);
+    }
+  }
+
+  static String _generateSessionId(String userId) {
+    return '${userId}_${DateTime.now().day}';
+  }
+}
 
 class SearchExploreScreen extends StatefulWidget {
   const SearchExploreScreen({super.key});
@@ -38,6 +120,14 @@ class _SearchExploreScreenState extends State<SearchExploreScreen> {
   List<InZonePost> searchResults = [];
   List<String> searchHistory = [];
 
+  // Search analytics tracking
+  late DateTime _screenStartTime;
+  late String _currentUserId;
+  int _totalSearches = 0;
+  int _totalResultClicks = 0;
+  final Set<String> _uniqueQueries = <String>{};
+  String _lastSearchQuery = '';
+
   // 디바운스 타이머
   Timer? _debounce;
 
@@ -47,6 +137,20 @@ class _SearchExploreScreenState extends State<SearchExploreScreen> {
   @override
   void initState() {
     super.initState();
+    
+    // Initialize search analytics
+    _screenStartTime = DateTime.now();
+    _currentUserId = FirebaseAuth.instance.currentUser?.uid ?? 'anonymous';
+    
+    // Start search session tracking
+    SearchSessionTracker.startSession(_currentUserId);
+    
+    // Track search screen session start
+    AppsFlyerService().logEvent('search_screen_session_start', {
+      'user_id': _currentUserId,
+      'timestamp': DateTime.now().millisecondsSinceEpoch,
+    });
+    
     _loadInitialData();
     // SharedPreferences 문제가 발생하지 않도록 예외 처리와 함께 호출
     try {
@@ -54,6 +158,50 @@ class _SearchExploreScreenState extends State<SearchExploreScreen> {
     } catch (e) {
       debugPrint('Error loading search history: $e');
     }
+  }
+
+  @override
+  void dispose() {
+    // End search session tracking
+    SearchSessionTracker.endSession(_currentUserId);
+    
+    // Track comprehensive search session analytics
+    final sessionDuration = DateTime.now().difference(_screenStartTime).inSeconds;
+    
+    if (sessionDuration > 5) {
+      AppsFlyerService().logEvent('search_screen_session_end', {
+        'user_id': _currentUserId,
+        'session_duration_sec': sessionDuration,
+        'total_searches_performed': _totalSearches,
+        'total_result_clicks': _totalResultClicks,
+        'unique_queries_searched': _uniqueQueries.length,
+        'search_efficiency': _totalSearches > 0 ? _totalResultClicks / _totalSearches : 0,
+        'last_search_query': _lastSearchQuery,
+        'search_abandon_rate': _calculateSearchAbandonRate(),
+        'timestamp': DateTime.now().millisecondsSinceEpoch,
+      });
+
+      // Track search discovery patterns
+      AppsFlyerService().logEvent('search_discovery_patterns', {
+        'user_id': _currentUserId,
+        'search_frequency': _totalSearches / (sessionDuration / 60), // searches per minute
+        'query_diversity': _uniqueQueries.length / (_totalSearches.clamp(1, 100)),
+        'engagement_depth': _totalResultClicks / (sessionDuration / 60), // clicks per minute
+        'timestamp': DateTime.now().millisecondsSinceEpoch,
+      });
+    }
+
+    _searchController.dispose();
+    _searchFocusNode.dispose();
+    // 타이머 해제
+    _debounce?.cancel();
+    super.dispose();
+  }
+
+  double _calculateSearchAbandonRate() {
+    if (_totalSearches == 0) return 0.0;
+    final searchesWithoutClicks = _totalSearches - _totalResultClicks;
+    return searchesWithoutClicks / _totalSearches;
   }
 
   // 저장된 검색 기록 불러오기
@@ -204,6 +352,16 @@ class _SearchExploreScreenState extends State<SearchExploreScreen> {
         isSearchLoading = true;
       });
 
+      // Track search submission method
+      AppsFlyerService().logEvent('search_submitted', {
+        'user_id': _currentUserId,
+        'query': text.trim(),
+        'submission_method': 'enter_key',
+        'query_length': text.trim().length,
+        'session_search_count': _totalSearches + 1,
+        'timestamp': DateTime.now().millisecondsSinceEpoch,
+      });
+
       // 바로 검색 실행
       _performSearch(text);
     }
@@ -275,6 +433,11 @@ class _SearchExploreScreenState extends State<SearchExploreScreen> {
       return;
     }
 
+    // Update search analytics
+    _totalSearches++;
+    _uniqueQueries.add(query.trim());
+    _lastSearchQuery = query.trim();
+
     // 검색어 추가 및 중복 제거 (같은 검색어는 맨 앞으로 이동)
     setState(() {
       // 기존 항목이 있으면 제거
@@ -291,8 +454,13 @@ class _SearchExploreScreenState extends State<SearchExploreScreen> {
       searchQuery = query;
     });
 
+    // Track search performance timing
+    final searchStartTime = DateTime.now();
+
     // Call the API search endpoint
     final results = await _searchPostsApi(query);
+
+    final searchDuration = DateTime.now().difference(searchStartTime).inMilliseconds;
 
     if (mounted) {
       setState(() {
@@ -301,11 +469,58 @@ class _SearchExploreScreenState extends State<SearchExploreScreen> {
       });
     }
 
+    // Track search query and results
+    SearchSessionTracker.trackQuery(_currentUserId, query.trim(), results.length, 'posts');
+    
+    // Track detailed search analytics
+    AppsFlyerService().logEvent('search_completed', {
+      'user_id': _currentUserId,
+      'query': query.trim(),
+      'result_count': results.length,
+      'search_duration_ms': searchDuration,
+      'query_length': query.trim().length,
+      'has_results': results.isNotEmpty,
+      'session_search_number': _totalSearches,
+      'unique_queries_so_far': _uniqueQueries.length,
+      'timestamp': DateTime.now().millisecondsSinceEpoch,
+    });
+
+    // Track search quality metrics
+    if (results.isEmpty) {
+      AppsFlyerService().logEvent('search_no_results', {
+        'user_id': _currentUserId,
+        'failed_query': query.trim(),
+        'query_length': query.trim().length,
+        'session_search_number': _totalSearches,
+        'timestamp': DateTime.now().millisecondsSinceEpoch,
+      });
+    } else {
+      AppsFlyerService().logEvent('search_success', {
+        'user_id': _currentUserId,
+        'successful_query': query.trim(),
+        'result_count': results.length,
+        'search_effectiveness': results.length > 10 ? 'high' : results.length > 5 ? 'medium' : 'low',
+        'timestamp': DateTime.now().millisecondsSinceEpoch,
+      });
+    }
+
     // 검색 기록 저장
     _saveSearchHistory();
   }
 
   void _clearSearch() {
+    // Track search clearing behavior
+    if (searchQuery.isNotEmpty) {
+      AppsFlyerService().logEvent('search_cleared', {
+        'user_id': _currentUserId,
+        'cleared_query': searchQuery,
+        'had_results': searchResults.isNotEmpty,
+        'result_count': searchResults.length,
+        'session_search_count': _totalSearches,
+        'timestamp': DateTime.now().millisecondsSinceEpoch,
+      });
+    }
+
     _searchController.clear();
 
     // 이전 타이머가 있으면 취소
@@ -486,8 +701,31 @@ class _SearchExploreScreenState extends State<SearchExploreScreen> {
       itemBuilder: (context, index) {
         return Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12.0),
-          child: PostCard(
-            post: searchResults[index],
+          child: GestureDetector(
+            onTap: () {
+              // Track search result click
+              _totalResultClicks++;
+              SearchSessionTracker.trackResultClick(
+                _currentUserId,
+                searchQuery,
+                index,
+                'post',
+              );
+              
+              AppsFlyerService().logEvent('search_result_interaction', {
+                'user_id': _currentUserId,
+                'search_query': searchQuery,
+                'result_position': index + 1,
+                'content_type': 'post',
+                'content_id': searchResults[index].id,
+                'interaction_type': 'view',
+                'session_click_number': _totalResultClicks,
+                'timestamp': DateTime.now().millisecondsSinceEpoch,
+              });
+            },
+            child: PostCard(
+              post: searchResults[index],
+            ),
           ),
         );
       },
@@ -608,6 +846,15 @@ class _SearchExploreScreenState extends State<SearchExploreScreen> {
                     style: const TextStyle(fontSize: 14),
                   ),
                   onTap: () {
+                    // Track search history interaction
+                    AppsFlyerService().logEvent('search_history_clicked', {
+                      'user_id': _currentUserId,
+                      'clicked_query': searchHistory[index],
+                      'history_position': index + 1,
+                      'session_search_count': _totalSearches,
+                      'timestamp': DateTime.now().millisecondsSinceEpoch,
+                    });
+                    
                     _searchController.text = searchHistory[index];
                     _performSearch(searchHistory[index]);
                   },
@@ -676,14 +923,5 @@ class _SearchExploreScreenState extends State<SearchExploreScreen> {
         ),
       ),
     );
-  }
-
-  @override
-  void dispose() {
-    _searchController.dispose();
-    _searchFocusNode.dispose();
-    // 타이머 해제
-    _debounce?.cancel();
-    super.dispose();
   }
 }

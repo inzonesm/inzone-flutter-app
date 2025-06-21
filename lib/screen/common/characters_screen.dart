@@ -8,6 +8,8 @@ import 'package:inzone/components/profile/avatar_story_component.dart';
 import 'package:inzone/services/inzone_database.dart';
 import 'package:inzone/router/routes.dart';
 import 'package:inzone/screen/chat/all_chats_screen.dart';
+import 'package:inzone/services/appsflyer_service.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:async';
 
 // Cache for storing AI characters
@@ -54,14 +56,54 @@ class _CharactersScreenState extends State<CharactersScreen> {
   String searchQuery = '';
   Timer? _debounce;
 
+  // Character browsing analytics
+  late DateTime _sessionStartTime;
+  final Set<String> _viewedCharacters = <String>{};
+  final int _searchAttempts = 0;
+
   @override
   void initState() {
     super.initState();
+    _sessionStartTime = DateTime.now();
     _loadCharacters();
+    
+    // Track character browse session start
+    final userId = FirebaseAuth.instance.currentUser?.uid;
+    if (userId != null) {
+      AppsFlyerService().logEvent('ai_character_browse_start', {
+        'user_id': userId,
+        'timestamp': DateTime.now().millisecondsSinceEpoch,
+      });
+    }
   }
 
   @override
   void dispose() {
+    // Track character browse session end
+    final sessionDuration = DateTime.now().difference(_sessionStartTime).inSeconds;
+    final userId = FirebaseAuth.instance.currentUser?.uid;
+    
+    if (userId != null && sessionDuration > 5) {
+      AppsFlyerService().logEvent('ai_character_browse_end', {
+        'user_id': userId,
+        'session_duration_sec': sessionDuration,
+        'characters_viewed': _viewedCharacters.length,
+        'search_attempts': _searchAttempts,
+        'characters_list': _viewedCharacters.toList(),
+        'final_search_query': searchQuery,
+        'timestamp': DateTime.now().millisecondsSinceEpoch,
+      });
+
+      // Track character discovery patterns
+      AppsFlyerService().logEvent('ai_character_discovery_patterns', {
+        'user_id': userId,
+        'browse_duration': sessionDuration,
+        'discovery_rate': _viewedCharacters.length / (sessionDuration / 60), // characters per minute
+        'search_to_view_ratio': _searchAttempts > 0 ? _viewedCharacters.length / _searchAttempts : 0,
+        'timestamp': DateTime.now().millisecondsSinceEpoch,
+      });
+    }
+
     _searchController.dispose();
     _searchFocusNode.dispose();
     _debounce?.cancel();
@@ -472,6 +514,34 @@ class _CharactersScreenState extends State<CharactersScreen> {
                 child: ClipOval(
                   child: GestureDetector(
                     onTap: () {
+                      // Track AI character selection and viewing
+                      final userId = FirebaseAuth.instance.currentUser?.uid;
+                      if (userId != null) {
+                        // Add to viewed characters set
+                        _viewedCharacters.add(avatar.id);
+                        
+                        AppsFlyerService().logEvent('ai_character_selected', {
+                          'character_id': avatar.id,
+                          'character_name': avatar.name,
+                          'user_id': userId,
+                          'selection_method': 'grid_tap',
+                          'character_category': 'popular',
+                          'search_query': searchQuery.isNotEmpty ? searchQuery : null,
+                          'session_duration_so_far': DateTime.now().difference(_sessionStartTime).inSeconds,
+                          'characters_viewed_before_selection': _viewedCharacters.length - 1,
+                          'timestamp': DateTime.now().millisecondsSinceEpoch,
+                        });
+
+                        // Track character popularity
+                        AppsFlyerService().logEvent('ai_character_popularity_increase', {
+                          'character_id': avatar.id,
+                          'character_name': avatar.name,
+                          'user_id': userId,
+                          'total_users_viewed': _viewedCharacters.length,
+                          'timestamp': DateTime.now().millisecondsSinceEpoch,
+                        });
+                      }
+
                       // Use the same navigation logic as in AvatarStoryComponent
                       context.push(Routes.chat,
                           extra: ChatUser(

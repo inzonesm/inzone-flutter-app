@@ -17,7 +17,9 @@ import 'package:go_router/go_router.dart';
 import 'package:inzone/screen/common/search_explore_screen.dart';
 import 'package:toasty_box/toast_service.dart';
 import 'package:pull_to_refresh_flutter3/pull_to_refresh_flutter3.dart';
+import 'package:inzone/services/appsflyer_service.dart';
 import 'dart:async';
+import 'dart:io';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key, this.controller});
@@ -49,6 +51,11 @@ class HomeScreenState extends State<HomeScreen> {
   int reloadCount = 0; // Track number of reloads
   int _currentVisibleIndex = 0; // Track current visible card index
   Timer? _scrollThrottleTimer; // 스크롤 이벤트 제한용 타이머
+  
+  // Scroll tracking variables
+  double _lastScrollPosition = 0;
+  DateTime _lastScrollTime = DateTime.now();
+  int _scrollSessionDuration = 0;
 
   // Store the actual posts data from API
   List<dynamic> posts = [];
@@ -64,6 +71,25 @@ class HomeScreenState extends State<HomeScreen> {
     loadFeed();
     loadAvatars();
     _scrollController.addListener(_onScroll);
+    
+    // Track session start
+    final userId = AppsFlyerService().getCurrentUserId();
+    if (userId != null) {
+      AppsFlyerService().trackSessionStart(
+        userId: userId,
+        deviceModel: _getPlatform(),
+      );
+    }
+  }
+  
+  String _getPlatform() {
+    if (Platform.isIOS) {
+      return "iOS";
+    } else if (Platform.isAndroid) {
+      return "Android";
+    } else {
+      return "Unknown";
+    }
   }
 
   @override
@@ -74,8 +100,19 @@ class HomeScreenState extends State<HomeScreen> {
     }
     _refreshController.dispose(); // Dispose the RefreshController
     _scrollThrottleTimer?.cancel();
+    
+    // Track session end
     DateTime endTime = DateTime.now().toUtc();
     Duration timeSpent = endTime.difference(_startTime);
+    final userId = AppsFlyerService().getCurrentUserId();
+    if (userId != null) {
+      AppsFlyerService().trackSessionEnd(
+        userId: userId,
+        sessionDurationSeconds: timeSpent.inSeconds,
+      );
+    }
+    
+    // Keep existing analytics
     InZoneDatabase.logEvent('home_screen', {
       "timeSpent": timeSpent.inSeconds,
       "pageOpenedCount": pageOpened,
@@ -88,6 +125,9 @@ class HomeScreenState extends State<HomeScreen> {
     if (_scrollThrottleTimer?.isActive ?? false) return;
 
     _scrollThrottleTimer = Timer(const Duration(milliseconds: 300), () {
+      // Track scroll behavior
+      _trackScrollBehavior();
+      
       // Calculate approximate current visible index based on scroll position
       // Assuming average card height of ~200px
       double scrollPosition = _scrollController.position.pixels;
@@ -115,6 +155,39 @@ class HomeScreenState extends State<HomeScreen> {
         _loadMorePosts();
       }
     });
+  }
+  
+  void _trackScrollBehavior() {
+    final currentPosition = _scrollController.position.pixels;
+    final currentTime = DateTime.now();
+    
+    // Calculate scroll speed and direction
+    final deltaPosition = currentPosition - _lastScrollPosition;
+    final deltaTime = currentTime.difference(_lastScrollTime).inMilliseconds;
+    
+    if (deltaTime > 0) {
+      final scrollSpeed = deltaPosition.abs() / deltaTime * 1000; // pixels per second
+      final scrollDirection = deltaPosition > 0 ? 'down' : 'up';
+      
+      // Track significant scroll events (speed > 100 px/s and moved more than 50px)
+      if (scrollSpeed > 100 && deltaPosition.abs() > 50) {
+        final userId = AppsFlyerService().getCurrentUserId();
+        if (userId != null) {
+          _scrollSessionDuration += deltaTime;
+          
+          AppsFlyerService().trackScrollBehavior(
+            screenName: 'home_feed',
+            scrollSpeedPxPerSec: scrollSpeed,
+            scrollDirection: scrollDirection,
+            durationSeconds: (_scrollSessionDuration / 1000).round(),
+            userId: userId,
+          );
+        }
+      }
+    }
+    
+    _lastScrollPosition = currentPosition;
+    _lastScrollTime = currentTime;
   }
 
   // Handle refresh completion

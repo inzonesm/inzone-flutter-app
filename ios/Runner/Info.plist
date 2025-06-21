@@ -102,5 +102,7 @@
 		<true/>
 		<key>NSUserTrackingUsageDescription</key>
 		<string>We use your device's advertising identifier (IDFA) to deliver relevant ads and measure how our ads perform.</string>
+		<key>NSAdvertisingAttributionReportEndpoint</key>
+		<string>https://appsflyer-skadnetwork.com/</string>
 	</dict>
 </plist>

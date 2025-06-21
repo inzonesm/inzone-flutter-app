@@ -30,6 +30,7 @@ import 'package:visibility_detector/visibility_detector.dart';
 import 'package:toasty_box/toast_service.dart';
 import 'package:inzone/components/cards/tip_screen.dart';
 import 'package:inzone/components/cards/comments_tile.dart';
+import 'package:inzone/services/appsflyer_service.dart';
 
 class PostCard extends StatefulWidget {
   InZonePost post;
@@ -186,6 +187,11 @@ class _PostCardState extends State<PostCard> {
     if (widget.isAd) {
       _loadNativeAd();
     }
+
+    // Start tracking post view time (only for real posts, not ads)
+    if (!widget.isAd && widget.post.id != "unknown" && widget.post.id.isNotEmpty) {
+      PostViewTracker.startViewingPost(widget.post.id);
+    }
   }
 
   void _loadNativeAd() {
@@ -233,6 +239,24 @@ class _PostCardState extends State<PostCard> {
   @override
   void dispose() {
     _nativeAd?.dispose();
+    
+    // Stop tracking post view time when widget is disposed
+    if (!widget.isAd && widget.post.id != "unknown" && widget.post.id.isNotEmpty) {
+      String category = '';
+      if (widget.post.category.isNotEmpty) {
+        category = widget.post.category;
+      } else if (widget.post.mainCategory.isNotEmpty) {
+        category = widget.post.mainCategory;
+      }
+      
+      PostViewTracker.stopViewingPost(
+        widget.post.id,
+        category: category,
+        postType: widget.post.isAi ? 'ai_post' : 'human_post',
+        authorId: widget.post.userReference,
+      );
+    }
+    
     super.dispose();
   }
 
@@ -286,6 +310,25 @@ class _PostCardState extends State<PostCard> {
       await LikedPostsPreferences.removeLikedPost(widget.post.id);
     } else {
       await LikedPostsPreferences.addLikedPost(widget.post);
+    }
+
+    // Track like/unlike event in AppsFlyer
+    final userId = AppsFlyerService().getCurrentUserId();
+    if (userId != null) {
+      String category = '';
+      if (widget.post.category.isNotEmpty) {
+        category = widget.post.category;
+      } else if (widget.post.mainCategory.isNotEmpty) {
+        category = widget.post.mainCategory;
+      }
+
+      AppsFlyerService().trackPostLike(
+        postId: widget.post.id,
+        userId: userId,
+        isLiked: !currentLikeStatus, // New state after toggle
+        category: category.isNotEmpty ? category : null,
+        authorId: widget.post.userReference.isNotEmpty ? widget.post.userReference : null,
+      );
     }
 
     if (mounted) {
@@ -756,7 +799,13 @@ class _PostCardState extends State<PostCard> {
         ),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(12),
-          child: VideoWidget(videoUrl: videoUrl),
+          child: VideoWidget(
+            videoUrl: videoUrl,
+            postId: widget.post.id != "unknown" ? widget.post.id : null,
+            category: widget.post.category.isNotEmpty ? widget.post.category : 
+                     (widget.post.mainCategory.isNotEmpty ? widget.post.mainCategory : null),
+            authorId: widget.post.userReference.isNotEmpty ? widget.post.userReference : null,
+          ),
         ),
       ),
     );
@@ -1496,6 +1545,28 @@ class _PostCardState extends State<PostCard> {
   void _addComment() async {
     print(widget.post.id);
     String commentText = mySearchController.text.trim();
+    
+    if (commentText.isEmpty) return;
+    
+    // Track comment event in AppsFlyer
+    final userId = AppsFlyerService().getCurrentUserId();
+    if (userId != null) {
+      String category = '';
+      if (widget.post.category.isNotEmpty) {
+        category = widget.post.category;
+      } else if (widget.post.mainCategory.isNotEmpty) {
+        category = widget.post.mainCategory;
+      }
+
+      AppsFlyerService().trackPostComment(
+        postId: widget.post.id,
+        userId: userId,
+        commentText: commentText,
+        category: category.isNotEmpty ? category : null,
+        authorId: widget.post.userReference.isNotEmpty ? widget.post.userReference : null,
+      );
+    }
+    
     // Reference to the document where comments are stored
     DocumentReference postDocumentReference =
         _firestore.collection('postComments').doc(widget.post.id.toString());
@@ -2209,6 +2280,9 @@ class _VideoWidgetWrapper extends StatefulWidget {
   final int index;
   final Function(double) onAspectRatioUpdated;
   final Function() onDoubleTap;
+  final String? postId; // Add postId for tracking
+  final String? category; // Add category for tracking
+  final String? authorId; // Add authorId for tracking
 
   const _VideoWidgetWrapper({
     required this.videoUrl,
@@ -2216,6 +2290,9 @@ class _VideoWidgetWrapper extends StatefulWidget {
     required this.index,
     required this.onAspectRatioUpdated,
     required this.onDoubleTap,
+    this.postId,
+    this.category,
+    this.authorId,
   });
 
   @override
@@ -2244,6 +2321,9 @@ class _VideoWidgetWrapperState extends State<_VideoWidgetWrapper> {
           VideoWidget(
             key: _videoKey,
             videoUrl: widget.videoUrl,
+            postId: widget.postId,
+            category: widget.category,
+            authorId: widget.authorId,
             onAspectRatioUpdated: (aspectRatio) {
               // When aspect ratio changes, notify parent
               widget.onAspectRatioUpdated(aspectRatio);

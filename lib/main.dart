@@ -122,6 +122,9 @@ void main() async {
   String? advertisingId = await appsFlyerService.getAdvertisingId();
   print("The advertising ID is $advertisingId");
 
+  // // TESTING: Uncomment the line below to test all analytics
+  // await appsFlyerService.testAllAnalytics();
+
   SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,

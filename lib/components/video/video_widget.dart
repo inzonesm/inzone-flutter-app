@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 import 'package:visibility_detector/visibility_detector.dart';
+import 'package:inzone/services/appsflyer_service.dart';
 
 // Global mute state manager
 class VideoMuteManager {
@@ -64,11 +65,17 @@ void _cleanupCache() {
 class VideoWidget extends StatefulWidget {
   final String videoUrl;
   final Function(double)? onAspectRatioUpdated;
+  final String? postId; // Add postId for tracking
+  final String? category; // Add category for tracking
+  final String? authorId; // Add authorId for tracking
 
   const VideoWidget({
     super.key,
     required this.videoUrl,
     this.onAspectRatioUpdated,
+    this.postId,
+    this.category,
+    this.authorId,
   });
 
   @override
@@ -101,6 +108,13 @@ class _VideoWidgetState extends State<VideoWidget> with WidgetsBindingObserver {
   // Subscription to mute state changes
   StreamSubscription? _muteSubscription;
   StreamSubscription? _positionSubscription;
+  
+  // Video tracking variables
+  bool _hasTrackedCompletion = false;
+  final Set<int> _trackedProgressMilestones = {}; // Track 25%, 50%, 75% milestones
+  DateTime? _videoStartTime;
+  Duration _totalWatchTime = Duration.zero;
+  Duration _lastPosition = Duration.zero;
 
   @override
   void initState() {
@@ -281,8 +295,11 @@ class _VideoWidgetState extends State<VideoWidget> with WidgetsBindingObserver {
       });
 
       // 비디오 위치 업데이트를 통해 크기 정보를 더 빠르게 확인
-      _positionSubscription = _mediaKitPlayer!.stream.position.listen((_) {
+      _positionSubscription = _mediaKitPlayer!.stream.position.listen((position) {
         if (mounted) {
+          // Update watch time tracking
+          _updateWatchTime(position);
+          
           final videoWidth = _mediaKitPlayer!.state.width?.toDouble();
           final videoHeight = _mediaKitPlayer!.state.height?.toDouble();
 
@@ -311,6 +328,9 @@ class _VideoWidgetState extends State<VideoWidget> with WidgetsBindingObserver {
               debugPrint('Player cached for URL: ${widget.videoUrl}');
             }
           }
+          
+          // Track video progress and completion
+          _trackVideoProgress(position);
         }
       });
 
@@ -444,8 +464,10 @@ class _VideoWidgetState extends State<VideoWidget> with WidgetsBindingObserver {
 
                     if (_mediaKitPlayer!.state.playing) {
                       _mediaKitPlayer!.pause();
+                      _trackVideoPause();
                     } else {
                       _mediaKitPlayer!.play();
+                      _trackVideoStart();
                       // Ensure volume is set when manually playing
                       if (!VideoMuteManager.isMuted) {
                         _mediaKitPlayer!.setVolume(100);
@@ -478,8 +500,10 @@ class _VideoWidgetState extends State<VideoWidget> with WidgetsBindingObserver {
                           if (_mediaKitPlayer != null) {
                             if (_mediaKitPlayer!.state.playing) {
                               _mediaKitPlayer!.pause();
+                              _trackVideoPause();
                             } else {
                               _mediaKitPlayer!.play();
+                              _trackVideoStart();
                               // Ensure volume is set when manually playing
                               if (!VideoMuteManager.isMuted) {
                                 _mediaKitPlayer!.setVolume(100);
@@ -866,6 +890,140 @@ class _VideoWidgetState extends State<VideoWidget> with WidgetsBindingObserver {
   void _startHideControlsTimer() {
     // This function is now a no-op since we always show the play button when paused
     // and never show it when playing
+  }
+
+  // ==================== VIDEO TRACKING METHODS ====================
+  
+  void _updateWatchTime(Duration currentPosition) {
+    final currentTime = DateTime.now();
+    
+    // Initialize video start time if not set
+    _videoStartTime ??= currentTime;
+    
+    // Calculate time difference since last position update
+    if (_lastPosition != Duration.zero) {
+      final timeDiff = currentPosition - _lastPosition;
+      if (timeDiff.inMilliseconds > 0 && timeDiff.inMilliseconds < 2000) {
+        // Only add to watch time if it's a reasonable progression (less than 2 seconds)
+        _totalWatchTime += timeDiff;
+      }
+    }
+    
+    _lastPosition = currentPosition;
+  }
+  
+  void _trackVideoProgress(Duration currentPosition) {
+    if (_mediaKitPlayer == null || widget.postId == null) return;
+    
+    final duration = _mediaKitPlayer!.state.duration;
+    if (duration.inSeconds <= 0) return;
+    
+    final userId = AppsFlyerService().getCurrentUserId();
+    if (userId == null) return;
+    
+    // Calculate watch percentage
+    final watchPercent = (currentPosition.inMilliseconds / duration.inMilliseconds) * 100;
+    
+    // Track progress milestones (25%, 50%, 75%)
+    const milestone25 = 25;
+    const milestone50 = 50;
+    const milestone75 = 75;
+    const milestone95 = 95;
+    
+    if (watchPercent >= milestone25 && !_trackedProgressMilestones.contains(milestone25)) {
+      _trackedProgressMilestones.add(milestone25);
+      _trackVideoMilestone(userId, currentPosition, duration, milestone25);
+    }
+    
+    if (watchPercent >= milestone50 && !_trackedProgressMilestones.contains(milestone50)) {
+      _trackedProgressMilestones.add(milestone50);
+      _trackVideoMilestone(userId, currentPosition, duration, milestone50);
+    }
+    
+    if (watchPercent >= milestone75 && !_trackedProgressMilestones.contains(milestone75)) {
+      _trackedProgressMilestones.add(milestone75);
+      _trackVideoMilestone(userId, currentPosition, duration, milestone75);
+    }
+    
+    // Track completion at 95%
+    if (watchPercent >= milestone95 && !_hasTrackedCompletion) {
+      _hasTrackedCompletion = true;
+      _trackVideoCompletion(userId, currentPosition, duration, true);
+    }
+  }
+  
+  void _trackVideoMilestone(String userId, Duration currentPosition, Duration duration, int milestone) {
+    AppsFlyerService().trackVideoCompletion(
+      postId: widget.postId!,
+      userId: userId,
+      watchedPercent: milestone.toDouble(),
+      durationSeconds: duration.inSeconds,
+      completed: false,
+    );
+    
+    debugPrint('Video $milestone% milestone reached for ${widget.postId}');
+  }
+  
+  void _trackVideoCompletion(String userId, Duration currentPosition, Duration duration, bool completed) {
+    final watchPercent = (currentPosition.inMilliseconds / duration.inMilliseconds) * 100;
+    
+    AppsFlyerService().trackVideoCompletion(
+      postId: widget.postId!,
+      userId: userId,
+      watchedPercent: watchPercent,
+      durationSeconds: duration.inSeconds,
+      completed: completed,
+    );
+    
+    debugPrint('Video completion tracked: ${watchPercent.toStringAsFixed(1)}% for ${widget.postId}');
+  }
+  
+  // Track video engagement when user starts playing
+  void _trackVideoStart() {
+    if (widget.postId == null) return;
+    
+    final userId = AppsFlyerService().getCurrentUserId();
+    if (userId == null) return;
+    
+    AppsFlyerService().logEvent('video_start', {
+      'post_id': widget.postId!,
+      'user_id': userId,
+      'video_url': widget.videoUrl,
+      'category': widget.category,
+      'author_id': widget.authorId,
+      'timestamp': DateTime.now().millisecondsSinceEpoch,
+    });
+    
+    debugPrint('Video start tracked for ${widget.postId}');
+  }
+  
+  // Track video pause
+  void _trackVideoPause() {
+    if (widget.postId == null) return;
+    
+    final userId = AppsFlyerService().getCurrentUserId();
+    if (userId == null) return;
+    
+    final currentPosition = _mediaKitPlayer?.state.position ?? Duration.zero;
+    final duration = _mediaKitPlayer?.state.duration ?? Duration.zero;
+    
+    if (duration.inSeconds > 0) {
+      final watchPercent = (currentPosition.inMilliseconds / duration.inMilliseconds) * 100;
+      
+      AppsFlyerService().logEvent('video_pause', {
+        'post_id': widget.postId!,
+        'user_id': userId,
+        'pause_at_percent': watchPercent,
+        'pause_at_seconds': currentPosition.inSeconds,
+        'total_watch_time_seconds': _totalWatchTime.inSeconds,
+        'video_url': widget.videoUrl,
+        'category': widget.category,
+        'author_id': widget.authorId,
+        'timestamp': DateTime.now().millisecondsSinceEpoch,
+      });
+      
+      debugPrint('Video pause tracked at ${watchPercent.toStringAsFixed(1)}% for ${widget.postId}');
+    }
   }
 }
 
