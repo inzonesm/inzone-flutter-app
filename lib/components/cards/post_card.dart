@@ -801,7 +801,7 @@ class _PostCardState extends State<PostCard> {
           borderRadius: BorderRadius.circular(12),
           child: VideoWidget(
             videoUrl: videoUrl,
-            postId: widget.post.id != "unknown" ? widget.post.id : null,
+            postId: widget.post.id != "unknown" && widget.post.id.isNotEmpty ? widget.post.id : null,
             category: widget.post.category.isNotEmpty ? widget.post.category : 
                      (widget.post.mainCategory.isNotEmpty ? widget.post.mainCategory : null),
             authorId: widget.post.userReference.isNotEmpty ? widget.post.userReference : null,
@@ -2247,6 +2247,15 @@ class _DynamicPageViewState extends State<_DynamicPageView> {
                       videoUrl: videoUrl,
                       maxWidth: width,
                       index: index,
+                      postId: context.findAncestorWidgetOfExactType<PostCard>()?.post.id != "unknown" && 
+                              context.findAncestorWidgetOfExactType<PostCard>()?.post.id.isNotEmpty == true 
+                              ? context.findAncestorWidgetOfExactType<PostCard>()?.post.id : null,
+                      category: context.findAncestorWidgetOfExactType<PostCard>()?.post.category.isNotEmpty == true 
+                               ? context.findAncestorWidgetOfExactType<PostCard>()?.post.category 
+                               : (context.findAncestorWidgetOfExactType<PostCard>()?.post.mainCategory.isNotEmpty == true 
+                                  ? context.findAncestorWidgetOfExactType<PostCard>()?.post.mainCategory : null),
+                      authorId: context.findAncestorWidgetOfExactType<PostCard>()?.post.userReference.isNotEmpty == true 
+                               ? context.findAncestorWidgetOfExactType<PostCard>()?.post.userReference : null,
                       onAspectRatioUpdated: (aspectRatio) {
                         // 실제 비디오 크기를 받으면 높이 업데이트
                         double calculatedHeight = width / aspectRatio;
