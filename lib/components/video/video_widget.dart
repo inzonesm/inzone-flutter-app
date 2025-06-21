@@ -62,6 +62,9 @@ void _cleanupCache() {
   }
 }
 
+/// Video widget with autoplay functionality.
+/// Videos automatically start playing when they become visible (>50% on screen)
+/// and pause when they go out of view. Supports caching, tracking, and manual controls.
 class VideoWidget extends StatefulWidget {
   final String videoUrl;
   final Function(double)? onAspectRatioUpdated;
@@ -158,6 +161,12 @@ class _VideoWidgetState extends State<VideoWidget> with WidgetsBindingObserver {
       // 볼륨 상태 동기화
       if (_mediaKitPlayer != null) {
         _mediaKitPlayer!.setVolume(VideoMuteManager.isMuted ? 0 : 100);
+        // Start autoplay for cached players too
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted && _mediaKitPlayer != null) {
+            _mediaKitPlayer!.play();
+          }
+        });
       }
     } else {
       _initializeVideo();
@@ -360,7 +369,9 @@ class _VideoWidgetState extends State<VideoWidget> with WidgetsBindingObserver {
       await _mediaKitPlayer!.setRate(1.0);
 
       debugPrint('MediaKit Player opened successfully');
-      _mediaKitPlayer!.pause();
+      
+      // Enable autoplay - start playing automatically when initialized
+      _mediaKitPlayer!.play();
 
       // 비디오가 로드되었고 캐시에 없다면 캐시에 추가
       if (!_cachedPlayers.containsKey(widget.videoUrl)) {
@@ -518,8 +529,8 @@ class _VideoWidgetState extends State<VideoWidget> with WidgetsBindingObserver {
                             color: Colors.black.withOpacity(0.6),
                             shape: BoxShape.circle,
                           ),
-                          child: const Icon(
-                            Icons.play_arrow,
+                          child: Icon(
+                            isPlaying ? Icons.pause : Icons.play_arrow,
                             color: Colors.white,
                             size: 40,
                           ),
@@ -780,11 +791,15 @@ class _VideoWidgetState extends State<VideoWidget> with WidgetsBindingObserver {
     return VisibilityDetector(
       key: Key('video-${widget.videoUrl}'),
       onVisibilityChanged: (visibilityInfo) {
-        final isVisible = visibilityInfo.visibleFraction > 0.1;
+        final isVisible = visibilityInfo.visibleFraction > 0.5; // Increased threshold for better UX
         if (_isVisible != isVisible) {
           _isVisible = isVisible;
-          if (_mediaKitPlayer != null) {
-            if (!isVisible) {
+          if (_mediaKitPlayer != null && _isInitialized) {
+            if (isVisible) {
+              // 화면에 보이면 자동 재생 (autoplay)
+              _mediaKitPlayer!.play();
+              _trackVideoStart();
+            } else {
               // 화면에 보이지 않으면 일시정지
               _mediaKitPlayer!.pause();
             }

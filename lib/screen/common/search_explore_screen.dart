@@ -723,8 +723,8 @@ class _SearchExploreScreenState extends State<SearchExploreScreen> {
                 'timestamp': DateTime.now().millisecondsSinceEpoch,
               });
             },
-            child: PostCard(
-              post: searchResults[index],
+          child: PostCard(
+            post: searchResults[index],
             ),
           ),
         );
