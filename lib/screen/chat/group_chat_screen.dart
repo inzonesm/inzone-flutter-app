@@ -4,6 +4,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_feather_icons/flutter_feather_icons.dart';
 import 'package:get/get_connect/http/src/utils/utils.dart';
+import 'package:inzone/router/routes.dart';
 import 'package:inzone/services/inzone_database.dart';
 import 'package:inzone/services/monetization_service.dart';
 import 'package:inzone/components/chat/chat_input.dart';
@@ -1688,7 +1689,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                 TextButton(
                   onPressed: () {
                     Navigator.of(context).pop();
-                    context.push('/referral');
+                  context.push(Routes.referral);
                   },
                   child: const Text("Refer a friend"),
                 ),
