@@ -51,7 +51,7 @@ class HomeScreenState extends State<HomeScreen> {
   int reloadCount = 0; // Track number of reloads
   int _currentVisibleIndex = 0; // Track current visible card index
   Timer? _scrollThrottleTimer; // 스크롤 이벤트 제한용 타이머
-  
+
   // Scroll tracking variables
   double _lastScrollPosition = 0;
   DateTime _lastScrollTime = DateTime.now();
@@ -71,7 +71,7 @@ class HomeScreenState extends State<HomeScreen> {
     loadFeed();
     loadAvatars();
     _scrollController.addListener(_onScroll);
-    
+
     // Track session start
     final userId = AppsFlyerService().getCurrentUserId();
     if (userId != null) {
@@ -81,7 +81,7 @@ class HomeScreenState extends State<HomeScreen> {
       );
     }
   }
-  
+
   String _getPlatform() {
     if (Platform.isIOS) {
       return "iOS";
@@ -100,7 +100,7 @@ class HomeScreenState extends State<HomeScreen> {
     }
     _refreshController.dispose(); // Dispose the RefreshController
     _scrollThrottleTimer?.cancel();
-    
+
     // Track session end
     DateTime endTime = DateTime.now().toUtc();
     Duration timeSpent = endTime.difference(_startTime);
@@ -111,7 +111,7 @@ class HomeScreenState extends State<HomeScreen> {
         sessionDurationSeconds: timeSpent.inSeconds,
       );
     }
-    
+
     // Keep existing analytics
     InZoneDatabase.logEvent('home_screen', {
       "timeSpent": timeSpent.inSeconds,
@@ -127,7 +127,7 @@ class HomeScreenState extends State<HomeScreen> {
     _scrollThrottleTimer = Timer(const Duration(milliseconds: 300), () {
       // Track scroll behavior
       _trackScrollBehavior();
-      
+
       // Calculate approximate current visible index based on scroll position
       // Assuming average card height of ~200px
       double scrollPosition = _scrollController.position.pixels;
@@ -156,25 +156,26 @@ class HomeScreenState extends State<HomeScreen> {
       }
     });
   }
-  
+
   void _trackScrollBehavior() {
     final currentPosition = _scrollController.position.pixels;
     final currentTime = DateTime.now();
-    
+
     // Calculate scroll speed and direction
     final deltaPosition = currentPosition - _lastScrollPosition;
     final deltaTime = currentTime.difference(_lastScrollTime).inMilliseconds;
-    
+
     if (deltaTime > 0) {
-      final scrollSpeed = deltaPosition.abs() / deltaTime * 1000; // pixels per second
+      final scrollSpeed =
+          deltaPosition.abs() / deltaTime * 1000; // pixels per second
       final scrollDirection = deltaPosition > 0 ? 'down' : 'up';
-      
+
       // Track significant scroll events (speed > 100 px/s and moved more than 50px)
       if (scrollSpeed > 100 && deltaPosition.abs() > 50) {
         final userId = AppsFlyerService().getCurrentUserId();
         if (userId != null) {
           _scrollSessionDuration += deltaTime;
-          
+
           AppsFlyerService().trackScrollBehavior(
             screenName: 'home_feed',
             scrollSpeedPxPerSec: scrollSpeed,
@@ -185,7 +186,7 @@ class HomeScreenState extends State<HomeScreen> {
         }
       }
     }
-    
+
     _lastScrollPosition = currentPosition;
     _lastScrollTime = currentTime;
   }
@@ -889,53 +890,57 @@ class HomeScreenState extends State<HomeScreen> {
   }
 }
 
+// Custom ad card that manages its own state
 class _AdPostCard extends StatefulWidget {
   final InZonePost adPost;
   final int index;
 
-  const _AdPostCard({
-    required this.adPost,
-    required this.index,
-  });
+  const _AdPostCard({required this.adPost, required this.index});
 
   @override
-  State<_AdPostCard> createState() => _AdPostCardState();
+  _AdPostCardState createState() => _AdPostCardState();
 }
 
 class _AdPostCardState extends State<_AdPostCard> {
-  bool isAdLoaded = false;
+  bool _isAdLoaded = false;
 
-  @override
-  void initState() {
-    super.initState();
-    // 광고 로딩 시작
-    _loadAd();
-  }
-
-  Future<void> _loadAd() async {
+  void _onAdLoaded() {
     if (mounted) {
       setState(() {
-        isAdLoaded = true;
+        _isAdLoaded = true;
       });
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        if (!isAdLoaded) AdPostLoading(context),
-        AnimatedOpacity(
-          opacity: isAdLoaded ? 1.0 : 0.0,
-          duration: const Duration(milliseconds: 500),
-          child: PostCard(
-            post: widget.adPost,
-            onTap: (postId) {},
-            isAd: true,
-            inProfile: false,
-          ),
-        ),
-      ],
+    return PostCard(
+      post: widget.adPost,
+      isAd: true,
+      onAdLoaded: _onAdLoaded,
     );
+  }
+}
+
+class CustomAppBarDelegate extends SliverPersistentHeaderDelegate {
+  final Widget child;
+
+  const CustomAppBarDelegate({required this.child});
+
+  @override
+  Widget build(
+      BuildContext context, double shrinkOffset, bool overlapsContent) {
+    return child;
+  }
+
+  @override
+  double get maxExtent => 100.0;
+
+  @override
+  double get minExtent => 100.0;
+
+  @override
+  bool shouldRebuild(CustomAppBarDelegate oldDelegate) {
+    return oldDelegate.child != child;
   }
 }
