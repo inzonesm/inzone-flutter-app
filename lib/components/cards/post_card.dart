@@ -39,6 +39,7 @@ class PostCard extends StatefulWidget {
   final bool showHue;
   final bool isAd;
   final bool inProfile;
+  final Function()? onAdLoaded;
 
   InZonePost getPost() {
     return post;
@@ -52,6 +53,7 @@ class PostCard extends StatefulWidget {
     this.profileImageUrl,
     this.isAd = false, // Default to false
     this.inProfile = false,
+    this.onAdLoaded,
   });
 
   @override
@@ -189,7 +191,9 @@ class _PostCardState extends State<PostCard> {
     }
 
     // Start tracking post view time (only for real posts, not ads)
-    if (!widget.isAd && widget.post.id != "unknown" && widget.post.id.isNotEmpty) {
+    if (!widget.isAd &&
+        widget.post.id != "unknown" &&
+        widget.post.id.isNotEmpty) {
       PostViewTracker.startViewingPost(widget.post.id);
     }
   }
@@ -215,9 +219,12 @@ class _PostCardState extends State<PostCard> {
       listener: NativeAdListener(
         onAdLoaded: (ad) {
           debugPrint('Native ad loaded');
-          setState(() {
-            _nativeAdIsLoaded = true;
-          });
+          if (mounted) {
+            setState(() {
+              _nativeAdIsLoaded = true;
+            });
+            widget.onAdLoaded?.call();
+          }
         },
         onAdFailedToLoad: (ad, error) {
           // Dispose the ad here to free resources
@@ -239,16 +246,18 @@ class _PostCardState extends State<PostCard> {
   @override
   void dispose() {
     _nativeAd?.dispose();
-    
+
     // Stop tracking post view time when widget is disposed
-    if (!widget.isAd && widget.post.id != "unknown" && widget.post.id.isNotEmpty) {
+    if (!widget.isAd &&
+        widget.post.id != "unknown" &&
+        widget.post.id.isNotEmpty) {
       String category = '';
       if (widget.post.category.isNotEmpty) {
         category = widget.post.category;
       } else if (widget.post.mainCategory.isNotEmpty) {
         category = widget.post.mainCategory;
       }
-      
+
       PostViewTracker.stopViewingPost(
         widget.post.id,
         category: category,
@@ -256,7 +265,7 @@ class _PostCardState extends State<PostCard> {
         authorId: widget.post.userReference,
       );
     }
-    
+
     super.dispose();
   }
 
@@ -327,7 +336,9 @@ class _PostCardState extends State<PostCard> {
         userId: userId,
         isLiked: !currentLikeStatus, // New state after toggle
         category: category.isNotEmpty ? category : null,
-        authorId: widget.post.userReference.isNotEmpty ? widget.post.userReference : null,
+        authorId: widget.post.userReference.isNotEmpty
+            ? widget.post.userReference
+            : null,
       );
     }
 
@@ -352,113 +363,123 @@ class _PostCardState extends State<PostCard> {
   bool isCommentPresentbool = false;
   @override
   Widget build(BuildContext context) {
-    // If this is an ad and it's loaded, show the ad view with similar styling to regular posts
-    if (widget.isAd && _nativeAdIsLoaded) {
-      return GestureDetector(
-        child: Padding(
-          padding: const EdgeInsets.only(bottom: 20.0),
-          child: Container(
-            width: MediaQuery.of(context).size.width - 30,
-            padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 10),
-            decoration: BoxDecoration(
-              boxShadow: [
-                BoxShadow(
-                  color: Theme.of(context).brightness == Brightness.dark
-                      ? Colors.black.withOpacity(0.3)
-                      : Colors.black.withOpacity(0.1),
-                  blurRadius: 8,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-              color: Theme.of(context).cardColor,
-              borderRadius: BorderRadius.circular(15),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Fake profile section to match regular posts
-                Row(
-                  children: [
-                    Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).primaryColor.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
+    if (widget.isAd) {
+      if (_nativeAdIsLoaded) {
+        // If this is an ad and it's loaded, show the ad view with similar styling to regular posts
+        return GestureDetector(
+          child: Padding(
+            padding: const EdgeInsets.only(bottom: 20.0),
+            child: Container(
+              width: MediaQuery.of(context).size.width - 30,
+              padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 10),
+              decoration: BoxDecoration(
+                boxShadow: [
+                  BoxShadow(
+                    color: Theme.of(context).brightness == Brightness.dark
+                        ? Colors.black.withOpacity(0.3)
+                        : Colors.black.withOpacity(0.1),
+                    blurRadius: 8,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+                color: Theme.of(context).cardColor,
+                borderRadius: BorderRadius.circular(15),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Fake profile section to match regular posts
+                  Row(
+                    children: [
+                      Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
                           color:
-                              Theme.of(context).primaryColor.withOpacity(0.3),
-                          width: 1,
+                              Theme.of(context).primaryColor.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color:
+                                Theme.of(context).primaryColor.withOpacity(0.3),
+                            width: 1,
+                          ),
+                        ),
+                        child: Icon(
+                          Icons.business,
+                          color: Theme.of(context).primaryColor,
+                          size: 24,
                         ),
                       ),
-                      child: Icon(
-                        Icons.business,
-                        color: Theme.of(context).primaryColor,
-                        size: 24,
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Text(
-                              'Sponsored',
-                              style: TextStyle(
-                                color: Theme.of(context)
-                                    .textTheme
-                                    .titleLarge
-                                    ?.color,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 20,
+                      const SizedBox(width: 10),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Text(
+                                'Sponsored',
+                                style: TextStyle(
+                                  color: Theme.of(context)
+                                      .textTheme
+                                      .titleLarge
+                                      ?.color,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 20,
+                                ),
                               ),
-                            ),
-                            const SizedBox(width: 8),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 6, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: Theme.of(context)
-                                    .primaryColor
-                                    .withOpacity(0.2),
-                                borderRadius: BorderRadius.circular(4),
-                                border: Border.all(
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
                                   color: Theme.of(context)
                                       .primaryColor
-                                      .withOpacity(0.4),
-                                  width: 0.5,
+                                      .withOpacity(0.2),
+                                  borderRadius: BorderRadius.circular(4),
+                                  border: Border.all(
+                                    color: Theme.of(context)
+                                        .primaryColor
+                                        .withOpacity(0.4),
+                                    width: 0.5,
+                                  ),
+                                ),
+                                child: Text(
+                                  'Ad',
+                                  style: TextStyle(
+                                    color: Theme.of(context).primaryColor,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w600,
+                                  ),
                                 ),
                               ),
-                              child: Text(
-                                'Ad',
-                                style: TextStyle(
-                                  color: Theme.of(context).primaryColor,
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                    const Spacer(),
-                  ],
-                ),
-                const SizedBox(height: 15),
-                // Native Ad Content - taking full width and height
-                SizedBox(
-                  height: 350, // Increased height for better visibility
-                  width: double.infinity,
-                  child: AdWidget(ad: _nativeAd!),
-                ),
-                const SizedBox(height: 10),
-              ],
+                            ],
+                          ),
+                        ],
+                      ),
+                      const Spacer(),
+                    ],
+                  ),
+                  const SizedBox(height: 15),
+                  // Native Ad Content - taking full width and height
+                  SizedBox(
+                    height: 350, // Increased height for better visibility
+                    width: double.infinity,
+                    child: AdWidget(ad: _nativeAd!),
+                  ),
+                  const SizedBox(height: 10),
+                ],
+              ),
             ),
           ),
-        ),
-      );
+        );
+      } else {
+        // Show a placeholder while the ad is loading.
+        const SizedBox(
+          height: 350, // Increased height for better visibility
+          width: double.infinity,
+          child: Center(child: Text('Ad is loading...')),
+        );
+      }
     }
 
     checkComment();
@@ -801,10 +822,17 @@ class _PostCardState extends State<PostCard> {
           borderRadius: BorderRadius.circular(12),
           child: VideoWidget(
             videoUrl: videoUrl,
-            postId: widget.post.id != "unknown" && widget.post.id.isNotEmpty ? widget.post.id : null,
-            category: widget.post.category.isNotEmpty ? widget.post.category : 
-                     (widget.post.mainCategory.isNotEmpty ? widget.post.mainCategory : null),
-            authorId: widget.post.userReference.isNotEmpty ? widget.post.userReference : null,
+            postId: widget.post.id != "unknown" && widget.post.id.isNotEmpty
+                ? widget.post.id
+                : null,
+            category: widget.post.category.isNotEmpty
+                ? widget.post.category
+                : (widget.post.mainCategory.isNotEmpty
+                    ? widget.post.mainCategory
+                    : null),
+            authorId: widget.post.userReference.isNotEmpty
+                ? widget.post.userReference
+                : null,
           ),
         ),
       ),
@@ -1545,9 +1573,9 @@ class _PostCardState extends State<PostCard> {
   void _addComment() async {
     print(widget.post.id);
     String commentText = mySearchController.text.trim();
-    
+
     if (commentText.isEmpty) return;
-    
+
     // Track comment event in AppsFlyer
     final userId = AppsFlyerService().getCurrentUserId();
     if (userId != null) {
@@ -1563,10 +1591,12 @@ class _PostCardState extends State<PostCard> {
         userId: userId,
         commentText: commentText,
         category: category.isNotEmpty ? category : null,
-        authorId: widget.post.userReference.isNotEmpty ? widget.post.userReference : null,
+        authorId: widget.post.userReference.isNotEmpty
+            ? widget.post.userReference
+            : null,
       );
     }
-    
+
     // Reference to the document where comments are stored
     DocumentReference postDocumentReference =
         _firestore.collection('postComments').doc(widget.post.id.toString());
@@ -1997,6 +2027,7 @@ class _DynamicPageViewState extends State<_DynamicPageView> {
   final Map<int, double> _heights = {};
   final Set<String> _loadedItems = {};
   int _currentIndex = 0;
+  bool _isCardVisible = false;
 
   // 이미지 캐싱을 위한 맵 - 크기 제한 추가
   static final Map<String, ImageProvider> _cachedImages = {};
@@ -2004,12 +2035,25 @@ class _DynamicPageViewState extends State<_DynamicPageView> {
   static final List<String> _cacheQueue = []; // LRU 캐시 관리를 위한 큐
   static const int _maxImageCacheSize = 30; // 최대 30개 이미지만 캐싱
 
+  // Cache for video aspect ratios to prevent layout jumping on reload.
+  static final Map<String, double> _cachedVideoAspectRatios = {};
+  static final List<String> _videoCacheQueue = [];
+  static const int _maxVideoCacheSize = 20;
+
   // 이미지 캐시 정리 함수
   static void _cleanupImageCache() {
     while (_cacheQueue.length > _maxImageCacheSize) {
       String oldestUrl = _cacheQueue.removeAt(0);
       _cachedImages.remove(oldestUrl);
       _cachedImageHeights.remove(oldestUrl);
+    }
+  }
+
+  // Function to clean up the video aspect ratio cache using an LRU strategy.
+  static void _cleanupVideoCache() {
+    while (_videoCacheQueue.length > _maxVideoCacheSize) {
+      String oldestUrl = _videoCacheQueue.removeAt(0);
+      _cachedVideoAspectRatios.remove(oldestUrl);
     }
   }
 
@@ -2075,207 +2119,301 @@ class _DynamicPageViewState extends State<_DynamicPageView> {
     final validImages = widget.images.where((url) => _isValidUrl(url)).toList();
     final totalItems = validImages.length + widget.videos.length;
 
-    return Center(
-      child: Container(
-        // Remove animation, use fixed height instead of AnimatedContainer
-        height: _currentHeight,
-        decoration: BoxDecoration(
-          color: Theme.of(context).cardColor,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        clipBehavior: Clip.hardEdge,
-        child: PageView.builder(
-          controller: widget.controller,
-          itemCount: totalItems,
-          itemBuilder: (context, index) {
-            if (index < validImages.length) {
-              final imageUrl = validImages[index];
-              return LayoutBuilder(
-                builder: (context, constraints) {
-                  // 캐시된 이미지 높이가 있으면 바로 사용
-                  if (_cachedImageHeights.containsKey(imageUrl)) {
-                    _heights[index] = _cachedImageHeights[imageUrl]!;
+    return VisibilityDetector(
+      key: Key(
+          'dynamic-page-view-${widget.videos.join('-')}-${widget.images.join('-')}'),
+      onVisibilityChanged: (info) {
+        if (mounted) {
+          final isVisible = info.visibleFraction > 0;
+          if (_isCardVisible != isVisible) {
+            if (isVisible) {
+              setState(() {
+                _isCardVisible = true;
+              });
+            }
+          }
+        }
+      },
+      child: Center(
+        child: Container(
+          // Remove animation, use fixed height instead of AnimatedContainer
+          height: _currentHeight,
+          decoration: BoxDecoration(
+            color: Theme.of(context).cardColor,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          clipBehavior: Clip.hardEdge,
+          child: PageView.builder(
+            controller: widget.controller,
+            itemCount: totalItems,
+            itemBuilder: (context, index) {
+              if (index < validImages.length) {
+                final imageUrl = validImages[index];
+                return LayoutBuilder(
+                  builder: (context, constraints) {
+                    // 캐시된 이미지 높이가 있으면 바로 사용
+                    if (_cachedImageHeights.containsKey(imageUrl)) {
+                      _heights[index] = _cachedImageHeights[imageUrl]!;
+                      if (_currentIndex == index) {
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          if (mounted) {
+                            setState(() {
+                              _currentHeight = _cachedImageHeights[imageUrl]!;
+                            });
+                          }
+                        });
+                      }
+
+                      // 캐시 큐 업데이트 (LRU)
+                      _cacheQueue.remove(imageUrl);
+                      _cacheQueue.add(imageUrl);
+                    }
+
+                    // 캐시된 이미지 있는지 확인
+                    ImageProvider? cachedImage;
+                    if (_cachedImages.containsKey(imageUrl)) {
+                      cachedImage = _cachedImages[imageUrl];
+                      // 캐시 큐 업데이트 (LRU)
+                      _cacheQueue.remove(imageUrl);
+                      _cacheQueue.add(imageUrl);
+                    } else {
+                      // 저해상도 미리보기 이미지 URL 생성 (가능한 경우)
+                      String optimizedUrl = imageUrl;
+                      // 고화질 이미지를 중간 해상도로 최적화
+                      if (imageUrl.contains('?')) {
+                        optimizedUrl = '$imageUrl&quality=70&width=800';
+                      } else {
+                        optimizedUrl = '$imageUrl?quality=70&width=800';
+                      }
+
+                      cachedImage = CachedNetworkImageProvider(
+                        optimizedUrl,
+                        cacheKey: imageUrl,
+                        maxWidth: 800, // 최대 너비 제한
+                      );
+
+                      _cachedImages[imageUrl] = cachedImage;
+                      _cacheQueue.add(imageUrl);
+                      _cleanupImageCache();
+                    }
+
+                    return VisibilityDetector(
+                      key: Key('image-$imageUrl'),
+                      onVisibilityChanged: (info) {
+                        // 화면에 보이지 않는 이미지는 캐시에서 우선순위를 낮춤
+                        if (info.visibleFraction < 0.1 &&
+                            _cacheQueue.contains(imageUrl)) {
+                          _cacheQueue.remove(imageUrl);
+                          _cacheQueue.insert(
+                              0, imageUrl); // 가장 앞으로 이동 (가장 먼저 제거될 수 있도록)
+                        }
+                      },
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: GestureDetector(
+                          onTap: () {
+                            // Open the image in fullscreen
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (context) =>
+                                    _FullScreenImageViewer(imageUrl: imageUrl),
+                              ),
+                            );
+                          },
+                          onDoubleTap: () {
+                            // Find parent PostCard state and trigger like
+                            final PostCard postCard = context
+                                .findAncestorWidgetOfExactType<PostCard>()!;
+                            final _PostCardState? postCardState = context
+                                .findAncestorStateOfType<_PostCardState>();
+                            if (postCardState != null) {
+                              postCardState.handleLike();
+                              HapticFeedback
+                                  .mediumImpact(); // Add haptic feedback for better UX
+                            }
+                          },
+                          child: Image(
+                            image: cachedImage!,
+                            fit: BoxFit.contain,
+                            color: null, // Remove any color overlay
+                            colorBlendMode:
+                                BlendMode.srcOver, // Use default blend mode
+                            filterQuality: FilterQuality
+                                .high, // Ensure high quality rendering
+                            gaplessPlayback:
+                                true, // Smooth transitions between images
+                            isAntiAlias: true, // Enable anti-aliasing
+                            loadingBuilder: (context, child, loadingProgress) {
+                              if (loadingProgress == null) {
+                                // 로딩이 완료된 경우 캐시된 높이가 없으면 높이 계산
+                                if (!_cachedImageHeights
+                                    .containsKey(imageUrl)) {
+                                  cachedImage!
+                                      .resolve(const ImageConfiguration())
+                                      .addListener(
+                                        ImageStreamListener((imageInfo, _) {
+                                          double calculatedHeight =
+                                              imageInfo.image.height *
+                                                  (constraints.maxWidth /
+                                                      imageInfo.image.width);
+                                          _updateHeightOnce(imageUrl, index,
+                                              calculatedHeight);
+                                        }, onError: (error, stackTrace) {
+                                          debugPrint(
+                                              'Image load error: $error');
+                                        }),
+                                      );
+                                }
+                                return child;
+                              } else if (_cachedImageHeights
+                                  .containsKey(imageUrl)) {
+                                // 이미지 로딩 중이지만 이미 높이 알고 있는 경우 이전 이미지 표시
+                                return child;
+                              } else {
+                                return Center(child: ImageLoading(context));
+                              }
+                            },
+                            errorBuilder: (context, error, stackTrace) {
+                              debugPrint("Failed to load image: $imageUrl");
+                              return const Icon(Icons.broken_image, size: 48);
+                            },
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                );
+              } else {
+                final videoIndex = index - validImages.length;
+                final videoUrl = widget.videos[videoIndex];
+                if (!_isValidUrl(videoUrl)) return const SizedBox();
+
+                return LayoutBuilder(
+                  builder: (context, constraints) {
+                    // Get the available width for the video.
+                    double width = constraints.maxWidth;
+
+                    // Use a cached aspect ratio if available, otherwise default to 16:9.
+                    // This helps prevent the layout from jumping when the video loads.
+                    double aspectRatio =
+                        _cachedVideoAspectRatios[videoUrl] ?? 16 / 9;
+                    double calculatedHeight = width / aspectRatio;
+
+                    // Set the height for the current page in the PageView.
+                    _heights[index] = calculatedHeight;
                     if (_currentIndex == index) {
+                      // Use WidgetsBinding to avoid calling setState during a build.
                       WidgetsBinding.instance.addPostFrameCallback((_) {
-                        if (mounted) {
+                        if (mounted && _currentHeight != calculatedHeight) {
                           setState(() {
-                            _currentHeight = _cachedImageHeights[imageUrl]!;
+                            _currentHeight = calculatedHeight;
                           });
                         }
                       });
                     }
 
-                    // 캐시 큐 업데이트 (LRU)
-                    _cacheQueue.remove(imageUrl);
-                    _cacheQueue.add(imageUrl);
-                  }
-
-                  // 캐시된 이미지 있는지 확인
-                  ImageProvider? cachedImage;
-                  if (_cachedImages.containsKey(imageUrl)) {
-                    cachedImage = _cachedImages[imageUrl];
-                    // 캐시 큐 업데이트 (LRU)
-                    _cacheQueue.remove(imageUrl);
-                    _cacheQueue.add(imageUrl);
-                  } else {
-                    // 저해상도 미리보기 이미지 URL 생성 (가능한 경우)
-                    String optimizedUrl = imageUrl;
-                    // 고화질 이미지를 중간 해상도로 최적화
-                    if (imageUrl.contains('?')) {
-                      optimizedUrl = '$imageUrl&quality=70&width=800';
-                    } else {
-                      optimizedUrl = '$imageUrl?quality=70&width=800';
+                    // If the card is not yet visible on screen, show a placeholder.
+                    // The placeholder has the correct size to prevent layout shifts.
+                    if (!_isCardVisible) {
+                      return Container(
+                        color: Colors.black,
+                        height: calculatedHeight,
+                        child: const Center(
+                          child: Icon(Icons.play_arrow_rounded,
+                              color: Colors.white38, size: 60),
+                        ),
+                      );
                     }
 
-                    cachedImage = CachedNetworkImageProvider(
-                      optimizedUrl,
-                      cacheKey: imageUrl,
-                      maxWidth: 800, // 최대 너비 제한
-                    );
-
-                    _cachedImages[imageUrl] = cachedImage;
-                    _cacheQueue.add(imageUrl);
-                    _cleanupImageCache();
-                  }
-
-                  return VisibilityDetector(
-                    key: Key('image-$imageUrl'),
-                    onVisibilityChanged: (info) {
-                      // 화면에 보이지 않는 이미지는 캐시에서 우선순위를 낮춤
-                      if (info.visibleFraction < 0.1 &&
-                          _cacheQueue.contains(imageUrl)) {
-                        _cacheQueue.remove(imageUrl);
-                        _cacheQueue.insert(
-                            0, imageUrl); // 가장 앞으로 이동 (가장 먼저 제거될 수 있도록)
-                      }
-                    },
-                    child: ClipRRect(
+                    // Once visible, build the actual video widget.
+                    return ClipRRect(
                       borderRadius: BorderRadius.circular(12),
-                      child: GestureDetector(
-                        onTap: () {
-                          // Open the image in fullscreen
-                          Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (context) =>
-                                  _FullScreenImageViewer(imageUrl: imageUrl),
-                            ),
-                          );
+                      child: _VideoWidgetWrapper(
+                        videoUrl: videoUrl,
+                        maxWidth: width,
+                        index: index,
+                        postId: context
+                                        .findAncestorWidgetOfExactType<
+                                            PostCard>()
+                                        ?.post
+                                        .id !=
+                                    "unknown" &&
+                                context
+                                        .findAncestorWidgetOfExactType<
+                                            PostCard>()
+                                        ?.post
+                                        .id
+                                        .isNotEmpty ==
+                                    true
+                            ? context
+                                .findAncestorWidgetOfExactType<PostCard>()
+                                ?.post
+                                .id
+                            : null,
+                        category: context
+                                    .findAncestorWidgetOfExactType<PostCard>()
+                                    ?.post
+                                    .category
+                                    .isNotEmpty ==
+                                true
+                            ? context
+                                .findAncestorWidgetOfExactType<PostCard>()
+                                ?.post
+                                .category
+                            : (context
+                                        .findAncestorWidgetOfExactType<
+                                            PostCard>()
+                                        ?.post
+                                        .mainCategory
+                                        .isNotEmpty ==
+                                    true
+                                ? context
+                                    .findAncestorWidgetOfExactType<PostCard>()
+                                    ?.post
+                                    .mainCategory
+                                : null),
+                        authorId: context
+                                    .findAncestorWidgetOfExactType<PostCard>()
+                                    ?.post
+                                    .userReference
+                                    .isNotEmpty ==
+                                true
+                            ? context
+                                .findAncestorWidgetOfExactType<PostCard>()
+                                ?.post
+                                .userReference
+                            : null,
+                        onAspectRatioUpdated: (newAspectRatio) {
+                          // When the video's aspect ratio is determined, cache it for future use.
+                          if (_cachedVideoAspectRatios[videoUrl] !=
+                              newAspectRatio) {
+                            _cachedVideoAspectRatios[videoUrl] = newAspectRatio;
+                            _videoCacheQueue.remove(videoUrl);
+                            _videoCacheQueue.add(videoUrl);
+                            _cleanupVideoCache();
+                          }
+
+                          // Recalculate height with the correct aspect ratio and update the UI.
+                          double newCalculatedHeight = width / newAspectRatio;
+                          updateVideoHeight(index, newCalculatedHeight);
                         },
                         onDoubleTap: () {
                           // Find parent PostCard state and trigger like
-                          final PostCard postCard = context
-                              .findAncestorWidgetOfExactType<PostCard>()!;
                           final _PostCardState? postCardState =
                               context.findAncestorStateOfType<_PostCardState>();
                           if (postCardState != null) {
                             postCardState.handleLike();
                             HapticFeedback
-                                .mediumImpact(); // Add haptic feedback for better UX
+                                .mediumImpact(); // Add haptic feedback
                           }
                         },
-                        child: Image(
-                          image: cachedImage!,
-                          fit: BoxFit.contain,
-                          color: null, // Remove any color overlay
-                          colorBlendMode:
-                              BlendMode.srcOver, // Use default blend mode
-                          filterQuality: FilterQuality
-                              .high, // Ensure high quality rendering
-                          gaplessPlayback:
-                              true, // Smooth transitions between images
-                          isAntiAlias: true, // Enable anti-aliasing
-                          loadingBuilder: (context, child, loadingProgress) {
-                            if (loadingProgress == null) {
-                              // 로딩이 완료된 경우 캐시된 높이가 없으면 높이 계산
-                              if (!_cachedImageHeights.containsKey(imageUrl)) {
-                                cachedImage!
-                                    .resolve(const ImageConfiguration())
-                                    .addListener(
-                                      ImageStreamListener((imageInfo, _) {
-                                        double calculatedHeight =
-                                            imageInfo.image.height *
-                                                (constraints.maxWidth /
-                                                    imageInfo.image.width);
-                                        _updateHeightOnce(
-                                            imageUrl, index, calculatedHeight);
-                                      }, onError: (error, stackTrace) {
-                                        debugPrint('Image load error: $error');
-                                      }),
-                                    );
-                              }
-                              return child;
-                            } else if (_cachedImageHeights
-                                .containsKey(imageUrl)) {
-                              // 이미지 로딩 중이지만 이미 높이 알고 있는 경우 이전 이미지 표시
-                              return child;
-                            } else {
-                              return Center(child: ImageLoading(context));
-                            }
-                          },
-                          errorBuilder: (context, error, stackTrace) {
-                            debugPrint("Failed to load image: $imageUrl");
-                            return const Icon(Icons.broken_image, size: 48);
-                          },
-                        ),
                       ),
-                    ),
-                  );
-                },
-              );
-            } else {
-              final videoIndex = index - validImages.length;
-              final videoUrl = widget.videos[videoIndex];
-              if (!_isValidUrl(videoUrl)) return const SizedBox();
-
-              return LayoutBuilder(
-                builder: (context, constraints) {
-                  // 비디오 컨테이너의 기본 크기 설정
-                  double width = constraints.maxWidth;
-                  // 기본값으로 정사각형(1:1) 비율 사용
-                  double aspectRatio = 1;
-                  double initialHeight = width / aspectRatio;
-
-                  // 초기 높이 설정
-                  _heights[index] = initialHeight;
-                  if (_currentIndex == index) {
-                    _currentHeight = initialHeight;
-                  }
-
-                  return ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: _VideoWidgetWrapper(
-                      videoUrl: videoUrl,
-                      maxWidth: width,
-                      index: index,
-                      postId: context.findAncestorWidgetOfExactType<PostCard>()?.post.id != "unknown" && 
-                              context.findAncestorWidgetOfExactType<PostCard>()?.post.id.isNotEmpty == true 
-                              ? context.findAncestorWidgetOfExactType<PostCard>()?.post.id : null,
-                      category: context.findAncestorWidgetOfExactType<PostCard>()?.post.category.isNotEmpty == true 
-                               ? context.findAncestorWidgetOfExactType<PostCard>()?.post.category 
-                               : (context.findAncestorWidgetOfExactType<PostCard>()?.post.mainCategory.isNotEmpty == true 
-                                  ? context.findAncestorWidgetOfExactType<PostCard>()?.post.mainCategory : null),
-                      authorId: context.findAncestorWidgetOfExactType<PostCard>()?.post.userReference.isNotEmpty == true 
-                               ? context.findAncestorWidgetOfExactType<PostCard>()?.post.userReference : null,
-                      onAspectRatioUpdated: (aspectRatio) {
-                        // 실제 비디오 크기를 받으면 높이 업데이트
-                        double calculatedHeight = width / aspectRatio;
-                        updateVideoHeight(index, calculatedHeight);
-                      },
-                      onDoubleTap: () {
-                        // Find parent PostCard state and trigger like
-                        final _PostCardState? postCardState =
-                            context.findAncestorStateOfType<_PostCardState>();
-                        if (postCardState != null) {
-                          postCardState.handleLike();
-                          HapticFeedback.mediumImpact(); // Add haptic feedback
-                        }
-                      },
-                    ),
-                  );
-                },
-              );
-            }
-          },
+                    );
+                  },
+                );
+              }
+            },
+          ),
         ),
       ),
     );

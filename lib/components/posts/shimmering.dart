@@ -117,7 +117,6 @@ Widget PostLoading(BuildContext context) {
   );
 }
 
-// 광고 로딩을 위한 별도의 위젯
 Widget AdPostLoading(BuildContext context) {
   return Stack(
     children: [
