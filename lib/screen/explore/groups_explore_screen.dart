@@ -462,12 +462,21 @@ class _GroupsExploreScreenState extends State<GroupsExploreScreen> {
                   .toList();
             }
 
-            List<dynamic> listItems = List.from(groups);
-            if (listItems.length > 5) {
-              listItems.insert(5, 'ad');
-            }
-            if (listItems.length > 11) {
-              listItems.insert(11, 'ad');
+            final List<dynamic> listItems = [];
+            if (groups.isNotEmpty) {
+              const int adInterval = 4; // 광고는 4번째 아이템마다 표시됩니다.
+              const int itemsPerAd =
+                  adInterval - 1; // 즉, 3개의 그룹 다음에 광고 1개가 표시됩니다.
+
+              for (int i = 0; i < groups.length; i++) {
+                listItems.add(groups[i]);
+                // 그룹을 추가한 후 광고를 추가할 시간인지 확인합니다.
+                if ((i + 1) % itemsPerAd == 0) {
+                  // 광고가 마지막 아이템이 되는 것을 막고 싶다면 여기에 조건을 추가할 수 있습니다.
+                  // 예: if (i < groups.length - 1)
+                  listItems.add('ad');
+                }
+              }
             }
 
             return CustomScrollView(

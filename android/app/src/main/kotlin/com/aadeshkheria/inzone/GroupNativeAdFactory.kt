@@ -1,57 +1,72 @@
 package com.aadeshkheria.inzone
 
 import android.content.Context
+import android.graphics.Outline
+import android.os.Build
 import android.view.LayoutInflater
+import android.view.View
+import android.view.ViewOutlineProvider
 import android.widget.Button
 import android.widget.ImageView
 import android.widget.TextView
+import com.google.android.gms.ads.nativead.MediaView
 import com.google.android.gms.ads.nativead.NativeAd
 import com.google.android.gms.ads.nativead.NativeAdView
 import io.flutter.plugins.googlemobileads.GoogleMobileAdsPlugin
-import java.util.*
 
 class GroupNativeAdFactory(private val context: Context) : GoogleMobileAdsPlugin.NativeAdFactory {
 
-    override fun createNativeAd(
-            nativeAd: NativeAd,
-            customOptions: Map<String, Any>?
-    ): NativeAdView {
-        val nativeAdView = LayoutInflater.from(context)
-                .inflate(R.layout.native_ad_group_tile, null) as NativeAdView
+    override fun createNativeAd(nativeAd: NativeAd, customOptions: Map<String, Any>?): NativeAdView {
+        val adView = LayoutInflater.from(context)
+            .inflate(R.layout.native_ad_group_tile, null) as NativeAdView
 
-        // Associate the native ad view with the ad object.
-        nativeAdView.setNativeAd(nativeAd)
+        val mediaView = adView.findViewById<MediaView>(R.id.ad_media)
+        val headlineView = adView.findViewById<TextView>(R.id.ad_headline)
+        val bodyView = adView.findViewById<TextView>(R.id.ad_body)
+        val ctaView = adView.findViewById<Button>(R.id.ad_call_to_action)
+        val starsView = adView.findViewById<TextView>(R.id.ad_stars)
 
-        // Find and populate the ad views.
-        nativeAdView.mediaView = nativeAdView.findViewById(R.id.ad_media)
-        nativeAdView.headlineView = nativeAdView.findViewById(R.id.ad_headline)
-        nativeAdView.bodyView = nativeAdView.findViewById(R.id.ad_body)
-        nativeAdView.callToActionView = nativeAdView.findViewById(R.id.ad_call_to_action)
-        nativeAdView.iconView = nativeAdView.findViewById(R.id.ad_icon)
-        nativeAdView.starRatingView = nativeAdView.findViewById(R.id.ad_stars)
+        // Apply round clipping if supported
+        val mediaCard = adView.findViewById<View>(R.id.media_card_view)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            mediaCard.clipToOutline = true
+            mediaCard.outlineProvider = object : ViewOutlineProvider() {
+                override fun getOutline(view: View, outline: Outline) {
+                    val radius = context.resources.displayMetrics.density * 12
+                    outline.setRoundRect(0, 0, view.width, view.height, radius)
+                }
+            }
+        }
 
-        // Populate the views with ad data.
+        // Set data
+        headlineView.text = nativeAd.headline
+        bodyView.text = nativeAd.body ?: ""
+        ctaView.text = nativeAd.callToAction ?: "Install"
+
         val mediaContent = nativeAd.mediaContent
-        if (mediaContent == null) {
-            nativeAdView.mediaView?.visibility = android.view.View.GONE
+        if (mediaContent != null) {
+            mediaView.mediaContent = mediaContent
+            mediaView.visibility = View.VISIBLE
         } else {
-            nativeAdView.mediaView?.mediaContent = mediaContent
-            nativeAdView.mediaView?.visibility = android.view.View.VISIBLE
+            mediaView.visibility = View.GONE
         }
-        
-        (nativeAdView.headlineView as? TextView)?.text = nativeAd.headline
-        (nativeAdView.bodyView as? TextView)?.text = nativeAd.body
-        (nativeAdView.callToActionView as? Button)?.text = nativeAd.callToAction
-        // (nativeAdView.iconView as? ImageView)?.setImageDrawable(nativeAd.icon?.drawable)
-        
-        // Star rating
-        val starRating = nativeAd.starRating
-        if (starRating != null && starRating > 0) {
-            (nativeAdView.starRatingView as? TextView)?.text = "★".repeat(starRating.toInt()) + "☆".repeat(5 - starRating.toInt())
+
+
+        val rating = nativeAd.starRating
+        if (rating != null && rating > 0) {
+            starsView.text = "★".repeat(rating.toInt()) + "☆".repeat(5 - rating.toInt())
+            starsView.visibility = View.VISIBLE
         } else {
-            nativeAdView.starRatingView?.visibility = android.view.View.GONE
+            starsView.visibility = View.GONE
         }
-        
-        return nativeAdView
+
+        adView.mediaView = mediaView
+        adView.headlineView = headlineView
+        adView.bodyView = bodyView
+        adView.callToActionView = ctaView
+        adView.starRatingView = starsView
+
+        adView.setNativeAd(nativeAd)
+        return adView
     }
 }
