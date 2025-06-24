@@ -77,7 +77,11 @@ class _AdCardState extends State<AdCard> {
                 ),
               ],
             ),
-            child: AdWidget(ad: _nativeAd!),
+            child: Padding(
+              padding: EdgeInsets.symmetric(
+                  horizontal: Platform.isAndroid ? 16.0 : 0),
+              child: AdWidget(ad: _nativeAd!),
+            ),
           )
         : Container(
             height: Platform.isAndroid ? 150 : 130,
