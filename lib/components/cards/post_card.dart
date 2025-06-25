@@ -65,6 +65,7 @@ class _PostCardState extends State<PostCard> {
 
   String username = '';
   String profileImageUrl = '';
+  String _actualUsername = ''; // Add state for actual username
   CommentClass? comment;
   final PageController _mediaPageController = PageController(
     viewportFraction: 1,
@@ -73,6 +74,9 @@ class _PostCardState extends State<PostCard> {
   // Native Ad variables
   NativeAd? _nativeAd;
   bool _nativeAdIsLoaded = false;
+
+  // Add this variable to track influencer status
+  bool _isInfluencer = false;
 
   // Ad Unit IDs
   final String _androidAdUnitId = 'ca-app-pub-4474122990542651~2720978162';
@@ -142,12 +146,17 @@ class _PostCardState extends State<PostCard> {
         final userData =
             await InZoneDatabase.getUserProfile(widget.post.userReference);
 
-        if (userData != null &&
-            userData['profilePicture'] != null &&
-            userData['profilePicture'].toString().isNotEmpty) {
+        if (userData != null) {
           if (mounted) {
             setState(() {
-              profileImageUrl = userData['profilePicture'];
+              if (userData['profilePicture'] != null &&
+                  userData['profilePicture'].toString().isNotEmpty) {
+                profileImageUrl = userData['profilePicture'];
+              }
+              if (userData['username'] != null &&
+                  userData['username'].toString().isNotEmpty) {
+                _actualUsername = userData['username'];
+              }
             });
           }
           return;
@@ -165,10 +174,16 @@ class _PostCardState extends State<PostCard> {
             final profilePic = userDocData['profilePicture'] ??
                 userDocData['profileImage'] ??
                 "";
+            final username = userDocData['username'] ?? "";
 
-            if (mounted && profilePic.toString().isNotEmpty) {
+            if (mounted) {
               setState(() {
-                profileImageUrl = profilePic.toString();
+                if (profilePic.toString().isNotEmpty) {
+                  profileImageUrl = profilePic.toString();
+                }
+                if (username.toString().isNotEmpty) {
+                  _actualUsername = username.toString();
+                }
               });
             }
           }
@@ -184,6 +199,7 @@ class _PostCardState extends State<PostCard> {
     super.initState();
     _loadLikedState(); // Load the liked state when the widget is initialized
     _loadUserProfileImage();
+    _checkIfInfluencer();
 
     // Load native ad if isAd is true
     if (widget.isAd) {
@@ -195,6 +211,38 @@ class _PostCardState extends State<PostCard> {
         widget.post.id != "unknown" &&
         widget.post.id.isNotEmpty) {
       PostViewTracker.startViewingPost(widget.post.id);
+    }
+  }
+
+  Future<void> _checkIfInfluencer() async {
+    if (widget.post.isAi) {
+      return;
+    }
+
+    final userUid = widget.post.userReference;
+    if (userUid.isEmpty) {
+      return;
+    }
+
+    try {
+      final influencerDoc = await FirebaseFirestore.instance
+          .collection('influencers')
+          .doc(userUid)
+          .get();
+
+      if (influencerDoc.exists) {
+        print('User $userUid is an influencer.');
+        setState(() {
+          _isInfluencer = true;
+        });
+      } else {
+        print('User $userUid is NOT an influencer.');
+        setState(() {
+          _isInfluencer = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error checking for influencer status: $e');
     }
   }
 
@@ -503,7 +551,7 @@ class _PostCardState extends State<PostCard> {
         padding: const EdgeInsets.only(bottom: 20.0),
         child: Container(
           constraints: BoxConstraints(
-            minHeight: imageSuccess ? 350 : 190,
+            minHeight: imageSuccess ? 350 : 250,
           ),
           width: MediaQuery.of(context).size.width - 30,
           padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 10),
@@ -798,11 +846,13 @@ class _PostCardState extends State<PostCard> {
               "Report ${widget.post.userName}",
               "dont_show",
             ),
-            _optionItem(
-              FeatherIcons.gift,
-              "Tip ${widget.post.userName}",
-              "tip",
-            ),
+            // Only show tipping option if the user is an influencer
+            if (_isInfluencer)
+              _optionItem(
+                FeatherIcons.gift,
+                "Tip ${widget.post.userName}",
+                "tip",
+              ),
             const SizedBox(height: 15),
           ],
         ),
@@ -910,8 +960,7 @@ class _PostCardState extends State<PostCard> {
               recipient: {
                 'id': widget.post.userReference,
                 'name': widget.post.userName,
-                'username':
-                    widget.post.userName.toLowerCase().replaceAll(' ', '_'),
+                'username': _actualUsername,
                 'profilePicture': profileImageUrl,
               },
             ),

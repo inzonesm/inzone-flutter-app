@@ -746,6 +746,7 @@ class HomeScreenState extends State<HomeScreen> {
                       delegate: CustomAppBarDelegate(
                         child: CustomAppBar(
                           isHome: true,
+                          isDebug: true,
                           userPoints: "100",
                           profileImageUrl: null,
                           onNotificationTap: () {

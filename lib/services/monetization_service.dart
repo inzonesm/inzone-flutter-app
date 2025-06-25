@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
 import 'package:in_app_purchase_storekit/in_app_purchase_storekit.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class MonetizationService {
   // Product IDs
@@ -385,25 +386,32 @@ class MonetizationService {
   }
 
   // Send tip to another user
-  Future<Map<String, dynamic>> sendTip(String recipientId, int amount) async {
+  Future<Map<String, dynamic>> sendTip(
+      String recipientHandle, int amount) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) throw Exception('User not logged in');
 
     try {
       final response = await http.post(
-        Uri.parse('$baseUrl/wallet/send-tip'),
+        Uri.parse('$baseUrl/user/tip/send'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode({
-          'UserDocumentId': user.uid,
-          'RecipientId': recipientId,
-          'Amount': amount,
+          'sender_id': user.uid,
+          'recipient_handle': recipientHandle,
+          'amount': amount,
         }),
       );
 
       final responseData = json.decode(response.body);
 
-      if (response.statusCode == 200 && responseData['success'] == true) {
-        return responseData;
+      if (response.statusCode == 200) {
+        return {
+          'success': true,
+          'data': {
+            'newBalance': responseData['new_balance'],
+            'tipId': responseData['tip_id'],
+          }
+        };
       } else {
         throw Exception(responseData['error'] ?? 'Failed to send tip');
       }

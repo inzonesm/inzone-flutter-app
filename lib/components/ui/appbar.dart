@@ -17,6 +17,7 @@ class CustomAppBar extends StatefulWidget implements PreferredSizeWidget {
   final bool isChat;
   final bool isImage;
   final bool isSettings;
+  final bool isDebug;
   final String userName;
 
   const CustomAppBar({
@@ -35,6 +36,7 @@ class CustomAppBar extends StatefulWidget implements PreferredSizeWidget {
     this.isChat = false,
     this.isImage = true,
     this.isSettings = false,
+    this.isDebug = false,
     this.userName = "Loading",
   });
 
@@ -126,27 +128,28 @@ class _CustomAppBarState extends State<CustomAppBar> {
                         ),
                       ),
                     ),
-                  const SizedBox(width: 8),
-                  if (widget.isHome &&
-                      !widget.isGroup &&
-                      !widget.isChat &&
-                      !widget.isSettings)
-                    GestureDetector(
-                      onTap: widget.onNotificationTap,
-                      child: Container(
-                        width: 48,
-                        height: 48,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: Theme.of(context).cardColor,
-                        ),
-                        child: Icon(
-                          Icons.notifications,
-                          color: Theme.of(context).iconTheme.color,
-                          size: 28,
+                  if (!widget.isDebug) const SizedBox(width: 8),
+                  if (!widget.isDebug)
+                    if (widget.isHome &&
+                        !widget.isGroup &&
+                        !widget.isChat &&
+                        !widget.isSettings)
+                      GestureDetector(
+                        onTap: widget.onNotificationTap,
+                        child: Container(
+                          width: 48,
+                          height: 48,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: Theme.of(context).cardColor,
+                          ),
+                          child: Icon(
+                            Icons.notifications,
+                            color: Theme.of(context).iconTheme.color,
+                            size: 28,
+                          ),
                         ),
                       ),
-                    ),
 
                   if (widget.isGroup)
                     GestureDetector(

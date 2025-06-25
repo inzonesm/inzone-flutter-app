@@ -236,9 +236,25 @@ class _TipScreenState extends State<TipScreen> {
     );
 
     try {
-      // In a real implementation, you would call an API to send coins
+      String recipientUsername = widget.recipient['username'] ?? '';
+
+      if (recipientUsername.isEmpty) {
+        Navigator.of(context).pop(); // Close loading dialog
+        _showErrorToast('Recipient username not found.');
+        return;
+      }
+
+      String recipientHandle = recipientUsername;
+      if (!recipientHandle.startsWith('@')) {
+        recipientHandle = '@$recipientHandle';
+      }
+
+      // For debugging
+      print('Sending tip to: $recipientHandle');
+
+      // Send the tip
       final response = await _monetizationService.sendTip(
-        widget.recipient['id'],
+        recipientHandle,
         amount,
       );
 
@@ -316,18 +332,36 @@ class _TipScreenState extends State<TipScreen> {
             backgroundColor: Theme.of(context).canvasColor,
             elevation: 0,
             title: const Text('Send Tip'),
-            leading: IconButton(
-              icon: const Icon(Icons.close),
-              onPressed: () => Navigator.of(context).pop(),
+            leading: Padding(
+              padding: const EdgeInsets.only(left: 12.0),
+              child: GestureDetector(
+                onTap: () {
+                  Navigator.pop(context);
+                },
+                child: CircleAvatar(
+                  radius: 22,
+                  backgroundColor: Theme.of(context).cardColor,
+                  child: Padding(
+                    padding: const EdgeInsets.only(left: 5),
+                    child: Center(
+                      child: Icon(
+                        Icons.arrow_back_ios,
+                        size: 18,
+                        color: Theme.of(context).iconTheme.color,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
             ),
             actions: [
               // Display coin balance
               Container(
                 margin: const EdgeInsets.only(right: 16),
-                height: 36,
-                padding: const EdgeInsets.symmetric(horizontal: 12),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(18),
+                  borderRadius: BorderRadius.circular(30),
                   color: Theme.of(context).cardColor,
                 ),
                 child: Row(
@@ -365,19 +399,6 @@ class _TipScreenState extends State<TipScreen> {
                       crossAxisAlignment: CrossAxisAlignment.center,
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        // Drag handle
-                        Center(
-                          child: Container(
-                            margin: const EdgeInsets.only(bottom: 24),
-                            width: 40,
-                            height: 4,
-                            decoration: BoxDecoration(
-                              color: Colors.grey.withOpacity(0.3),
-                              borderRadius: BorderRadius.circular(2),
-                            ),
-                          ),
-                        ),
-
                         // Recipient profile
                         Column(
                           children: [
