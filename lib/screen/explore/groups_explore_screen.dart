@@ -116,6 +116,7 @@ class _GroupsExploreScreenState extends State<GroupsExploreScreen> {
         messageCount: 760,
         avatars: ['Harry', 'Hermione', 'Ron', 'Dumbledore'],
         isMember: false,
+        showRandomCharacters: true,
       ),
       GroupData(
         id: '2',
@@ -126,6 +127,7 @@ class _GroupsExploreScreenState extends State<GroupsExploreScreen> {
         messageCount: 1760,
         avatars: ['Tony', 'Steve', 'Thor', 'Natasha'],
         isMember: false,
+        showRandomCharacters: true,
       ),
       GroupData(
         id: '3',
@@ -135,6 +137,7 @@ class _GroupsExploreScreenState extends State<GroupsExploreScreen> {
         messageCount: 460,
         avatars: ['Lebron', 'Messi', 'Serena', 'Ronaldo'],
         isMember: false,
+        showRandomCharacters: true,
       ),
       GroupData(
         id: '4',
@@ -144,6 +147,7 @@ class _GroupsExploreScreenState extends State<GroupsExploreScreen> {
         messageCount: 960,
         avatars: ['Naruto', 'Goku', 'Luffy', 'Eren'],
         isMember: false,
+        showRandomCharacters: true,
       ),
     ];
   }

@@ -10,11 +10,207 @@ import 'package:inzone/data/group_chat_data.dart';
 import 'package:inzone/screen/chat/group_chat_screen.dart';
 import 'package:bounce/bounce.dart';
 import 'package:inzone/router/routes.dart';
+import 'package:inzone/services/inzone_database.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
-class GroupCard extends StatelessWidget {
+class GroupCard extends StatefulWidget {
   final GroupData group;
 
   const GroupCard({super.key, required this.group});
+
+  @override
+  State<GroupCard> createState() => _GroupCardState();
+}
+
+class _GroupCardState extends State<GroupCard> {
+
+  // Get random participant profile pictures
+  List<String> _getRandomParticipantProfilePictures(List<Participant> participants) {
+    if (!widget.group.showRandomCharacters || participants.isEmpty) {
+      return [];
+    }
+
+    // Filter participants that have profile pictures
+    List<String> availablePictures = participants
+        .where((p) => p.profilePictureUrl != null && p.profilePictureUrl!.isNotEmpty)
+        .map((p) => p.profilePictureUrl!)
+        .toList();
+    
+    // Shuffle and take up to 3
+    if (availablePictures.isNotEmpty) {
+      availablePictures.shuffle();
+      return availablePictures.take(3).toList();
+    }
+
+    return [];
+  }
+
+  // Build composite group profile picture with 3 AI characters side by side
+  Widget _buildCompositeGroupAvatar(List<Participant> participants) {
+    final profilePictures = _getRandomParticipantProfilePictures(participants);
+    
+    if (profilePictures.isEmpty) {
+      // Show fallback icon if no participant pictures available
+      return Container(
+        width: 64,
+        height: 64,
+        decoration: BoxDecoration(
+          color: Theme.of(context).cardColor,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: const Center(
+          child: Icon(FeatherIcons.users, size: 24),
+        ),
+      );
+    }
+
+    return Container(
+      width: 64,
+      height: 64,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        color: Theme.of(context).cardColor,
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: profilePictures.length == 1
+            ? _buildSingleCharacterAvatar(profilePictures[0])
+            : profilePictures.length == 2
+                ? _buildTwoCharacterAvatar(profilePictures)
+                : _buildThreeCharacterAvatar(profilePictures),
+      ),
+    );
+  }
+
+  Widget _buildSingleCharacterAvatar(String imageUrl) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(12),
+      child: CachedNetworkImage(
+        imageUrl: imageUrl,
+        fit: BoxFit.cover,
+        width: 64,
+        height: 64,
+        placeholder: (context, url) => const Center(
+          child: Icon(FeatherIcons.image, size: 24),
+        ),
+        errorWidget: (context, url, error) => const Center(
+          child: Icon(FeatherIcons.users, size: 24),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTwoCharacterAvatar(List<String> imageUrls) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(12),
+      child: Row(
+        children: [
+          Expanded(
+            child: Transform.rotate(
+              angle: -0.08, // Slight left tilt
+              child: CachedNetworkImage(
+                imageUrl: imageUrls[0],
+                fit: BoxFit.cover,
+                height: 64,
+                placeholder: (context, url) => const Center(
+                  child: Icon(FeatherIcons.image, size: 16),
+                ),
+                errorWidget: (context, url, error) => const Center(
+                  child: Icon(FeatherIcons.user, size: 16),
+                ),
+              ),
+            ),
+          ),
+          Container(
+            width: 0.5,
+            height: 64,
+            color: Colors.white,
+          ),
+          Expanded(
+            child: Transform.rotate(
+              angle: 0.08, // Slight right tilt
+              child: CachedNetworkImage(
+                imageUrl: imageUrls[1],
+                fit: BoxFit.cover,
+                height: 64,
+                placeholder: (context, url) => const Center(
+                  child: Icon(FeatherIcons.image, size: 16),
+                ),
+                errorWidget: (context, url, error) => const Center(
+                  child: Icon(FeatherIcons.user, size: 16),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildThreeCharacterAvatar(List<String> imageUrls) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(12),
+      child: Row(
+        children: [
+          Expanded(
+            child: Transform.rotate(
+              angle: -0.12, // Left tilt
+              child: CachedNetworkImage(
+                imageUrl: imageUrls[0],
+                fit: BoxFit.cover,
+                height: 64,
+                placeholder: (context, url) => const Center(
+                  child: Icon(FeatherIcons.image, size: 12),
+                ),
+                errorWidget: (context, url, error) => const Center(
+                  child: Icon(FeatherIcons.user, size: 12),
+                ),
+              ),
+            ),
+          ),
+          Container(
+            width: 0.5,
+            height: 64,
+            color: Colors.white,
+          ),
+          Expanded(
+            child: CachedNetworkImage(
+              imageUrl: imageUrls[1],
+              fit: BoxFit.cover,
+              height: 64,
+              placeholder: (context, url) => const Center(
+                child: Icon(FeatherIcons.image, size: 12),
+              ),
+              errorWidget: (context, url, error) => const Center(
+                child: Icon(FeatherIcons.user, size: 12),
+              ),
+            ),
+          ),
+          Container(
+            width: 0.5,
+            height: 64,
+            color: Colors.white,
+          ),
+          Expanded(
+            child: Transform.rotate(
+              angle: 0.12, // Right tilt
+              child: CachedNetworkImage(
+                imageUrl: imageUrls[2],
+                fit: BoxFit.cover,
+                height: 64,
+                placeholder: (context, url) => const Center(
+                  child: Icon(FeatherIcons.image, size: 12),
+                ),
+                errorWidget: (context, url, error) => const Center(
+                  child: Icon(FeatherIcons.user, size: 12),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   // Helper method to format member count dynamically
   String _formatMemberCount(int count) {
@@ -39,7 +235,7 @@ class GroupCard extends StatelessWidget {
             onTap: () {
               try {
                 // Try using Go Router first
-                context.push(Routes.groupChat, extra: group);
+                context.push(Routes.groupChat, extra: widget.group);
               } catch (e) {}
             },
             borderRadius: BorderRadius.circular(24),
@@ -49,7 +245,7 @@ class GroupCard extends StatelessWidget {
             child: FutureBuilder<DocumentSnapshot>(
               future: FirebaseFirestore.instance
                   .collection('groupChats')
-                  .doc(group.id)
+                  .doc(widget.group.id)
                   .get(),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
@@ -105,51 +301,54 @@ class GroupCard extends StatelessWidget {
                         SizedBox(height: Platform.isAndroid ? 18 : 12),
                         Row(
                           children: [
-                            // Avatar stack
-                            ClipRRect(
-                              borderRadius: BorderRadius.circular(12),
-                              child: Image.network(
-                                groupChatData.imageUrl,
-                                width: 64,
-                                height: 64,
-                                fit: BoxFit.cover,
-                                loadingBuilder: (context, child, progress) {
-                                  return progress == null
-                                      ? child
-                                      : Container(
+                            // Avatar section - either composite or single image
+                            widget.group.showRandomCharacters
+                                ? _buildCompositeGroupAvatar(groupChatData.participants)
+                                : ClipRRect(
+                                    borderRadius: BorderRadius.circular(12),
+                                    child: Image.network(
+                                      groupChatData.imageUrl,
+                                      width: 64,
+                                      height: 64,
+                                      fit: BoxFit.cover,
+                                      loadingBuilder: (context, child, progress) {
+                                        return progress == null
+                                            ? child
+                                            : Container(
+                                                width: 64,
+                                                height: 64,
+                                                decoration: BoxDecoration(
+                                                  color: Colors.transparent,
+                                                  borderRadius:
+                                                      BorderRadius.circular(12),
+                                                ),
+                                                child: const Center(
+                                                  child: Icon(FeatherIcons.image),
+                                                ),
+                                              );
+                                      },
+                                      errorBuilder: (context, error, stackTrace) {
+                                        return Container(
                                           width: 64,
                                           height: 64,
                                           decoration: BoxDecoration(
-                                            color: Colors.transparent,
+                                            color: Colors.red.withOpacity(0.2),
                                             borderRadius:
                                                 BorderRadius.circular(12),
                                           ),
-                                          child: const Center(
-                                            child: Icon(FeatherIcons.image),
-                                          ),
+                                          child: const Icon(
+                                              FeatherIcons.alertTriangle),
                                         );
-                                },
-                                errorBuilder: (context, error, stackTrace) {
-                                  return Container(
-                                    width: 64,
-                                    height: 64,
-                                    decoration: BoxDecoration(
-                                      color: Colors.red.withOpacity(0.2),
-                                      borderRadius: BorderRadius.circular(12),
+                                      },
                                     ),
-                                    child:
-                                        const Icon(FeatherIcons.alertTriangle),
-                                  );
-                                },
-                              ),
-                            ),
+                                  ),
                             const SizedBox(width: 12),
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    group.name,
+                                    widget.group.name,
                                     style: Theme.of(context)
                                         .textTheme
                                         .titleMedium
@@ -163,7 +362,7 @@ class GroupCard extends StatelessWidget {
                                   ),
                                   const SizedBox(height: 6),
                                   Text(
-                                    group.description,
+                                    widget.group.description,
                                     style: Theme.of(context)
                                         .textTheme
                                         .bodySmall
@@ -199,7 +398,7 @@ class GroupCard extends StatelessWidget {
                                 ),
                               ),
                               Text(
-                                _formatMemberCount(group.memberCount),
+                                _formatMemberCount(widget.group.memberCount),
                                 style: TextStyle(
                                   fontWeight: FontWeight.bold,
                                   fontSize: 12,
@@ -222,7 +421,7 @@ class GroupCard extends StatelessWidget {
                                 ),
                               ),
                               Text(
-                                '${group.messageCount}',
+                                '${widget.group.messageCount}',
                                 style: TextStyle(
                                   fontWeight: FontWeight.bold,
                                   fontSize: 12,
@@ -274,7 +473,7 @@ class GroupCard extends StatelessWidget {
   // Build participant avatars with actual AI profile pictures
   Widget _buildParticipantAvatars(
       BuildContext context, List<Participant> participants) {
-    if (group.avatars.isEmpty) {
+    if (widget.group.avatars.isEmpty) {
       return const SizedBox.shrink();
     }
 
@@ -296,7 +495,7 @@ class GroupCard extends StatelessWidget {
 
     // Use ImageStack with actual profile pictures
     return ImageStack(
-      key: ValueKey('avatars_loaded_${group.id}'),
+      key: ValueKey('avatars_loaded_${widget.group.id}'),
       imageList: avatarUrls,
       totalCount: participants.length,
       imageCount: 3,

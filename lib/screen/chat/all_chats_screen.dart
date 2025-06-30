@@ -546,6 +546,7 @@ class _ChatUserCardState extends State<ChatUserCard> {
                   messageCount: doc.data()?['messageCount'] ?? 0,
                   avatars: avatars,
                   isMember: true,
+                  showRandomCharacters: true,
                 );
 
                 // Navigate to the group chat screen
