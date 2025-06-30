@@ -436,6 +436,7 @@ class AppRouter {
                 messageCount: 0,
                 avatars: [],
                 isMember: true,
+                showRandomCharacters: true,
               ),
             );
           }
