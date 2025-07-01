@@ -743,20 +743,20 @@ class HomeScreenState extends State<HomeScreen> {
                     SliverPersistentHeader(
                       floating: true,
                       pinned: false,
-                      delegate: CustomAppBarDelegate(
+                                              delegate: CustomAppBarDelegate(
                         child: CustomAppBar(
                           isHome: true,
                           isDebug: true,
                           userPoints: "100",
                           profileImageUrl: null,
-                          onNotificationTap: () {
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (context) =>
-                                    const NotificationScreen(),
-                              ),
-                            );
-                          },
+                          // onNotificationTap: () {
+                          //   Navigator.of(context).push(
+                          //     MaterialPageRoute(
+                          //       builder: (context) =>
+                          //           const NotificationScreen(),
+                          //     ),
+                          //   );
+                          // },
                           onSearchTap: () {
                             try {
                               // context.push(Routes.searchExplore);
