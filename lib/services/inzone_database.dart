@@ -1521,7 +1521,7 @@ class InZoneDatabase {
 
   static Future<List<Map<String, dynamic>>?> getCarouselCharacters() async {
     const String url =
-        'https://inzoneapi-912424781531.us-central1.run.app/api/ai/carousel/characters';
+        'https://inzoneapi-912424781531.us-central1.run.app/api/ai/carousel/characters?showPopularFirst=true';
 
     try {
       final http.Response response = await http.get(

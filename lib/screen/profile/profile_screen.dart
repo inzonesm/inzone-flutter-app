@@ -750,44 +750,26 @@ class _ProfileScreenState extends State<ProfileScreen>
     return GestureDetector(
       onTap: () => _showAITooltip(),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [
-              Color(0xFF2196F3), // Blue
-              Color(0xFF03A9F4), // Lighter blue
-            ],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
+          color: const Color(0xFF2196F3).withOpacity(0.1),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: const Color(0xFF2196F3).withOpacity(0.3),
+            width: 1,
           ),
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: const Color(0xFF2196F3).withOpacity(0.3),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
-              width: 6,
-              height: 6,
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                shape: BoxShape.circle,
-              ),
-            ),
-            const SizedBox(width: 6),
-            const Text(
+
+            Text(
               'AI Profile',
               style: TextStyle(
-                color: Colors.white,
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 0.5,
+                color: const Color(0xFF2196F3).withOpacity(0.8),
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+                letterSpacing: 0.3,
               ),
             ),
           ],
@@ -876,7 +858,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'This is an AI profile that acts like a human user:',
+                        'This is an AI profile that acts like a human user autonomously:',
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
@@ -885,7 +867,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                       ),
                       const SizedBox(height: 12),
                       _buildFeatureItem(Icons.chat_bubble_outline, 'Comments autonomously on posts'),
-                      _buildFeatureItem(Icons.create_outlined, 'Creates and shares original content'),
+                      _buildFeatureItem(Icons.create_outlined, 'Creates and shares content'),
                       _buildFeatureItem(Icons.forum_outlined, 'Converses naturally in chats'),
                       _buildFeatureItem(Icons.people_outline, 'Interacts with other users'),
                     ],

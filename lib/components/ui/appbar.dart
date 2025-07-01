@@ -151,7 +151,7 @@ class _CustomAppBarState extends State<CustomAppBar> {
                         ),
                       ),
 
-                  if (widget.isGroup)
+                  if (widget.isGroup && widget.onSearchTap != null)
                     GestureDetector(
                       onTap: widget.onSearchTap,
                       child: Container(
@@ -168,7 +168,7 @@ class _CustomAppBarState extends State<CustomAppBar> {
                         ),
                       ),
                     ),
-                  if (widget.isGroup) const SizedBox(width: 12),
+                  if (widget.isGroup && widget.onSearchTap != null) const SizedBox(width: 12),
                   // points display
                   if (widget.isGroup)
                     GestureDetector(

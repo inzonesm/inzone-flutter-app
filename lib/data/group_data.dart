@@ -7,6 +7,7 @@ class GroupData {
   final List<String> avatars;
   bool isMember;
   final bool showRandomCharacters;
+  final bool showFirst;
 
   GroupData({
     required this.id,
@@ -17,9 +18,10 @@ class GroupData {
     required this.avatars,
     required this.isMember,
     this.showRandomCharacters = true,
+    this.showFirst = false,
   });
 
-  GroupData copyWith({bool? isMember, bool? showRandomCharacters}) {
+  GroupData copyWith({bool? isMember, bool? showRandomCharacters, bool? showFirst}) {
     return GroupData(
       id: id,
       name: name,
@@ -29,6 +31,7 @@ class GroupData {
       avatars: avatars,
       isMember: isMember ?? this.isMember,
       showRandomCharacters: showRandomCharacters ?? this.showRandomCharacters,
+      showFirst: showFirst ?? this.showFirst,
     );
   }
 
@@ -43,6 +46,7 @@ class GroupData {
       'avatars': avatars,
       'isMember': isMember,
       'showRandomCharacters': showRandomCharacters,
+      'showFirst': showFirst,
     };
   }
 
@@ -56,6 +60,7 @@ class GroupData {
       avatars: List<String>.from(json['avatars'] as List),
       isMember: json['isMember'] as bool,
       showRandomCharacters: json['showRandomCharacters'] as bool? ?? true,
+      showFirst: json['showFirst'] as bool? ?? false,
     );
   }
 }
