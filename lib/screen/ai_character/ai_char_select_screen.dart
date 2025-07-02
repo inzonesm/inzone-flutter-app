@@ -53,6 +53,14 @@ class _AICharacterSelectionScreenState extends State<AICharacterSelectionScreen>
   final TextEditingController _promptController = TextEditingController();
   final FocusNode _promptFocusNode = FocusNode();
 
+  // Controllers for form fields
+  final TextEditingController _nameFieldController = TextEditingController();
+  final TextEditingController _genderFieldController = TextEditingController();
+  final TextEditingController _ageFieldController = TextEditingController();
+  final TextEditingController _eyeColorFieldController =
+      TextEditingController();
+  final TextEditingController _likesFieldController = TextEditingController();
+
   // Controller for the character name input
   final TextEditingController _nameController = TextEditingController();
   final FocusNode _nameFocusNode = FocusNode();
@@ -166,7 +174,9 @@ class _AICharacterSelectionScreenState extends State<AICharacterSelectionScreen>
       // Call the API to create popular character
       final result = await InZoneDatabase.createPopularCharacter(
         greeting: "Hello! I'm a new character. Let's chat!",
-        name: "AI Character", // Default name
+        name: _nameFieldController.text.isEmpty
+            ? "AI Character"
+            : _nameFieldController.text,
         personality: _promptController.text.trim(),
         numberOfChats: 0,
         profilePictureUrl: "", // Empty for now
@@ -178,21 +188,31 @@ class _AICharacterSelectionScreenState extends State<AICharacterSelectionScreen>
       print("PPPPPPPPPPPP$result");
 
       if (result["success"] == true && mounted) {
+        // Check if we have candidate images
+        List<dynamic> candidateImages =
+            result["data"]["candidate_images"] ?? [];
+
         setState(() {
           _isLoading = false;
-          _isGenerating = false;
+          // Keep _isGenerating true if we have images, so the prompt stays collapsed
+          _isGenerating = candidateImages.isNotEmpty;
 
           // Save generated character info - using the same field names as before
           _generatedCharacter = {
-            'Name': result["data"]["Name"] ?? "AI Character",
+            'Name': result["data"]["Name"] ??
+                (_nameFieldController.text.isEmpty
+                    ? "AI Character"
+                    : _nameFieldController.text),
             'Personality': _promptController.text.trim(),
             'profilePictureUrl': result["data"]["profile_picture_url"] ?? "",
             'PopularCharacterId': result["data"]["PopularCharacterId"] ?? "",
-            'candidate_images': result["data"]["candidate_images"] ?? [],
+            'candidate_images': candidateImages,
           };
 
-          // Clear input field
-          _promptController.clear();
+          // Select the first image by default
+          if (candidateImages.isNotEmpty) {
+            _selectedImageIndex = 0;
+          }
         });
       } else {
         // Error - show error message
@@ -200,8 +220,8 @@ class _AICharacterSelectionScreenState extends State<AICharacterSelectionScreen>
           String errorMessage = result["error"] ?? "Failed to create character";
           setState(() {
             _errorMessage = 'Error: $errorMessage';
-            _isGenerating = false;
             _isLoading = false;
+            // Keep _isGenerating true to show retry button
           });
 
           // Display error message using ToastService
@@ -221,8 +241,8 @@ class _AICharacterSelectionScreenState extends State<AICharacterSelectionScreen>
       if (mounted) {
         setState(() {
           _errorMessage = 'Error: $e';
-          _isGenerating = false;
           _isLoading = false;
+          // Keep _isGenerating true to show retry button
         });
 
         // Display exception message using ToastService
@@ -249,6 +269,14 @@ class _AICharacterSelectionScreenState extends State<AICharacterSelectionScreen>
     _nameFocusNode.dispose();
     _rotationController.dispose();
     _imagePageController.dispose();
+
+    // Dispose form field controllers
+    _nameFieldController.dispose();
+    _genderFieldController.dispose();
+    _ageFieldController.dispose();
+    _eyeColorFieldController.dispose();
+    _likesFieldController.dispose();
+
     super.dispose();
   }
 
@@ -295,7 +323,7 @@ class _AICharacterSelectionScreenState extends State<AICharacterSelectionScreen>
               ).createShader(bounds);
             },
             child: const Text(
-              'AI Character Selection',
+              'Generate AI Character ',
               style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
@@ -328,36 +356,7 @@ class _AICharacterSelectionScreenState extends State<AICharacterSelectionScreen>
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          // 3D icon with animation
-          Container(
-            width: 120,
-            height: 120,
-            decoration: BoxDecoration(
-              gradient: RadialGradient(
-                colors: [
-                  colorPalette[0].withOpacity(0.1),
-                  colorPalette[1].withOpacity(0.05),
-                ],
-              ),
-              shape: BoxShape.circle,
-            ),
-            child: ShaderMask(
-              shaderCallback: (bounds) {
-                return LinearGradient(
-                  colors: [
-                    colorPalette[0],
-                    colorPalette[1],
-                  ],
-                ).createShader(bounds);
-              },
-              child: const Icon(
-                Icons.person,
-                size: 60,
-                color: Colors.white,
-              ),
-            ),
-          ),
-          const SizedBox(height: 24),
+          // 제목 텍스트 (배경 이미지 대신)
           ShaderMask(
             shaderCallback: (bounds) {
               return LinearGradient(
@@ -370,17 +369,17 @@ class _AICharacterSelectionScreenState extends State<AICharacterSelectionScreen>
             child: const Text(
               'Create Your AI Character',
               style: TextStyle(
-                fontSize: 20,
+                fontSize: 24,
                 fontWeight: FontWeight.bold,
                 color: Colors.white,
               ),
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 16),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 32),
             child: Text(
-              'Type a detailed description below to generate a unique AI character',
+              'Fill in the character details in the form below to create your unique AI character',
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 14,
@@ -388,6 +387,7 @@ class _AICharacterSelectionScreenState extends State<AICharacterSelectionScreen>
               ),
             ),
           ),
+          const SizedBox(height: 30),
         ],
       ),
     );
@@ -450,6 +450,27 @@ class _AICharacterSelectionScreenState extends State<AICharacterSelectionScreen>
               ),
             ),
           ),
+
+          // Show prompt text if available
+          if (_promptController.text.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+              child: AnimatedOpacity(
+                opacity: 0.7,
+                duration: const Duration(milliseconds: 500),
+                child: Text(
+                  "Generating your character. This may take up to 10 seconds...",
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Theme.of(context).textTheme.bodyMedium?.color,
+                    fontStyle: FontStyle.italic,
+                    fontSize: 14,
+                  ),
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ),
         ],
       ),
     );
@@ -476,7 +497,12 @@ class _AICharacterSelectionScreenState extends State<AICharacterSelectionScreen>
           ),
           const SizedBox(height: 24),
           ElevatedButton(
-            onPressed: _generateCharacter,
+            onPressed: () {
+              setState(() {
+                _errorMessage = null;
+                _isGenerating = false;
+              });
+            },
             style: ElevatedButton.styleFrom(
               backgroundColor: colorPalette[0],
               foregroundColor: Colors.white,
@@ -627,7 +653,7 @@ class _AICharacterSelectionScreenState extends State<AICharacterSelectionScreen>
             ),
           ),
 
-          const SizedBox(height: 60), // Space for bottom sheet
+          const SizedBox(height: 60),
         ],
       ),
     );
@@ -777,6 +803,8 @@ class _AICharacterSelectionScreenState extends State<AICharacterSelectionScreen>
               'Selected character: $name with image ${_selectedImageIndex + 1}',
         );
 
+        context.pushReplacement(Routes.home);
+
         // Add navigation or callback logic here
         // For example: context.push(Routes.chatWithCharacter, extra: characterData);
       },
@@ -801,141 +829,322 @@ class _AICharacterSelectionScreenState extends State<AICharacterSelectionScreen>
 
   // Prompt input widget
   Widget _buildPromptInput() {
+    // If we have generated character with images, don't show the prompt input by default
+    bool shouldHidePrompt = _generatedCharacter != null &&
+        (_generatedCharacter!['candidate_images'] as List<dynamic>? ?? [])
+            .isNotEmpty;
+
+    return GestureDetector(
+      onTap: () {
+        // Toggle prompt visibility when tapped if we have images
+        if (_generatedCharacter != null) {
+          setState(() {
+            _isGenerating = !_isGenerating;
+          });
+        }
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 300),
+        height: _isGenerating || shouldHidePrompt ? 60 : null,
+        padding: _isGenerating || shouldHidePrompt
+            ? const EdgeInsets.symmetric(vertical: 10, horizontal: 20)
+            : const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+        decoration: BoxDecoration(
+          color: Theme.of(context).brightness == Brightness.dark
+              ? Colors.grey.shade800.withOpacity(0.8)
+              : Colors.white.withOpacity(0.9),
+          borderRadius: BorderRadius.circular(30),
+          gradient: LinearGradient(
+            colors: [
+              colorPalette[2].withOpacity(0.1),
+              colorPalette[4].withOpacity(0.1),
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          border: Border.all(
+            color: Theme.of(context).brightness == Brightness.dark
+                ? Colors.grey.shade700.withOpacity(0.5)
+                : Colors.grey.shade300.withOpacity(0.5),
+            width: 1,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? Colors.black.withOpacity(0.3)
+                  : Colors.black.withOpacity(0.05),
+              blurRadius: 5,
+              spreadRadius: 1,
+            )
+          ],
+        ),
+        child: _isGenerating || shouldHidePrompt
+            ? _buildGeneratingState()
+            : _buildFormInputs(),
+      ),
+    );
+  }
+
+  // Form inputs widget
+  Widget _buildFormInputs() {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        AnimatedContainer(
-          duration: const Duration(milliseconds: 300),
-          height: 60,
-          decoration: BoxDecoration(
-            color: Theme.of(context).brightness == Brightness.dark
-                ? Colors.grey.shade800.withOpacity(0.8)
-                : Colors.white.withOpacity(0.9),
-            borderRadius: BorderRadius.circular(30),
-            gradient: LinearGradient(
-              colors: [
-                colorPalette[2].withOpacity(0.1),
-                colorPalette[4].withOpacity(0.1),
-              ],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            border: Border.all(
-              color: Theme.of(context).brightness == Brightness.dark
-                  ? Colors.grey.shade700.withOpacity(0.5)
-                  : Colors.grey.shade300.withOpacity(0.5),
-              width: 1,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Theme.of(context).brightness == Brightness.dark
-                    ? Colors.black.withOpacity(0.3)
-                    : Colors.black.withOpacity(0.05),
-                blurRadius: 5,
-                spreadRadius: 1,
-              )
-            ],
-          ),
-          child: Row(
-            children: [
-              const SizedBox(width: 16),
-              Container(
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(
-                  color: Theme.of(context).brightness == Brightness.dark
-                      ? Colors.transparent
-                      : colorPalette[0].withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(18),
-                ),
-                child: Icon(
-                  Icons.auto_awesome,
-                  size: 20,
-                  color: colorPalette[0],
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: TextField(
-                  controller: _promptController,
-                  focusNode: _promptFocusNode,
-                  decoration: InputDecoration(
-                    hintText: 'Describe your character...',
-                    hintStyle: TextStyle(
-                      color: Theme.of(context).hintColor.withOpacity(0.7),
-                      fontWeight: FontWeight.w400,
-                    ),
-                    border: InputBorder.none,
-                    enabledBorder: InputBorder.none,
-                    focusedBorder: InputBorder.none,
-                    errorBorder: InputBorder.none,
-                    disabledBorder: InputBorder.none,
-                    contentPadding: const EdgeInsets.symmetric(vertical: 16),
-                    fillColor: Colors.transparent,
-                    filled: true,
+        // Form title
+
+        // Name field
+        const SizedBox(height: 10),
+        _buildFormField('Name:', _nameFieldController, 'Steve'),
+        const SizedBox(height: 12),
+
+        // Gender field
+        _buildFormField('Gender:', _genderFieldController, 'Male'),
+        const SizedBox(height: 12),
+
+        // Age field
+        _buildFormField('Age:', _ageFieldController, '23'),
+        const SizedBox(height: 12),
+
+        // Eye Color field
+        _buildFormField('Eye Color:', _eyeColorFieldController, 'Hazel'),
+        const SizedBox(height: 12),
+
+        // Likes field
+        _buildFormField(
+            'Likes:', _likesFieldController, 'Video Games, Dogs, Music'),
+        const SizedBox(height: 30),
+
+        // Generate button
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: MediaQuery.of(context).size.width * 0.8,
+              height: 60,
+              decoration: BoxDecoration(
+                color: colorPalette[0],
+                borderRadius: BorderRadius.circular(30),
+                boxShadow: [
+                  BoxShadow(
+                    color: colorPalette[0].withOpacity(0.3),
+                    blurRadius: 5,
+                    spreadRadius: 1,
                   ),
+                ],
+              ),
+              child: TextButton(
+                onPressed: () {
+                  // Combine all fields into a structured prompt
+                  final prompt =
+                      'Name: ${_nameFieldController.text.isEmpty ? "Steve" : _nameFieldController.text}\n'
+                      'Gender: ${_genderFieldController.text.isEmpty ? "Male" : _genderFieldController.text}\n'
+                      'Age: ${_ageFieldController.text.isEmpty ? "23" : _ageFieldController.text}\n'
+                      'Eye Color: ${_eyeColorFieldController.text.isEmpty ? "Hazel" : _eyeColorFieldController.text}\n'
+                      'Likes: ${_likesFieldController.text.isEmpty ? "Video Games, Dogs, Music" : _likesFieldController.text}';
+
+                  // Set the prompt controller text
+                  _promptController.text = prompt;
+
+                  // Call generate character
+                  _generateCharacter();
+                },
+                style: TextButton.styleFrom(
+                  padding: EdgeInsets.zero,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                ),
+                child: const Text(
+                  "Generate",
                   style: TextStyle(
-                    color: Theme.of(context).textTheme.bodyMedium?.color,
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 20,
                   ),
-                  onSubmitted: (_) => _generateCharacter(),
                 ),
               ),
-              const SizedBox(width: 8),
-              AnimatedContainer(
-                duration: const Duration(milliseconds: 300),
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: _isGenerating
-                      ? Colors.grey.withOpacity(0.3)
-                      : colorPalette[0],
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: _isGenerating
-                      ? null
-                      : [
-                          BoxShadow(
-                            color: colorPalette[0].withOpacity(0.3),
-                            blurRadius: 5,
-                            spreadRadius: 1,
-                          ),
-                        ],
-                ),
-                child: _isGenerating
-                    ? Center(
-                        child: SizedBox(
-                          width: 24,
-                          height: 24,
-                          child: ShaderMask(
-                            shaderCallback: (Rect bounds) {
-                              return LinearGradient(
-                                colors: [
-                                  colorPalette[0],
-                                  colorPalette[1],
-                                ],
-                              ).createShader(bounds);
-                            },
-                            child: const CircularProgressIndicator(
-                              strokeWidth: 2.5,
-                              // valueColor: AlwaysStoppedAnimation<Color>(
-                              //   Colors.white,
-                              // ),
-                            ),
-                          ),
-                        ),
-                      )
-                    : IconButton(
-                        icon: const Icon(
-                          Icons.arrow_upward_rounded,
-                          size: 20,
-                          color: Colors.white,
-                        ),
-                        onPressed: _generateCharacter,
-                      ),
-              ),
-              const SizedBox(width: 10),
-            ],
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+      ],
+    );
+  }
+
+  // Helper method to build form fields
+  Widget _buildFormField(
+      String label, TextEditingController controller, String hintText) {
+    // Determine if this is the Likes field (which should be multi-line)
+    bool isLikesField = label == 'Likes:';
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Label
+        Text(
+          label,
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 14,
+            color: Theme.of(context).textTheme.headlineMedium?.color,
           ),
         ),
+        const SizedBox(height: 4),
+        // Input field
+        Container(
+          height: isLikesField ? 60 : 40,
+          decoration: BoxDecoration(
+            color: Theme.of(context).brightness == Brightness.dark
+                ? Colors.grey.shade700.withOpacity(0.3)
+                : Colors.grey.shade100,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? Colors.grey.shade600.withOpacity(0.5)
+                  : Colors.grey.shade300,
+              width: 1,
+            ),
+          ),
+          child: TextField(
+            controller: controller,
+            maxLines: isLikesField ? 2 : 1,
+            minLines: isLikesField ? 2 : 1,
+            style: const TextStyle(fontSize: 14),
+            decoration: InputDecoration(
+              hintText: hintText,
+              hintStyle: TextStyle(
+                color: Theme.of(context).hintColor.withOpacity(0.5),
+                fontSize: 14,
+              ),
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              border: InputBorder.none,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // Generating state widget (horizontal bar with loading and prompt text)
+  Widget _buildGeneratingState() {
+    // If we have generated character with images, show a tap hint
+    bool hasGeneratedCharacter = _generatedCharacter != null &&
+        (_generatedCharacter!['candidate_images'] as List<dynamic>? ?? [])
+            .isNotEmpty;
+    bool hasError = _errorMessage != null;
+
+    // 사용자 입력 정보를 가져옵니다
+    String userInputSummary = '';
+    if (_nameFieldController.text.isNotEmpty) {
+      userInputSummary += 'Name: ${_nameFieldController.text}, ';
+    }
+    if (_genderFieldController.text.isNotEmpty) {
+      userInputSummary += 'Gender: ${_genderFieldController.text}, ';
+    }
+    if (_ageFieldController.text.isNotEmpty) {
+      userInputSummary += 'Age: ${_ageFieldController.text}, ';
+    }
+    if (_eyeColorFieldController.text.isNotEmpty) {
+      userInputSummary += 'Eye: ${_eyeColorFieldController.text}, ';
+    }
+    if (_likesFieldController.text.isNotEmpty) {
+      userInputSummary += 'Likes: ${_likesFieldController.text}';
+    }
+
+    // 마지막 쉼표 제거
+    if (userInputSummary.endsWith(', ')) {
+      userInputSummary =
+          userInputSummary.substring(0, userInputSummary.length - 2);
+    }
+
+    return Row(
+      children: [
+        // Loading indicator or tap icon
+        Container(
+          width: 40,
+          height: 40,
+          decoration: const BoxDecoration(
+            color: Colors.transparent,
+            shape: BoxShape.circle,
+          ),
+          child: Center(
+            child: hasGeneratedCharacter
+                ? Icon(
+                    Icons.touch_app,
+                    color: colorPalette[0],
+                    size: 20,
+                  )
+                : hasError
+                    ? const Icon(
+                        Icons.error_outline,
+                        color: Colors.redAccent,
+                        size: 20,
+                      )
+                    : SizedBox(
+                        width: 24,
+                        height: 24,
+                        child: ShaderMask(
+                          shaderCallback: (Rect bounds) {
+                            return LinearGradient(
+                              colors: [
+                                colorPalette[0],
+                                colorPalette[1],
+                              ],
+                            ).createShader(bounds);
+                          },
+                          child: const CircularProgressIndicator(
+                            strokeWidth: 2.5,
+                          ),
+                        ),
+                      ),
+          ),
+        ),
+        const SizedBox(width: 15),
+
+        // Faded prompt text or tap hint
+        Expanded(
+          child: AnimatedOpacity(
+            opacity: 0.7,
+            duration: const Duration(milliseconds: 500),
+            child: Text(
+              hasError
+                  ? "Error: ${_errorMessage?.replaceAll('Error: ', '')}"
+                  : hasGeneratedCharacter
+                      ? "Tap to edit character details"
+                      : userInputSummary.isNotEmpty
+                          ? userInputSummary
+                          : "Generating your character...",
+              style: TextStyle(
+                color: hasError
+                    ? Colors.redAccent
+                    : Theme.of(context).textTheme.bodyMedium?.color,
+                fontStyle: FontStyle.italic,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ),
+
+        // Retry button (visible when error occurs or loading completes)
+        if (_errorMessage != null || hasGeneratedCharacter)
+          TextButton(
+            onPressed: () {
+              setState(() {
+                _isGenerating = false;
+                _errorMessage = null;
+              });
+            },
+            child: Text(
+              "Retry",
+              style: TextStyle(
+                color: colorPalette[0],
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+              ),
+            ),
+          ),
       ],
     );
   }

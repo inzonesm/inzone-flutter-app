@@ -15,6 +15,7 @@ import 'package:inzone/services/group_chat_service.dart';
 import 'package:inzone/services/monetization_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:inzone/components/posts/shimmering.dart';
+import 'package:pull_to_refresh_flutter3/pull_to_refresh_flutter3.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
 import 'package:purchases_ui_flutter/paywall_result.dart';
 import 'package:purchases_ui_flutter/purchases_ui_flutter.dart';
@@ -38,9 +39,11 @@ class _GroupsExploreScreenState extends State<GroupsExploreScreen> {
   String _searchQuery = '';
   String _userBalance = '0'; // Will be updated by _loadUserBalance method
   StreamSubscription<DocumentSnapshot>? _balanceSubscription;
-
+  final RefreshController _refreshController =
+      RefreshController(initialRefresh: false);
   // Map to store participants for each group
   final Map<String, List<Participant>> _groupParticipants = {};
+  bool _isRefreshing = false;
 
   @override
   void initState() {
@@ -162,13 +165,13 @@ class _GroupsExploreScreenState extends State<GroupsExploreScreen> {
     for (var doc in documents) {
       try {
         GroupChatData chatData = GroupChatData.fromSnapshot(doc);
-        
+
         // Extract showFirst from the document data directly
         final docData = doc.data() as Map<String, dynamic>?;
         bool showFirst = docData?['showFirst'] == true;
-        
+
         GroupData groupData = GroupDataMapper.fromGroupChatData(chatData);
-        
+
         // Update the group data with the showFirst field if it was set in Firestore
         if (showFirst) {
           groupData = groupData.copyWith(showFirst: true);
@@ -273,6 +276,47 @@ class _GroupsExploreScreenState extends State<GroupsExploreScreen> {
     }
   }
 
+  void _onRefresh() async {
+    try {
+      setState(() {
+        _isRefreshing = true;
+      });
+
+      // Reload default groups
+      await _loadDefaultGroups();
+
+      // Clear the participants map to force reload
+      _groupParticipants.clear();
+
+      // Track analytics for refresh action
+      print('User refreshed groups screen');
+
+      // If you need to force a rebuild of the UI
+      if (mounted) {
+        setState(() {});
+      }
+    } catch (e) {
+      print('Error during refresh: $e');
+    } finally {
+      // Wait a bit to show the refresh animation
+      await Future.delayed(const Duration(milliseconds: 500));
+
+      setState(() {
+        _isRefreshing = false;
+      });
+      // Tell the RefreshController to finish the refresh process
+      _refreshController.refreshCompleted();
+    }
+  }
+
+  Widget refreshIcon() {
+    return Image.asset(
+      'assets/icons/dark.png',
+      width: 35,
+      height: 35,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return ColorfulSafeArea(
@@ -283,252 +327,311 @@ class _GroupsExploreScreenState extends State<GroupsExploreScreen> {
       bottom: false,
       child: Scaffold(
         backgroundColor: Theme.of(context).canvasColor,
-        body: StreamBuilder<QuerySnapshot>(
-          stream: _firestore.collection('groupChats').snapshots(),
-          builder: (context, snapshot) {
-            // Common top UI elements (appbar and search)
-            List<Widget> commonSlivers = [
-              SliverAppBar(
-                pinned: false,
-                floating: true,
-                snap: true,
-                toolbarHeight: 70,
-                automaticallyImplyLeading: false,
-                backgroundColor: Colors.transparent,
-                flexibleSpace: CustomAppBar(
-                  isHome: true,
-                  isGroup: true,
-                  userPoints: _userBalance,
-                  profileImageUrl: null,
-                  onSearchTap: null,
-                  onProfileTap: () {},
-                  onPointsTap: () {
-                    try {
-                      // context.push(Routes.subscription);
-                      presentPaywall();
-                    } catch (e) {
-                      ToastService.showToast(
-                        context,
-                        backgroundColor: Theme.of(context).canvasColor,
-                        shadowColor: Colors.transparent,
-                        leading: const Icon(
-                          FeatherIcons.xCircle,
-                          color: Colors.redAccent,
-                        ),
-                        message: 'Error navigating to subscription: $e',
-                      );
-                    }
-                  },
-                ),
-              ),
-              SliverPersistentHeader(
-                pinned: true,
-                delegate: _SliverSearchBarDelegate(
-                  child: Container(
-                    color: Theme.of(context).canvasColor,
-                    padding: const EdgeInsets.all(16.0),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).cardColor,
-                        borderRadius: BorderRadius.circular(30),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.05),
-                            blurRadius: 4,
-                            offset: const Offset(0, 2),
+        body: SmartRefresher(
+          enablePullDown: true,
+          controller: _refreshController,
+          onRefresh: _onRefresh,
+          physics: const BouncingScrollPhysics(),
+          header: ClassicHeader(
+            releaseIcon: refreshIcon(),
+            refreshingIcon: refreshIcon(),
+            completeIcon: refreshIcon(),
+            idleIcon: refreshIcon(),
+            failedIcon: refreshIcon(),
+            refreshingText: "",
+            releaseText: "",
+            completeText: "",
+            idleText: "",
+            failedText: "",
+          ),
+          child: StreamBuilder<QuerySnapshot>(
+            stream: _firestore.collection('groupChats').snapshots(),
+            builder: (context, snapshot) {
+              // Common top UI elements (appbar and search)
+              List<Widget> commonSlivers = [
+                SliverAppBar(
+                  pinned: false,
+                  floating: true,
+                  snap: true,
+                  toolbarHeight: 70,
+                  automaticallyImplyLeading: false,
+                  backgroundColor: Colors.transparent,
+                  flexibleSpace: CustomAppBar(
+                    isHome: true,
+                    isGroup: true,
+                    userPoints: _userBalance,
+                    profileImageUrl: null,
+                    onSearchTap: null,
+                    onProfileTap: () {},
+                    onPointsTap: () {
+                      try {
+                        // context.push(Routes.subscription);
+                        presentPaywall();
+                      } catch (e) {
+                        ToastService.showToast(
+                          context,
+                          backgroundColor: Theme.of(context).canvasColor,
+                          shadowColor: Colors.transparent,
+                          leading: const Icon(
+                            FeatherIcons.xCircle,
+                            color: Colors.redAccent,
                           ),
-                        ],
-                      ),
-                      child: TextField(
-                        controller: _searchController,
-                        focusNode: _searchFocusNode,
-                        textInputAction: TextInputAction.search,
-                        onSubmitted: (_) {
-                          FocusScope.of(context).unfocus();
-                        },
-                        onChanged: (value) {
-                          setState(() {
-                            _searchQuery = value.toLowerCase().trim();
-                          });
-                        },
-                        decoration: InputDecoration(
-                          hintText: 'Search participants...',
-                          prefixIcon: Icon(Icons.search,
-                              color: Theme.of(context).iconTheme.color),
-                          suffixIcon: _searchQuery.isNotEmpty
-                              ? IconButton(
-                                  icon: Container(
-                                    decoration: BoxDecoration(
-                                      color: Theme.of(context)
-                                          .colorScheme
-                                          .surface
-                                          .withOpacity(0.7),
-                                      shape: BoxShape.circle,
-                                    ),
-                                    child: Padding(
-                                      padding: const EdgeInsets.all(4.0),
-                                      child: Icon(
-                                        Icons.clear,
+                          message: 'Error navigating to subscription: $e',
+                        );
+                      }
+                    },
+                  ),
+                ),
+                SliverPersistentHeader(
+                  pinned: true,
+                  delegate: _SliverSearchBarDelegate(
+                    child: Container(
+                      color: Theme.of(context).canvasColor,
+                      padding: const EdgeInsets.all(16.0),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).cardColor,
+                          borderRadius: BorderRadius.circular(30),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.05),
+                              blurRadius: 4,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: TextField(
+                          controller: _searchController,
+                          focusNode: _searchFocusNode,
+                          textInputAction: TextInputAction.search,
+                          onSubmitted: (_) {
+                            FocusScope.of(context).unfocus();
+                          },
+                          onChanged: (value) {
+                            setState(() {
+                              _searchQuery = value.toLowerCase().trim();
+                            });
+                          },
+                          decoration: InputDecoration(
+                            hintText: 'Search participants...',
+                            prefixIcon: Icon(Icons.search,
+                                color: Theme.of(context).iconTheme.color),
+                            suffixIcon: _searchQuery.isNotEmpty
+                                ? IconButton(
+                                    icon: Container(
+                                      decoration: BoxDecoration(
                                         color: Theme.of(context)
                                             .colorScheme
-                                            .onSurface,
-                                        size: 16,
+                                            .surface
+                                            .withOpacity(0.7),
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: Padding(
+                                        padding: const EdgeInsets.all(4.0),
+                                        child: Icon(
+                                          Icons.clear,
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .onSurface,
+                                          size: 16,
+                                        ),
                                       ),
                                     ),
-                                  ),
-                                  onPressed: () {
-                                    setState(() {
-                                      _searchController.clear();
-                                      _searchQuery = '';
-                                      FocusScope.of(context).unfocus();
-                                    });
-                                  },
-                                )
-                              : null,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(30),
-                            borderSide: BorderSide.none,
+                                    onPressed: () {
+                                      setState(() {
+                                        _searchController.clear();
+                                        _searchQuery = '';
+                                        FocusScope.of(context).unfocus();
+                                      });
+                                    },
+                                  )
+                                : null,
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(30),
+                              borderSide: BorderSide.none,
+                            ),
+                            filled: false,
+                            contentPadding:
+                                const EdgeInsets.symmetric(vertical: 0),
                           ),
-                          filled: false,
-                          contentPadding:
-                              const EdgeInsets.symmetric(vertical: 0),
                         ),
                       ),
                     ),
+                    minHeight: 80.0,
+                    maxHeight: 80.0,
                   ),
-                  minHeight: 80.0,
-                  maxHeight: 80.0,
                 ),
-              ),
-            ];
+              ];
 
-            if (snapshot.connectionState == ConnectionState.waiting) {
+              if (snapshot.connectionState == ConnectionState.waiting ||
+                  _isRefreshing) {
+                return CustomScrollView(
+                  slivers: [
+                    ...commonSlivers,
+                    SliverPadding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                      sliver: SliverList(
+                        delegate: SliverChildBuilderDelegate(
+                          (context, index) {
+                            return Padding(
+                              padding:
+                                  const EdgeInsets.symmetric(vertical: 8.0),
+                              child: GroupCardLoading(context),
+                            );
+                          },
+                          childCount: 8, // Show 8 loading cards
+                        ),
+                      ),
+                    ),
+                    const SliverToBoxAdapter(child: SizedBox(height: 130)),
+                  ],
+                );
+              }
+
+              if (snapshot.hasError) {
+                print('Error loading groups: ${snapshot.error}');
+                return CustomScrollView(
+                  slivers: [
+                    ...commonSlivers,
+                    SliverFillRemaining(
+                      child: Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.error_outline,
+                              size: 60,
+                              color: Theme.of(context).colorScheme.error,
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              'Error loading groups',
+                              style: Theme.of(context).textTheme.titleLarge,
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Using default groups instead',
+                              style: Theme.of(context).textTheme.bodyMedium,
+                            ),
+                            TextButton(
+                              onPressed: _onRefresh,
+                              child: Text(
+                                'Try Again',
+                                style: TextStyle(
+                                  color: Theme.of(context).primaryColor,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                );
+              }
+
+              List<GroupData> groups = [];
+
+              if (snapshot.hasData && snapshot.data!.docs.isNotEmpty) {
+                groups = _convertFirestoreDataToGroups(snapshot.data!.docs);
+              }
+
+              if (groups.isEmpty) {
+                groups = _defaultGroups;
+                GroupChatService.ensureDefaultGroupExists();
+              }
+
+              // 검색 필터
+              if (_searchQuery.isNotEmpty) {
+                groups = groups
+                    .where((group) =>
+                        group.name.toLowerCase().contains(_searchQuery) ||
+                        _hasMatchingParticipant(group, _searchQuery))
+                    .toList();
+              }
+
+              // 정렬: showFirst가 true인 그룹을 맨 앞으로
+              groups.sort((a, b) {
+                if (a.showFirst && !b.showFirst) {
+                  return -1; // a comes first
+                } else if (!a.showFirst && b.showFirst) {
+                  return 1; // b comes first
+                } else {
+                  return 0; // maintain original order
+                }
+              });
+
+              final List<dynamic> listItems = [];
+              if (groups.isNotEmpty) {
+                const int adInterval = 4;
+                const int itemsPerAd = adInterval - 1;
+
+                for (int i = 0; i < groups.length; i++) {
+                  listItems.add(groups[i]);
+                  if ((i + 1) % itemsPerAd == 0) {
+                    listItems.add('ad');
+                  }
+                }
+              }
+
               return CustomScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
                 slivers: [
                   ...commonSlivers,
                   SliverPadding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                    sliver: SliverList(
-                      delegate: SliverChildBuilderDelegate(
-                        (context, index) {
-                          return Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 8.0),
-                            child: GroupCardLoading(context),
-                          );
-                        },
-                        childCount: 8, // Show 8 loading cards
-                      ),
-                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 12.0),
+                    sliver: listItems.isEmpty
+                        ? SliverFillRemaining(
+                            child: Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.group_off,
+                                    size: 60,
+                                    color: Theme.of(context).disabledColor,
+                                  ),
+                                  const SizedBox(height: 16),
+                                  Text(
+                                    'No groups available',
+                                    style:
+                                        Theme.of(context).textTheme.titleLarge,
+                                  ),
+                                  const SizedBox(height: 8),
+                                  TextButton(
+                                    onPressed: _onRefresh,
+                                    child: Text(
+                                      'Refresh',
+                                      style: TextStyle(
+                                        color: Theme.of(context).primaryColor,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          )
+                        : SliverList(
+                            delegate: SliverChildBuilderDelegate(
+                              (context, index) {
+                                if (listItems[index] is String &&
+                                    listItems[index] == 'ad') {
+                                  return const AdCard();
+                                }
+                                final group = listItems[index] as GroupData;
+                                return GroupCard(group: group);
+                              },
+                              childCount: listItems.length,
+                            ),
+                          ),
                   ),
                   const SliverToBoxAdapter(child: SizedBox(height: 130)),
                 ],
               );
-            }
-
-            if (snapshot.hasError) {
-              print('Error loading groups: ${snapshot.error}');
-              return CustomScrollView(
-                slivers: [
-                  ...commonSlivers,
-                  SliverFillRemaining(
-                    child: Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.error_outline,
-                            size: 60,
-                            color: Theme.of(context).colorScheme.error,
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            'Error loading groups',
-                            style: Theme.of(context).textTheme.titleLarge,
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            'Using default groups instead',
-                            style: Theme.of(context).textTheme.bodyMedium,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              );
-            }
-
-            List<GroupData> groups = [];
-
-            if (snapshot.hasData && snapshot.data!.docs.isNotEmpty) {
-              groups = _convertFirestoreDataToGroups(snapshot.data!.docs);
-            }
-
-            if (groups.isEmpty) {
-              groups = _defaultGroups;
-              GroupChatService.ensureDefaultGroupExists();
-            }
-
-            // 검색 필터
-            if (_searchQuery.isNotEmpty) {
-              groups = groups
-                  .where((group) =>
-                      group.name.toLowerCase().contains(_searchQuery) ||
-                      _hasMatchingParticipant(group, _searchQuery))
-                  .toList();
-            }
-
-            // 정렬: showFirst가 true인 그룹을 맨 앞으로
-            groups.sort((a, b) {
-              if (a.showFirst && !b.showFirst) {
-                return -1; // a comes first
-              } else if (!a.showFirst && b.showFirst) {
-                return 1; // b comes first
-              } else {
-                return 0; // maintain original order
-              }
-            });
-
-            final List<dynamic> listItems = [];
-            if (groups.isNotEmpty) {
-              const int adInterval = 4;
-              const int itemsPerAd = adInterval - 1;
-
-              for (int i = 0; i < groups.length; i++) {
-                listItems.add(groups[i]);
-                if ((i + 1) % itemsPerAd == 0) {
-                  listItems.add('ad');
-                }
-              }
-            }
-
-            return CustomScrollView(
-              slivers: [
-                ...commonSlivers,
-                SliverPadding(
-                  padding: const EdgeInsets.symmetric(horizontal: 12.0),
-                  sliver: listItems.isEmpty
-                      ? const SliverFillRemaining(
-                          child: Center(child: Text('No groups available')),
-                        )
-                      : SliverList(
-                          delegate: SliverChildBuilderDelegate(
-                            (context, index) {
-                              if (listItems[index] is String &&
-                                  listItems[index] == 'ad') {
-                                return const AdCard();
-                              }
-                              final group = listItems[index] as GroupData;
-                              return GroupCard(group: group);
-                            },
-                            childCount: listItems.length,
-                          ),
-                        ),
-                ),
-                const SliverToBoxAdapter(child: SizedBox(height: 130)),
-              ],
-            );
-          },
+            },
+          ),
         ),
       ),
     );
