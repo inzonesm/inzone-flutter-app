@@ -1,18 +1,21 @@
 import 'dart:async';
 
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:colorful_safe_area/colorful_safe_area.dart';
-import 'package:flutter/material.dart';
-import 'package:inzone/components/ui/appbar.dart';
-import 'package:inzone/services/inzone_database.dart';
-import 'package:inzone/theme/app_colors.dart';
-import 'package:go_router/go_router.dart';
-import 'package:inzone/data/group_data.dart';
-import 'package:inzone/screen/chat/group_chat_screen.dart';
-import 'package:inzone/router/routes.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:inzone/components/chat/chat_app_bar.dart';
+import 'package:inzone/root_app.dart';
+import 'package:inzone/router/routes.dart';
+import 'package:inzone/screen/chat/group_chat_screen.dart';
+import 'package:inzone/services/inzone_database.dart';
 import 'package:toasty_box/toast_service.dart';
+import 'package:colorful_safe_area/colorful_safe_area.dart';
+import 'package:inzone/components/ui/appbar.dart';
+import 'package:inzone/theme/app_colors.dart';
+import 'package:flutter/cupertino.dart';
+import 'package:inzone/data/group_data.dart';
 // import 'package:inzone/components/ui/inzone_text_field.dart';
 // import 'package:inzone/components/ui/my_button.dart';
 // import 'package:inzone/models/chat_model.dart';
@@ -309,9 +312,36 @@ class _AllChatsScreenState extends State<AllChatsScreen>
             ))
           : users.isEmpty
               ? Center(
-                  child: Text(
-                  "No conversations yet",
-                  style: Theme.of(context).textTheme.bodyLarge,
+                  child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      "No conversations yet",
+                      style: Theme.of(context).textTheme.bodyLarge,
+                    ),
+                    const SizedBox(height: 20),
+                    ElevatedButton(
+                      onPressed: () {
+                        // Navigate to the groups tab
+                        context.go(Routes.groups);
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Theme.of(context).primaryColor,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 24, vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                      ),
+                      child: const Text(
+                        "Join Group Chat",
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
                 ))
               : ListView.builder(
                   itemCount: users.length + 1,
