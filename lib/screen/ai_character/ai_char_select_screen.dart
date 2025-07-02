@@ -652,6 +652,15 @@ class _AICharacterSelectionScreenState extends State<AICharacterSelectionScreen>
               },
             ),
           ),
+          const SizedBox(height: 10),
+          Text(
+            "Your selected AI character will be used for chat by both you and all InZone users.",
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 10,
+              color: Colors.grey.withOpacity(0.7),
+            ),
+          ),
 
           const SizedBox(height: 60),
         ],
