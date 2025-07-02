@@ -125,6 +125,7 @@ class HomeScreenState extends State<HomeScreen> {
     if (_scrollThrottleTimer?.isActive ?? false) return;
 
     _scrollThrottleTimer = Timer(const Duration(milliseconds: 300), () {
+      if (!_scrollController.hasClients) return;
       // Track scroll behavior
       _trackScrollBehavior();
 
@@ -158,6 +159,7 @@ class HomeScreenState extends State<HomeScreen> {
   }
 
   void _trackScrollBehavior() {
+    if (!_scrollController.hasClients) return;
     final currentPosition = _scrollController.position.pixels;
     final currentTime = DateTime.now();
 

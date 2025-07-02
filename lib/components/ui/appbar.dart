@@ -1,6 +1,8 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_feather_icons/flutter_feather_icons.dart';
 import 'package:inzone/services/monetization_service.dart';
+import 'package:toasty_box/toast_service.dart';
 
 class CustomAppBar extends StatefulWidget implements PreferredSizeWidget {
   final String? greeting;
@@ -83,12 +85,15 @@ class _CustomAppBarState extends State<CustomAppBar> {
     return Container(
       decoration: BoxDecoration(
         color: Theme.of(context).canvasColor,
+        // color: Colors.red,
       ),
       child: Padding(
         padding: EdgeInsets.symmetric(
             horizontal: widget.isSettings ? 12 : 24.0, vertical: 12.0),
         child: widget.isHome
             ? Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   if (widget.isSettings)
                     IconButton(
@@ -97,6 +102,47 @@ class _CustomAppBarState extends State<CustomAppBar> {
                       },
                       icon: const Icon(CupertinoIcons.back),
                     ),
+
+                  if (widget.isHome &&
+                      !widget.isGroup &&
+                      !widget.isChat &&
+                      !widget.isSettings)
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.only(top: 5),
+                          child: Text(
+                            "InZone",
+                            style: Theme.of(context).textTheme.headlineMedium,
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        GestureDetector(
+                          onTap: () {
+                            if (mounted) {
+                              ToastService.showToast(
+                                context,
+                                backgroundColor: Colors.blueAccent,
+                                shadowColor: Colors.transparent,
+                                leading: const Icon(
+                                  FeatherIcons.info,
+                                  color: Colors.blueAccent,
+                                ),
+                                message: 'Info',
+                                isClosable: true,
+                              );
+                            }
+                          },
+                          child: Icon(
+                            FeatherIcons.info,
+                            color: Theme.of(context).iconTheme.color,
+                            size: 15,
+                          ),
+                        ),
+                      ],
+                    ),
                   Text(
                     widget.isGroup
                         ? 'Groups'
@@ -104,7 +150,7 @@ class _CustomAppBarState extends State<CustomAppBar> {
                             ? 'Chats'
                             : widget.isSettings
                                 ? widget.title ?? 'InZone'
-                                : 'InZone',
+                                : '',
                     style: Theme.of(context).textTheme.headlineMedium,
                   ),
                   const Spacer(),
