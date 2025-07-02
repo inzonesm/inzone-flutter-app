@@ -403,15 +403,41 @@ class HomeScreenState extends State<HomeScreen> {
     avatarCards.clear();
     avatarStoryComponents.clear();
     try {
+      List<InZoneAvatar> avatars = [];
+      
+      // Debug: Log total fetched characters
+      print('DEBUG: Total fetched characters: ${fetchedCharacters.length}');
+      
       for (var characterData in fetchedCharacters) {
+        // Debug: Log each character data
+        print('DEBUG: Character data: ${characterData['name']} - showFirst: ${characterData['showFirst']}');
+        
         // Use the new factory method
         InZoneAvatar avatar = InZoneAvatar.fromDirectJson(characterData);
+        
+        // Debug: Log parsed avatar
+        print('DEBUG: Parsed avatar: ${avatar.name} - showFirst: ${avatar.showFirst}');
+        
+        // Only add avatars with showFirst: true
+        if (avatar.showFirst) {
+          avatars.add(avatar);
+          print('DEBUG: Added avatar with showFirst=true: ${avatar.name}');
+        } else {
+          print('DEBUG: Skipped avatar with showFirst=false: ${avatar.name}');
+        }
+      }
+      
+      // Debug: Log final count
+      print('DEBUG: Total avatars with showFirst=true: ${avatars.length}');
+      
+      // Create avatar cards and story components for filtered avatars
+      for (var avatar in avatars) {
         avatarCards.add(AvatarCard(avatar: avatar));
         avatarStoryComponents.add(AvatarStoryComponent(avatar: avatar));
       }
-      avatarCards.shuffle();
-      avatarStoryComponents.shuffle();
-    } catch (e) {}
+    } catch (e) {
+      print('DEBUG: Error in _processAvatars: $e');
+    }
   }
 
   // Extract the first category from a post
@@ -745,20 +771,20 @@ class HomeScreenState extends State<HomeScreen> {
                     SliverPersistentHeader(
                       floating: true,
                       pinned: false,
-                      delegate: CustomAppBarDelegate(
+                                              delegate: CustomAppBarDelegate(
                         child: CustomAppBar(
                           isHome: true,
                           isDebug: true,
                           userPoints: "100",
                           profileImageUrl: null,
-                          onNotificationTap: () {
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (context) =>
-                                    const NotificationScreen(),
-                              ),
-                            );
-                          },
+                          // onNotificationTap: () {
+                          //   Navigator.of(context).push(
+                          //     MaterialPageRoute(
+                          //       builder: (context) =>
+                          //           const NotificationScreen(),
+                          //     ),
+                          //   );
+                          // },
                           onSearchTap: () {
                             try {
                               // context.push(Routes.searchExplore);

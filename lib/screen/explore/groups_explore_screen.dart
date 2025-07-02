@@ -116,6 +116,8 @@ class _GroupsExploreScreenState extends State<GroupsExploreScreen> {
         messageCount: 760,
         avatars: ['Harry', 'Hermione', 'Ron', 'Dumbledore'],
         isMember: false,
+        showRandomCharacters: true,
+        showFirst: true, // This group will appear first
       ),
       GroupData(
         id: '2',
@@ -126,6 +128,8 @@ class _GroupsExploreScreenState extends State<GroupsExploreScreen> {
         messageCount: 1760,
         avatars: ['Tony', 'Steve', 'Thor', 'Natasha'],
         isMember: false,
+        showRandomCharacters: true,
+        showFirst: false,
       ),
       GroupData(
         id: '3',
@@ -135,6 +139,8 @@ class _GroupsExploreScreenState extends State<GroupsExploreScreen> {
         messageCount: 460,
         avatars: ['Lebron', 'Messi', 'Serena', 'Ronaldo'],
         isMember: false,
+        showRandomCharacters: true,
+        showFirst: false,
       ),
       GroupData(
         id: '4',
@@ -144,6 +150,8 @@ class _GroupsExploreScreenState extends State<GroupsExploreScreen> {
         messageCount: 960,
         avatars: ['Naruto', 'Goku', 'Luffy', 'Eren'],
         isMember: false,
+        showRandomCharacters: true,
+        showFirst: false,
       ),
     ];
   }
@@ -154,7 +162,17 @@ class _GroupsExploreScreenState extends State<GroupsExploreScreen> {
     for (var doc in documents) {
       try {
         GroupChatData chatData = GroupChatData.fromSnapshot(doc);
+        
+        // Extract showFirst from the document data directly
+        final docData = doc.data() as Map<String, dynamic>?;
+        bool showFirst = docData?['showFirst'] == true;
+        
         GroupData groupData = GroupDataMapper.fromGroupChatData(chatData);
+        
+        // Update the group data with the showFirst field if it was set in Firestore
+        if (showFirst) {
+          groupData = groupData.copyWith(showFirst: true);
+        }
 
         // Store participants in the map
         _groupParticipants[groupData.id] = chatData.participants;
@@ -282,9 +300,7 @@ class _GroupsExploreScreenState extends State<GroupsExploreScreen> {
                   isGroup: true,
                   userPoints: _userBalance,
                   profileImageUrl: null,
-                  onSearchTap: () {
-                    _showCreateGroupDialog(context);
-                  },
+                  onSearchTap: null,
                   onProfileTap: () {},
                   onPointsTap: () {
                     try {
@@ -461,6 +477,17 @@ class _GroupsExploreScreenState extends State<GroupsExploreScreen> {
                       _hasMatchingParticipant(group, _searchQuery))
                   .toList();
             }
+
+            // 정렬: showFirst가 true인 그룹을 맨 앞으로
+            groups.sort((a, b) {
+              if (a.showFirst && !b.showFirst) {
+                return -1; // a comes first
+              } else if (!a.showFirst && b.showFirst) {
+                return 1; // b comes first
+              } else {
+                return 0; // maintain original order
+              }
+            });
 
             final List<dynamic> listItems = [];
             if (groups.isNotEmpty) {

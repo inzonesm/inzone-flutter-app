@@ -9,6 +9,7 @@ class InZoneAvatar {
   final String subCategory;
   final int age;
   final String? greeting;
+  final bool showFirst;
 
   InZoneAvatar({
     required this.id,
@@ -21,6 +22,7 @@ class InZoneAvatar {
     required this.subCategory,
     required this.age,
     this.greeting,
+    this.showFirst = false,
   });
 
   // Factory method to create an instance of InZoneAvatar from a JSON object
@@ -36,6 +38,7 @@ class InZoneAvatar {
       subCategory: json['character']['sub_category'] ?? '',
       age: json['character']['age'] ?? 0,
       greeting: null,
+      showFirst: json['showFirst'] == true || json['character']['showFirst'] == true,
     );
   }
   factory InZoneAvatar.fromRepostJson(Map<String, dynamic> json) {
@@ -50,6 +53,7 @@ class InZoneAvatar {
       subCategory: "category",
       age: 0,
       greeting: null,
+      showFirst: json['showFirst'] == true,
     );
   }
 
@@ -66,6 +70,7 @@ class InZoneAvatar {
       subCategory: 'not specified',
       age: 0,
       greeting: json['greeting'],
+      showFirst: json['showFirst'] == true,
     );
   }
 
@@ -102,6 +107,36 @@ class InZoneAvatar {
           : 'not specified',
       age: json['age'] is int ? json['age'] : 0,
       greeting: safeString(json['greeting']),
+      showFirst: json['showFirst'] == true,
+    );
+  }
+
+  // Copy method for creating modified instances
+  InZoneAvatar copyWith({
+    String? id,
+    String? name,
+    String? bio,
+    String? username,
+    String? profilePicture,
+    String? personality,
+    String? gender,
+    String? subCategory,
+    int? age,
+    String? greeting,
+    bool? showFirst,
+  }) {
+    return InZoneAvatar(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      bio: bio ?? this.bio,
+      username: username ?? this.username,
+      profilePicture: profilePicture ?? this.profilePicture,
+      personality: personality ?? this.personality,
+      gender: gender ?? this.gender,
+      subCategory: subCategory ?? this.subCategory,
+      age: age ?? this.age,
+      greeting: greeting ?? this.greeting,
+      showFirst: showFirst ?? this.showFirst,
     );
   }
 
