@@ -63,42 +63,48 @@ class _AdCardState extends State<AdCard> {
   @override
   Widget build(BuildContext context) {
     return _nativeAdIsLoaded
-        ? Container(
-            height: Platform.isAndroid ? 150 : 130,
-            width: double.infinity,
-            decoration: BoxDecoration(
-              color: Theme.of(context).cardColor,
-              borderRadius: BorderRadius.circular(24),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
-                  blurRadius: 8,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: Padding(
-              padding: EdgeInsets.symmetric(
-                  horizontal: Platform.isAndroid ? 16.0 : 0),
-              child: AdWidget(ad: _nativeAd!),
+        ? Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 4),
+            child: Container(
+              height: Platform.isAndroid ? 150 : 130,
+              width: double.infinity,
+              decoration: BoxDecoration(
+                color: Theme.of(context).cardColor,
+                borderRadius: BorderRadius.circular(24),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 8,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Padding(
+                padding: EdgeInsets.symmetric(
+                    horizontal: Platform.isAndroid ? 16.0 : 0),
+                child: AdWidget(ad: _nativeAd!),
+              ),
             ),
           )
-        : Container(
-            height: Platform.isAndroid ? 150 : 130,
-            width: double.infinity,
-            decoration: BoxDecoration(
-              color: Theme.of(context).cardColor,
-              borderRadius: BorderRadius.circular(24),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
-                  blurRadius: 8,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: const Center(
-              child: Text("Advertisement"),
+        : Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 4),
+            child: Container(
+              height: Platform.isAndroid ? 150 : 130,
+              width: double.infinity,
+              decoration: BoxDecoration(
+                color: Theme.of(context).cardColor,
+                borderRadius: BorderRadius.circular(24),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 8,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: const Center(
+                child: Text("Advertisement"),
+              ),
             ),
           );
   }
