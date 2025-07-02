@@ -12,6 +12,8 @@ class GroupDataMapper {
       messageCount: chatData.messages.length,
       avatars: _extractAvatarTokens(chatData.participants),
       isMember: true, // If we're viewing it, we're a member
+      showRandomCharacters: true, // Default to true for dynamic groups
+      showFirst: false, // Default to false for Firestore groups
     );
   }
   
@@ -37,6 +39,8 @@ class GroupDataMapper {
       messageCount: 2,
       avatars: [],
       isMember: true,
+      showRandomCharacters: true,
+      showFirst: false,
     );
   }
 
@@ -50,6 +54,8 @@ class GroupDataMapper {
       messageCount: 2,
       avatars: [],
       isMember: true,
+      showRandomCharacters: true,
+      showFirst: false,
     );
   }
 } 

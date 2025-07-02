@@ -847,12 +847,13 @@ class _PostCardState extends State<PostCard> {
               "dont_show",
             ),
             // Only show tipping option if the user is an influencer
-            if (_isInfluencer)
-              _optionItem(
-                FeatherIcons.gift,
-                "Tip ${widget.post.userName}",
-                "tip",
-              ),
+            // Temporarily commented out - tipping feature disabled
+            // if (_isInfluencer)
+            //   _optionItem(
+            //     FeatherIcons.gift,
+            //     "Tip ${widget.post.userName}",
+            //     "tip",
+            //   ),
             const SizedBox(height: 15),
           ],
         ),
@@ -899,10 +900,12 @@ class _PostCardState extends State<PostCard> {
         } else if (value == "dont_show") {
           // Show reason input dialog for user
           _showReportUserDialog(context);
-        } else if (value == "tip") {
-          // Show tip dialog
-          _showTipDialog(context);
-        }
+        } 
+        // Temporarily commented out - tipping feature disabled
+        // else if (value == "tip") {
+        //   // Show tip dialog
+        //   _showTipDialog(context);
+        // }
       },
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 15),
@@ -933,42 +936,43 @@ class _PostCardState extends State<PostCard> {
     );
   }
 
-  void _showTipDialog(BuildContext context) {
-    // Show TipScreen as a bottom sheet
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.only(
-          topLeft: Radius.circular(20),
-          topRight: Radius.circular(20),
-        ),
-      ),
-      builder: (context) {
-        return FractionallySizedBox(
-          heightFactor: 0.9,
-          child: Container(
-            decoration: BoxDecoration(
-              color: Theme.of(context).canvasColor,
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(20),
-                topRight: Radius.circular(20),
-              ),
-            ),
-            child: TipScreen(
-              recipient: {
-                'id': widget.post.userReference,
-                'name': widget.post.userName,
-                'username': _actualUsername,
-                'profilePicture': profileImageUrl,
-              },
-            ),
-          ),
-        );
-      },
-    );
-  }
+  // Temporarily commented out - tipping feature disabled
+  // void _showTipDialog(BuildContext context) {
+  //   // Show TipScreen as a bottom sheet
+  //   showModalBottomSheet(
+  //     context: context,
+  //     isScrollControlled: true,
+  //     backgroundColor: Colors.transparent,
+  //     shape: const RoundedRectangleBorder(
+  //       borderRadius: BorderRadius.only(
+  //         topLeft: Radius.circular(20),
+  //         topRight: Radius.circular(20),
+  //       ),
+  //     ),
+  //     builder: (context) {
+  //       return FractionallySizedBox(
+  //         heightFactor: 0.9,
+  //         child: Container(
+  //           decoration: BoxDecoration(
+  //             color: Theme.of(context).canvasColor,
+  //             borderRadius: const BorderRadius.only(
+  //               topLeft: Radius.circular(20),
+  //               topRight: Radius.circular(20),
+  //             ),
+  //           ),
+  //           child: TipScreen(
+  //             recipient: {
+  //               'id': widget.post.userReference,
+  //               'name': widget.post.userName,
+  //               'username': _actualUsername,
+  //               'profilePicture': profileImageUrl,
+  //             },
+  //           ),
+  //         ),
+  //       );
+  //     },
+  //   );
+  // }
 
   // Show dialog to get report reason from user for post reporting
   void _showReportReasonDialog(BuildContext context) {
