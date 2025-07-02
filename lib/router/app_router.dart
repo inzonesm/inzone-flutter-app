@@ -177,9 +177,8 @@ class AppRouter {
         parentNavigatorKey: AppRouter.rootNavigatorKey,
         pageBuilder: (context, state) {
           final email = state.uri.queryParameters['email'] ?? '';
-          return CupertinoPage(
+          return NoTransitionPage(
             key: state.pageKey,
-            fullscreenDialog: true,
             child: auth.ProfileScreen(email: email),
           );
         },

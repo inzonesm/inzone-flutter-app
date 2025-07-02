@@ -53,17 +53,18 @@ class _IntroductionScreenState extends State<IntroductionScreen> {
 
     bool isProfileCompleted = doc.data()?['createdAt'] != null;
 
+    // Make sure to dismiss the loading dialog before navigation
     _dismissLoadingDialog();
-    if (isProfileCompleted) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
-          context.go(Routes.home);
-        }
-      });
-    } else {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
+
+    // Use a small delay to ensure the dialog is fully dismissed before navigation
+    await Future.delayed(const Duration(milliseconds: 100));
+
+    if (mounted) {
+      if (isProfileCompleted) {
+        context.go(Routes.home);
+      } else {
         context.go(Routes.profileWithEmail(user.email ?? ""));
-      });
+      }
     }
   }
 

@@ -32,6 +32,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       });
     }
   }
+
   Future<void> _saveProfile() async {
     if (_nameController.text.trim().isEmpty) {
       ToastService.showToast(
@@ -95,9 +96,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
       final docRef = FirebaseFirestore.instance
           .collection('humanUsers')
           .doc(currentUser.uid);
-      
+
       final docSnapshot = await docRef.get();
-      
+
       if (docSnapshot.exists) {
         await docRef.update({
           'profilePicture': profileImageUrl ?? "",
