@@ -404,20 +404,22 @@ class HomeScreenState extends State<HomeScreen> {
     avatarStoryComponents.clear();
     try {
       List<InZoneAvatar> avatars = [];
-      
+
       // Debug: Log total fetched characters
       print('DEBUG: Total fetched characters: ${fetchedCharacters.length}');
-      
+
       for (var characterData in fetchedCharacters) {
         // Debug: Log each character data
-        print('DEBUG: Character data: ${characterData['name']} - showFirst: ${characterData['showFirst']}');
-        
+        print(
+            'DEBUG: Character data: ${characterData['name']} - showFirst: ${characterData['showFirst']}');
+
         // Use the new factory method
         InZoneAvatar avatar = InZoneAvatar.fromDirectJson(characterData);
-        
+
         // Debug: Log parsed avatar
-        print('DEBUG: Parsed avatar: ${avatar.name} - showFirst: ${avatar.showFirst}');
-        
+        print(
+            'DEBUG: Parsed avatar: ${avatar.name} - showFirst: ${avatar.showFirst}');
+
         // Only add avatars with showFirst: true
         if (avatar.showFirst) {
           avatars.add(avatar);
@@ -426,10 +428,10 @@ class HomeScreenState extends State<HomeScreen> {
           print('DEBUG: Skipped avatar with showFirst=false: ${avatar.name}');
         }
       }
-      
+
       // Debug: Log final count
       print('DEBUG: Total avatars with showFirst=true: ${avatars.length}');
-      
+
       // Create avatar cards and story components for filtered avatars
       for (var avatar in avatars) {
         avatarCards.add(AvatarCard(avatar: avatar));
@@ -771,7 +773,7 @@ class HomeScreenState extends State<HomeScreen> {
                     SliverPersistentHeader(
                       floating: true,
                       pinned: false,
-                                              delegate: CustomAppBarDelegate(
+                      delegate: CustomAppBarDelegate(
                         child: CustomAppBar(
                           isHome: true,
                           isDebug: true,
@@ -963,10 +965,10 @@ class CustomAppBarDelegate extends SliverPersistentHeaderDelegate {
   }
 
   @override
-  double get maxExtent => 100.0;
+  double get maxExtent => 70.0;
 
   @override
-  double get minExtent => 100.0;
+  double get minExtent => 70.0;
 
   @override
   bool shouldRebuild(CustomAppBarDelegate oldDelegate) {

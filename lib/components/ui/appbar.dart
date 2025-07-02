@@ -2,13 +2,14 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_feather_icons/flutter_feather_icons.dart';
 import 'package:inzone/services/monetization_service.dart';
+import 'package:popover/popover.dart';
 import 'package:toasty_box/toast_service.dart';
 
 class CustomAppBar extends StatefulWidget implements PreferredSizeWidget {
   final String? greeting;
   final String? title;
   final String? subtitle;
-  final String? userPoints; // Keep for backward compatibility
+  final String? userPoints;
   final String? profileImageUrl;
   final VoidCallback? onSearchTap;
   final VoidCallback? onProfileTap;
@@ -20,6 +21,7 @@ class CustomAppBar extends StatefulWidget implements PreferredSizeWidget {
   final bool isImage;
   final bool isSettings;
   final bool isDebug;
+  final bool isCustom;
   final String userName;
 
   const CustomAppBar({
@@ -39,6 +41,7 @@ class CustomAppBar extends StatefulWidget implements PreferredSizeWidget {
     this.isImage = true,
     this.isSettings = false,
     this.isDebug = false,
+    this.isCustom = false,
     this.userName = "Loading",
   });
 
@@ -107,45 +110,90 @@ class _CustomAppBarState extends State<CustomAppBar> {
                       !widget.isGroup &&
                       !widget.isChat &&
                       !widget.isSettings)
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.only(top: 5),
-                          child: Text(
-                            "InZone",
-                            style: Theme.of(context).textTheme.headlineMedium,
+                    GestureDetector(
+                      onTap: () {
+                        showPopover(
+                          context: context,
+                          bodyBuilder: (context) => const Center(
+                            child: Text('hellow'),
                           ),
-                        ),
-                        const SizedBox(width: 10),
-                        GestureDetector(
-                          onTap: () {
-                            if (mounted) {
-                              ToastService.showToast(
-                                context,
-                                backgroundColor: Colors.blueAccent,
-                                shadowColor: Colors.transparent,
-                                leading: const Icon(
-                                  FeatherIcons.info,
-                                  color: Colors.blueAccent,
-                                ),
-                                message: 'Info',
-                                isClosable: true,
-                              );
-                            }
-                          },
-                          child: Icon(
+                          onPop: () => print('Popover was popped!'),
+                          direction: PopoverDirection.bottom,
+                          arrowDyOffset: -20,
+                          arrowDxOffset: -73,
+                          width: 200,
+                          height: 100,
+                          arrowHeight: 15,
+                          arrowWidth: 30,
+                          backgroundColor: Theme.of(context).cardColor,
+                        );
+                      },
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.only(top: 5),
+                            child: Text(
+                              "InZone",
+                              style: Theme.of(context).textTheme.headlineMedium,
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Icon(
                             FeatherIcons.info,
                             color: Theme.of(context).iconTheme.color,
                             size: 15,
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
+                    ),
+
+                  if (widget.isHome &&
+                      widget.isGroup &&
+                      !widget.isChat &&
+                      !widget.isSettings)
+                    GestureDetector(
+                      onTap: () {
+                        showPopover(
+                          context: context,
+                          bodyBuilder: (context) => const Center(
+                            child: Text('hellow'),
+                          ),
+                          onPop: () => print('Popover was popped!'),
+                          direction: PopoverDirection.bottom,
+                          arrowDyOffset: -20,
+                          arrowDxOffset: -73,
+                          width: 200,
+                          height: 100,
+                          arrowHeight: 15,
+                          arrowWidth: 30,
+                          backgroundColor: Theme.of(context).cardColor,
+                        );
+                      },
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.only(top: 5),
+                            child: Text(
+                              "Groups",
+                              style: Theme.of(context).textTheme.headlineMedium,
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Icon(
+                            FeatherIcons.info,
+                            color: Theme.of(context).iconTheme.color,
+                            size: 15,
+                          ),
+                        ],
+                      ),
                     ),
                   Text(
-                    widget.isGroup
-                        ? 'Groups'
+                    widget.isCustom
+                        ? widget.title!
                         : widget.isChat
                             ? 'Chats'
                             : widget.isSettings
@@ -214,7 +262,8 @@ class _CustomAppBarState extends State<CustomAppBar> {
                         ),
                       ),
                     ),
-                  if (widget.isGroup && widget.onSearchTap != null) const SizedBox(width: 12),
+                  if (widget.isGroup && widget.onSearchTap != null)
+                    const SizedBox(width: 12),
                   // points display
                   if (widget.isGroup)
                     GestureDetector(

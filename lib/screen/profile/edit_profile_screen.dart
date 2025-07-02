@@ -501,28 +501,21 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         isDarkMode ? AppColors.darkDividerColor : AppColors.lightDividerColor;
 
     return ColorfulSafeArea(
-      topColor: surfaceColor,
+      topColor: backgroundColor,
       left: false,
       right: false,
       top: true,
       bottom: false,
       child: Scaffold(
         backgroundColor: backgroundColor,
-        appBar: AppBar(
-          backgroundColor: surfaceColor,
-          elevation: 0,
-          leading: IconButton(
-            icon: Icon(Icons.arrow_back, color: textColor),
-            onPressed: () {
-              // Return true to indicate changes were made
-              context.pop(true);
-            },
-          ),
-          title: Text(
-            'Edit Profile',
-            style: TextStyle(color: textColor, fontWeight: FontWeight.bold),
-          ),
-          centerTitle: true,
+        appBar: CustomAppBar(
+          isHome: true,
+          isSettings: true,
+          isImage: false,
+          title: "Edit Profile",
+          profileImageUrl: null,
+          onSearchTap: null,
+          onProfileTap: () {},
         ),
         body: SingleChildScrollView(
           child: Column(
