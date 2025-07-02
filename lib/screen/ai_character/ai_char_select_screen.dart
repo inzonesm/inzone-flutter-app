@@ -131,6 +131,14 @@ class _AICharacterSelectionScreenState extends State<AICharacterSelectionScreen>
       parent: _expandController,
       curve: Curves.easeInOut,
     );
+
+    // Add listener for keyboard visibility changes
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final keyboardVisibilityController = FocusNode();
+      keyboardVisibilityController.addListener(() {
+        if (mounted) setState(() {});
+      });
+    });
   }
 
   Future<void> _loadCharacters() async {
@@ -304,71 +312,269 @@ class _AICharacterSelectionScreenState extends State<AICharacterSelectionScreen>
 
   @override
   Widget build(BuildContext context) {
+    // 키보드 높이 확인
+    final keyboardHeight = MediaQuery.of(context).viewInsets.bottom;
+    final isKeyboardVisible = keyboardHeight > 0;
+
     return ColorfulSafeArea(
       color: Theme.of(context).dialogBackgroundColor,
-      child: Scaffold(
-        backgroundColor: Theme.of(context).dialogBackgroundColor,
-        appBar: AppBar(
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          leading: Padding(
-            padding: const EdgeInsets.only(left: 12.0),
-            child: GestureDetector(
-              onTap: () {
-                Navigator.pop(context);
-              },
-              child: CircleAvatar(
-                radius: 22,
-                backgroundColor: Theme.of(context).brightness == Brightness.dark
-                    ? Colors.grey.shade800
-                    : Colors.grey.shade200,
-                child: Padding(
-                  padding: const EdgeInsets.only(left: 5),
-                  child: Center(
-                    child: Icon(
-                      Icons.arrow_back_ios,
-                      size: 18,
-                      color: Theme.of(context).iconTheme.color,
+      child: GestureDetector(
+        // Close keyboard when tapping outside of text fields
+        onTap: () => FocusScope.of(context).unfocus(),
+        child: Scaffold(
+          backgroundColor: Theme.of(context).dialogBackgroundColor,
+          appBar: isKeyboardVisible && _isFormExpanded
+              ? null // 키보드가 보이고 폼이 확장되었을 때는 AppBar를 숨김
+              : AppBar(
+                  backgroundColor: Colors.transparent,
+                  elevation: 0,
+                  leading: Padding(
+                    padding: const EdgeInsets.only(left: 12.0),
+                    child: GestureDetector(
+                      onTap: () {
+                        Navigator.pop(context);
+                      },
+                      child: CircleAvatar(
+                        radius: 22,
+                        backgroundColor:
+                            Theme.of(context).brightness == Brightness.dark
+                                ? Colors.grey.shade800
+                                : Colors.grey.shade200,
+                        child: Padding(
+                          padding: const EdgeInsets.only(left: 5),
+                          child: Center(
+                            child: Icon(
+                              Icons.arrow_back_ios,
+                              size: 18,
+                              color: Theme.of(context).iconTheme.color,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  title: ShaderMask(
+                    shaderCallback: (bounds) {
+                      return LinearGradient(
+                        colors: [
+                          colorPalette[0],
+                          colorPalette[1],
+                        ],
+                      ).createShader(bounds);
+                    },
+                    child: const Text(
+                      'Generate AI Character ',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                  centerTitle: true,
+                ),
+          body: Stack(
+            children: [
+              // 기본 화면 내용
+              _isLoading
+                  ? _buildLoadingState()
+                  : _errorMessage != null
+                      ? _buildErrorState()
+                      : _generatedCharacter != null
+                          ? _buildGeneratedCharacter()
+                          : _buildEmptyState(),
+
+              // 키보드가 나타날 때 폼이 화면 전체를 덮도록 함
+              if (isKeyboardVisible && _isFormExpanded)
+                Positioned(
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: keyboardHeight,
+                  child: Container(
+                    color: Theme.of(context).dialogBackgroundColor,
+                    child: _buildFullScreenForm(),
+                  ),
+                ),
+            ],
+          ),
+          bottomSheet: AnimatedContainer(
+            duration: const Duration(milliseconds: 300),
+            padding: const EdgeInsets.only(left: 16, right: 16, bottom: 16),
+            child: _generatedCharacter != null && _hasValidImageSelection()
+                ? _buildSelectButton()
+                : _buildPromptInput(),
+          ),
+          resizeToAvoidBottomInset: false, // 키보드가 화면을 리사이즈하지 않도록 설정
+        ),
+      ),
+    );
+  }
+
+  // 키보드가 나타날 때 전체 화면 폼
+  Widget _buildFullScreenForm() {
+    return Column(
+      children: [
+        // 상단 닫기 버튼과 제목
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              GestureDetector(
+                onTap: () {
+                  Navigator.pop(context);
+                },
+                child: CircleAvatar(
+                  radius: 18,
+                  backgroundColor:
+                      Theme.of(context).brightness == Brightness.dark
+                          ? Colors.grey.shade800
+                          : Colors.grey.shade200,
+                  child: Padding(
+                    padding: const EdgeInsets.only(left: 5),
+                    child: Center(
+                      child: Icon(
+                        Icons.arrow_back_ios,
+                        size: 16,
+                        color: Theme.of(context).iconTheme.color,
+                      ),
                     ),
                   ),
                 ),
               ),
+              ShaderMask(
+                shaderCallback: (bounds) {
+                  return LinearGradient(
+                    colors: [
+                      colorPalette[0],
+                      colorPalette[1],
+                    ],
+                  ).createShader(bounds);
+                },
+                child: const Text(
+                  'Create AI Character',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+              GestureDetector(
+                onTap: () {
+                  _toggleFormExpanded(false);
+                  FocusScope.of(context).unfocus();
+                },
+                child: CircleAvatar(
+                  radius: 18,
+                  backgroundColor:
+                      Theme.of(context).brightness == Brightness.dark
+                          ? Colors.grey.shade800
+                          : Colors.grey.shade200,
+                  child: Icon(
+                    Icons.close,
+                    size: 16,
+                    color: Theme.of(context).iconTheme.color,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        // 폼 내용
+        Expanded(
+          child: SingleChildScrollView(
+            physics: const BouncingScrollPhysics(),
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 20),
+                // Name field
+                _buildFormField('Name:', _nameFieldController, 'Steve'),
+                const SizedBox(height: 16),
+
+                // Gender field
+                _buildFormField('Gender:', _genderFieldController, 'Male'),
+                const SizedBox(height: 16),
+
+                // Age field
+                _buildFormField('Age:', _ageFieldController, '23'),
+                const SizedBox(height: 16),
+
+                // Celebrity field
+                _buildFormField(
+                    'Celebrity:', _eyeColorFieldController, 'Yes / No'),
+                const SizedBox(height: 16),
+
+                // Description field
+                _buildFormField('Description:', _DescriptionFieldController,
+                    'Describe your character\'s interests, hobbies, or personality'),
+                const SizedBox(height: 30),
+              ],
             ),
           ),
-          title: ShaderMask(
-            shaderCallback: (bounds) {
-              return LinearGradient(
-                colors: [
-                  colorPalette[0],
-                  colorPalette[1],
-                ],
-              ).createShader(bounds);
-            },
-            child: const Text(
-              'Generate AI Character ',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
+        ),
+
+        // Generate 버튼
+        Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Container(
+            width: MediaQuery.of(context).size.width * 0.8,
+            height: 60,
+            decoration: BoxDecoration(
+              color: colorPalette[0],
+              borderRadius: BorderRadius.circular(30),
+              boxShadow: [
+                BoxShadow(
+                  color: colorPalette[0].withOpacity(0.3),
+                  blurRadius: 5,
+                  spreadRadius: 1,
+                ),
+              ],
+            ),
+            child: TextButton(
+              onPressed: () {
+                // Combine all fields into a structured prompt
+                final prompt =
+                    'Name: ${_nameFieldController.text.isEmpty ? "Steve" : _nameFieldController.text}\n'
+                    'Gender: ${_genderFieldController.text.isEmpty ? "Male" : _genderFieldController.text}\n'
+                    'Age: ${_ageFieldController.text.isEmpty ? "23" : _ageFieldController.text}\n'
+                    'Celebrity: ${_eyeColorFieldController.text.isEmpty ? "Yes / No" : _eyeColorFieldController.text}\n'
+                    'Description: ${_DescriptionFieldController.text.isEmpty ? "Video Games, Dogs, Music" : _DescriptionFieldController.text}';
+
+                // Set the prompt controller text
+                _promptController.text = prompt;
+
+                // Call generate character
+                _generateCharacter();
+
+                // Reverse the animation
+                _expandController.reverse(from: 1.0);
+
+                // Hide keyboard
+                FocusScope.of(context).unfocus();
+              },
+              style: TextButton.styleFrom(
+                padding: EdgeInsets.zero,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(30),
+                ),
+              ),
+              child: const Text(
+                "Generate",
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 20,
+                ),
               ),
             ),
           ),
-          centerTitle: true,
         ),
-        body: _isLoading
-            ? _buildLoadingState()
-            : _errorMessage != null
-                ? _buildErrorState()
-                : _generatedCharacter != null
-                    ? _buildGeneratedCharacter()
-                    : _buildEmptyState(),
-        bottomSheet: Padding(
-          padding: const EdgeInsets.only(left: 16, right: 16, bottom: 16),
-          child: _generatedCharacter != null && _hasValidImageSelection()
-              ? _buildSelectButton()
-              : _buildPromptInput(),
-        ),
-      ),
+      ],
     );
   }
 
@@ -716,8 +922,6 @@ class _AICharacterSelectionScreenState extends State<AICharacterSelectionScreen>
               color: Colors.grey.withOpacity(0.7),
             ),
           ),
-
-          const SizedBox(height: 60),
         ],
       ),
     );
@@ -898,16 +1102,23 @@ class _AICharacterSelectionScreenState extends State<AICharacterSelectionScreen>
         (_generatedCharacter!['candidate_images'] as List<dynamic>? ?? [])
             .isNotEmpty;
 
+    // Calculate available height considering keyboard
+    final keyboardHeight = MediaQuery.of(context).viewInsets.bottom;
+    final isKeyboardVisible = keyboardHeight > 0;
+
     return AnimatedContainer(
-      duration: const Duration(milliseconds: 500), // 애니메이션 시간 더 증가
-      curve: Curves.easeOutQuart, // 더 부드러운 애니메이션 커브 적용
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeOutQuart,
       height: (_isGenerating || shouldHidePrompt || !_isFormExpanded)
           ? 60
-          : _calculateFormHeight(), // 폼의 높이를 계산하는 함수 사용
+          : _calculateFormHeight(),
       width: MediaQuery.of(context).size.width,
       padding: (_isGenerating || shouldHidePrompt || !_isFormExpanded)
           ? const EdgeInsets.symmetric(vertical: 10, horizontal: 20)
           : const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+      margin: isKeyboardVisible
+          ? EdgeInsets.only(bottom: keyboardHeight)
+          : EdgeInsets.zero,
       decoration: BoxDecoration(
         color: Theme.of(context).brightness == Brightness.dark
             ? Colors.grey.shade800.withOpacity(0.8)
@@ -965,11 +1176,18 @@ class _AICharacterSelectionScreenState extends State<AICharacterSelectionScreen>
   // 폼의 높이를 계산하는 함수
   double _calculateFormHeight() {
     // 기본 높이 (패딩, 버튼, 간격 등)
-    double baseHeight = 600;
+    double baseHeight = 500;
 
-    // Description 필드가 여러 줄일 경우 추가 높이
-    if (_DescriptionFieldController.text.length > 50) {
-      baseHeight += 40;
+    // 키보드가 열렸을 때도 동일한 높이 유지
+    final keyboardHeight = MediaQuery.of(context).viewInsets.bottom;
+    if (keyboardHeight > 0) {
+      // 키보드가 열려도 폼 크기는 그대로 유지
+      baseHeight = 500;
+    } else {
+      // Description 필드가 여러 줄일 경우 추가 높이
+      if (_DescriptionFieldController.text.length > 50) {
+        baseHeight += 40;
+      }
     }
 
     return baseHeight;
@@ -977,6 +1195,9 @@ class _AICharacterSelectionScreenState extends State<AICharacterSelectionScreen>
 
   // Form inputs widget
   Widget _buildFormInputs() {
+    // Check if keyboard is visible
+    final keyboardVisible = MediaQuery.of(context).viewInsets.bottom > 0;
+
     return AnimatedBuilder(
       animation: _expandAnimation,
       builder: (context, child) {
@@ -1019,28 +1240,39 @@ class _AICharacterSelectionScreenState extends State<AICharacterSelectionScreen>
           ),
           const SizedBox(height: 10),
 
-          // Form title
-          // Name field
-          const SizedBox(height: 10),
-          _buildFormField('Name:', _nameFieldController, 'Steve'),
-          const SizedBox(height: 12),
+          // Form fields in a scrollable container
+          Expanded(
+            child: SingleChildScrollView(
+              physics: const BouncingScrollPhysics(),
+              // 키보드가 나타나도 패딩을 추가하지 않음
+              padding: EdgeInsets.zero,
+              child: Column(
+                children: [
+                  // Name field
+                  _buildFormField('Name:', _nameFieldController, 'Steve'),
+                  const SizedBox(height: 12),
 
-          // Gender field
-          _buildFormField('Gender:', _genderFieldController, 'Male'),
-          const SizedBox(height: 12),
+                  // Gender field
+                  _buildFormField('Gender:', _genderFieldController, 'Male'),
+                  const SizedBox(height: 12),
 
-          // Age field
-          _buildFormField('Age:', _ageFieldController, '23'),
-          const SizedBox(height: 12),
+                  // Age field
+                  _buildFormField('Age:', _ageFieldController, '23'),
+                  const SizedBox(height: 12),
 
-          // Celebrity field
-          _buildFormField('Celebrity:', _eyeColorFieldController, 'Yes / No'),
-          const SizedBox(height: 12),
+                  // Celebrity field
+                  _buildFormField(
+                      'Celebrity:', _eyeColorFieldController, 'Yes / No'),
+                  const SizedBox(height: 12),
 
-          // Description field
-          _buildFormField('Description:', _DescriptionFieldController,
-              'Describe your character\'s interests, hobbies, or personality'),
-          const SizedBox(height: 30),
+                  // Description field
+                  _buildFormField('Description:', _DescriptionFieldController,
+                      'Describe your character\'s interests, hobbies, or personality'),
+                  const SizedBox(height: 30),
+                ],
+              ),
+            ),
+          ),
 
           // Generate button
           Row(
@@ -1162,7 +1394,7 @@ class _AICharacterSelectionScreenState extends State<AICharacterSelectionScreen>
         const SizedBox(height: 4),
         // Input field
         Container(
-          height: isDescriptionField ? 60 : 40,
+          height: isDescriptionField ? 120 : 40,
           decoration: BoxDecoration(
             color: Theme.of(context).brightness == Brightness.dark
                 ? Colors.grey.shade700.withOpacity(0.3)
@@ -1177,8 +1409,8 @@ class _AICharacterSelectionScreenState extends State<AICharacterSelectionScreen>
           ),
           child: TextField(
             controller: controller,
-            maxLines: isDescriptionField ? 2 : 1,
-            minLines: isDescriptionField ? 2 : 1,
+            maxLines: isDescriptionField ? 5 : 1,
+            minLines: isDescriptionField ? 5 : 1,
             style: const TextStyle(fontSize: 14),
             decoration: InputDecoration(
               hintText: hintText,
@@ -1190,6 +1422,14 @@ class _AICharacterSelectionScreenState extends State<AICharacterSelectionScreen>
                   const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               border: InputBorder.none,
             ),
+            onTap: isDescriptionField
+                ? () {
+                    // Ensure the form is expanded when description field is tapped
+                    Future.delayed(const Duration(milliseconds: 300), () {
+                      if (mounted) setState(() {});
+                    });
+                  }
+                : null,
           ),
         ),
       ],
