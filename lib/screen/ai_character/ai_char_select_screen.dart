@@ -31,7 +31,7 @@ class AICharacterSelectionScreen extends StatefulWidget {
 }
 
 class _AICharacterSelectionScreenState extends State<AICharacterSelectionScreen>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   final PageController _pageController = PageController();
   int _currentPage = 0;
   bool _isLoading = false;
@@ -59,17 +59,23 @@ class _AICharacterSelectionScreenState extends State<AICharacterSelectionScreen>
   final TextEditingController _ageFieldController = TextEditingController();
   final TextEditingController _eyeColorFieldController =
       TextEditingController();
-  final TextEditingController _likesFieldController = TextEditingController();
+  final TextEditingController _DescriptionFieldController =
+      TextEditingController();
 
   // Controller for the character name input
   final TextEditingController _nameController = TextEditingController();
   final FocusNode _nameFocusNode = FocusNode();
 
   bool _isGenerating = false;
+  bool _isFormExpanded = false;
 
   // Animation controller for rotating effects
   late AnimationController _rotationController;
   late Animation<double> _rotationAnimation;
+
+  // Animation controller for form expansion
+  late AnimationController _expandController;
+  late Animation<double> _expandAnimation;
 
   // Color palette definition (same as 3D model screen)
   static const List<Color> colorPalette = [
@@ -114,6 +120,17 @@ class _AICharacterSelectionScreenState extends State<AICharacterSelectionScreen>
       begin: 0,
       end: 2 * math.pi, // Full rotation (2π)
     ).animate(_rotationController);
+
+    // Setup expand animation
+    _expandController = AnimationController(
+      duration: const Duration(milliseconds: 400),
+      vsync: this,
+    );
+
+    _expandAnimation = CurvedAnimation(
+      parent: _expandController,
+      curve: Curves.easeInOut,
+    );
   }
 
   Future<void> _loadCharacters() async {
@@ -168,7 +185,11 @@ class _AICharacterSelectionScreenState extends State<AICharacterSelectionScreen>
     setState(() {
       _isGenerating = true;
       _isLoading = true; // Show loading state
+      _isFormExpanded = false; // Collapse the form
     });
+
+    // Reverse the animation
+    _expandController.reverse(from: 1.0);
 
     try {
       // Call the API to create popular character
@@ -269,13 +290,14 @@ class _AICharacterSelectionScreenState extends State<AICharacterSelectionScreen>
     _nameFocusNode.dispose();
     _rotationController.dispose();
     _imagePageController.dispose();
+    _expandController.dispose();
 
     // Dispose form field controllers
     _nameFieldController.dispose();
     _genderFieldController.dispose();
     _ageFieldController.dispose();
     _eyeColorFieldController.dispose();
-    _likesFieldController.dispose();
+    _DescriptionFieldController.dispose();
 
     super.dispose();
   }
@@ -356,7 +378,6 @@ class _AICharacterSelectionScreenState extends State<AICharacterSelectionScreen>
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          // 제목 텍스트 (배경 이미지 대신)
           ShaderMask(
             shaderCallback: (bounds) {
               return LinearGradient(
@@ -407,19 +428,11 @@ class _AICharacterSelectionScreenState extends State<AICharacterSelectionScreen>
               alignment: Alignment.center,
               children: [
                 // Background glow effect
-                Container(
-                  width: 180,
-                  height: 180,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: colorPalette[0].withOpacity(0.5),
-                        blurRadius: 30,
-                        spreadRadius: 10,
-                      ),
-                    ],
-                  ),
+                Lottie.asset(
+                  'assets/animations/animation_intro.json', // Path to your Lottie animation
+                  width: 200, // You can adjust the size as needed
+                  height: 200,
+                  fit: BoxFit.cover,
                 ),
 
                 // Loading indicator
@@ -451,13 +464,19 @@ class _AICharacterSelectionScreenState extends State<AICharacterSelectionScreen>
             ),
           ),
 
-          // Show prompt text if available
           if (_promptController.text.isNotEmpty)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-              child: AnimatedOpacity(
-                opacity: 0.7,
-                duration: const Duration(milliseconds: 500),
+              child: TweenAnimationBuilder<double>(
+                tween: Tween<double>(begin: 0.3, end: 0.9),
+                duration: const Duration(milliseconds: 1500),
+                curve: Curves.easeInOut,
+                builder: (context, value, child) {
+                  return Opacity(
+                    opacity: value,
+                    child: child,
+                  );
+                },
                 child: Text(
                   "Generating your character. This may take up to 10 seconds...",
                   textAlign: TextAlign.center,
@@ -466,11 +485,47 @@ class _AICharacterSelectionScreenState extends State<AICharacterSelectionScreen>
                     fontStyle: FontStyle.italic,
                     fontSize: 14,
                   ),
-                  maxLines: 3,
-                  overflow: TextOverflow.ellipsis,
                 ),
               ),
             ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLoadingInfoItem(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            "$label: ",
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 14,
+              color: Theme.of(context)
+                  .textTheme
+                  .bodyMedium
+                  ?.color
+                  ?.withOpacity(0.8),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: TextStyle(
+                fontSize: 14,
+                color: Theme.of(context)
+                    .textTheme
+                    .bodyMedium
+                    ?.color
+                    ?.withOpacity(0.7),
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
         ],
       ),
     );
@@ -843,148 +898,254 @@ class _AICharacterSelectionScreenState extends State<AICharacterSelectionScreen>
         (_generatedCharacter!['candidate_images'] as List<dynamic>? ?? [])
             .isNotEmpty;
 
-    return GestureDetector(
-      onTap: () {
-        // Toggle prompt visibility when tapped if we have images
-        if (_generatedCharacter != null) {
-          setState(() {
-            _isGenerating = !_isGenerating;
-          });
-        }
-      },
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 300),
-        height: _isGenerating || shouldHidePrompt ? 60 : null,
-        padding: _isGenerating || shouldHidePrompt
-            ? const EdgeInsets.symmetric(vertical: 10, horizontal: 20)
-            : const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
-        decoration: BoxDecoration(
-          color: Theme.of(context).brightness == Brightness.dark
-              ? Colors.grey.shade800.withOpacity(0.8)
-              : Colors.white.withOpacity(0.9),
-          borderRadius: BorderRadius.circular(30),
-          gradient: LinearGradient(
-            colors: [
-              colorPalette[2].withOpacity(0.1),
-              colorPalette[4].withOpacity(0.1),
-            ],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          border: Border.all(
-            color: Theme.of(context).brightness == Brightness.dark
-                ? Colors.grey.shade700.withOpacity(0.5)
-                : Colors.grey.shade300.withOpacity(0.5),
-            width: 1,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Theme.of(context).brightness == Brightness.dark
-                  ? Colors.black.withOpacity(0.3)
-                  : Colors.black.withOpacity(0.05),
-              blurRadius: 5,
-              spreadRadius: 1,
-            )
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 500), // 애니메이션 시간 더 증가
+      curve: Curves.easeOutQuart, // 더 부드러운 애니메이션 커브 적용
+      height: (_isGenerating || shouldHidePrompt || !_isFormExpanded)
+          ? 60
+          : _calculateFormHeight(), // 폼의 높이를 계산하는 함수 사용
+      width: MediaQuery.of(context).size.width,
+      padding: (_isGenerating || shouldHidePrompt || !_isFormExpanded)
+          ? const EdgeInsets.symmetric(vertical: 10, horizontal: 20)
+          : const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+      decoration: BoxDecoration(
+        color: Theme.of(context).brightness == Brightness.dark
+            ? Colors.grey.shade800.withOpacity(0.8)
+            : Colors.white.withOpacity(0.9),
+        borderRadius: BorderRadius.circular(30),
+        gradient: LinearGradient(
+          colors: [
+            colorPalette[2].withOpacity(0.1),
+            colorPalette[4].withOpacity(0.1),
           ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
         ),
-        child: _isGenerating || shouldHidePrompt
+        border: Border.all(
+          color: Theme.of(context).brightness == Brightness.dark
+              ? Colors.grey.shade700.withOpacity(0.5)
+              : Colors.grey.shade300.withOpacity(0.5),
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Theme.of(context).brightness == Brightness.dark
+                ? Colors.black.withOpacity(0.3)
+                : Colors.black.withOpacity(0.05),
+            blurRadius: 5,
+            spreadRadius: 1,
+          )
+        ],
+      ),
+      child: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 300),
+        transitionBuilder: (Widget child, Animation<double> animation) {
+          return FadeTransition(
+            opacity: animation,
+            child: ScaleTransition(
+              scale: Tween<double>(begin: 0.95, end: 1.0).animate(animation),
+              child: child,
+            ),
+          );
+        },
+        child: (_isGenerating || shouldHidePrompt)
             ? _buildGeneratingState()
-            : _buildFormInputs(),
+            : (_isFormExpanded
+                ? _buildFormInputs()
+                : GestureDetector(
+                    onTap: () {
+                      _toggleFormExpanded(true);
+                    },
+                    child: _buildCollapsedPrompt(),
+                  )),
       ),
     );
   }
 
+  // 폼의 높이를 계산하는 함수
+  double _calculateFormHeight() {
+    // 기본 높이 (패딩, 버튼, 간격 등)
+    double baseHeight = 600;
+
+    // Description 필드가 여러 줄일 경우 추가 높이
+    if (_DescriptionFieldController.text.length > 50) {
+      baseHeight += 40;
+    }
+
+    return baseHeight;
+  }
+
   // Form inputs widget
   Widget _buildFormInputs() {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        // Form title
-
-        // Name field
-        const SizedBox(height: 10),
-        _buildFormField('Name:', _nameFieldController, 'Steve'),
-        const SizedBox(height: 12),
-
-        // Gender field
-        _buildFormField('Gender:', _genderFieldController, 'Male'),
-        const SizedBox(height: 12),
-
-        // Age field
-        _buildFormField('Age:', _ageFieldController, '23'),
-        const SizedBox(height: 12),
-
-        // Eye Color field
-        _buildFormField('Eye Color:', _eyeColorFieldController, 'Hazel'),
-        const SizedBox(height: 12),
-
-        // Likes field
-        _buildFormField(
-            'Likes:', _likesFieldController, 'Video Games, Dogs, Music'),
-        const SizedBox(height: 30),
-
-        // Generate button
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              width: MediaQuery.of(context).size.width * 0.8,
-              height: 60,
-              decoration: BoxDecoration(
-                color: colorPalette[0],
-                borderRadius: BorderRadius.circular(30),
-                boxShadow: [
-                  BoxShadow(
-                    color: colorPalette[0].withOpacity(0.3),
-                    blurRadius: 5,
-                    spreadRadius: 1,
-                  ),
-                ],
-              ),
-              child: TextButton(
-                onPressed: () {
-                  // Combine all fields into a structured prompt
-                  final prompt =
-                      'Name: ${_nameFieldController.text.isEmpty ? "Steve" : _nameFieldController.text}\n'
-                      'Gender: ${_genderFieldController.text.isEmpty ? "Male" : _genderFieldController.text}\n'
-                      'Age: ${_ageFieldController.text.isEmpty ? "23" : _ageFieldController.text}\n'
-                      'Eye Color: ${_eyeColorFieldController.text.isEmpty ? "Hazel" : _eyeColorFieldController.text}\n'
-                      'Likes: ${_likesFieldController.text.isEmpty ? "Video Games, Dogs, Music" : _likesFieldController.text}';
-
-                  // Set the prompt controller text
-                  _promptController.text = prompt;
-
-                  // Call generate character
-                  _generateCharacter();
+    return AnimatedBuilder(
+      animation: _expandAnimation,
+      builder: (context, child) {
+        return SizedBox(
+          width: double.infinity,
+          child: FadeTransition(
+            opacity: _expandAnimation,
+            child: child,
+          ),
+        );
+      },
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              GestureDetector(
+                onTap: () {
+                  _toggleFormExpanded(false);
                 },
-                style: TextButton.styleFrom(
-                  padding: EdgeInsets.zero,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20),
+                child: Container(
+                  padding: const EdgeInsets.all(5),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.withOpacity(0.1),
+                    shape: BoxShape.circle,
                   ),
-                ),
-                child: const Text(
-                  "Generate",
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 20,
+                  child: Icon(
+                    Icons.close,
+                    size: 18,
+                    color: Theme.of(context)
+                        .textTheme
+                        .bodyMedium
+                        ?.color
+                        ?.withOpacity(0.7),
                   ),
                 ),
               ),
+            ],
+          ),
+          const SizedBox(height: 10),
+
+          // Form title
+          // Name field
+          const SizedBox(height: 10),
+          _buildFormField('Name:', _nameFieldController, 'Steve'),
+          const SizedBox(height: 12),
+
+          // Gender field
+          _buildFormField('Gender:', _genderFieldController, 'Male'),
+          const SizedBox(height: 12),
+
+          // Age field
+          _buildFormField('Age:', _ageFieldController, '23'),
+          const SizedBox(height: 12),
+
+          // Celebrity field
+          _buildFormField('Celebrity:', _eyeColorFieldController, 'Yes / No'),
+          const SizedBox(height: 12),
+
+          // Description field
+          _buildFormField('Description:', _DescriptionFieldController,
+              'Describe your character\'s interests, hobbies, or personality'),
+          const SizedBox(height: 30),
+
+          // Generate button
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                width: MediaQuery.of(context).size.width * 0.8,
+                height: 60,
+                decoration: BoxDecoration(
+                  color: colorPalette[0],
+                  borderRadius: BorderRadius.circular(30),
+                  boxShadow: [
+                    BoxShadow(
+                      color: colorPalette[0].withOpacity(0.3),
+                      blurRadius: 5,
+                      spreadRadius: 1,
+                    ),
+                  ],
+                ),
+                child: TextButton(
+                  onPressed: () {
+                    // Combine all fields into a structured prompt
+                    final prompt =
+                        'Name: ${_nameFieldController.text.isEmpty ? "Steve" : _nameFieldController.text}\n'
+                        'Gender: ${_genderFieldController.text.isEmpty ? "Male" : _genderFieldController.text}\n'
+                        'Age: ${_ageFieldController.text.isEmpty ? "23" : _ageFieldController.text}\n'
+                        'Celebrity: ${_eyeColorFieldController.text.isEmpty ? "Yes / No" : _eyeColorFieldController.text}\n'
+                        'Description: ${_DescriptionFieldController.text.isEmpty ? "Video Games, Dogs, Music" : _DescriptionFieldController.text}';
+
+                    // Set the prompt controller text
+                    _promptController.text = prompt;
+
+                    // Call generate character
+                    _generateCharacter();
+
+                    // Reverse the animation
+                    _expandController.reverse(from: 1.0);
+                  },
+                  style: TextButton.styleFrom(
+                    padding: EdgeInsets.zero,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(30),
+                    ),
+                  ),
+                  child: const Text(
+                    "Generate",
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 20,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+        ],
+      ),
+    );
+  }
+
+  // Collapsed prompt state (tap to start input)
+  Widget _buildCollapsedPrompt() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Expanded(
+          child: Center(
+            child: Text(
+              "Tap to create your AI character...",
+              style: TextStyle(
+                color: Theme.of(context)
+                    .textTheme
+                    .bodyMedium
+                    ?.color
+                    ?.withOpacity(0.7),
+                fontStyle: FontStyle.italic,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
-          ],
+          ),
         ),
-        const SizedBox(height: 12),
       ],
     );
+  }
+
+  void _toggleFormExpanded(bool expanded) {
+    setState(() {
+      _isFormExpanded = expanded;
+      if (expanded) {
+        _expandController.forward(from: 0.0);
+      } else {
+        _expandController.reverse(from: 1.0);
+      }
+    });
   }
 
   // Helper method to build form fields
   Widget _buildFormField(
       String label, TextEditingController controller, String hintText) {
-    // Determine if this is the Likes field (which should be multi-line)
-    bool isLikesField = label == 'Likes:';
+    // Determine if this is the Description field (which should be multi-line)
+    bool isDescriptionField = label == 'Description:';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1001,7 +1162,7 @@ class _AICharacterSelectionScreenState extends State<AICharacterSelectionScreen>
         const SizedBox(height: 4),
         // Input field
         Container(
-          height: isLikesField ? 60 : 40,
+          height: isDescriptionField ? 60 : 40,
           decoration: BoxDecoration(
             color: Theme.of(context).brightness == Brightness.dark
                 ? Colors.grey.shade700.withOpacity(0.3)
@@ -1016,8 +1177,8 @@ class _AICharacterSelectionScreenState extends State<AICharacterSelectionScreen>
           ),
           child: TextField(
             controller: controller,
-            maxLines: isLikesField ? 2 : 1,
-            minLines: isLikesField ? 2 : 1,
+            maxLines: isDescriptionField ? 2 : 1,
+            minLines: isDescriptionField ? 2 : 1,
             style: const TextStyle(fontSize: 14),
             decoration: InputDecoration(
               hintText: hintText,
@@ -1043,118 +1204,126 @@ class _AICharacterSelectionScreenState extends State<AICharacterSelectionScreen>
             .isNotEmpty;
     bool hasError = _errorMessage != null;
 
-    // 사용자 입력 정보를 가져옵니다
     String userInputSummary = '';
     if (_nameFieldController.text.isNotEmpty) {
-      userInputSummary += 'Name: ${_nameFieldController.text}, ';
+      userInputSummary += '${_nameFieldController.text}, ';
     }
     if (_genderFieldController.text.isNotEmpty) {
-      userInputSummary += 'Gender: ${_genderFieldController.text}, ';
+      userInputSummary += '${_genderFieldController.text}, ';
     }
     if (_ageFieldController.text.isNotEmpty) {
-      userInputSummary += 'Age: ${_ageFieldController.text}, ';
+      userInputSummary += '${_ageFieldController.text}, ';
     }
     if (_eyeColorFieldController.text.isNotEmpty) {
-      userInputSummary += 'Eye: ${_eyeColorFieldController.text}, ';
+      userInputSummary += '${_eyeColorFieldController.text}, ';
     }
-    if (_likesFieldController.text.isNotEmpty) {
-      userInputSummary += 'Likes: ${_likesFieldController.text}';
+    if (_DescriptionFieldController.text.isNotEmpty) {
+      userInputSummary += _DescriptionFieldController.text;
     }
-
-    // 마지막 쉼표 제거
     if (userInputSummary.endsWith(', ')) {
       userInputSummary =
           userInputSummary.substring(0, userInputSummary.length - 2);
     }
 
-    return Row(
-      children: [
-        // Loading indicator or tap icon
-        Container(
-          width: 40,
-          height: 40,
-          decoration: const BoxDecoration(
-            color: Colors.transparent,
-            shape: BoxShape.circle,
-          ),
-          child: Center(
-            child: hasGeneratedCharacter
-                ? Icon(
-                    Icons.touch_app,
-                    color: colorPalette[0],
-                    size: 20,
-                  )
-                : hasError
-                    ? const Icon(
-                        Icons.error_outline,
-                        color: Colors.redAccent,
-                        size: 20,
-                      )
-                    : SizedBox(
-                        width: 24,
-                        height: 24,
-                        child: ShaderMask(
-                          shaderCallback: (Rect bounds) {
-                            return LinearGradient(
-                              colors: [
-                                colorPalette[0],
-                                colorPalette[1],
-                              ],
-                            ).createShader(bounds);
-                          },
-                          child: const CircularProgressIndicator(
-                            strokeWidth: 2.5,
+    return GestureDetector(
+      onTap: () {
+        if (hasGeneratedCharacter || hasError) {
+          setState(() {
+            _isGenerating = false;
+          });
+          _toggleFormExpanded(true);
+        }
+      },
+      child: Row(
+        children: [
+          // Loading indicator or tap icon
+          Container(
+            width: 40,
+            height: 40,
+            decoration: const BoxDecoration(
+              color: Colors.transparent,
+              shape: BoxShape.circle,
+            ),
+            child: Center(
+              child: hasGeneratedCharacter
+                  ? Icon(
+                      Icons.edit,
+                      color: colorPalette[0],
+                      size: 20,
+                    )
+                  : hasError
+                      ? const Icon(
+                          Icons.error_outline,
+                          color: Colors.redAccent,
+                          size: 20,
+                        )
+                      : SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: ShaderMask(
+                            shaderCallback: (Rect bounds) {
+                              return LinearGradient(
+                                colors: [
+                                  colorPalette[0],
+                                  colorPalette[1],
+                                ],
+                              ).createShader(bounds);
+                            },
+                            child: const CircularProgressIndicator(
+                              strokeWidth: 2.5,
+                            ),
                           ),
                         ),
-                      ),
-          ),
-        ),
-        const SizedBox(width: 15),
-
-        // Faded prompt text or tap hint
-        Expanded(
-          child: AnimatedOpacity(
-            opacity: 0.7,
-            duration: const Duration(milliseconds: 500),
-            child: Text(
-              hasError
-                  ? "Error: ${_errorMessage?.replaceAll('Error: ', '')}"
-                  : hasGeneratedCharacter
-                      ? "Tap to edit character details"
-                      : userInputSummary.isNotEmpty
-                          ? userInputSummary
-                          : "Generating your character...",
-              style: TextStyle(
-                color: hasError
-                    ? Colors.redAccent
-                    : Theme.of(context).textTheme.bodyMedium?.color,
-                fontStyle: FontStyle.italic,
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
             ),
           ),
-        ),
+          const SizedBox(width: 15),
 
-        // Retry button (visible when error occurs or loading completes)
-        if (_errorMessage != null || hasGeneratedCharacter)
-          TextButton(
-            onPressed: () {
-              setState(() {
-                _isGenerating = false;
-                _errorMessage = null;
-              });
-            },
-            child: Text(
-              "Retry",
-              style: TextStyle(
-                color: colorPalette[0],
-                fontWeight: FontWeight.bold,
-                fontSize: 14,
+          // Faded prompt text or tap hint
+          Expanded(
+            child: AnimatedOpacity(
+              opacity: 0.7,
+              duration: const Duration(milliseconds: 500),
+              child: Text(
+                hasError
+                    ? "Error: ${_errorMessage?.replaceAll('Error: ', '')}"
+                    : hasGeneratedCharacter
+                        ? "Tap to edit character details"
+                        : userInputSummary.isNotEmpty
+                            ? userInputSummary
+                            : "Generating your character...",
+                style: TextStyle(
+                  color: hasError
+                      ? Colors.redAccent
+                      : Theme.of(context).textTheme.bodyMedium?.color,
+                  fontStyle: FontStyle.italic,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
             ),
           ),
-      ],
+
+          // Retry button (visible when error occurs or loading completes)
+          if (_errorMessage != null || hasGeneratedCharacter)
+            TextButton(
+              onPressed: () {
+                setState(() {
+                  _isGenerating = false;
+                  _errorMessage = null;
+                });
+                _toggleFormExpanded(true);
+              },
+              child: Text(
+                _errorMessage != null ? "Retry" : "Edit",
+                style: TextStyle(
+                  color: colorPalette[0],
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                ),
+              ),
+            ),
+        ],
+      ),
     );
   }
 
