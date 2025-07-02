@@ -900,7 +900,7 @@ class _PostCardState extends State<PostCard> {
         } else if (value == "dont_show") {
           // Show reason input dialog for user
           _showReportUserDialog(context);
-        } 
+        }
         // Temporarily commented out - tipping feature disabled
         // else if (value == "tip") {
         //   // Show tip dialog
@@ -2349,7 +2349,7 @@ class _DynamicPageViewState extends State<_DynamicPageView> {
                     // Use a cached aspect ratio if available, otherwise default to 16:9.
                     // This helps prevent the layout from jumping when the video loads.
                     double aspectRatio =
-                        _cachedVideoAspectRatios[videoUrl] ?? 16 / 9;
+                        _cachedVideoAspectRatios[videoUrl] ?? 9 / 16;
                     double calculatedHeight = width / aspectRatio;
 
                     // Set the height for the current page in the PageView.

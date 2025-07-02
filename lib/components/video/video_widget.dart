@@ -111,10 +111,11 @@ class _VideoWidgetState extends State<VideoWidget> with WidgetsBindingObserver {
   // Subscription to mute state changes
   StreamSubscription? _muteSubscription;
   StreamSubscription? _positionSubscription;
-  
+
   // Video tracking variables
   bool _hasTrackedCompletion = false;
-  final Set<int> _trackedProgressMilestones = {}; // Track 25%, 50%, 75% milestones
+  final Set<int> _trackedProgressMilestones =
+      {}; // Track 25%, 50%, 75% milestones
   DateTime? _videoStartTime;
   Duration _totalWatchTime = Duration.zero;
   Duration _lastPosition = Duration.zero;
@@ -304,11 +305,12 @@ class _VideoWidgetState extends State<VideoWidget> with WidgetsBindingObserver {
       });
 
       // 비디오 위치 업데이트를 통해 크기 정보를 더 빠르게 확인
-      _positionSubscription = _mediaKitPlayer!.stream.position.listen((position) {
+      _positionSubscription =
+          _mediaKitPlayer!.stream.position.listen((position) {
         if (mounted) {
           // Update watch time tracking
           _updateWatchTime(position);
-          
+
           final videoWidth = _mediaKitPlayer!.state.width?.toDouble();
           final videoHeight = _mediaKitPlayer!.state.height?.toDouble();
 
@@ -337,7 +339,7 @@ class _VideoWidgetState extends State<VideoWidget> with WidgetsBindingObserver {
               debugPrint('Player cached for URL: ${widget.videoUrl}');
             }
           }
-          
+
           // Track video progress and completion
           _trackVideoProgress(position);
         }
@@ -369,7 +371,7 @@ class _VideoWidgetState extends State<VideoWidget> with WidgetsBindingObserver {
       await _mediaKitPlayer!.setRate(1.0);
 
       debugPrint('MediaKit Player opened successfully');
-      
+
       // Enable autoplay - start playing automatically when initialized
       _mediaKitPlayer!.play();
 
@@ -410,7 +412,7 @@ class _VideoWidgetState extends State<VideoWidget> with WidgetsBindingObserver {
   @override
   Widget build(BuildContext context) {
     // Calculate aspect ratio from the player state
-    double aspectRatio = 16 / 9; // Default aspect ratio
+    double aspectRatio = 9 / 16; // Default aspect ratio
 
     if (_mediaKitPlayer != null) {
       final videoWidth = _mediaKitPlayer!.state.width?.toDouble();
@@ -791,7 +793,8 @@ class _VideoWidgetState extends State<VideoWidget> with WidgetsBindingObserver {
     return VisibilityDetector(
       key: Key('video-${widget.videoUrl}'),
       onVisibilityChanged: (visibilityInfo) {
-        final isVisible = visibilityInfo.visibleFraction > 0.5; // Increased threshold for better UX
+        final isVisible = visibilityInfo.visibleFraction >
+            0.5; // Increased threshold for better UX
         if (_isVisible != isVisible) {
           _isVisible = isVisible;
           if (_mediaKitPlayer != null && _isInitialized) {
@@ -908,13 +911,13 @@ class _VideoWidgetState extends State<VideoWidget> with WidgetsBindingObserver {
   }
 
   // ==================== VIDEO TRACKING METHODS ====================
-  
+
   void _updateWatchTime(Duration currentPosition) {
     final currentTime = DateTime.now();
-    
+
     // Initialize video start time if not set
     _videoStartTime ??= currentTime;
-    
+
     // Calculate time difference since last position update
     if (_lastPosition != Duration.zero) {
       final timeDiff = currentPosition - _lastPosition;
@@ -923,51 +926,56 @@ class _VideoWidgetState extends State<VideoWidget> with WidgetsBindingObserver {
         _totalWatchTime += timeDiff;
       }
     }
-    
+
     _lastPosition = currentPosition;
   }
-  
+
   void _trackVideoProgress(Duration currentPosition) {
     if (_mediaKitPlayer == null || widget.postId == null) return;
-    
+
     final duration = _mediaKitPlayer!.state.duration;
     if (duration.inSeconds <= 0) return;
-    
+
     final userId = AppsFlyerService().getCurrentUserId();
     if (userId == null) return;
-    
+
     // Calculate watch percentage
-    final watchPercent = (currentPosition.inMilliseconds / duration.inMilliseconds) * 100;
-    
+    final watchPercent =
+        (currentPosition.inMilliseconds / duration.inMilliseconds) * 100;
+
     // Track progress milestones (25%, 50%, 75%)
     const milestone25 = 25;
     const milestone50 = 50;
     const milestone75 = 75;
     const milestone95 = 95;
-    
-    if (watchPercent >= milestone25 && !_trackedProgressMilestones.contains(milestone25)) {
+
+    if (watchPercent >= milestone25 &&
+        !_trackedProgressMilestones.contains(milestone25)) {
       _trackedProgressMilestones.add(milestone25);
       _trackVideoMilestone(userId, currentPosition, duration, milestone25);
     }
-    
-    if (watchPercent >= milestone50 && !_trackedProgressMilestones.contains(milestone50)) {
+
+    if (watchPercent >= milestone50 &&
+        !_trackedProgressMilestones.contains(milestone50)) {
       _trackedProgressMilestones.add(milestone50);
       _trackVideoMilestone(userId, currentPosition, duration, milestone50);
     }
-    
-    if (watchPercent >= milestone75 && !_trackedProgressMilestones.contains(milestone75)) {
+
+    if (watchPercent >= milestone75 &&
+        !_trackedProgressMilestones.contains(milestone75)) {
       _trackedProgressMilestones.add(milestone75);
       _trackVideoMilestone(userId, currentPosition, duration, milestone75);
     }
-    
+
     // Track completion at 95%
     if (watchPercent >= milestone95 && !_hasTrackedCompletion) {
       _hasTrackedCompletion = true;
       _trackVideoCompletion(userId, currentPosition, duration, true);
     }
   }
-  
-  void _trackVideoMilestone(String userId, Duration currentPosition, Duration duration, int milestone) {
+
+  void _trackVideoMilestone(String userId, Duration currentPosition,
+      Duration duration, int milestone) {
     AppsFlyerService().trackVideoCompletion(
       postId: widget.postId!,
       userId: userId,
@@ -975,13 +983,15 @@ class _VideoWidgetState extends State<VideoWidget> with WidgetsBindingObserver {
       durationSeconds: duration.inSeconds,
       completed: false,
     );
-    
+
     debugPrint('Video $milestone% milestone reached for ${widget.postId}');
   }
-  
-  void _trackVideoCompletion(String userId, Duration currentPosition, Duration duration, bool completed) {
-    final watchPercent = (currentPosition.inMilliseconds / duration.inMilliseconds) * 100;
-    
+
+  void _trackVideoCompletion(String userId, Duration currentPosition,
+      Duration duration, bool completed) {
+    final watchPercent =
+        (currentPosition.inMilliseconds / duration.inMilliseconds) * 100;
+
     AppsFlyerService().trackVideoCompletion(
       postId: widget.postId!,
       userId: userId,
@@ -989,17 +999,18 @@ class _VideoWidgetState extends State<VideoWidget> with WidgetsBindingObserver {
       durationSeconds: duration.inSeconds,
       completed: completed,
     );
-    
-    debugPrint('Video completion tracked: ${watchPercent.toStringAsFixed(1)}% for ${widget.postId}');
+
+    debugPrint(
+        'Video completion tracked: ${watchPercent.toStringAsFixed(1)}% for ${widget.postId}');
   }
-  
+
   // Track video engagement when user starts playing
   void _trackVideoStart() {
     if (widget.postId == null) return;
-    
+
     final userId = AppsFlyerService().getCurrentUserId();
     if (userId == null) return;
-    
+
     AppsFlyerService().logEvent('video_start', {
       'post_id': widget.postId!,
       'user_id': userId,
@@ -1008,23 +1019,24 @@ class _VideoWidgetState extends State<VideoWidget> with WidgetsBindingObserver {
       'author_id': widget.authorId,
       'timestamp': DateTime.now().millisecondsSinceEpoch,
     });
-    
+
     debugPrint('Video start tracked for ${widget.postId}');
   }
-  
+
   // Track video pause
   void _trackVideoPause() {
     if (widget.postId == null) return;
-    
+
     final userId = AppsFlyerService().getCurrentUserId();
     if (userId == null) return;
-    
+
     final currentPosition = _mediaKitPlayer?.state.position ?? Duration.zero;
     final duration = _mediaKitPlayer?.state.duration ?? Duration.zero;
-    
+
     if (duration.inSeconds > 0) {
-      final watchPercent = (currentPosition.inMilliseconds / duration.inMilliseconds) * 100;
-      
+      final watchPercent =
+          (currentPosition.inMilliseconds / duration.inMilliseconds) * 100;
+
       AppsFlyerService().logEvent('video_pause', {
         'post_id': widget.postId!,
         'user_id': userId,
@@ -1036,8 +1048,9 @@ class _VideoWidgetState extends State<VideoWidget> with WidgetsBindingObserver {
         'author_id': widget.authorId,
         'timestamp': DateTime.now().millisecondsSinceEpoch,
       });
-      
-      debugPrint('Video pause tracked at ${watchPercent.toStringAsFixed(1)}% for ${widget.postId}');
+
+      debugPrint(
+          'Video pause tracked at ${watchPercent.toStringAsFixed(1)}% for ${widget.postId}');
     }
   }
 }
