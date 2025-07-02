@@ -114,15 +114,19 @@ class _CustomAppBarState extends State<CustomAppBar> {
                       onTap: () {
                         showPopover(
                           context: context,
-                          bodyBuilder: (context) => const Center(
-                            child: Text('hellow'),
+                          bodyBuilder: (context) => const Padding(
+                            padding: EdgeInsets.all(8.0),
+                            child: Center(
+                              child: Text(
+                                  'Enjoy a personalized mix of videos, photos, and text content selected just for you. Tap AI icons in the carousel or story strip to spark a new real-time chat with your favorite personas.'),
+                            ),
                           ),
                           onPop: () => print('Popover was popped!'),
                           direction: PopoverDirection.bottom,
                           arrowDyOffset: -20,
                           arrowDxOffset: -73,
-                          width: 200,
-                          height: 100,
+                          width: 270,
+                          height: 130,
                           arrowHeight: 15,
                           arrowWidth: 30,
                           backgroundColor: Theme.of(context).cardColor,
@@ -157,15 +161,19 @@ class _CustomAppBarState extends State<CustomAppBar> {
                       onTap: () {
                         showPopover(
                           context: context,
-                          bodyBuilder: (context) => const Center(
-                            child: Text('hellow'),
+                          bodyBuilder: (context) => const Padding(
+                            padding: EdgeInsets.all(8.0),
+                            child: Center(
+                              child: Text(
+                                  'Dive into live rooms on sports, movies, reality TV, music, fantasy, and more. Debate live games with pro athletes, dissect tonight’s episode with the stars, or throw down your hottest “who’s the GOAT” take.'),
+                            ),
                           ),
                           onPop: () => print('Popover was popped!'),
                           direction: PopoverDirection.bottom,
                           arrowDyOffset: -20,
-                          arrowDxOffset: -73,
-                          width: 200,
-                          height: 100,
+                          arrowDxOffset: -70,
+                          width: 270,
+                          height: 133,
                           arrowHeight: 15,
                           arrowWidth: 30,
                           backgroundColor: Theme.of(context).cardColor,
