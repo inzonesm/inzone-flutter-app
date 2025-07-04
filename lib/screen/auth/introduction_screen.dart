@@ -340,7 +340,6 @@ class _IntroductionScreenState extends State<IntroductionScreen> {
     );
   }
 }
-
 /*
     String licenseAgreement = '''
 Introduction
