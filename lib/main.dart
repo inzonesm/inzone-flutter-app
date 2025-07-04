@@ -152,12 +152,17 @@ class _MyAppState extends State<MyApp> {
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       FlutterNativeSplash.remove();
-      final currentUser = FirebaseAuth.instance.currentUser;
-      if (currentUser != null) {
-        AppRouter.setInitialRoute(Routes.home);
-      } else {
-        AppRouter.setInitialRoute(Routes.login);
-      }
+
+      // 테스트를 위해 onboarding 화면으로 이동
+      AppRouter.setInitialRoute(Routes.onboarding);
+
+      // 원래 코드 (테스트 후 주석 해제)
+      // final currentUser = FirebaseAuth.instance.currentUser;
+      // if (currentUser != null) {
+      //   AppRouter.setInitialRoute(Routes.home);
+      // } else {
+      //   AppRouter.setInitialRoute(Routes.login);
+      // }
     });
   }
 

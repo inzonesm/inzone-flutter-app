@@ -37,6 +37,8 @@ import 'package:inzone/screen/3d_model/3d_model_select_screen.dart';
 import 'package:inzone/screen/3d_model/3d_model_intro.dart';
 import 'package:inzone/screen/settings/unity_webview_screen.dart';
 import 'package:inzone/components/cards/tip_screen.dart';
+// Onboarding screens
+import 'package:inzone/screen/onboarding/onboardinScreen.dart';
 
 // Models
 import 'package:inzone/data/group_data.dart';
@@ -113,13 +115,24 @@ class AppRouter {
               state.matchedLocation.startsWith('/auth/interests');
       final bool isAuthScreen = state.matchedLocation.contains('/auth/');
 
+      // 온보딩 화면 접근 허용
+      final bool isOnboardingScreen =
+          state.matchedLocation.startsWith('/onboarding');
+
       print("GoRouter redirect - Current location: ${state.matchedLocation}");
       print("GoRouter redirect - Profile completed: $isProfileCompleted");
       print("GoRouter redirect - Auth screen: $isAuthScreen");
+      print("GoRouter redirect - Onboarding screen: $isOnboardingScreen");
 
       // Don't redirect while still loading
       if (isLoading) {
         print("GoRouter redirect - Still loading, no redirect");
+        return null;
+      }
+
+      // 온보딩 화면은 로그인 여부와 상관없이 접근 허용
+      if (isOnboardingScreen) {
+        print("GoRouter redirect - Allowing access to onboarding screen");
         return null;
       }
 
@@ -575,6 +588,19 @@ class AppRouter {
             key: state.pageKey,
             fullscreenDialog: true,
             child: const UnityWebviewScreen(),
+          );
+        },
+      ),
+
+      // 🚀 Onboarding Routes
+      GoRoute(
+        path: Routes.onboarding,
+        parentNavigatorKey: rootNavigatorKey,
+        pageBuilder: (context, state) {
+          return CupertinoPage(
+            key: state.pageKey,
+            fullscreenDialog: true,
+            child: const OnboardPage(),
           );
         },
       ),

@@ -7,6 +7,14 @@ class Routes {
   static const String profile = '/auth/profile';
   static const String interests = '/auth/interests';
 
+  // Onboarding routes
+  static const String onboarding = '/onboarding';
+  static const String onboardingHome = '/onboarding/home';
+  static const String onboardingGroupChat = '/onboarding/group-chat';
+  static const String onboardingMessage = '/onboarding/message';
+  static const String onboardingPost = '/onboarding/post';
+  static const String onboardingAICreate = '/onboarding/ai-create';
+
   // Main app routes
   static const String home = '/home';
   static const String groups = '/groups';
