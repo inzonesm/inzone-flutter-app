@@ -172,6 +172,12 @@ class AppRouter {
     // Handle redirects
     redirectLimit: 5,
     routes: [
+      // 🚀 Onboarding route
+      GoRoute(
+        path: Routes.onboarding,
+        builder: (context, state) => const OnboardPage(),
+      ),
+
       // 🚀 Auth and splash routes
       GoRoute(
         path: Routes.splash,

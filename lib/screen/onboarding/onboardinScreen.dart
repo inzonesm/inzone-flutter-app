@@ -1,8 +1,7 @@
 // main onboarding page with animated background
-import 'package:device_frame/device_frame.dart';
 import 'package:flutter/material.dart';
 import 'package:inzone/router/routes.dart';
-import 'package:inzone/screen/auth/introduction_screen.dart';
+import 'package:go_router/go_router.dart';
 
 class OnboardPage extends StatefulWidget {
   const OnboardPage({super.key});
@@ -89,20 +88,8 @@ class _OnboardPageState extends State<OnboardPage>
         _isNavigating = true;
       });
 
-      // Navigate with a smooth transition
-      Navigator.of(context).push(
-        PageRouteBuilder(
-          pageBuilder: (context, animation, secondaryAnimation) =>
-              const IntroductionScreen(),
-          transitionsBuilder: (context, animation, secondaryAnimation, child) {
-            return FadeTransition(
-              opacity: animation,
-              child: child,
-            );
-          },
-          transitionDuration: const Duration(milliseconds: 500),
-        ),
-      );
+      // Navigate using GoRouter for consistency with the rest of the app
+      GoRouter.of(context).go(Routes.login);
     }
   }
 
@@ -256,14 +243,29 @@ class _OnboardPageState extends State<OnboardPage>
               child: Center(
                 child: SizedBox(
                   width: 350,
-                  child: DeviceFrame(
-                    device: Devices.ios.iPhone15Pro,
-                    isFrameVisible: true,
-                    orientation: Orientation.portrait,
-                    screen: FadeTransition(
-                      opacity: _fadeAnimation,
-                      child: _getScreenImage(
-                          _screenKeys[_currentPage], isDarkMode),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(30),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        border: Border.all(
+                          color: isDarkMode
+                              ? Colors.grey[800]!
+                              : Colors.grey[300]!,
+                          width: 10,
+                        ),
+                        borderRadius: BorderRadius.circular(30),
+                      ),
+                      child: AspectRatio(
+                        aspectRatio: 9 / 19.5,
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(20),
+                          child: FadeTransition(
+                            opacity: _fadeAnimation,
+                            child: _getScreenImage(
+                                _screenKeys[_currentPage], isDarkMode),
+                          ),
+                        ),
+                      ),
                     ),
                   ),
                 ),

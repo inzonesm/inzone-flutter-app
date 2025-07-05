@@ -14,6 +14,7 @@ import 'package:purchases_flutter/models/store_transaction.dart'
 import 'package:purchases_flutter/purchases_flutter.dart' show Purchases;
 import 'package:purchases_ui_flutter/purchases_ui_flutter.dart';
 import 'package:inzone/services/monetization_service.dart';
+import 'package:inzone/services/auth_service.dart';
 
 class SettingsScreen extends StatelessWidget {
   SettingsScreen({super.key});
@@ -374,8 +375,8 @@ class SettingsScreen extends StatelessWidget {
       () {
         try {
           Purchases.logOut();
-          FirebaseAuth.instance.signOut().then((value) {
-            GoRouter.of(context).go(Routes.login);
+          AuthService().signOut().then((_) {
+            GoRouter.of(context).go(Routes.onboarding);
             ToastService.showToast(
               context,
               backgroundColor: Theme.of(context).canvasColor,
