@@ -34,7 +34,8 @@ class RepostCard extends StatefulWidget {
   State<RepostCard> createState() => _RepostCardState();
 }
 
-class _RepostCardState extends State<RepostCard> {
+class _RepostCardState extends State<RepostCard>
+    with AutomaticKeepAliveClientMixin {
   bool imageSuccess = false;
 
   bool isLiked = false;
@@ -42,6 +43,9 @@ class _RepostCardState extends State<RepostCard> {
 
   String username = '';
   CommentClass? comment;
+
+  @override
+  bool get wantKeepAlive => true;
 
   @override
   void initState() {
@@ -60,6 +64,7 @@ class _RepostCardState extends State<RepostCard> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context); // Required for AutomaticKeepAliveClientMixin
     return GestureDetector(
       onTap: () {
         // Navigator.push(context, MaterialPageRoute(builder: (context)=>MeScreen()));

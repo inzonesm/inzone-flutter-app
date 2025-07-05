@@ -841,6 +841,7 @@ class HomeScreenState extends State<HomeScreen> {
                           // If within range, build the post widget
                           if (index < totalItemsWithAds) {
                             return Padding(
+                              key: ValueKey('post_$index'),
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 16.0, vertical: 0),
                               child: _buildPostWidget(null, index),
