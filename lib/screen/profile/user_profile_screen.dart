@@ -255,21 +255,23 @@ class _UserProfileScreenState extends State<UserProfileScreen>
         }
       }
 
-      setState(() {
-        name = userProfile["name"] ?? userProfile["Name"] ?? "Unknown";
-        username =
-            userProfile["username"] ?? userProfile["Username"] ?? "Unknown";
-        bio = userProfile["bio"] ?? userProfile["Bio"] ?? "";
-        profileImageUrl = userProfile["profilePicture"] ??
-            userProfile["ProfilePicture"] ??
-            "";
-        followersCount = followers.length;
-        followingCount = following.length;
-        _communityTabData = {
-          "followers": formattedFollowers,
-          "following": formattedFollowing,
-        };
-      });
+      if (mounted) {
+        setState(() {
+          name = userProfile["name"] ?? userProfile["Name"] ?? "Unknown";
+          username =
+              userProfile["username"] ?? userProfile["Username"] ?? "Unknown";
+          bio = userProfile["bio"] ?? userProfile["Bio"] ?? "";
+          profileImageUrl = userProfile["profilePicture"] ??
+              userProfile["ProfilePicture"] ??
+              "";
+          followersCount = followers.length;
+          followingCount = following.length;
+          _communityTabData = {
+            "followers": formattedFollowers,
+            "following": formattedFollowing,
+          };
+        });
+      }
     } else {
       setState(() {
         isLoading = false;
@@ -293,10 +295,12 @@ class _UserProfileScreenState extends State<UserProfileScreen>
       posts = result;
     }
 
-    setState(() {
-      postCount = posts.length;
-      isLoading = false;
-    });
+    if (mounted) {
+      setState(() {
+        postCount = posts.length;
+        isLoading = false;
+      });
+    }
   }
 
   @override
