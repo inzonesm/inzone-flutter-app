@@ -60,7 +60,8 @@ class PostCard extends StatefulWidget {
   State<PostCard> createState() => _PostCardState();
 }
 
-class _PostCardState extends State<PostCard> {
+class _PostCardState extends State<PostCard>
+    with AutomaticKeepAliveClientMixin {
   bool imageSuccess = false;
 
   String username = '';
@@ -83,6 +84,11 @@ class _PostCardState extends State<PostCard> {
   final String _iosAdUnitId = 'ca-app-pub-4474122990542651~2508616366';
 
   bool isLiked = false;
+
+  // Override wantKeepAlive to keep this widget in memory when scrolled out of view
+  @override
+  bool get wantKeepAlive => true;
+
   Future<bool> isCommentPresent() async {
     DocumentReference postDocumentReference =
         _firestore.collection('postComments').doc(widget.post.id.toString());
@@ -411,6 +417,11 @@ class _PostCardState extends State<PostCard> {
   bool isCommentPresentbool = false;
   @override
   Widget build(BuildContext context) {
+    super.build(context); // Required for AutomaticKeepAliveClientMixin
+
+    final FirebaseAuth auth = FirebaseAuth.instance;
+    final String? currentUserUid = auth.currentUser?.uid;
+
     if (widget.isAd) {
       if (_nativeAdIsLoaded) {
         // If this is an ad and it's loaded, show the ad view with similar styling to regular posts
@@ -2786,31 +2797,17 @@ class _FullScreenImageViewerState extends State<_FullScreenImageViewer> {
 
     final Size screenSize = MediaQuery.of(context).size;
 
-    Widget imageWidget = Image.network(
-      widget.imageUrl,
+    Widget imageWidget = CachedNetworkImage(
+      imageUrl: widget.imageUrl,
       fit: BoxFit.contain,
-      color: null, // Remove any color overlay
-      colorBlendMode: BlendMode.srcOver, // Use default blend mode
-      filterQuality: FilterQuality.high, // Ensure high quality rendering
-      gaplessPlayback: true, // Smooth transitions between images
-      isAntiAlias: true, // Enable anti-aliasing
-      loadingBuilder: (context, child, loadingProgress) {
-        if (loadingProgress == null) return child;
-        return Center(
-          child: CircularProgressIndicator(
-            value: loadingProgress.expectedTotalBytes != null
-                ? loadingProgress.cumulativeBytesLoaded /
-                    loadingProgress.expectedTotalBytes!
-                : null,
-            color: Colors.white,
-          ),
-        );
-      },
-      errorBuilder: (context, error, stackTrace) {
-        return const Center(
-          child: Icon(Icons.broken_image, size: 64, color: Colors.white),
-        );
-      },
+      placeholder: (context, url) => const Center(
+        child: CircularProgressIndicator(
+          color: Colors.white,
+        ),
+      ),
+      errorWidget: (context, url, error) => const Center(
+        child: Icon(Icons.broken_image, size: 64, color: Colors.white),
+      ),
     );
 
     return Scaffold(

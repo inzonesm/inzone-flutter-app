@@ -362,11 +362,14 @@ class _HumanChatScreenState extends State<HumanChatScreen> {
                   }
                 });
 
-                return ListView(
+                return ListView.builder(
                   controller: _scrollController,
                   padding:
                       const EdgeInsets.symmetric(horizontal: 8, vertical: 16),
-                  children: messageWidgets,
+                  itemCount: messageWidgets.length,
+                  itemBuilder: (context, index) {
+                    return messageWidgets[index];
+                  },
                 );
               },
             ),
