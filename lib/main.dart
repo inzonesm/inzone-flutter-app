@@ -165,23 +165,25 @@ class _MyAppState extends State<MyApp> {
       // Get current user
       final currentUser = FirebaseAuth.instance.currentUser;
 
-      // Determine initial route based on first launch and login status
-      if (isFirstLaunch) {
-        // First time launching the app - show onboarding
-        // This will also happen after logout since AuthService.signOut() resets the flag
-        print("First launch - showing onboarding");
-        AppRouter.setInitialRoute(Routes.onboarding);
-
-        // Update first launch status
-        widget.prefs.setBool(FIRST_LAUNCH_KEY, false);
-      } else if (currentUser != null) {
-        // Not first launch and user is logged in - go to home
+      // Determine initial route based on login status
+      if (currentUser != null) {
+        // User is logged in - go to home
         print("User is logged in - going to home");
         AppRouter.setInitialRoute(Routes.home);
+        
+        // Update first launch status if it was the first launch
+        if (isFirstLaunch) {
+          widget.prefs.setBool(FIRST_LAUNCH_KEY, false);
+        }
       } else {
-        // Not first launch but user is not logged in - go to login
-        print("User is not logged in - going to login");
-        AppRouter.setInitialRoute(Routes.login);
+        // User is not logged in - always show onboarding
+        print("User is not logged in - showing onboarding");
+        AppRouter.setInitialRoute(Routes.onboarding);
+        
+        // Update first launch status if it was the first launch
+        if (isFirstLaunch) {
+          widget.prefs.setBool(FIRST_LAUNCH_KEY, false);
+        }
       }
     });
   }

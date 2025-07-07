@@ -70,16 +70,32 @@ class _OnboardPageState extends State<OnboardPage>
     );
   }
 
-  final Map<String, String> _header = {
-    'feed': 'Enjoy the best content online handpicked just for you.',
-    'group':
-        'Chat about live games with pro athletes, favorite movies with the stars, or throw down your hottest music takes with the artists.',
-    'msg':
-        'Amazing one-on-one chats and group conversations. Chat with your favorite personas on anything from math homework to summer plans.',
-    'post':
-        'Share your amazing content and earn real cash when other users tip your creativity.',
-    'ai':
-        'Contribute to the community by creating amazing characters and avatars.',
+  final Map<String, Map<String, dynamic>> _content = {
+    'feed': {
+      'title': 'Discover Your Feed',
+      'subtitle': 'Enjoy the best content online handpicked just for you.',
+      'highlights': ['best content', 'handpicked']
+    },
+    'group': {
+      'title': 'Join the Conversation',
+      'subtitle': 'Chat about live games with pro athletes, favorite movies with the stars, or throw down your hottest music takes with the artists.',
+      'highlights': ['pro athletes', 'stars', 'artists']
+    },
+    'msg': {
+      'title': 'Chat with Anyone',
+      'subtitle': 'Amazing one-on-one chats and group conversations. Chat with your favorite personas on anything from math homework to summer plans.',
+      'highlights': ['one-on-one chats', 'favorite personas']
+    },
+    'post': {
+      'title': 'Share & Earn',
+      'subtitle': 'Share your amazing content and earn real cash when other users tip your creativity.',
+      'highlights': ['earn real cash', 'tip your creativity']
+    },
+    'ai': {
+      'title': 'Create AI Characters',
+      'subtitle': 'Contribute to the community by creating amazing characters and avatars.',
+      'highlights': ['amazing characters', 'avatars']
+    },
   };
 
   void _navigateToIntroduction() {
@@ -124,6 +140,82 @@ class _OnboardPageState extends State<OnboardPage>
     _pageController.dispose();
     _animationController.dispose();
     super.dispose();
+  }
+
+  // Helper method to build text with highlighted keywords
+  Widget _buildHighlightedText(String text, List<String> highlights, bool isDarkMode) {
+    if (highlights.isEmpty) {
+      return Text(
+        text,
+        style: TextStyle(
+          fontSize: 16,
+          color: isDarkMode ? Colors.white70 : Colors.black87,
+          height: 1.4,
+        ),
+        textAlign: TextAlign.center,
+      );
+    }
+
+    List<TextSpan> spans = [];
+    String remainingText = text;
+    
+    while (remainingText.isNotEmpty) {
+      String? foundHighlight;
+      int earliestIndex = remainingText.length;
+      
+      // Find the earliest highlight in the remaining text
+      for (String highlight in highlights) {
+        int index = remainingText.toLowerCase().indexOf(highlight.toLowerCase());
+        if (index != -1 && index < earliestIndex) {
+          earliestIndex = index;
+          foundHighlight = highlight;
+        }
+      }
+      
+      if (foundHighlight != null && earliestIndex < remainingText.length) {
+        // Add text before the highlight
+        if (earliestIndex > 0) {
+          spans.add(TextSpan(
+            text: remainingText.substring(0, earliestIndex),
+            style: TextStyle(
+              fontSize: 16,
+              color: isDarkMode ? Colors.white70 : Colors.black87,
+              height: 1.4,
+            ),
+          ));
+        }
+        
+        // Add the highlighted text
+        spans.add(TextSpan(
+          text: remainingText.substring(earliestIndex, earliestIndex + foundHighlight.length),
+          style: TextStyle(
+            fontSize: 16,
+            color: isDarkMode ? Colors.blueAccent.shade200 : Colors.blueAccent.shade700,
+            fontWeight: FontWeight.bold,
+            height: 1.4,
+          ),
+        ));
+        
+        // Update remaining text
+        remainingText = remainingText.substring(earliestIndex + foundHighlight.length);
+      } else {
+        // No more highlights, add the rest of the text
+        spans.add(TextSpan(
+          text: remainingText,
+          style: TextStyle(
+            fontSize: 16,
+            color: isDarkMode ? Colors.white70 : Colors.black87,
+            height: 1.4,
+          ),
+        ));
+        break;
+      }
+    }
+    
+    return RichText(
+      text: TextSpan(children: spans),
+      textAlign: TextAlign.center,
+    );
   }
 
   @override
@@ -210,25 +302,43 @@ class _OnboardPageState extends State<OnboardPage>
               ),
             ),
 
-            // Animated Text
+            // Animated Text with Title and Subtitle
             Positioned(
-              top: 200,
+              top: 160,
               left: 0,
               right: 0,
-              child: SizedBox(
-                height: 100,
+              child: Container(
+                constraints: const BoxConstraints(
+                  minHeight: 120,
+                  maxHeight: 180,
+                ),
                 child: FadeTransition(
                   opacity: _fadeAnimation,
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 24),
-                    child: Text(
-                      _header[_screenKeys[_currentPage]] ?? '',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: isDarkMode ? Colors.white : Colors.black,
-                      ),
-                      textAlign: TextAlign.center,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // Title
+                        Text(
+                          _content[_screenKeys[_currentPage]]?['title'] ?? '',
+                          style: TextStyle(
+                            fontSize: 26,
+                            fontWeight: FontWeight.bold,
+                            color: isDarkMode ? Colors.white : Colors.black,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 12),
+                        // Subtitle with highlights
+                        Flexible(
+                          child: _buildHighlightedText(
+                            _content[_screenKeys[_currentPage]]?['subtitle'] ?? '',
+                            List<String>.from(_content[_screenKeys[_currentPage]]?['highlights'] ?? []),
+                            isDarkMode,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
@@ -274,7 +384,7 @@ class _OnboardPageState extends State<OnboardPage>
 
             // Page indicator dots
             Positioned(
-              top: 110,
+              top: 120,
               left: 0,
               right: 0,
               child: Row(
