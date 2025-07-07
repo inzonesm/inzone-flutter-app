@@ -427,16 +427,18 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     // Check if user has paid for the group chat
     final hasPaid = await _hasPaidForGroup();
     if (!hasPaid) {
-      ToastService.showToast(
-        context,
-        backgroundColor: Theme.of(context).canvasColor,
-        shadowColor: Colors.transparent,
-        leading: const Icon(
-          FeatherIcons.xCircle,
-          color: Colors.orange,
-        ),
-        message: 'You need to join this group before sending messages',
-      );
+      // Show a floating SnackBar informing the user they need to join first
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('You need to join this group before sending messages'),
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: Theme.of(context).colorScheme.error,
+            duration: const Duration(seconds: 2),
+            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          ),
+        );
+      }
       return;
     }
 
