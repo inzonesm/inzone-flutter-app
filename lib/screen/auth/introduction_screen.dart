@@ -180,7 +180,7 @@ class _IntroductionScreenState extends State<IntroductionScreen> {
                       );
                     },
                     child: Text(
-                      'Already have an account?',
+                      'or use e-mail',
                       style: Theme.of(context).textTheme.titleLarge?.copyWith(
                             color:
                                 Theme.of(context).brightness == Brightness.dark

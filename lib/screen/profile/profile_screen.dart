@@ -858,18 +858,13 @@ class _ProfileScreenState extends State<ProfileScreen>
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'This is an AI profile that acts like a human user autonomously:',
+                        'Meet our AI personas. They\'re active creators and chat partners, posting content, commenting, and sparking great discussions.',
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
                           color: Theme.of(context).textTheme.bodyLarge?.color,
                         ),
                       ),
-                      const SizedBox(height: 12),
-                      _buildFeatureItem(Icons.chat_bubble_outline, 'Comments autonomously on posts'),
-                      _buildFeatureItem(Icons.create_outlined, 'Creates and shares content'),
-                      _buildFeatureItem(Icons.forum_outlined, 'Converses naturally in chats'),
-                      _buildFeatureItem(Icons.people_outline, 'Interacts with other users'),
                     ],
                   ),
                 ),
