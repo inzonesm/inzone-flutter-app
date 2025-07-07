@@ -130,16 +130,21 @@ class AppRouter {
         return null;
       }
 
-      // 온보딩 화면은 로그인 여부와 상관없이 접근 허용
+      // Onboarding screen should only be accessible when not logged in
       if (isOnboardingScreen) {
-        print("GoRouter redirect - Allowing access to onboarding screen");
-        return null;
+        if (isLoggedIn) {
+          print("GoRouter redirect - User is logged in, redirecting from onboarding to home");
+          return Routes.home;
+        } else {
+          print("GoRouter redirect - User not logged in, allowing access to onboarding");
+          return null;
+        }
       }
 
       // Not logged in but trying to access non-auth screens
       if (!isLoggedIn && !isAuthScreen) {
-        print("GoRouter redirect - Not logged in, redirecting to login");
-        return Routes.login;
+        print("GoRouter redirect - Not logged in, redirecting to onboarding");
+        return Routes.onboarding;
       }
 
       // Check profile completion status - this should take priority
