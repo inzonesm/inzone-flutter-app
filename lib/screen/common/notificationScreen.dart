@@ -176,12 +176,26 @@ class _NotificationScreenState extends State<NotificationScreen> {
                         style: Theme.of(context).textTheme.bodyMedium,
                       ),
                     )
-                  : ListView(
-                      children: [
-                        _buildSection('Today', today),
-                        _buildSection('Yesterday', yesterday),
-                        _buildSection('Earlier', earlier),
-                      ],
+                  : ListView.builder(
+                      itemCount: 3, // Three sections: Today, Yesterday, Earlier
+                      itemBuilder: (context, index) {
+                        switch (index) {
+                          case 0:
+                            return today.isEmpty
+                                ? const SizedBox.shrink()
+                                : _buildSection('Today', today);
+                          case 1:
+                            return yesterday.isEmpty
+                                ? const SizedBox.shrink()
+                                : _buildSection('Yesterday', yesterday);
+                          case 2:
+                            return earlier.isEmpty
+                                ? const SizedBox.shrink()
+                                : _buildSection('Earlier', earlier);
+                          default:
+                            return const SizedBox.shrink();
+                        }
+                      },
                     ),
             ),
           ],

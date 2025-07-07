@@ -221,19 +221,23 @@ class _AllChatsScreenState extends State<AllChatsScreen>
       });
     } catch (e) {
       print('Error fetching conversations: $e');
-      setState(() {
-        _isLoading = false;
-      });
-      ToastService.showToast(
-        context,
-        backgroundColor: Theme.of(context).canvasColor,
-        shadowColor: Colors.transparent,
-        leading: const Icon(
-          Icons.error, // or Icons.check_circle, Icons.warning, etc.
-          color: Colors.redAccent, // or Colors.greenAccent, Colors.orange
-        ),
-        message: 'Error loading conversations: $e',
-      );
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+      if (mounted) {
+        ToastService.showToast(
+          context,
+          backgroundColor: Theme.of(context).canvasColor,
+          shadowColor: Colors.transparent,
+          leading: const Icon(
+            Icons.error, // or Icons.check_circle, Icons.warning, etc.
+            color: Colors.redAccent, // or Colors.greenAccent, Colors.orange
+          ),
+          message: 'Error loading conversations: $e',
+        );
+      }
     }
   }
 

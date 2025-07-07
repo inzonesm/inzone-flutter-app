@@ -21,6 +21,9 @@ import 'package:inzone/router/routes.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:app_tracking_transparency/app_tracking_transparency.dart';
 
+// Key for storing first launch status in SharedPreferences
+const String FIRST_LAUNCH_KEY = 'is_first_launch';
+
 Future<void> validateFirebaseSession() async {
   final user = FirebaseAuth.instance.currentUser;
 
@@ -98,7 +101,8 @@ void main() async {
   // Initialize AdMob with test device configuration
   MobileAds.instance.initialize();
 
-  // SharedPreferences prefs = await SharedPreferences.getInstance();
+  // Initialize SharedPreferences
+  SharedPreferences prefs = await SharedPreferences.getInstance();
 
   // prefs.clear();
 
@@ -132,14 +136,16 @@ void main() async {
     runApp(
       ChangeNotifierProvider(
         create: (_) => ThemeManager(),
-        child: const MyApp(),
+        child: MyApp(prefs: prefs),
       ),
     );
   });
 }
 
 class MyApp extends StatefulWidget {
-  const MyApp({super.key});
+  final SharedPreferences prefs;
+
+  const MyApp({super.key, required this.prefs});
 
   @override
   State<MyApp> createState() => _MyAppState();
@@ -152,10 +158,29 @@ class _MyAppState extends State<MyApp> {
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       FlutterNativeSplash.remove();
+
+      // Check if this is the first launch
+      bool isFirstLaunch = widget.prefs.getBool(FIRST_LAUNCH_KEY) ?? true;
+
+      // Get current user
       final currentUser = FirebaseAuth.instance.currentUser;
-      if (currentUser != null) {
+
+      // Determine initial route based on first launch and login status
+      if (isFirstLaunch) {
+        // First time launching the app - show onboarding
+        // This will also happen after logout since AuthService.signOut() resets the flag
+        print("First launch - showing onboarding");
+        AppRouter.setInitialRoute(Routes.onboarding);
+
+        // Update first launch status
+        widget.prefs.setBool(FIRST_LAUNCH_KEY, false);
+      } else if (currentUser != null) {
+        // Not first launch and user is logged in - go to home
+        print("User is logged in - going to home");
         AppRouter.setInitialRoute(Routes.home);
       } else {
+        // Not first launch but user is not logged in - go to login
+        print("User is not logged in - going to login");
         AppRouter.setInitialRoute(Routes.login);
       }
     });
