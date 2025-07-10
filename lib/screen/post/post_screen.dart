@@ -9,7 +9,6 @@ import 'package:inzone/components/posts/shimmering.dart';
 import 'package:inzone/components/video/video_player_widget_post_screen.dart';
 import 'package:inzone/services/inzone_database.dart';
 import 'package:inzone/services/shared_preferences_helper_class.dart';
-import 'package:action_slider/action_slider.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:lottie/lottie.dart';
@@ -25,11 +24,51 @@ class PostScreen extends StatefulWidget {
 }
 
 class _PostScreenState extends State<PostScreen> {
-  List<String> characters = [
-    'Splash',
-    'Dora'
-  ]; // List of characters, empty initially
-  String? selectedCharacter;
+  List<Map<String, String>> characters = [
+    {
+      'name': 'Splash',
+      'image': 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80'
+    },
+    {
+      'name': 'Dora',
+      'image': 'https://images.unsplash.com/photo-1544725176-7c40e5a71c5e?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80'
+    },
+    {
+      'name': 'Alex',
+      'image': 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80'
+    },
+    {
+      'name': 'Maya',
+      'image': 'https://images.unsplash.com/photo-1494790108755-2616b332c10b?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80'
+    }
+  ]; // List of characters with name and image
+  Map<String, String>? selectedCharacter;
+  
+  // AI Generation state
+  bool isGenerating = false;
+  String generationStep = 'idle'; // idle, asking, generating, complete
+  List<Map<String, String>> clarifyingQuestions = [];
+  List<String> userAnswers = [];
+  String generatedPost = '';
+  TextEditingController questionController = TextEditingController();
+  TextEditingController postController = TextEditingController();
+  int currentQuestionIndex = 0;
+  
+  // Sample clarifying questions for AI generation
+  final List<Map<String, String>> sampleQuestions = [
+    {
+      'question': 'What tone would you like your character to use?',
+      'placeholder': 'E.g., casual, formal, humorous, inspiring...'
+    },
+    {
+      'question': 'What specific aspect of your topic should be emphasized?',
+      'placeholder': 'E.g., personal experience, facts, opinion...'
+    },
+    {
+      'question': 'Who is your target audience?',
+      'placeholder': 'E.g., friends, professionals, general public...'
+    }
+  ];
   bool isImageSelected = false;
   bool doesNotWork = false;
   File? imageFile;
@@ -64,39 +103,100 @@ class _PostScreenState extends State<PostScreen> {
 
   late DateTime _startTime; // To store the start time
   int pageOpened = 0;
-  void setMultipleSelected(List<String> value) {
-    setState(() => multipleSelected = value);
-  }
-
-  _pickImagefromGallery() async {
-    try {
-      final pickedImage =
-          await ImagePicker().pickImage(source: ImageSource.gallery);
-      if (pickedImage != null) {
-        setState(() {
-          imageFile = File(pickedImage.path);
-          isImageSelected = true;
-        });
-      } else {}
-    } catch (e) {}
-  }
-
-  _pickImagefromCamera() async {
-    try {
-      final pickedImage =
-          await ImagePicker().pickImage(source: ImageSource.camera);
-      if (pickedImage != null) {
-        setState(() {
-          imageFile = File(pickedImage.path);
-          isImageSelected = true;
-        });
-      } else {}
-    } catch (e) {}
-  }
 
   Future<void> _loadPreferences() async {
-    List<String>? list = await SharedPreferencesHelperClass.getStringList();
+    await SharedPreferencesHelperClass.getStringList();
     setState(() {});
+  }
+
+  // AI Generation methods
+  void _startAIGeneration() {
+    setState(() {
+      isGenerating = true;
+      generationStep = 'asking';
+      clarifyingQuestions = List.from(sampleQuestions);
+      userAnswers = [];
+      currentQuestionIndex = 0;
+      questionController.clear();
+    });
+  }
+
+  void _submitAnswer() {
+    if (questionController.text.trim().isEmpty) return;
+
+    setState(() {
+      userAnswers.add(questionController.text.trim());
+      questionController.clear();
+      
+      if (currentQuestionIndex < clarifyingQuestions.length - 1) {
+        currentQuestionIndex++;
+      } else {
+        generationStep = 'generating';
+      }
+    });
+
+    // If all questions are answered, generate the post
+    if (generationStep == 'generating') {
+      _generatePost();
+    }
+  }
+
+  void _generatePost() async {
+    // Simulate AI generation with a delay
+    await Future.delayed(const Duration(seconds: 2));
+
+    // Sample generated post based on character and user input
+    String samplePost = _createSamplePost();
+
+    setState(() {
+      generatedPost = samplePost;
+      generationStep = 'complete';
+    });
+  }
+
+  String _createSamplePost() {
+    String characterName = selectedCharacter!['name']!;
+    String originalPrompt = postContent;
+    String tone = userAnswers.isNotEmpty ? userAnswers[0] : 'casual';
+    String aspect = userAnswers.length > 1 ? userAnswers[1] : 'personal experience';
+    String audience = userAnswers.length > 2 ? userAnswers[2] : 'friends';
+
+    // Sample generated content
+    return "Hey everyone! 👋 $characterName here with some thoughts on '$originalPrompt'.\n\n"
+        "Speaking from ${aspect.toLowerCase()}, I've been thinking about this topic a lot lately. "
+        "The ${tone.toLowerCase()} way I see it is that we all have unique perspectives to share.\n\n"
+        "For those of you who are ${audience.toLowerCase()}, what's your take on this? "
+        "I'd love to hear your thoughts! 💭\n\n"
+        "#thoughts #${characterName.toLowerCase()} #community";
+  }
+
+  void _useGeneratedPost() {
+    setState(() {
+      postContent = generatedPost;
+      postController.text = generatedPost;
+      _resetAIGeneration();
+    });
+  }
+
+  void _repromptGeneration() {
+    setState(() {
+      generationStep = 'asking';
+      currentQuestionIndex = 0;
+      userAnswers = [];
+      questionController.clear();
+    });
+  }
+
+  void _resetAIGeneration() {
+    setState(() {
+      isGenerating = false;
+      generationStep = 'idle';
+      clarifyingQuestions = [];
+      userAnswers = [];
+      generatedPost = '';
+      currentQuestionIndex = 0;
+      questionController.clear();
+    });
   }
 
   @override
@@ -127,13 +227,15 @@ class _PostScreenState extends State<PostScreen> {
       color: Theme.of(context).dialogBackgroundColor,
       child: Scaffold(
         backgroundColor: Theme.of(context).dialogBackgroundColor,
-        body: Padding(
-          padding: const EdgeInsets.only(bottom: 8.0, left: 5.0, right: 5.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            mainAxisSize: MainAxisSize.max,
-            children: [
+        body: Stack(
+          children: [
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8.0, left: 5.0, right: 5.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                mainAxisSize: MainAxisSize.max,
+                children: [
               Padding(
                 padding: const EdgeInsets.only(left: 5.0, right: 15.0),
                 child: Row(
@@ -148,7 +250,69 @@ class _PostScreenState extends State<PostScreen> {
                         size: 35,
                       ),
                     ),
-                    const Spacer(),
+                    // Character indicator in header
+                    if (selectedCharacter != null)
+                      Expanded(
+                        child: Container(
+                          margin: const EdgeInsets.only(left: 10),
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).primaryColor.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: Theme.of(context).primaryColor.withOpacity(0.3),
+                              width: 1,
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Container(
+                                width: 20,
+                                height: 20,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: Theme.of(context).primaryColor,
+                                    width: 1,
+                                  ),
+                                ),
+                                child: ClipOval(
+                                  child: CachedNetworkImage(
+                                    imageUrl: selectedCharacter!['image']!,
+                                    fit: BoxFit.cover,
+                                    placeholder: (context, url) => Container(
+                                      color: Colors.grey.withOpacity(0.2),
+                                    ),
+                                    errorWidget: (context, url, error) => Container(
+                                      color: Colors.grey.withOpacity(0.2),
+                                      child: const Icon(
+                                        FeatherIcons.user,
+                                        size: 12,
+                                        color: Colors.grey,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Flexible(
+                                child: Text(
+                                  'As ${selectedCharacter!['name']}',
+                                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    fontSize: 11,
+                                    color: Theme.of(context).primaryColor,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    if (selectedCharacter == null) const Spacer(),
+                    const SizedBox(width: 10),
                     Container(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 18, vertical: 8),
@@ -260,6 +424,10 @@ class _PostScreenState extends State<PostScreen> {
                                       "Starting to create post with content: $postContent");
                                   print(
                                       "Images: ${imageUrls.length}, Videos: ${videoUrls.length}");
+                                  if (selectedCharacter != null) {
+                                    print("Posting as character: ${selectedCharacter!['name']}");
+                                    // TODO: Add character information to post when backend supports it
+                                  }
 
                                   final result =
                                       await InZoneDatabase.createHumanPost(
@@ -466,6 +634,297 @@ class _PostScreenState extends State<PostScreen> {
               //  const Divider(),
               const SizedBox(height: 15),
 
+              // Text Input Section with integrated character selection
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).brightness == Brightness.dark
+                        ? Colors.grey.shade900.withOpacity(0.3)
+                        : Colors.grey.shade50,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? Colors.grey.shade800
+                          : Colors.grey.shade200,
+                      width: 1,
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Character Selection at top of container
+                      if (characters.isNotEmpty)
+                        Container(
+                          padding: const EdgeInsets.only(top: 12, left: 12, right: 12),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Icon(
+                                    FeatherIcons.users,
+                                    size: 16,
+                                    color: Theme.of(context).hintColor,
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    'Post as',
+                                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                      fontWeight: FontWeight.w500,
+                                      color: Theme.of(context).hintColor,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                  const Spacer(),
+                                  if (selectedCharacter != null && postContent.trim().isNotEmpty)
+                                    GestureDetector(
+                                      onTap: () {
+                                        _startAIGeneration();
+                                      },
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                        decoration: BoxDecoration(
+                                          color: Theme.of(context).brightness == Brightness.dark
+                                              ? Colors.grey.shade800.withOpacity(0.5)
+                                              : Colors.grey.shade100,
+                                          borderRadius: BorderRadius.circular(8),
+                                          border: Border.all(
+                                            color: Theme.of(context).brightness == Brightness.dark
+                                                ? Colors.grey.shade700
+                                                : Colors.grey.shade300,
+                                            width: 1,
+                                          ),
+                                        ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Icon(
+                                              FeatherIcons.zap,
+                                              size: 14,
+                                              color: Theme.of(context).textTheme.bodyMedium?.color,
+                                            ),
+                                            const SizedBox(width: 6),
+                                            Text(
+                                              'Generate',
+                                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w500,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              SizedBox(
+                                height: 60,
+                                child: ListView.builder(
+                                  scrollDirection: Axis.horizontal,
+                                  itemCount: characters.length + 1,
+                                  itemBuilder: (context, index) {
+                                    if (index == 0) {
+                                      return GestureDetector(
+                                        onTap: () {
+                                          setState(() {
+                                            selectedCharacter = null;
+                                          });
+                                        },
+                                        child: Container(
+                                          width: 60,
+                                          margin: const EdgeInsets.only(right: 8),
+                                          child: Column(
+                                            children: [
+                                              Container(
+                                                width: 40,
+                                                height: 40,
+                                                decoration: BoxDecoration(
+                                                  shape: BoxShape.circle,
+                                                  border: Border.all(
+                                                    color: selectedCharacter == null
+                                                        ? Theme.of(context).primaryColor
+                                                        : Colors.grey.withOpacity(0.4),
+                                                    width: 2,
+                                                  ),
+                                                  color: selectedCharacter == null
+                                                      ? Theme.of(context).primaryColor.withOpacity(0.1)
+                                                      : Colors.transparent,
+                                                ),
+                                                child: Icon(
+                                                  FeatherIcons.user,
+                                                  size: 18,
+                                                  color: selectedCharacter == null
+                                                      ? Theme.of(context).primaryColor
+                                                      : Colors.grey,
+                                                ),
+                                              ),
+                                              const SizedBox(height: 4),
+                                              Text(
+                                                'You',
+                                                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                                  fontSize: 9,
+                                                  fontWeight: selectedCharacter == null
+                                                      ? FontWeight.w600
+                                                      : FontWeight.w400,
+                                                  color: selectedCharacter == null
+                                                      ? Theme.of(context).primaryColor
+                                                      : Theme.of(context).hintColor,
+                                                ),
+                                                textAlign: TextAlign.center,
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      );
+                                    }
+                                    
+                                    final character = characters[index - 1];
+                                    final isSelected = selectedCharacter == character;
+                                    
+                                    return GestureDetector(
+                                      onTap: () {
+                                        setState(() {
+                                          selectedCharacter = character;
+                                        });
+                                      },
+                                      child: Container(
+                                        width: 60,
+                                        margin: const EdgeInsets.only(right: 8),
+                                        child: Column(
+                                          children: [
+                                            Container(
+                                              width: 40,
+                                              height: 40,
+                                              decoration: BoxDecoration(
+                                                shape: BoxShape.circle,
+                                                border: Border.all(
+                                                  color: isSelected
+                                                      ? Theme.of(context).primaryColor
+                                                      : Colors.grey.withOpacity(0.4),
+                                                  width: 2,
+                                                ),
+                                              ),
+                                              child: ClipOval(
+                                                child: CachedNetworkImage(
+                                                  imageUrl: character['image']!,
+                                                  fit: BoxFit.cover,
+                                                  placeholder: (context, url) => Container(
+                                                    color: Colors.grey.withOpacity(0.2),
+                                                    child: const Center(
+                                                      child: CircularProgressIndicator(strokeWidth: 2),
+                                                    ),
+                                                  ),
+                                                  errorWidget: (context, url, error) => Container(
+                                                    color: Colors.grey.withOpacity(0.2),
+                                                    child: const Icon(
+                                                      FeatherIcons.user,
+                                                      size: 18,
+                                                      color: Colors.grey,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              character['name']!,
+                                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                                fontSize: 9,
+                                                fontWeight: isSelected
+                                                    ? FontWeight.w600
+                                                    : FontWeight.w400,
+                                                color: isSelected
+                                                    ? Theme.of(context).primaryColor
+                                                    : Theme.of(context).hintColor,
+                                              ),
+                                              textAlign: TextAlign.center,
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      
+                      // Divider between character selection and text input
+                      if (characters.isNotEmpty)
+                        Container(
+                          margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          height: 1,
+                          color: Theme.of(context).brightness == Brightness.dark
+                              ? Colors.grey.shade800
+                              : Colors.grey.shade300,
+                        ),
+                      
+                      // Text Input
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+                        child: TextField(
+                          controller: postController,
+                          focusNode: _focusNode,
+                          maxLines: 3,
+                          textInputAction: TextInputAction.send,
+                          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                                color: Theme.of(context).brightness == Brightness.light
+                                    ? Colors.black
+                                    : Colors.white,
+                              ),
+                          decoration: InputDecoration(
+                            hintText: selectedCharacter == null 
+                                ? 'What do you want to talk about?'
+                                : 'Give ${selectedCharacter!['name']} a prompt to generate a post...',
+                            hintStyle: Theme.of(context)
+                                .textTheme
+                                .bodyLarge
+                                ?.copyWith(color: Theme.of(context).hintColor),
+                            enabledBorder: InputBorder.none,
+                            focusedBorder: InputBorder.none,
+                            border: InputBorder.none,
+                            filled: false,
+                            contentPadding: EdgeInsets.zero,
+                          ),
+                          onChanged: (value) {
+                            setState(() {
+                              postContent = value;
+                            });
+                          },
+                          onEditingComplete: () {
+                            setState(() {
+                              isTyping = false;
+                            });
+                          },
+                          onSubmitted: (t) {
+                            FocusScope.of(context).unfocus();
+                            setState(() {
+                              submitted = true;
+                            });
+                          },
+                          onTapOutside: (t) {
+                            setState(() {
+                              isTyping = true;
+                            });
+                          },
+                          onTap: () {
+                            setState(() {
+                              isTyping = true;
+                            });
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+
               // Media Gallery Section
               SizedBox(
                 height:
@@ -477,7 +936,7 @@ class _PostScreenState extends State<PostScreen> {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.start,
                     children: [
-                      // Images
+                      // ...existing code...
                       ...imageUrls.map((url) => Padding(
                             padding: const EdgeInsets.all(8.0),
                             child: Stack(
@@ -497,7 +956,6 @@ class _PostScreenState extends State<PostScreen> {
                                   child: GestureDetector(
                                     onTap: () async {
                                       try {
-                                        // Delete from Firebase Storage
                                         await AuthWork.deletePostImage(url);
                                         setState(() {
                                           imageUrls.remove(url);
@@ -521,8 +979,7 @@ class _PostScreenState extends State<PostScreen> {
                               ],
                             ),
                           )),
-
-                      // Videos
+                      // ...existing video code...
                       ...List.generate(
                         videoUrls.length,
                         (index) => Padding(
@@ -567,7 +1024,6 @@ class _PostScreenState extends State<PostScreen> {
                                         child: GestureDetector(
                                           onTap: () async {
                                             try {
-                                              // Delete video and thumbnail from Firebase Storage
                                               await AuthWork.deletePostVideo(
                                                   videoUrls[index],
                                                   thumbnailUrls[index]);
@@ -600,7 +1056,6 @@ class _PostScreenState extends State<PostScreen> {
                           ),
                         ),
                       ),
-
                       // Upload indicator
                       isUploading
                           ? Padding(
@@ -620,75 +1075,18 @@ class _PostScreenState extends State<PostScreen> {
                   ),
                 ),
               ),
-              const SizedBox(height: 15),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                child: TextField(
-                  focusNode: _focusNode,
-                  maxLines: 3, // Set maxLines to null for multiline
-                  textInputAction: TextInputAction.send,
-
-                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        color: Theme.of(context).brightness == Brightness.light
-                            ? Colors.black
-                            : Colors.white,
-                      ),
-                  decoration: InputDecoration(
-                    hintText: 'What do you want to talk about ?',
-                    hintStyle: Theme.of(context)
-                        .textTheme
-                        .bodyLarge
-                        ?.copyWith(color: Theme.of(context).hintColor),
-                    enabledBorder: InputBorder.none,
-                    focusedBorder: InputBorder.none,
-                    border: InputBorder.none, // Remove the border
-                    filled: false,
-                    contentPadding: const EdgeInsets.only(bottom: 8.0),
-                  ),
-                  onChanged: (value) {
-                    setState(() {
-                      postContent = value;
-                    });
-                  },
-                  onEditingComplete: () {
-                    setState(() {
-                      isTyping = false;
-                    });
-                  },
-                  onSubmitted: (t) {
-                    FocusScope.of(context).unfocus();
-                    setState(() {
-                      submitted = true;
-                    });
-                  },
-                  onTapOutside: (t) {
-                    setState(() {
-                      isTyping = true;
-                    });
-                  },
-                  onTap: () {
-                    setState(() {
-                      isTyping = true;
-                    });
-                  },
-                ),
-              ),
               const SizedBox(
-                height: 2,
-              ),
-
-              const SizedBox(
-                height: 10,
-              ),
-
-              const SizedBox(
-                height: 5,
+                height: 15,
               ),
               const Spacer(flex: 3),
             ],
           ),
         ),
-        bottomSheet: Padding(
+        // AI Generation Modal Overlay
+        if (isGenerating) _buildAIGenerationModal(),
+      ],
+    ),
+    bottomSheet: isGenerating ? null : Padding(
           padding: const EdgeInsets.only(
             bottom: 20,
             left: 10,
@@ -696,6 +1094,20 @@ class _PostScreenState extends State<PostScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              // Incash reward note at bottom center
+              Padding(
+                padding: const EdgeInsets.only(bottom: 15),
+                child: Center(
+                  child: Text(
+                    'Note: You earn 5 InCash for each post you make!',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(context).hintColor,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w400,
+                    ),
+                  ),
+                ),
+              ),
               Row(
                 mainAxisAlignment: MainAxisAlignment.start,
                 children: [
@@ -787,11 +1199,320 @@ class _PostScreenState extends State<PostScreen> {
             ],
           ),
         ),
+    ),
+    );
+  }
+
+  Widget _buildAIGenerationModal() {
+    return Positioned.fill(
+      child: Container(
+        color: Colors.black.withOpacity(0.4),
+        child: SafeArea(
+          child: Center(
+            child: Container(
+              margin: const EdgeInsets.all(24),
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: Theme.of(context).canvasColor,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.08),
+                    blurRadius: 20,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Header
+                  Row(
+                    children: [
+                      Icon(
+                        FeatherIcons.cpu,
+                        color: Theme.of(context).textTheme.bodyLarge?.color,
+                        size: 20,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'AI Post Generator',
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 18,
+                        ),
+                      ),
+                      const Spacer(),
+                      IconButton(
+                        icon: Icon(
+                          FeatherIcons.x,
+                          size: 20,
+                          color: Theme.of(context).hintColor,
+                        ),
+                        onPressed: _resetAIGeneration,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+
+                  // Content based on generation step
+                  if (generationStep == 'asking') ...[
+                    _buildQuestionStep(),
+                  ] else if (generationStep == 'generating') ...[
+                    _buildGeneratingStep(),
+                  ] else if (generationStep == 'complete') ...[
+                    _buildCompleteStep(),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
 
-  void _navigateBack() {
-    context.pop();
+  Widget _buildQuestionStep() {
+    final currentQuestion = clarifyingQuestions[currentQuestionIndex];
+    
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Progress indicator
+        Row(
+          children: [
+            Text(
+              'Question ${currentQuestionIndex + 1} of ${clarifyingQuestions.length}',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: Theme.of(context).hintColor,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const Spacer(),
+            Container(
+              width: 80,
+              height: 2,
+              decoration: BoxDecoration(
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? Colors.grey.shade800
+                    : Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(1),
+              ),
+              child: FractionallySizedBox(
+                alignment: Alignment.centerLeft,
+                widthFactor: (currentQuestionIndex + 1) / clarifyingQuestions.length,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).primaryColor,
+                    borderRadius: BorderRadius.circular(1),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 20),
+
+        // Question
+        Text(
+          currentQuestion['question']!,
+          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        const SizedBox(height: 16),
+
+        // Answer input
+        TextField(
+          controller: questionController,
+          maxLines: 3,
+          decoration: InputDecoration(
+            hintText: currentQuestion['placeholder'],
+            hintStyle: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: Theme.of(context).hintColor,
+            ),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? Colors.grey.shade700
+                    : Colors.grey.shade300,
+              ),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(
+                color: Theme.of(context).primaryColor,
+                width: 1.5,
+              ),
+            ),
+            contentPadding: const EdgeInsets.all(16),
+          ),
+          textInputAction: TextInputAction.next,
+          onSubmitted: (_) => _submitAnswer(),
+        ),
+        const SizedBox(height: 20),
+
+        // Action buttons
+        Row(
+          children: [
+            if (currentQuestionIndex > 0)
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () {
+                    setState(() {
+                      currentQuestionIndex--;
+                      if (userAnswers.isNotEmpty) {
+                        questionController.text = userAnswers.removeLast();
+                      }
+                    });
+                  },
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    side: BorderSide(
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? Colors.grey.shade700
+                          : Colors.grey.shade300,
+                    ),
+                  ),
+                  child: const Text('Back'),
+                ),
+              ),
+            if (currentQuestionIndex > 0) const SizedBox(width: 12),
+            Expanded(
+              child: ElevatedButton(
+                onPressed: _submitAnswer,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Theme.of(context).primaryColor,
+                  foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  elevation: 0,
+                ),
+                child: Text(
+                  currentQuestionIndex < clarifyingQuestions.length - 1
+                      ? 'Next'
+                      : 'Generate',
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildGeneratingStep() {
+    return Column(
+      children: [
+        const SizedBox(height: 20),
+        CircularProgressIndicator(
+          valueColor: AlwaysStoppedAnimation<Color>(Theme.of(context).primaryColor),
+          strokeWidth: 2,
+        ),
+        const SizedBox(height: 20),
+        Text(
+          'Generating your post as ${selectedCharacter!['name']}...',
+          style: Theme.of(context).textTheme.bodyLarge,
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 10),
+        Text(
+          'This may take a few moments',
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+            color: Theme.of(context).hintColor,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCompleteStep() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Generated post preview
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Theme.of(context).brightness == Brightness.light
+                ? Colors.grey.withOpacity(0.1)
+                : Colors.grey.withOpacity(0.2),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  CircleAvatar(
+                    radius: 16,
+                    backgroundImage: NetworkImage(selectedCharacter!['image']!),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    selectedCharacter!['name']!,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Text(
+                generatedPost,
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 20),
+
+        // Action buttons
+        Row(
+          children: [
+            Expanded(
+              child: OutlinedButton(
+                onPressed: _repromptGeneration,
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  side: BorderSide(
+                    color: Theme.of(context).brightness == Brightness.dark
+                        ? Colors.grey.shade700
+                        : Colors.grey.shade300,
+                  ),
+                ),
+                child: const Text('Regenerate'),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: ElevatedButton(
+                onPressed: _useGeneratedPost,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Theme.of(context).primaryColor,
+                  foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  elevation: 0,
+                ),
+                child: const Text('Use This Post'),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
   }
 }
