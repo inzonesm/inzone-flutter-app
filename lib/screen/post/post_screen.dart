@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:colorful_safe_area/colorful_safe_area.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_feather_icons/flutter_feather_icons.dart';
 import 'package:inzone/components/posts/shimmering.dart';
 import 'package:inzone/components/video/video_player_widget_post_screen.dart';
@@ -27,23 +28,27 @@ class _PostScreenState extends State<PostScreen> {
   List<Map<String, String>> characters = [
     {
       'name': 'Splash',
-      'image': 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80'
+      'image':
+          'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80'
     },
     {
       'name': 'Dora',
-      'image': 'https://images.unsplash.com/photo-1544725176-7c40e5a71c5e?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80'
+      'image':
+          'https://images.unsplash.com/photo-1544725176-7c40e5a71c5e?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80'
     },
     {
       'name': 'Alex',
-      'image': 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80'
+      'image':
+          'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80'
     },
     {
       'name': 'Maya',
-      'image': 'https://images.unsplash.com/photo-1494790108755-2616b332c10b?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80'
+      'image':
+          'https://images.unsplash.com/photo-1494790108755-2616b332c10b?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80'
     }
   ]; // List of characters with name and image
   Map<String, String>? selectedCharacter;
-  
+
   // AI Generation state
   bool isGenerating = false;
   String generationStep = 'idle'; // idle, asking, generating, complete
@@ -53,7 +58,7 @@ class _PostScreenState extends State<PostScreen> {
   TextEditingController questionController = TextEditingController();
   TextEditingController postController = TextEditingController();
   int currentQuestionIndex = 0;
-  
+
   // Sample clarifying questions for AI generation
   final List<Map<String, String>> sampleQuestions = [
     {
@@ -127,7 +132,7 @@ class _PostScreenState extends State<PostScreen> {
     setState(() {
       userAnswers.add(questionController.text.trim());
       questionController.clear();
-      
+
       if (currentQuestionIndex < clarifyingQuestions.length - 1) {
         currentQuestionIndex++;
       } else {
@@ -154,11 +159,31 @@ class _PostScreenState extends State<PostScreen> {
     });
   }
 
+  Future<void> _addInCashAfterPosting(int amount) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      throw Exception('User not authenticated');
+    }
+
+    try {
+      await FirebaseFirestore.instance
+          .collection('humanUsers')
+          .doc(user.uid)
+          .update({
+        'balance': FieldValue.increment(amount),
+      });
+    } catch (e) {
+      debugPrint('Error adding InCash to user: $e');
+      throw Exception('Failed to add InCash to balance');
+    }
+  }
+
   String _createSamplePost() {
     String characterName = selectedCharacter!['name']!;
     String originalPrompt = postContent;
     String tone = userAnswers.isNotEmpty ? userAnswers[0] : 'casual';
-    String aspect = userAnswers.length > 1 ? userAnswers[1] : 'personal experience';
+    String aspect =
+        userAnswers.length > 1 ? userAnswers[1] : 'personal experience';
     String audience = userAnswers.length > 2 ? userAnswers[2] : 'friends';
 
     // Sample generated content
@@ -230,976 +255,1097 @@ class _PostScreenState extends State<PostScreen> {
         body: Stack(
           children: [
             Padding(
-              padding: const EdgeInsets.only(bottom: 8.0, left: 5.0, right: 5.0),
+              padding:
+                  const EdgeInsets.only(bottom: 8.0, left: 5.0, right: 5.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 mainAxisSize: MainAxisSize.max,
                 children: [
-              Padding(
-                padding: const EdgeInsets.only(left: 5.0, right: 15.0),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.start,
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    IconButton(
-                      onPressed: () => context.pop(),
-                      icon: Icon(
-                        FeatherIcons.x,
-                        color: Theme.of(context).iconTheme.color,
-                        size: 35,
-                      ),
-                    ),
-                    // Character indicator in header
-                    if (selectedCharacter != null)
-                      Expanded(
-                        child: Container(
-                          margin: const EdgeInsets.only(left: 10),
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: Theme.of(context).primaryColor.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(
-                              color: Theme.of(context).primaryColor.withOpacity(0.3),
-                              width: 1,
-                            ),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Container(
-                                width: 20,
-                                height: 20,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  border: Border.all(
-                                    color: Theme.of(context).primaryColor,
-                                    width: 1,
-                                  ),
-                                ),
-                                child: ClipOval(
-                                  child: CachedNetworkImage(
-                                    imageUrl: selectedCharacter!['image']!,
-                                    fit: BoxFit.cover,
-                                    placeholder: (context, url) => Container(
-                                      color: Colors.grey.withOpacity(0.2),
-                                    ),
-                                    errorWidget: (context, url, error) => Container(
-                                      color: Colors.grey.withOpacity(0.2),
-                                      child: const Icon(
-                                        FeatherIcons.user,
-                                        size: 12,
-                                        color: Colors.grey,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 6),
-                              Flexible(
-                                child: Text(
-                                  'As ${selectedCharacter!['name']}',
-                                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                    fontSize: 11,
-                                    color: Theme.of(context).primaryColor,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                            ],
+                  Padding(
+                    padding: const EdgeInsets.only(left: 5.0, right: 15.0),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        IconButton(
+                          onPressed: () => context.pop(),
+                          icon: Icon(
+                            FeatherIcons.x,
+                            color: Theme.of(context).iconTheme.color,
+                            size: 35,
                           ),
                         ),
-                      ),
-                    if (selectedCharacter == null) const Spacer(),
-                    const SizedBox(width: 10),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 18, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).primaryColor,
-                        borderRadius: BorderRadius.circular(30),
-                      ),
-                      child: isPosting
-                          ? SizedBox(
-                              height: 20,
-                              width: 20,
-                              child: CircularProgressIndicator(
-                                color: Theme.of(context).colorScheme.onPrimary,
-                                strokeWidth: 2,
+                        // Character indicator in header
+                        if (selectedCharacter != null)
+                          Expanded(
+                            child: Container(
+                              margin: const EdgeInsets.only(left: 10),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: Theme.of(context)
+                                    .primaryColor
+                                    .withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(
+                                  color: Theme.of(context)
+                                      .primaryColor
+                                      .withOpacity(0.3),
+                                  width: 1,
+                                ),
                               ),
-                            )
-                          : GestureDetector(
-                              onTap: () async {
-                                if (postContent.trim().isEmpty || isPosting) {
-                                  print(
-                                      "Post validation failed: Empty content or already posting");
-
-                                  ToastService.showToast(
-                                    context,
-                                    backgroundColor:
-                                        Theme.of(context).canvasColor,
-                                    shadowColor: Colors.transparent,
-                                    leading: const Icon(
-                                      FeatherIcons.xCircle,
-                                      color: Colors.redAccent,
-                                    ),
-                                    message: postContent.trim().isEmpty
-                                        ? "Please enter some content before posting"
-                                        : "Already processing your post",
-                                  );
-
-                                  return;
-                                }
-
-                                setState(() {
-                                  isPosting = true;
-                                });
-
-                                // Add a timeout to ensure the UI doesn't get stuck
-                                Timer postTimeout =
-                                    Timer(const Duration(seconds: 15), () {
-                                  if (mounted && isPosting) {
-                                    setState(() {
-                                      isPosting = false;
-                                    });
-
-                                    ToastService.showToast(
-                                      context,
-                                      backgroundColor:
-                                          Theme.of(context).canvasColor,
-                                      shadowColor: Colors.transparent,
-                                      leading: const Icon(
-                                        FeatherIcons.xCircle,
-                                        color: Colors.redAccent,
-                                      ),
-                                      message:
-                                          "Post timed out. Please try again.",
-                                    );
-                                  }
-                                });
-
-                                try {
-                                  var analysis =
-                                      await InZoneDatabase.analyzeSentiment(
-                                          postContent);
-
-                                  print("Sentiment analysis result: $analysis");
-
-                                  int sentiment = analysis["sentiment"] as int;
-                                  setState(() {
-                                    if (sentiment == -1) {
-                                      moveValue = low;
-                                      doesNotWork = true;
-                                    } else if (sentiment == 0) {
-                                      moveValue = medium;
-                                      doesNotWork = false;
-                                    } else if (sentiment == 1) {
-                                      moveValue = high;
-                                      doesNotWork = false;
-                                    }
-                                  });
-
-                                  if (sentiment == -1) {
-                                    setState(() {
-                                      isPosting = false;
-                                    });
-
-                                    ToastService.showToast(
-                                      context,
-                                      backgroundColor:
-                                          Theme.of(context).canvasColor,
-                                      shadowColor: Colors.transparent,
-                                      leading: const Icon(
-                                        FeatherIcons.xCircle,
-                                        color: Colors.redAccent,
-                                      ),
-                                      message:
-                                          "Your post violates our guidelines. Please rephrase it.",
-                                    );
-                                    return;
-                                  }
-
-                                  print(
-                                      "Starting to create post with content: $postContent");
-                                  print(
-                                      "Images: ${imageUrls.length}, Videos: ${videoUrls.length}");
-                                  if (selectedCharacter != null) {
-                                    print("Posting as character: ${selectedCharacter!['name']}");
-                                    // TODO: Add character information to post when backend supports it
-                                  }
-
-                                  final result =
-                                      await InZoneDatabase.createHumanPost(
-                                    content: postContent,
-                                    imageRefs: imageUrls,
-                                    videoRefs: videoUrls,
-                                  );
-
-                                  print("Create post result: $result");
-
-                                  if (result["success"] != true) {
-                                    setState(() {
-                                      isPosting = false;
-                                    });
-
-                                    String errorMessage =
-                                        "Failed to create post. Please try again.";
-
-                                    // Check for specific error messages from the backend
-                                    if (result["error"] != null) {
-                                      errorMessage = result["error"].toString();
-                                    } else if (result["message"] != null) {
-                                      errorMessage =
-                                          result["message"].toString();
-                                    }
-
-                                    print(
-                                        "Post failed with error: $errorMessage");
-
-                                    ToastService.showToast(
-                                      context,
-                                      backgroundColor:
-                                          Theme.of(context).canvasColor,
-                                      shadowColor: Colors.transparent,
-                                      leading: const Icon(
-                                        FeatherIcons.xCircle,
-                                        color: Colors.redAccent,
-                                      ),
-                                      message: errorMessage,
-                                    );
-                                    return;
-                                  }
-
-                                  context.pop();
-
-                                  showDialog(
-                                    context: context,
-                                    builder: (_) {
-                                      _timer =
-                                          Timer(const Duration(seconds: 1), () {
-                                        Navigator.of(_).pop();
-                                      });
-                                      return Dialog(
-                                        backgroundColor: Colors.transparent,
-                                        child: Stack(
-                                          children: [
-                                            RotatedBox(
-                                              quarterTurns: 2,
-                                              child: SizedBox(
-                                                  height: MediaQuery.of(context)
-                                                      .size
-                                                      .height,
-                                                  width: MediaQuery.of(context)
-                                                      .size
-                                                      .width,
-                                                  child: Lottie.asset(
-                                                      "assets/animations/confetti.json")),
-                                            ),
-                                            Align(
-                                              alignment: Alignment.center,
-                                              child: Text(
-                                                "Post Successful",
-                                                style: TextStyle(
-                                                    color: Theme.of(context)
-                                                        .colorScheme
-                                                        .onPrimary,
-                                                    fontSize: 25,
-                                                    fontWeight:
-                                                        FontWeight.w400),
-                                              ),
-                                            )
-                                          ],
-                                        ),
-                                      );
-                                    },
-                                  ).then((value) {
-                                    if (_timer.isActive) {
-                                      _timer.cancel();
-                                    }
-                                  });
-                                } catch (e) {
-                                  // Handle error
-                                  print("Post error: $e");
-                                  if (mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content: Text(
-                                          "Failed to post: ${e.toString().substring(0, math.min(e.toString().length, 100))}",
-                                          style: TextStyle(
-                                              color: Theme.of(context)
-                                                  .colorScheme
-                                                  .onError),
-                                        ),
-                                        backgroundColor:
-                                            Theme.of(context).colorScheme.error,
-                                        duration: const Duration(seconds: 2),
-                                      ),
-                                    );
-                                  }
-                                } finally {
-                                  postTimeout.cancel();
-                                  if (mounted) {
-                                    setState(() {
-                                      isUploading = false;
-                                      isPosting = false;
-                                    });
-                                  }
-                                }
-                              },
-                              child: Text(
-                                "Post",
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .titleMedium
-                                    ?.copyWith(
-                                      fontWeight: FontWeight.bold,
-                                      color: Theme.of(context)
-                                          .colorScheme
-                                          .onPrimary,
-                                      fontSize: 14,
-                                    ),
-                              ),
-                            ),
-                    )
-                  ],
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.only(
-                  left: 6.0,
-                  right: 6.0,
-                  top: 6.0,
-                ),
-                child: Center(
-                  child: Text(
-                    doesNotWork
-                        ? "Please rephrase. Your message violates our guideline."
-                        : "Your post works well with InZone guidelines",
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                        color: doesNotWork
-                            ? Theme.of(context).colorScheme.error
-                            : Theme.of(context).primaryColor,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500),
-                  ),
-                ),
-              ),
-
-              SizedBox(
-                width: MediaQuery.of(context).size.width,
-                height: 30,
-                child: Stack(
-                  alignment: AlignmentDirectional.centerStart,
-                  children: [
-                    LayoutBuilder(builder:
-                        (BuildContext context, BoxConstraints constraints) {
-                      maxWidth = constraints.maxWidth;
-                      return Container(
-                        height: 14,
-                        width: double.infinity,
-                        margin: const EdgeInsets.all(8.0),
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(30),
-                          gradient: const LinearGradient(
-                            colors: [
-                              Color(0xffff8d6c),
-                              Color(0xffe064f7),
-                              Color(0xff00b2e7)
-                            ],
-                          ),
-                        ),
-                        // transform:  (Matrix4.identity() + Matrix4.rotationZ(math.pi / 4))
-                      );
-                    }),
-                    AnimatedContainer(
-                      height: 14,
-                      width: 16,
-                      margin: EdgeInsets.only(
-                          left: maxWidth * maxMovable * moveValue),
-                      decoration: BoxDecoration(
-                          border:
-                              Border.all(color: Theme.of(context).canvasColor),
-                          borderRadius: BorderRadius.circular(30),
-                          color: Theme.of(context).dialogBackgroundColor),
-                      duration: const Duration(milliseconds: 800),
-                      curve: Curves.fastEaseInToSlowEaseOut,
-                      // transform:  (Matrix4.identity() + Matrix4.rotationZ(math.pi / 4))
-                    ),
-                  ],
-                ),
-              ),
-
-              //  const Divider(),
-              const SizedBox(height: 15),
-
-              // Text Input Section with integrated character selection
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).brightness == Brightness.dark
-                        ? Colors.grey.shade900.withOpacity(0.3)
-                        : Colors.grey.shade50,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: Theme.of(context).brightness == Brightness.dark
-                          ? Colors.grey.shade800
-                          : Colors.grey.shade200,
-                      width: 1,
-                    ),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Character Selection at top of container
-                      if (characters.isNotEmpty)
-                        Container(
-                          padding: const EdgeInsets.only(top: 12, left: 12, right: 12),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Icon(
-                                    FeatherIcons.users,
-                                    size: 16,
-                                    color: Theme.of(context).hintColor,
+                                  Container(
+                                    width: 20,
+                                    height: 20,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      border: Border.all(
+                                        color: Theme.of(context).primaryColor,
+                                        width: 1,
+                                      ),
+                                    ),
+                                    child: ClipOval(
+                                      child: CachedNetworkImage(
+                                        imageUrl: selectedCharacter!['image']!,
+                                        fit: BoxFit.cover,
+                                        placeholder: (context, url) =>
+                                            Container(
+                                          color: Colors.grey.withOpacity(0.2),
+                                        ),
+                                        errorWidget: (context, url, error) =>
+                                            Container(
+                                          color: Colors.grey.withOpacity(0.2),
+                                          child: const Icon(
+                                            FeatherIcons.user,
+                                            size: 12,
+                                            color: Colors.grey,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
                                   ),
                                   const SizedBox(width: 6),
-                                  Text(
-                                    'Post as',
-                                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                      fontWeight: FontWeight.w500,
-                                      color: Theme.of(context).hintColor,
-                                      fontSize: 13,
+                                  Flexible(
+                                    child: Text(
+                                      'As ${selectedCharacter!['name']}',
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .bodySmall
+                                          ?.copyWith(
+                                            fontSize: 11,
+                                            color:
+                                                Theme.of(context).primaryColor,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                      overflow: TextOverflow.ellipsis,
                                     ),
                                   ),
-                                  const Spacer(),
-                                  if (selectedCharacter != null && postContent.trim().isNotEmpty)
-                                    GestureDetector(
-                                      onTap: () {
-                                        _startAIGeneration();
-                                      },
-                                      child: Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                                        decoration: BoxDecoration(
-                                          color: Theme.of(context).brightness == Brightness.dark
-                                              ? Colors.grey.shade800.withOpacity(0.5)
-                                              : Colors.grey.shade100,
-                                          borderRadius: BorderRadius.circular(8),
-                                          border: Border.all(
-                                            color: Theme.of(context).brightness == Brightness.dark
-                                                ? Colors.grey.shade700
-                                                : Colors.grey.shade300,
-                                            width: 1,
-                                          ),
-                                        ),
-                                        child: Row(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            Icon(
-                                              FeatherIcons.zap,
-                                              size: 14,
-                                              color: Theme.of(context).textTheme.bodyMedium?.color,
-                                            ),
-                                            const SizedBox(width: 6),
-                                            Text(
-                                              'Generate',
-                                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                                fontSize: 12,
-                                                fontWeight: FontWeight.w500,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ),
                                 ],
                               ),
-                              const SizedBox(height: 8),
-                              SizedBox(
-                                height: 60,
-                                child: ListView.builder(
-                                  scrollDirection: Axis.horizontal,
-                                  itemCount: characters.length + 1,
-                                  itemBuilder: (context, index) {
-                                    if (index == 0) {
-                                      return GestureDetector(
-                                        onTap: () {
-                                          setState(() {
-                                            selectedCharacter = null;
-                                          });
-                                        },
-                                        child: Container(
-                                          width: 60,
-                                          margin: const EdgeInsets.only(right: 8),
-                                          child: Column(
-                                            children: [
-                                              Container(
-                                                width: 40,
-                                                height: 40,
-                                                decoration: BoxDecoration(
-                                                  shape: BoxShape.circle,
-                                                  border: Border.all(
-                                                    color: selectedCharacter == null
-                                                        ? Theme.of(context).primaryColor
-                                                        : Colors.grey.withOpacity(0.4),
-                                                    width: 2,
-                                                  ),
-                                                  color: selectedCharacter == null
-                                                      ? Theme.of(context).primaryColor.withOpacity(0.1)
-                                                      : Colors.transparent,
-                                                ),
-                                                child: Icon(
-                                                  FeatherIcons.user,
-                                                  size: 18,
-                                                  color: selectedCharacter == null
-                                                      ? Theme.of(context).primaryColor
-                                                      : Colors.grey,
-                                                ),
-                                              ),
-                                              const SizedBox(height: 4),
-                                              Text(
-                                                'You',
-                                                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                                  fontSize: 9,
-                                                  fontWeight: selectedCharacter == null
-                                                      ? FontWeight.w600
-                                                      : FontWeight.w400,
-                                                  color: selectedCharacter == null
-                                                      ? Theme.of(context).primaryColor
-                                                      : Theme.of(context).hintColor,
-                                                ),
-                                                textAlign: TextAlign.center,
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      );
-                                    }
-                                    
-                                    final character = characters[index - 1];
-                                    final isSelected = selectedCharacter == character;
-                                    
-                                    return GestureDetector(
-                                      onTap: () {
-                                        setState(() {
-                                          selectedCharacter = character;
-                                        });
-                                      },
-                                      child: Container(
-                                        width: 60,
-                                        margin: const EdgeInsets.only(right: 8),
-                                        child: Column(
-                                          children: [
-                                            Container(
-                                              width: 40,
-                                              height: 40,
-                                              decoration: BoxDecoration(
-                                                shape: BoxShape.circle,
-                                                border: Border.all(
-                                                  color: isSelected
-                                                      ? Theme.of(context).primaryColor
-                                                      : Colors.grey.withOpacity(0.4),
-                                                  width: 2,
-                                                ),
-                                              ),
-                                              child: ClipOval(
-                                                child: CachedNetworkImage(
-                                                  imageUrl: character['image']!,
-                                                  fit: BoxFit.cover,
-                                                  placeholder: (context, url) => Container(
-                                                    color: Colors.grey.withOpacity(0.2),
-                                                    child: const Center(
-                                                      child: CircularProgressIndicator(strokeWidth: 2),
-                                                    ),
-                                                  ),
-                                                  errorWidget: (context, url, error) => Container(
-                                                    color: Colors.grey.withOpacity(0.2),
-                                                    child: const Icon(
-                                                      FeatherIcons.user,
-                                                      size: 18,
-                                                      color: Colors.grey,
-                                                    ),
-                                                  ),
-                                                ),
-                                              ),
-                                            ),
-                                            const SizedBox(height: 4),
-                                            Text(
-                                              character['name']!,
-                                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                                fontSize: 9,
-                                                fontWeight: isSelected
-                                                    ? FontWeight.w600
-                                                    : FontWeight.w400,
-                                                color: isSelected
-                                                    ? Theme.of(context).primaryColor
-                                                    : Theme.of(context).hintColor,
-                                              ),
-                                              textAlign: TextAlign.center,
-                                              maxLines: 1,
-                                              overflow: TextOverflow.ellipsis,
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    );
-                                  },
-                                ),
-                              ),
-                            ],
+                            ),
                           ),
-                        ),
-                      
-                      // Divider between character selection and text input
-                      if (characters.isNotEmpty)
+                        if (selectedCharacter == null) const Spacer(),
+                        const SizedBox(width: 10),
                         Container(
-                          margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                          height: 1,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 18, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).primaryColor,
+                            borderRadius: BorderRadius.circular(30),
+                          ),
+                          child: isPosting
+                              ? SizedBox(
+                                  height: 20,
+                                  width: 20,
+                                  child: CircularProgressIndicator(
+                                    color:
+                                        Theme.of(context).colorScheme.onPrimary,
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : GestureDetector(
+                                  onTap: () async {
+                                    if (postContent.trim().isEmpty ||
+                                        isPosting) {
+                                      print(
+                                          "Post validation failed: Empty content or already posting");
+
+                                      ToastService.showToast(
+                                        context,
+                                        backgroundColor:
+                                            Theme.of(context).canvasColor,
+                                        shadowColor: Colors.transparent,
+                                        leading: const Icon(
+                                          FeatherIcons.xCircle,
+                                          color: Colors.redAccent,
+                                        ),
+                                        message: postContent.trim().isEmpty
+                                            ? "Please enter some content before posting"
+                                            : "Already processing your post",
+                                      );
+
+                                      return;
+                                    }
+
+                                    setState(() {
+                                      isPosting = true;
+                                    });
+
+                                    // Add a timeout to ensure the UI doesn't get stuck
+                                    Timer postTimeout =
+                                        Timer(const Duration(seconds: 15), () {
+                                      if (mounted && isPosting) {
+                                        setState(() {
+                                          isPosting = false;
+                                        });
+
+                                        ToastService.showToast(
+                                          context,
+                                          backgroundColor:
+                                              Theme.of(context).canvasColor,
+                                          shadowColor: Colors.transparent,
+                                          leading: const Icon(
+                                            FeatherIcons.xCircle,
+                                            color: Colors.redAccent,
+                                          ),
+                                          message:
+                                              "Post timed out. Please try again.",
+                                        );
+                                      }
+                                    });
+
+                                    try {
+                                      var analysis =
+                                          await InZoneDatabase.analyzeSentiment(
+                                              postContent);
+
+                                      print(
+                                          "Sentiment analysis result: $analysis");
+
+                                      int sentiment =
+                                          analysis["sentiment"] as int;
+                                      setState(() {
+                                        if (sentiment == -1) {
+                                          moveValue = low;
+                                          doesNotWork = true;
+                                        } else if (sentiment == 0) {
+                                          moveValue = medium;
+                                          doesNotWork = false;
+                                        } else if (sentiment == 1) {
+                                          moveValue = high;
+                                          doesNotWork = false;
+                                        }
+                                      });
+
+                                      if (sentiment == -1) {
+                                        setState(() {
+                                          isPosting = false;
+                                        });
+
+                                        ToastService.showToast(
+                                          context,
+                                          backgroundColor:
+                                              Theme.of(context).canvasColor,
+                                          shadowColor: Colors.transparent,
+                                          leading: const Icon(
+                                            FeatherIcons.xCircle,
+                                            color: Colors.redAccent,
+                                          ),
+                                          message:
+                                              "Your post violates our guidelines. Please rephrase it.",
+                                        );
+                                        return;
+                                      }
+
+                                      print(
+                                          "Starting to create post with content: $postContent");
+                                      print(
+                                          "Images: ${imageUrls.length}, Videos: ${videoUrls.length}");
+                                      if (selectedCharacter != null) {
+                                        print(
+                                            "Posting as character: ${selectedCharacter!['name']}");
+                                        // TODO: Add character information to post when backend supports it
+                                      }
+
+                                      final result =
+                                          await InZoneDatabase.createHumanPost(
+                                        content: postContent,
+                                        imageRefs: imageUrls,
+                                        videoRefs: videoUrls,
+                                      );
+
+                                      print("Create post result: $result");
+
+                                      if (result["success"] != true) {
+                                        setState(() {
+                                          isPosting = false;
+                                        });
+
+                                        String errorMessage =
+                                            "Failed to create post. Please try again.";
+
+                                        // Check for specific error messages from the backend
+                                        if (result["error"] != null) {
+                                          errorMessage =
+                                              result["error"].toString();
+                                        } else if (result["message"] != null) {
+                                          errorMessage =
+                                              result["message"].toString();
+                                        }
+
+                                        print(
+                                            "Post failed with error: $errorMessage");
+
+                                        ToastService.showToast(
+                                          context,
+                                          backgroundColor:
+                                              Theme.of(context).canvasColor,
+                                          shadowColor: Colors.transparent,
+                                          leading: const Icon(
+                                            FeatherIcons.xCircle,
+                                            color: Colors.redAccent,
+                                          ),
+                                          message: errorMessage,
+                                        );
+                                        return;
+                                      }
+
+                                      // Add InCash reward after successful post creation
+                                      try {
+                                        await _addInCashAfterPosting(5);
+                                        print(
+                                            "Successfully added 5 InCash to user's balance");
+                                      } catch (e) {
+                                        print("Error adding InCash reward: $e");
+                                        // Don't prevent the success flow even if InCash addition fails
+                                      }
+
+                                      context.pop();
+
+                                      showDialog(
+                                        context: context,
+                                        builder: (_) {
+                                          _timer = Timer(
+                                              const Duration(seconds: 1), () {
+                                            Navigator.of(_).pop();
+                                          });
+                                          return Dialog(
+                                            backgroundColor: Colors.transparent,
+                                            child: Stack(
+                                              children: [
+                                                RotatedBox(
+                                                  quarterTurns: 2,
+                                                  child: SizedBox(
+                                                      height:
+                                                          MediaQuery.of(context)
+                                                              .size
+                                                              .height,
+                                                      width:
+                                                          MediaQuery.of(context)
+                                                              .size
+                                                              .width,
+                                                      child: Lottie.asset(
+                                                          "assets/animations/confetti.json")),
+                                                ),
+                                                Align(
+                                                  alignment: Alignment.center,
+                                                  child: Text(
+                                                    "Post Successful",
+                                                    style: TextStyle(
+                                                        color: Theme.of(context)
+                                                            .colorScheme
+                                                            .onPrimary,
+                                                        fontSize: 25,
+                                                        fontWeight:
+                                                            FontWeight.w400),
+                                                  ),
+                                                )
+                                              ],
+                                            ),
+                                          );
+                                        },
+                                      ).then((value) {
+                                        if (_timer.isActive) {
+                                          _timer.cancel();
+                                        }
+                                      });
+                                    } catch (e) {
+                                      // Handle error
+                                      print("Post error: $e");
+                                      if (mounted) {
+                                        ScaffoldMessenger.of(context)
+                                            .showSnackBar(
+                                          SnackBar(
+                                            content: Text(
+                                              "Failed to post: ${e.toString().substring(0, math.min(e.toString().length, 100))}",
+                                              style: TextStyle(
+                                                  color: Theme.of(context)
+                                                      .colorScheme
+                                                      .onError),
+                                            ),
+                                            backgroundColor: Theme.of(context)
+                                                .colorScheme
+                                                .error,
+                                            duration:
+                                                const Duration(seconds: 2),
+                                          ),
+                                        );
+                                      }
+                                    } finally {
+                                      postTimeout.cancel();
+                                      if (mounted) {
+                                        setState(() {
+                                          isUploading = false;
+                                          isPosting = false;
+                                        });
+                                      }
+                                    }
+                                  },
+                                  child: Text(
+                                    "Post",
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .titleMedium
+                                        ?.copyWith(
+                                          fontWeight: FontWeight.bold,
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .onPrimary,
+                                          fontSize: 14,
+                                        ),
+                                  ),
+                                ),
+                        )
+                      ],
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.only(
+                      left: 6.0,
+                      right: 6.0,
+                      top: 6.0,
+                    ),
+                    child: Center(
+                      child: Text(
+                        doesNotWork
+                            ? "Please rephrase. Your message violates our guideline."
+                            : "Your post works well with InZone guidelines",
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                            color: doesNotWork
+                                ? Theme.of(context).colorScheme.error
+                                : Theme.of(context).primaryColor,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500),
+                      ),
+                    ),
+                  ),
+
+                  SizedBox(
+                    width: MediaQuery.of(context).size.width,
+                    height: 30,
+                    child: Stack(
+                      alignment: AlignmentDirectional.centerStart,
+                      children: [
+                        LayoutBuilder(builder:
+                            (BuildContext context, BoxConstraints constraints) {
+                          maxWidth = constraints.maxWidth;
+                          return Container(
+                            height: 14,
+                            width: double.infinity,
+                            margin: const EdgeInsets.all(8.0),
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(30),
+                              gradient: const LinearGradient(
+                                colors: [
+                                  Color(0xffff8d6c),
+                                  Color(0xffe064f7),
+                                  Color(0xff00b2e7)
+                                ],
+                              ),
+                            ),
+                            // transform:  (Matrix4.identity() + Matrix4.rotationZ(math.pi / 4))
+                          );
+                        }),
+                        AnimatedContainer(
+                          height: 14,
+                          width: 16,
+                          margin: EdgeInsets.only(
+                              left: maxWidth * maxMovable * moveValue),
+                          decoration: BoxDecoration(
+                              border: Border.all(
+                                  color: Theme.of(context).canvasColor),
+                              borderRadius: BorderRadius.circular(30),
+                              color: Theme.of(context).dialogBackgroundColor),
+                          duration: const Duration(milliseconds: 800),
+                          curve: Curves.fastEaseInToSlowEaseOut,
+                          // transform:  (Matrix4.identity() + Matrix4.rotationZ(math.pi / 4))
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  //  const Divider(),
+                  const SizedBox(height: 15),
+
+                  // Text Input Section with integrated character selection
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).brightness == Brightness.dark
+                            ? Colors.grey.shade900.withOpacity(0.3)
+                            : Colors.grey.shade50,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
                           color: Theme.of(context).brightness == Brightness.dark
                               ? Colors.grey.shade800
-                              : Colors.grey.shade300,
-                        ),
-                      
-                      // Text Input
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-                        child: TextField(
-                          controller: postController,
-                          focusNode: _focusNode,
-                          maxLines: 3,
-                          textInputAction: TextInputAction.send,
-                          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                                color: Theme.of(context).brightness == Brightness.light
-                                    ? Colors.black
-                                    : Colors.white,
-                              ),
-                          decoration: InputDecoration(
-                            hintText: selectedCharacter == null 
-                                ? 'What do you want to talk about?'
-                                : 'Give ${selectedCharacter!['name']} a prompt to generate a post...',
-                            hintStyle: Theme.of(context)
-                                .textTheme
-                                .bodyLarge
-                                ?.copyWith(color: Theme.of(context).hintColor),
-                            enabledBorder: InputBorder.none,
-                            focusedBorder: InputBorder.none,
-                            border: InputBorder.none,
-                            filled: false,
-                            contentPadding: EdgeInsets.zero,
-                          ),
-                          onChanged: (value) {
-                            setState(() {
-                              postContent = value;
-                            });
-                          },
-                          onEditingComplete: () {
-                            setState(() {
-                              isTyping = false;
-                            });
-                          },
-                          onSubmitted: (t) {
-                            FocusScope.of(context).unfocus();
-                            setState(() {
-                              submitted = true;
-                            });
-                          },
-                          onTapOutside: (t) {
-                            setState(() {
-                              isTyping = true;
-                            });
-                          },
-                          onTap: () {
-                            setState(() {
-                              isTyping = true;
-                            });
-                          },
+                              : Colors.grey.shade200,
+                          width: 1,
                         ),
                       ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 20),
-
-              // Media Gallery Section
-              SizedBox(
-                height:
-                    imageUrls.isNotEmpty || videoUrls.isNotEmpty || isUploading
-                        ? 160
-                        : 0,
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.start,
-                    children: [
-                      // ...existing code...
-                      ...imageUrls.map((url) => Padding(
-                            padding: const EdgeInsets.all(8.0),
-                            child: Stack(
-                              children: [
-                                ClipRRect(
-                                  borderRadius: BorderRadius.circular(20.0),
-                                  child: Image(
-                                    height: 140,
-                                    width: 140,
-                                    fit: BoxFit.cover,
-                                    image: NetworkImage(url),
-                                  ),
-                                ),
-                                Positioned(
-                                  top: 5,
-                                  right: 5,
-                                  child: GestureDetector(
-                                    onTap: () async {
-                                      try {
-                                        await AuthWork.deletePostImage(url);
-                                        setState(() {
-                                          imageUrls.remove(url);
-                                        });
-                                      } catch (e) {}
-                                    },
-                                    child: Container(
-                                      padding: const EdgeInsets.all(4),
-                                      decoration: BoxDecoration(
-                                        color: Colors.black.withOpacity(0.5),
-                                        shape: BoxShape.circle,
-                                      ),
-                                      child: const Icon(
-                                        Icons.close,
-                                        color: Colors.white,
-                                        size: 20,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          )),
-                      // ...existing video code...
-                      ...List.generate(
-                        videoUrls.length,
-                        (index) => Padding(
-                          padding: const EdgeInsets.all(8.0),
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(20.0),
-                            child: Stack(
-                              alignment: Alignment.center,
-                              children: [
-                                InkWell(
-                                  onTap: () {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (context) =>
-                                            VideoPlayerWidgetPostScreen(
-                                                videoUrls[index]),
-                                      ),
-                                    );
-                                  },
-                                  child: Stack(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Character Selection at top of container
+                          if (characters.isNotEmpty)
+                            Container(
+                              padding: const EdgeInsets.only(
+                                  top: 12, left: 12, right: 12),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
                                     children: [
-                                      CachedNetworkImage(
-                                        height: 140,
-                                        width: 140,
-                                        fit: BoxFit.fill,
-                                        imageUrl: thumbnailUrls[index],
-                                        placeholder: (context, url) =>
-                                            ImageLoading(context),
-                                        errorWidget: (context, url, error) =>
-                                            const SizedBox(),
+                                      Icon(
+                                        FeatherIcons.users,
+                                        size: 16,
+                                        color: Theme.of(context).hintColor,
                                       ),
-                                      const Positioned.fill(
-                                        child: Center(
-                                          child: Icon(Icons.play_arrow,
-                                              size: 50, color: Colors.white),
-                                        ),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        'Post as',
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .bodySmall
+                                            ?.copyWith(
+                                              fontWeight: FontWeight.w500,
+                                              color:
+                                                  Theme.of(context).hintColor,
+                                              fontSize: 13,
+                                            ),
                                       ),
-                                      Positioned(
-                                        top: 5,
-                                        right: 5,
-                                        child: GestureDetector(
-                                          onTap: () async {
-                                            try {
-                                              await AuthWork.deletePostVideo(
-                                                  videoUrls[index],
-                                                  thumbnailUrls[index]);
-                                              setState(() {
-                                                videoUrls.removeAt(index);
-                                                thumbnailUrls.removeAt(index);
-                                              });
-                                            } catch (e) {}
+                                      const Spacer(),
+                                      if (selectedCharacter != null &&
+                                          postContent.trim().isNotEmpty)
+                                        GestureDetector(
+                                          onTap: () {
+                                            _startAIGeneration();
                                           },
                                           child: Container(
-                                            padding: const EdgeInsets.all(4),
+                                            padding: const EdgeInsets.symmetric(
+                                                horizontal: 10, vertical: 6),
                                             decoration: BoxDecoration(
-                                              color:
-                                                  Colors.black.withOpacity(0.5),
-                                              shape: BoxShape.circle,
+                                              color: Theme.of(context)
+                                                          .brightness ==
+                                                      Brightness.dark
+                                                  ? Colors.grey.shade800
+                                                      .withOpacity(0.5)
+                                                  : Colors.grey.shade100,
+                                              borderRadius:
+                                                  BorderRadius.circular(8),
+                                              border: Border.all(
+                                                color: Theme.of(context)
+                                                            .brightness ==
+                                                        Brightness.dark
+                                                    ? Colors.grey.shade700
+                                                    : Colors.grey.shade300,
+                                                width: 1,
+                                              ),
                                             ),
-                                            child: const Icon(
-                                              Icons.close,
-                                              color: Colors.white,
-                                              size: 20,
+                                            child: Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                Icon(
+                                                  FeatherIcons.zap,
+                                                  size: 14,
+                                                  color: Theme.of(context)
+                                                      .textTheme
+                                                      .bodyMedium
+                                                      ?.color,
+                                                ),
+                                                const SizedBox(width: 6),
+                                                Text(
+                                                  'Generate',
+                                                  style: Theme.of(context)
+                                                      .textTheme
+                                                      .bodySmall
+                                                      ?.copyWith(
+                                                        fontSize: 12,
+                                                        fontWeight:
+                                                            FontWeight.w500,
+                                                      ),
+                                                ),
+                                              ],
                                             ),
                                           ),
                                         ),
-                                      ),
                                     ],
                                   ),
-                                ),
-                              ],
+                                  const SizedBox(height: 8),
+                                  SizedBox(
+                                    height: 60,
+                                    child: ListView.builder(
+                                      scrollDirection: Axis.horizontal,
+                                      itemCount: characters.length + 1,
+                                      itemBuilder: (context, index) {
+                                        if (index == 0) {
+                                          return GestureDetector(
+                                            onTap: () {
+                                              setState(() {
+                                                selectedCharacter = null;
+                                              });
+                                            },
+                                            child: Container(
+                                              width: 60,
+                                              margin: const EdgeInsets.only(
+                                                  right: 8),
+                                              child: Column(
+                                                children: [
+                                                  Container(
+                                                    width: 40,
+                                                    height: 40,
+                                                    decoration: BoxDecoration(
+                                                      shape: BoxShape.circle,
+                                                      border: Border.all(
+                                                        color:
+                                                            selectedCharacter ==
+                                                                    null
+                                                                ? Theme.of(
+                                                                        context)
+                                                                    .primaryColor
+                                                                : Colors.grey
+                                                                    .withOpacity(
+                                                                        0.4),
+                                                        width: 2,
+                                                      ),
+                                                      color:
+                                                          selectedCharacter ==
+                                                                  null
+                                                              ? Theme.of(
+                                                                      context)
+                                                                  .primaryColor
+                                                                  .withOpacity(
+                                                                      0.1)
+                                                              : Colors
+                                                                  .transparent,
+                                                    ),
+                                                    child: Icon(
+                                                      FeatherIcons.user,
+                                                      size: 18,
+                                                      color:
+                                                          selectedCharacter ==
+                                                                  null
+                                                              ? Theme.of(
+                                                                      context)
+                                                                  .primaryColor
+                                                              : Colors.grey,
+                                                    ),
+                                                  ),
+                                                  const SizedBox(height: 4),
+                                                  Text(
+                                                    'You',
+                                                    style: Theme.of(context)
+                                                        .textTheme
+                                                        .bodySmall
+                                                        ?.copyWith(
+                                                          fontSize: 9,
+                                                          fontWeight:
+                                                              selectedCharacter ==
+                                                                      null
+                                                                  ? FontWeight
+                                                                      .w600
+                                                                  : FontWeight
+                                                                      .w400,
+                                                          color: selectedCharacter ==
+                                                                  null
+                                                              ? Theme.of(
+                                                                      context)
+                                                                  .primaryColor
+                                                              : Theme.of(
+                                                                      context)
+                                                                  .hintColor,
+                                                        ),
+                                                    textAlign: TextAlign.center,
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          );
+                                        }
+
+                                        final character = characters[index - 1];
+                                        final isSelected =
+                                            selectedCharacter == character;
+
+                                        return GestureDetector(
+                                          onTap: () {
+                                            setState(() {
+                                              selectedCharacter = character;
+                                            });
+                                          },
+                                          child: Container(
+                                            width: 60,
+                                            margin:
+                                                const EdgeInsets.only(right: 8),
+                                            child: Column(
+                                              children: [
+                                                Container(
+                                                  width: 40,
+                                                  height: 40,
+                                                  decoration: BoxDecoration(
+                                                    shape: BoxShape.circle,
+                                                    border: Border.all(
+                                                      color: isSelected
+                                                          ? Theme.of(context)
+                                                              .primaryColor
+                                                          : Colors.grey
+                                                              .withOpacity(0.4),
+                                                      width: 2,
+                                                    ),
+                                                  ),
+                                                  child: ClipOval(
+                                                    child: CachedNetworkImage(
+                                                      imageUrl:
+                                                          character['image']!,
+                                                      fit: BoxFit.cover,
+                                                      placeholder:
+                                                          (context, url) =>
+                                                              Container(
+                                                        color: Colors.grey
+                                                            .withOpacity(0.2),
+                                                        child: const Center(
+                                                          child:
+                                                              CircularProgressIndicator(
+                                                                  strokeWidth:
+                                                                      2),
+                                                        ),
+                                                      ),
+                                                      errorWidget: (context,
+                                                              url, error) =>
+                                                          Container(
+                                                        color: Colors.grey
+                                                            .withOpacity(0.2),
+                                                        child: const Icon(
+                                                          FeatherIcons.user,
+                                                          size: 18,
+                                                          color: Colors.grey,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ),
+                                                const SizedBox(height: 4),
+                                                Text(
+                                                  character['name']!,
+                                                  style: Theme.of(context)
+                                                      .textTheme
+                                                      .bodySmall
+                                                      ?.copyWith(
+                                                        fontSize: 9,
+                                                        fontWeight: isSelected
+                                                            ? FontWeight.w600
+                                                            : FontWeight.w400,
+                                                        color: isSelected
+                                                            ? Theme.of(context)
+                                                                .primaryColor
+                                                            : Theme.of(context)
+                                                                .hintColor,
+                                                      ),
+                                                  textAlign: TextAlign.center,
+                                                  maxLines: 1,
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+
+                          // Divider between character selection and text input
+                          if (characters.isNotEmpty)
+                            Container(
+                              margin: const EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 8),
+                              height: 1,
+                              color: Theme.of(context).brightness ==
+                                      Brightness.dark
+                                  ? Colors.grey.shade800
+                                  : Colors.grey.shade300,
+                            ),
+
+                          // Text Input
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(20, 6, 20, 6),
+                            child: TextField(
+                              controller: postController,
+                              focusNode: _focusNode,
+                              minLines: 1,
+                              maxLines: 16,
+                              textInputAction: TextInputAction.send,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodyLarge
+                                  ?.copyWith(
+                                    color: Theme.of(context).brightness ==
+                                            Brightness.light
+                                        ? Colors.black
+                                        : Colors.white,
+                                  ),
+                              decoration: InputDecoration(
+                                hintText: selectedCharacter == null
+                                    ? 'What do you want to talk about?'
+                                    : 'Give ${selectedCharacter!['name']} a prompt to generate a post...',
+                                hintStyle: Theme.of(context)
+                                    .textTheme
+                                    .bodyLarge
+                                    ?.copyWith(
+                                        color: Theme.of(context).hintColor),
+                                enabledBorder: InputBorder.none,
+                                focusedBorder: InputBorder.none,
+                                border: InputBorder.none,
+                                filled: false,
+                                contentPadding: EdgeInsets.zero,
+                              ),
+                              onChanged: (value) {
+                                setState(() {
+                                  postContent = value;
+                                });
+                              },
+                              onEditingComplete: () {
+                                setState(() {
+                                  isTyping = false;
+                                });
+                              },
+                              onSubmitted: (t) {
+                                FocusScope.of(context).unfocus();
+                                setState(() {
+                                  submitted = true;
+                                });
+                              },
+                              onTapOutside: (t) {
+                                setState(() {
+                                  isTyping = true;
+                                });
+                              },
+                              onTap: () {
+                                setState(() {
+                                  isTyping = true;
+                                });
+                              },
                             ),
                           ),
-                        ),
+                        ],
                       ),
-                      // Upload indicator
-                      isUploading
-                          ? Padding(
-                              padding: const EdgeInsets.all(8.0),
-                              child: Container(
-                                height: 140,
-                                width: 140,
-                                decoration: BoxDecoration(
-                                  color: Theme.of(context).cardColor,
-                                  borderRadius: BorderRadius.circular(20.0),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Media Gallery Section
+                  SizedBox(
+                    height: imageUrls.isNotEmpty ||
+                            videoUrls.isNotEmpty ||
+                            isUploading
+                        ? 160
+                        : 0,
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.start,
+                        children: [
+                          // ...existing code...
+                          ...imageUrls.map((url) => Padding(
+                                padding: const EdgeInsets.all(8.0),
+                                child: Stack(
+                                  children: [
+                                    ClipRRect(
+                                      borderRadius: BorderRadius.circular(20.0),
+                                      child: Image(
+                                        height: 140,
+                                        width: 140,
+                                        fit: BoxFit.cover,
+                                        image: NetworkImage(url),
+                                      ),
+                                    ),
+                                    Positioned(
+                                      top: 5,
+                                      right: 5,
+                                      child: GestureDetector(
+                                        onTap: () async {
+                                          try {
+                                            await AuthWork.deletePostImage(url);
+                                            setState(() {
+                                              imageUrls.remove(url);
+                                            });
+                                          } catch (e) {}
+                                        },
+                                        child: Container(
+                                          padding: const EdgeInsets.all(4),
+                                          decoration: BoxDecoration(
+                                            color:
+                                                Colors.black.withOpacity(0.5),
+                                            shape: BoxShape.circle,
+                                          ),
+                                          child: const Icon(
+                                            Icons.close,
+                                            color: Colors.white,
+                                            size: 20,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                                child: ImageLoading(context),
+                              )),
+                          // ...existing video code...
+                          ...List.generate(
+                            videoUrls.length,
+                            (index) => Padding(
+                              padding: const EdgeInsets.all(8.0),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(20.0),
+                                child: Stack(
+                                  alignment: Alignment.center,
+                                  children: [
+                                    InkWell(
+                                      onTap: () {
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (context) =>
+                                                VideoPlayerWidgetPostScreen(
+                                                    videoUrls[index]),
+                                          ),
+                                        );
+                                      },
+                                      child: Stack(
+                                        children: [
+                                          CachedNetworkImage(
+                                            height: 140,
+                                            width: 140,
+                                            fit: BoxFit.fill,
+                                            imageUrl: thumbnailUrls[index],
+                                            placeholder: (context, url) =>
+                                                ImageLoading(context),
+                                            errorWidget:
+                                                (context, url, error) =>
+                                                    const SizedBox(),
+                                          ),
+                                          const Positioned.fill(
+                                            child: Center(
+                                              child: Icon(Icons.play_arrow,
+                                                  size: 50,
+                                                  color: Colors.white),
+                                            ),
+                                          ),
+                                          Positioned(
+                                            top: 5,
+                                            right: 5,
+                                            child: GestureDetector(
+                                              onTap: () async {
+                                                try {
+                                                  await AuthWork
+                                                      .deletePostVideo(
+                                                          videoUrls[index],
+                                                          thumbnailUrls[index]);
+                                                  setState(() {
+                                                    videoUrls.removeAt(index);
+                                                    thumbnailUrls
+                                                        .removeAt(index);
+                                                  });
+                                                } catch (e) {}
+                                              },
+                                              child: Container(
+                                                padding:
+                                                    const EdgeInsets.all(4),
+                                                decoration: BoxDecoration(
+                                                  color: Colors.black
+                                                      .withOpacity(0.5),
+                                                  shape: BoxShape.circle,
+                                                ),
+                                                child: const Icon(
+                                                  Icons.close,
+                                                  color: Colors.white,
+                                                  size: 20,
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
-                            )
-                          : const SizedBox(),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(
-                height: 15,
-              ),
-              const Spacer(flex: 3),
-            ],
-          ),
-        ),
-        // AI Generation Modal Overlay
-        if (isGenerating) _buildAIGenerationModal(),
-      ],
-    ),
-    bottomSheet: isGenerating ? null : Padding(
-          padding: const EdgeInsets.only(
-            bottom: 20,
-            left: 10,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Incash reward note at bottom center
-              Padding(
-                padding: const EdgeInsets.only(bottom: 15),
-                child: Center(
-                  child: Text(
-                    'Note: You earn 5 InCash for each post you make!',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Theme.of(context).hintColor,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w400,
+                            ),
+                          ),
+                          // Upload indicator
+                          isUploading
+                              ? Padding(
+                                  padding: const EdgeInsets.all(8.0),
+                                  child: Container(
+                                    height: 140,
+                                    width: 140,
+                                    decoration: BoxDecoration(
+                                      color: Theme.of(context).cardColor,
+                                      borderRadius: BorderRadius.circular(20.0),
+                                    ),
+                                    child: ImageLoading(context),
+                                  ),
+                                )
+                              : const SizedBox(),
+                        ],
+                      ),
                     ),
                   ),
-                ),
-              ),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.start,
-                children: [
-                  IconButton(
-                    onPressed: () async {
-                      final ImagePicker picker = ImagePicker();
-                      // Pick an image
-                      final XFile? image = await picker.pickImage(
-                          source: ImageSource.gallery, imageQuality: 90);
-                      if (image != null) {
-                        setState(() {
-                          isUploading = true;
-                        });
-                        await AuthWork.sendPostImage(
-                                FirebaseAuth.instance.currentUser!.uid,
-                                File(image.path))
-                            .then((value) {
-                          setState(() {
-                            imageUrls.add(value);
-                            isUploading = false;
-                          });
-                        });
-                      }
-                    },
-                    icon: Icon(
-                      FeatherIcons.image,
-                      color: Theme.of(context).iconTheme.color,
-                      size: 25,
-                    ),
+                  const SizedBox(
+                    height: 15,
                   ),
-                  IconButton(
-                    onPressed: () async {
-                      final ImagePicker picker = ImagePicker();
-                      // Pick a video
-                      final XFile? video = await picker.pickVideo(
-                          source: ImageSource.gallery,
-                          maxDuration: const Duration(minutes: 5));
-                      if (video != null) {
-                        setState(() {
-                          isUploading = true;
-                        });
-                        await AuthWork.sendPostVideo(
-                                FirebaseAuth.instance.currentUser!.uid,
-                                File(video.path))
-                            .then((value) {
-                          setState(() {
-                            videoUrls.add(value["videoUrl"]!);
-                            thumbnailUrls.add(value["thumbnailUrl"]!);
-                            isUploading = false;
-                          });
-                        });
-                      }
-                    },
-                    icon: Icon(
-                      FeatherIcons.video,
-                      color: Theme.of(context).iconTheme.color,
-                      size: 25,
-                    ),
-                  ),
-                  IconButton(
-                    onPressed: () async {
-                      final ImagePicker picker = ImagePicker();
-                      // Pick an image
-                      final XFile? image = await picker.pickImage(
-                          source: ImageSource.camera, imageQuality: 90);
-                      if (image != null) {
-                        setState(() {
-                          isUploading = true;
-                        });
-                        await AuthWork.sendPostImage(
-                                FirebaseAuth.instance.currentUser!.uid,
-                                File(image.path))
-                            .then((value) {
-                          setState(() {
-                            imageUrls.add(value);
-                            isUploading = false;
-                          });
-                        });
-                      }
-                    },
-                    icon: Icon(
-                      FeatherIcons.camera,
-                      color: Theme.of(context).iconTheme.color,
-                      size: 25,
-                    ),
-                  ),
+                  const Spacer(flex: 3),
                 ],
               ),
-            ],
-          ),
+            ),
+            // AI Generation Modal Overlay
+            if (isGenerating) _buildAIGenerationModal(),
+          ],
         ),
-    ),
+        bottomSheet: isGenerating
+            ? null
+            : Padding(
+                padding: const EdgeInsets.only(
+                  bottom: 20,
+                  left: 10,
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Incash reward note at bottom center
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 15),
+                      child: Center(
+                        child: Text(
+                          'Note: You earn 5 InCash for each post you make!',
+                          style:
+                              Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: Theme.of(context).hintColor,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w400,
+                                  ),
+                        ),
+                      ),
+                    ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.start,
+                      children: [
+                        IconButton(
+                          onPressed: () async {
+                            final ImagePicker picker = ImagePicker();
+                            // Pick an image
+                            final XFile? image = await picker.pickImage(
+                                source: ImageSource.gallery, imageQuality: 90);
+                            if (image != null) {
+                              setState(() {
+                                isUploading = true;
+                              });
+                              await AuthWork.sendPostImage(
+                                      FirebaseAuth.instance.currentUser!.uid,
+                                      File(image.path))
+                                  .then((value) {
+                                setState(() {
+                                  imageUrls.add(value);
+                                  isUploading = false;
+                                });
+                              });
+                            }
+                          },
+                          icon: Icon(
+                            FeatherIcons.image,
+                            color: Theme.of(context).iconTheme.color,
+                            size: 25,
+                          ),
+                        ),
+                        IconButton(
+                          onPressed: () async {
+                            final ImagePicker picker = ImagePicker();
+                            // Pick a video
+                            final XFile? video = await picker.pickVideo(
+                                source: ImageSource.gallery,
+                                maxDuration: const Duration(minutes: 5));
+                            if (video != null) {
+                              setState(() {
+                                isUploading = true;
+                              });
+                              await AuthWork.sendPostVideo(
+                                      FirebaseAuth.instance.currentUser!.uid,
+                                      File(video.path))
+                                  .then((value) {
+                                setState(() {
+                                  videoUrls.add(value["videoUrl"]!);
+                                  thumbnailUrls.add(value["thumbnailUrl"]!);
+                                  isUploading = false;
+                                });
+                              });
+                            }
+                          },
+                          icon: Icon(
+                            FeatherIcons.video,
+                            color: Theme.of(context).iconTheme.color,
+                            size: 25,
+                          ),
+                        ),
+                        IconButton(
+                          onPressed: () async {
+                            final ImagePicker picker = ImagePicker();
+                            // Pick an image
+                            final XFile? image = await picker.pickImage(
+                                source: ImageSource.camera, imageQuality: 90);
+                            if (image != null) {
+                              setState(() {
+                                isUploading = true;
+                              });
+                              await AuthWork.sendPostImage(
+                                      FirebaseAuth.instance.currentUser!.uid,
+                                      File(image.path))
+                                  .then((value) {
+                                setState(() {
+                                  imageUrls.add(value);
+                                  isUploading = false;
+                                });
+                              });
+                            }
+                          },
+                          icon: Icon(
+                            FeatherIcons.camera,
+                            color: Theme.of(context).iconTheme.color,
+                            size: 25,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+      ),
     );
   }
 
@@ -1238,9 +1384,9 @@ class _PostScreenState extends State<PostScreen> {
                       Text(
                         'AI Post Generator',
                         style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 18,
-                        ),
+                              fontWeight: FontWeight.w600,
+                              fontSize: 18,
+                            ),
                       ),
                       const Spacer(),
                       IconButton(
@@ -1274,7 +1420,7 @@ class _PostScreenState extends State<PostScreen> {
 
   Widget _buildQuestionStep() {
     final currentQuestion = clarifyingQuestions[currentQuestionIndex];
-    
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1284,9 +1430,9 @@ class _PostScreenState extends State<PostScreen> {
             Text(
               'Question ${currentQuestionIndex + 1} of ${clarifyingQuestions.length}',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: Theme.of(context).hintColor,
-                fontWeight: FontWeight.w500,
-              ),
+                    color: Theme.of(context).hintColor,
+                    fontWeight: FontWeight.w500,
+                  ),
             ),
             const Spacer(),
             Container(
@@ -1300,7 +1446,8 @@ class _PostScreenState extends State<PostScreen> {
               ),
               child: FractionallySizedBox(
                 alignment: Alignment.centerLeft,
-                widthFactor: (currentQuestionIndex + 1) / clarifyingQuestions.length,
+                widthFactor:
+                    (currentQuestionIndex + 1) / clarifyingQuestions.length,
                 child: Container(
                   decoration: BoxDecoration(
                     color: Theme.of(context).primaryColor,
@@ -1317,8 +1464,8 @@ class _PostScreenState extends State<PostScreen> {
         Text(
           currentQuestion['question']!,
           style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-            fontWeight: FontWeight.w500,
-          ),
+                fontWeight: FontWeight.w500,
+              ),
         ),
         const SizedBox(height: 16),
 
@@ -1329,8 +1476,8 @@ class _PostScreenState extends State<PostScreen> {
           decoration: InputDecoration(
             hintText: currentQuestion['placeholder'],
             hintStyle: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: Theme.of(context).hintColor,
-            ),
+                  color: Theme.of(context).hintColor,
+                ),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
               borderSide: BorderSide(
@@ -1412,7 +1559,8 @@ class _PostScreenState extends State<PostScreen> {
       children: [
         const SizedBox(height: 20),
         CircularProgressIndicator(
-          valueColor: AlwaysStoppedAnimation<Color>(Theme.of(context).primaryColor),
+          valueColor:
+              AlwaysStoppedAnimation<Color>(Theme.of(context).primaryColor),
           strokeWidth: 2,
         ),
         const SizedBox(height: 20),
@@ -1425,8 +1573,8 @@ class _PostScreenState extends State<PostScreen> {
         Text(
           'This may take a few moments',
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
-            color: Theme.of(context).hintColor,
-          ),
+                color: Theme.of(context).hintColor,
+              ),
         ),
       ],
     );
@@ -1459,8 +1607,8 @@ class _PostScreenState extends State<PostScreen> {
                   Text(
                     selectedCharacter!['name']!,
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
+                          fontWeight: FontWeight.w600,
+                        ),
                   ),
                 ],
               ),
