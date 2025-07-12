@@ -711,9 +711,9 @@ class HomeScreenState extends State<HomeScreen> {
                 physics: const AlwaysScrollableScrollPhysics(),
                 child: Column(
                   children: [
-                    const SizedBox(height: 5),
                     CustomAppBar(
                       isHome: true,
+                      isDebug: true,
                       userPoints: "100",
                       profileImageUrl: null,
                       onSearchTap: () {

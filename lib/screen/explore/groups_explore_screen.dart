@@ -3,7 +3,6 @@ import 'dart:async';
 
 import 'package:colorful_safe_area/colorful_safe_area.dart';
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:inzone/components/ui/appbar.dart';
 import 'package:inzone/data/group_data.dart';
 import 'package:inzone/data/group_chat_data.dart';
@@ -13,6 +12,7 @@ import 'package:inzone/components/cards/ad_card.dart';
 import 'package:inzone/router/routes.dart';
 import 'package:inzone/services/group_chat_service.dart';
 import 'package:inzone/services/monetization_service.dart';
+import 'package:inzone/services/reward_ad_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:inzone/components/posts/shimmering.dart';
 import 'package:pull_to_refresh_flutter3/pull_to_refresh_flutter3.dart';
@@ -22,6 +22,7 @@ import 'package:purchases_ui_flutter/purchases_ui_flutter.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_feather_icons/flutter_feather_icons.dart';
 import 'package:toasty_box/toast_service.dart';
+import 'package:flutter/services.dart';
 
 class GroupsExploreScreen extends StatefulWidget {
   const GroupsExploreScreen({super.key});
@@ -33,6 +34,7 @@ class GroupsExploreScreen extends StatefulWidget {
 class _GroupsExploreScreenState extends State<GroupsExploreScreen> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final MonetizationService _monetizationService = MonetizationService();
+  final RewardAdService _rewardAdService = RewardAdService();
   List<GroupData> _defaultGroups = [];
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _searchFocusNode = FocusNode();
@@ -50,6 +52,7 @@ class _GroupsExploreScreenState extends State<GroupsExploreScreen> {
     super.initState();
     _loadDefaultGroups();
     _setupBalanceStream(); // Setup stream instead of one-time load
+    _rewardAdService.initialize();
   }
 
   void _setupBalanceStream() {
@@ -105,6 +108,7 @@ class _GroupsExploreScreenState extends State<GroupsExploreScreen> {
     _searchController.dispose();
     _searchFocusNode.dispose();
     _balanceSubscription?.cancel(); // Cancel the stream subscription
+    _rewardAdService.dispose();
     super.dispose();
   }
 
@@ -365,8 +369,8 @@ class _GroupsExploreScreenState extends State<GroupsExploreScreen> {
                     onProfileTap: () {},
                     onPointsTap: () {
                       try {
-                        // context.push(Routes.subscription);
-                        presentPaywall();
+                        _showInCashOptionsBottomSheet();
+                        HapticFeedback.lightImpact();
                       } catch (e) {
                         ToastService.showToast(
                           context,
@@ -376,7 +380,7 @@ class _GroupsExploreScreenState extends State<GroupsExploreScreen> {
                             FeatherIcons.xCircle,
                             color: Colors.redAccent,
                           ),
-                          message: 'Error navigating to subscription: $e',
+                          message: 'Error showing options: $e',
                         );
                       }
                     },
@@ -741,6 +745,189 @@ class _GroupsExploreScreenState extends State<GroupsExploreScreen> {
               },
             ),
           ],
+        );
+      },
+    );
+  }
+
+  void _showInCashOptionsBottomSheet() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        decoration: BoxDecoration(
+          color: Theme.of(context).cardColor,
+          borderRadius: const BorderRadius.only(
+            topLeft: Radius.circular(20),
+            topRight: Radius.circular(20),
+          ),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Handle bar
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              // Title
+              Text(
+                'Get InCash',
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+              ),
+
+              const SizedBox(height: 24),
+
+              // Purchase Option
+              _buildInCashOptionTile(
+                icon: Icons.credit_card,
+                title: 'Purchase InCash',
+                subtitle: 'Buy InCash packages',
+                onTap: () {
+                  Navigator.pop(context);
+                  presentPaywall();
+                },
+              ),
+              const SizedBox(height: 16),
+
+              // Watch Ad Option
+              FutureBuilder<int>(
+                future: _rewardAdService.getRemainingRewardAds(),
+                builder: (context, snapshot) {
+                  final remainingAds = snapshot.data ?? 0;
+                  final canWatch = remainingAds > 0;
+
+                  String title = 'Watch Ad for InCash';
+
+                  String subtitle = canWatch
+                      ? 'Earn ${RewardAdService.rewardAmountPerAd} InCash ($remainingAds left today)'
+                      : 'Daily limit reached (${RewardAdService.maxDailyRewardAds}/day)';
+
+                  return _buildInCashOptionTile(
+                    icon: Icons.play_circle_outline,
+                    title: title,
+                    subtitle: subtitle,
+                    onTap: canWatch
+                        ? () {
+                            Navigator.pop(context);
+                            _watchRewardAd();
+                          }
+                        : null,
+                    isEnabled: canWatch,
+                  );
+                },
+              ),
+              const SizedBox(height: 20),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInCashOptionTile({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required VoidCallback? onTap,
+    bool isEnabled = true,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: isEnabled
+                ? Theme.of(context).canvasColor
+                : Theme.of(context).canvasColor.withOpacity(0.5),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                icon,
+                size: 28,
+                color: isEnabled ? Theme.of(context).primaryColor : Colors.grey,
+              ),
+              const SizedBox(width: 16),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Text(
+                      title,
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w500,
+                        color: isEnabled
+                            ? Theme.of(context).textTheme.bodyLarge?.color
+                            : Colors.grey,
+                      ),
+                    ),
+                  ),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w400,
+                      color: isEnabled
+                          ? Theme.of(context).textTheme.bodyLarge?.color
+                          : Colors.grey,
+                    ),
+                  ),
+                ],
+              )
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _watchRewardAd() {
+    _rewardAdService.showRewardAd(
+      context,
+      onRewardEarned: () {
+        ToastService.showToast(
+          context,
+          backgroundColor: Theme.of(context).canvasColor,
+          shadowColor: Colors.transparent,
+          leading: const Icon(
+            FeatherIcons.checkCircle,
+            color: Colors.greenAccent,
+          ),
+          message: 'You earned ${RewardAdService.rewardAmountPerAd} InCash!',
+        );
+      },
+      onError: (error) {
+        ToastService.showToast(
+          context,
+          backgroundColor: Theme.of(context).canvasColor,
+          shadowColor: Colors.transparent,
+          leading: const Icon(
+            FeatherIcons.xCircle,
+            color: Colors.redAccent,
+          ),
+          message: error,
         );
       },
     );
