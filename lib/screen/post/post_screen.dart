@@ -25,28 +25,9 @@ class PostScreen extends StatefulWidget {
 }
 
 class _PostScreenState extends State<PostScreen> {
-  List<Map<String, String>> characters = [
-    {
-      'name': 'Splash',
-      'image':
-          'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80'
-    },
-    {
-      'name': 'Dora',
-      'image':
-          'https://images.unsplash.com/photo-1544725176-7c40e5a71c5e?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80'
-    },
-    {
-      'name': 'Alex',
-      'image':
-          'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80'
-    },
-    {
-      'name': 'Maya',
-      'image':
-          'https://images.unsplash.com/photo-1494790108755-2616b332c10b?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80'
-    }
-  ]; // List of characters with name and image
+  List<Map<String, String>> characters =
+      []; // List of characters with name and image
+  bool _areCharactersLoading = true;
   Map<String, String>? selectedCharacter;
 
   // AI Generation state
@@ -224,6 +205,59 @@ class _PostScreenState extends State<PostScreen> {
     });
   }
 
+  Future<void> _fetchSavedCharacters() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      if (mounted) {
+        setState(() {
+          _areCharactersLoading = false;
+        });
+      }
+      return;
+    }
+
+    try {
+      final userDoc = await FirebaseFirestore.instance
+          .collection('humanUsers')
+          .doc(user.uid)
+          .get();
+
+      if (mounted &&
+          userDoc.exists &&
+          userDoc.data()!.containsKey('savedCharacters')) {
+        final savedCharactersData =
+            userDoc.get('savedCharacters') as List<dynamic>;
+
+        final fetchedCharacters = savedCharactersData
+            .map((charData) {
+              final name = charData['name'] as String?;
+              final imageUrl = charData['profilePictureUrl'] as String?;
+
+              if (name != null && imageUrl != null) {
+                return {'name': name, 'image': imageUrl};
+              }
+              return null;
+            })
+            .where((char) => char != null)
+            .cast<Map<String, String>>()
+            .toList();
+
+        setState(() {
+          characters = fetchedCharacters;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error fetching saved characters: $e');
+      // Optionally show an error message to the user via a toast or snackbar
+    } finally {
+      if (mounted) {
+        setState(() {
+          _areCharactersLoading = false;
+        });
+      }
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -231,6 +265,7 @@ class _PostScreenState extends State<PostScreen> {
       _focusNode.requestFocus();
     });
     _loadPreferences();
+    _fetchSavedCharacters();
     _startTime = DateTime.now().toUtc();
     pageOpened += 1;
   }
@@ -712,275 +747,326 @@ class _PostScreenState extends State<PostScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           // Character Selection at top of container
-                          if (characters.isNotEmpty)
-                            Container(
-                              padding: const EdgeInsets.only(
-                                  top: 12, left: 12, right: 12),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    children: [
-                                      Icon(
-                                        FeatherIcons.users,
-                                        size: 16,
-                                        color: Theme.of(context).hintColor,
-                                      ),
-                                      const SizedBox(width: 6),
-                                      Text(
-                                        'Post as',
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .bodySmall
-                                            ?.copyWith(
-                                              fontWeight: FontWeight.w500,
-                                              color:
-                                                  Theme.of(context).hintColor,
-                                              fontSize: 13,
-                                            ),
-                                      ),
-                                      const Spacer(),
-                                      if (selectedCharacter != null &&
-                                          postContent.trim().isNotEmpty)
-                                        GestureDetector(
-                                          onTap: () {
-                                            _startAIGeneration();
-                                          },
-                                          child: Container(
-                                            padding: const EdgeInsets.symmetric(
-                                                horizontal: 10, vertical: 6),
-                                            decoration: BoxDecoration(
-                                              color: Theme.of(context)
-                                                          .brightness ==
-                                                      Brightness.dark
-                                                  ? Colors.grey.shade800
-                                                      .withOpacity(0.5)
-                                                  : Colors.grey.shade100,
-                                              borderRadius:
-                                                  BorderRadius.circular(8),
-                                              border: Border.all(
-                                                color: Theme.of(context)
-                                                            .brightness ==
-                                                        Brightness.dark
-                                                    ? Colors.grey.shade700
-                                                    : Colors.grey.shade300,
-                                                width: 1,
+                          _areCharactersLoading
+                              ? const Center(
+                                  child: Padding(
+                                  padding: EdgeInsets.all(20.0),
+                                  child: CircularProgressIndicator(),
+                                ))
+                              : (characters.isNotEmpty
+                                  ? Container(
+                                      padding: const EdgeInsets.only(
+                                          top: 12, left: 12, right: 12),
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Row(
+                                            children: [
+                                              Icon(
+                                                FeatherIcons.users,
+                                                size: 16,
+                                                color:
+                                                    Theme.of(context).hintColor,
                                               ),
-                                            ),
-                                            child: Row(
-                                              mainAxisSize: MainAxisSize.min,
-                                              children: [
-                                                Icon(
-                                                  FeatherIcons.zap,
-                                                  size: 14,
-                                                  color: Theme.of(context)
-                                                      .textTheme
-                                                      .bodyMedium
-                                                      ?.color,
-                                                ),
-                                                const SizedBox(width: 6),
-                                                Text(
-                                                  'Generate',
-                                                  style: Theme.of(context)
-                                                      .textTheme
-                                                      .bodySmall
-                                                      ?.copyWith(
-                                                        fontSize: 12,
-                                                        fontWeight:
-                                                            FontWeight.w500,
-                                                      ),
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                        ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 8),
-                                  SizedBox(
-                                    height: 60,
-                                    child: ListView.builder(
-                                      scrollDirection: Axis.horizontal,
-                                      itemCount: characters.length + 1,
-                                      itemBuilder: (context, index) {
-                                        if (index == 0) {
-                                          return GestureDetector(
-                                            onTap: () {
-                                              setState(() {
-                                                selectedCharacter = null;
-                                              });
-                                            },
-                                            child: Container(
-                                              width: 60,
-                                              margin: const EdgeInsets.only(
-                                                  right: 8),
-                                              child: Column(
-                                                children: [
-                                                  Container(
-                                                    width: 40,
-                                                    height: 40,
+                                              const SizedBox(width: 6),
+                                              Text(
+                                                'Post as',
+                                                style: Theme.of(context)
+                                                    .textTheme
+                                                    .bodySmall
+                                                    ?.copyWith(
+                                                      fontWeight:
+                                                          FontWeight.w500,
+                                                      color: Theme.of(context)
+                                                          .hintColor,
+                                                      fontSize: 13,
+                                                    ),
+                                              ),
+                                              const Spacer(),
+                                              if (selectedCharacter != null &&
+                                                  postContent.trim().isNotEmpty)
+                                                GestureDetector(
+                                                  onTap: () {
+                                                    _startAIGeneration();
+                                                  },
+                                                  child: Container(
+                                                    padding: const EdgeInsets
+                                                        .symmetric(
+                                                        horizontal: 10,
+                                                        vertical: 6),
                                                     decoration: BoxDecoration(
-                                                      shape: BoxShape.circle,
+                                                      color: Theme.of(context)
+                                                                  .brightness ==
+                                                              Brightness.dark
+                                                          ? Colors.grey.shade800
+                                                              .withOpacity(0.5)
+                                                          : Colors
+                                                              .grey.shade100,
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                              8),
                                                       border: Border.all(
-                                                        color:
-                                                            selectedCharacter ==
-                                                                    null
-                                                                ? Theme.of(
-                                                                        context)
-                                                                    .primaryColor
-                                                                : Colors.grey
-                                                                    .withOpacity(
-                                                                        0.4),
-                                                        width: 2,
+                                                        color: Theme.of(context)
+                                                                    .brightness ==
+                                                                Brightness.dark
+                                                            ? Colors
+                                                                .grey.shade700
+                                                            : Colors
+                                                                .grey.shade300,
+                                                        width: 1,
                                                       ),
-                                                      color:
-                                                          selectedCharacter ==
-                                                                  null
-                                                              ? Theme.of(
-                                                                      context)
-                                                                  .primaryColor
-                                                                  .withOpacity(
-                                                                      0.1)
-                                                              : Colors
-                                                                  .transparent,
                                                     ),
-                                                    child: Icon(
-                                                      FeatherIcons.user,
-                                                      size: 18,
-                                                      color:
-                                                          selectedCharacter ==
-                                                                  null
-                                                              ? Theme.of(
-                                                                      context)
-                                                                  .primaryColor
-                                                              : Colors.grey,
-                                                    ),
-                                                  ),
-                                                  const SizedBox(height: 4),
-                                                  Text(
-                                                    'You',
-                                                    style: Theme.of(context)
-                                                        .textTheme
-                                                        .bodySmall
-                                                        ?.copyWith(
-                                                          fontSize: 9,
-                                                          fontWeight:
-                                                              selectedCharacter ==
-                                                                      null
-                                                                  ? FontWeight
-                                                                      .w600
-                                                                  : FontWeight
-                                                                      .w400,
-                                                          color: selectedCharacter ==
-                                                                  null
-                                                              ? Theme.of(
-                                                                      context)
-                                                                  .primaryColor
-                                                              : Theme.of(
-                                                                      context)
-                                                                  .hintColor,
+                                                    child: Row(
+                                                      mainAxisSize:
+                                                          MainAxisSize.min,
+                                                      children: [
+                                                        Icon(
+                                                          FeatherIcons.zap,
+                                                          size: 14,
+                                                          color:
+                                                              Theme.of(context)
+                                                                  .textTheme
+                                                                  .bodyMedium
+                                                                  ?.color,
                                                         ),
-                                                    textAlign: TextAlign.center,
-                                                  ),
-                                                ],
-                                              ),
-                                            ),
-                                          );
-                                        }
-
-                                        final character = characters[index - 1];
-                                        final isSelected =
-                                            selectedCharacter == character;
-
-                                        return GestureDetector(
-                                          onTap: () {
-                                            setState(() {
-                                              selectedCharacter = character;
-                                            });
-                                          },
-                                          child: Container(
-                                            width: 60,
-                                            margin:
-                                                const EdgeInsets.only(right: 8),
-                                            child: Column(
-                                              children: [
-                                                Container(
-                                                  width: 40,
-                                                  height: 40,
-                                                  decoration: BoxDecoration(
-                                                    shape: BoxShape.circle,
-                                                    border: Border.all(
-                                                      color: isSelected
-                                                          ? Theme.of(context)
-                                                              .primaryColor
-                                                          : Colors.grey
-                                                              .withOpacity(0.4),
-                                                      width: 2,
+                                                        const SizedBox(
+                                                            width: 6),
+                                                        Text(
+                                                          'Generate',
+                                                          style:
+                                                              Theme.of(context)
+                                                                  .textTheme
+                                                                  .bodySmall
+                                                                  ?.copyWith(
+                                                                    fontSize:
+                                                                        12,
+                                                                    fontWeight:
+                                                                        FontWeight
+                                                                            .w500,
+                                                                  ),
+                                                        ),
+                                                      ],
                                                     ),
                                                   ),
-                                                  child: ClipOval(
-                                                    child: CachedNetworkImage(
-                                                      imageUrl:
-                                                          character['image']!,
-                                                      fit: BoxFit.cover,
-                                                      placeholder:
-                                                          (context, url) =>
-                                                              Container(
-                                                        color: Colors.grey
-                                                            .withOpacity(0.2),
-                                                        child: const Center(
-                                                          child:
-                                                              CircularProgressIndicator(
-                                                                  strokeWidth:
-                                                                      2),
-                                                        ),
-                                                      ),
-                                                      errorWidget: (context,
-                                                              url, error) =>
+                                                ),
+                                            ],
+                                          ),
+                                          const SizedBox(height: 8),
+                                          SizedBox(
+                                            height: 60,
+                                            child: ListView.builder(
+                                              scrollDirection: Axis.horizontal,
+                                              itemCount: characters.length + 1,
+                                              itemBuilder: (context, index) {
+                                                if (index == 0) {
+                                                  return GestureDetector(
+                                                    onTap: () {
+                                                      setState(() {
+                                                        selectedCharacter =
+                                                            null;
+                                                      });
+                                                    },
+                                                    child: Container(
+                                                      width: 60,
+                                                      margin:
+                                                          const EdgeInsets.only(
+                                                              right: 8),
+                                                      child: Column(
+                                                        children: [
                                                           Container(
-                                                        color: Colors.grey
-                                                            .withOpacity(0.2),
-                                                        child: const Icon(
-                                                          FeatherIcons.user,
-                                                          size: 18,
-                                                          color: Colors.grey,
-                                                        ),
+                                                            width: 40,
+                                                            height: 40,
+                                                            decoration:
+                                                                BoxDecoration(
+                                                              shape: BoxShape
+                                                                  .circle,
+                                                              border:
+                                                                  Border.all(
+                                                                color: selectedCharacter ==
+                                                                        null
+                                                                    ? Theme.of(
+                                                                            context)
+                                                                        .primaryColor
+                                                                    : Colors
+                                                                        .grey
+                                                                        .withOpacity(
+                                                                            0.4),
+                                                                width: 2,
+                                                              ),
+                                                              color: selectedCharacter ==
+                                                                      null
+                                                                  ? Theme.of(
+                                                                          context)
+                                                                      .primaryColor
+                                                                      .withOpacity(
+                                                                          0.1)
+                                                                  : Colors
+                                                                      .transparent,
+                                                            ),
+                                                            child: Icon(
+                                                              FeatherIcons.user,
+                                                              size: 18,
+                                                              color: selectedCharacter ==
+                                                                      null
+                                                                  ? Theme.of(
+                                                                          context)
+                                                                      .primaryColor
+                                                                  : Colors.grey,
+                                                            ),
+                                                          ),
+                                                          const SizedBox(
+                                                              height: 4),
+                                                          Text(
+                                                            'You',
+                                                            style:
+                                                                Theme.of(
+                                                                        context)
+                                                                    .textTheme
+                                                                    .bodySmall
+                                                                    ?.copyWith(
+                                                                      fontSize:
+                                                                          9,
+                                                                      fontWeight: selectedCharacter ==
+                                                                              null
+                                                                          ? FontWeight
+                                                                              .w600
+                                                                          : FontWeight
+                                                                              .w400,
+                                                                      color: selectedCharacter ==
+                                                                              null
+                                                                          ? Theme.of(context)
+                                                                              .primaryColor
+                                                                          : Theme.of(context)
+                                                                              .hintColor,
+                                                                    ),
+                                                            textAlign: TextAlign
+                                                                .center,
+                                                          ),
+                                                        ],
                                                       ),
                                                     ),
+                                                  );
+                                                }
+
+                                                final character =
+                                                    characters[index - 1];
+                                                final isSelected =
+                                                    selectedCharacter ==
+                                                        character;
+
+                                                return GestureDetector(
+                                                  onTap: () {
+                                                    setState(() {
+                                                      selectedCharacter =
+                                                          character;
+                                                    });
+                                                  },
+                                                  child: Container(
+                                                    width: 60,
+                                                    margin:
+                                                        const EdgeInsets.only(
+                                                            right: 8),
+                                                    child: Column(
+                                                      children: [
+                                                        Container(
+                                                          width: 40,
+                                                          height: 40,
+                                                          decoration:
+                                                              BoxDecoration(
+                                                            shape:
+                                                                BoxShape.circle,
+                                                            border: Border.all(
+                                                              color: isSelected
+                                                                  ? Theme.of(
+                                                                          context)
+                                                                      .primaryColor
+                                                                  : Colors.grey
+                                                                      .withOpacity(
+                                                                          0.4),
+                                                              width: 2,
+                                                            ),
+                                                          ),
+                                                          child: ClipOval(
+                                                            child:
+                                                                CachedNetworkImage(
+                                                              imageUrl:
+                                                                  character[
+                                                                      'image']!,
+                                                              fit: BoxFit.cover,
+                                                              placeholder:
+                                                                  (context,
+                                                                          url) =>
+                                                                      Container(
+                                                                color: Colors
+                                                                    .grey
+                                                                    .withOpacity(
+                                                                        0.2),
+                                                                child:
+                                                                    const Center(
+                                                                  child: CircularProgressIndicator(
+                                                                      strokeWidth:
+                                                                          2),
+                                                                ),
+                                                              ),
+                                                              errorWidget:
+                                                                  (context, url,
+                                                                          error) =>
+                                                                      Container(
+                                                                color: Colors
+                                                                    .grey
+                                                                    .withOpacity(
+                                                                        0.2),
+                                                                child:
+                                                                    const Icon(
+                                                                  FeatherIcons
+                                                                      .user,
+                                                                  size: 18,
+                                                                  color: Colors
+                                                                      .grey,
+                                                                ),
+                                                              ),
+                                                            ),
+                                                          ),
+                                                        ),
+                                                        const SizedBox(
+                                                            height: 4),
+                                                        Text(
+                                                          character['name']!,
+                                                          style:
+                                                              Theme.of(context)
+                                                                  .textTheme
+                                                                  .bodySmall
+                                                                  ?.copyWith(
+                                                                    fontSize: 9,
+                                                                    fontWeight: isSelected
+                                                                        ? FontWeight
+                                                                            .w600
+                                                                        : FontWeight
+                                                                            .w400,
+                                                                    color: isSelected
+                                                                        ? Theme.of(context)
+                                                                            .primaryColor
+                                                                        : Theme.of(context)
+                                                                            .hintColor,
+                                                                  ),
+                                                          textAlign:
+                                                              TextAlign.center,
+                                                          maxLines: 1,
+                                                          overflow: TextOverflow
+                                                              .ellipsis,
+                                                        ),
+                                                      ],
+                                                    ),
                                                   ),
-                                                ),
-                                                const SizedBox(height: 4),
-                                                Text(
-                                                  character['name']!,
-                                                  style: Theme.of(context)
-                                                      .textTheme
-                                                      .bodySmall
-                                                      ?.copyWith(
-                                                        fontSize: 9,
-                                                        fontWeight: isSelected
-                                                            ? FontWeight.w600
-                                                            : FontWeight.w400,
-                                                        color: isSelected
-                                                            ? Theme.of(context)
-                                                                .primaryColor
-                                                            : Theme.of(context)
-                                                                .hintColor,
-                                                      ),
-                                                  textAlign: TextAlign.center,
-                                                  maxLines: 1,
-                                                  overflow:
-                                                      TextOverflow.ellipsis,
-                                                ),
-                                              ],
+                                                );
+                                              },
                                             ),
                                           ),
-                                        );
-                                      },
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
+                                        ],
+                                      ),
+                                    )
+                                  : const SizedBox.shrink()),
 
                           // Divider between character selection and text input
                           if (characters.isNotEmpty)

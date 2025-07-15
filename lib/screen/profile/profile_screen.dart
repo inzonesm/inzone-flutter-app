@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_feather_icons/flutter_feather_icons.dart';
@@ -35,8 +36,13 @@ class _ProfileScreenState extends State<ProfileScreen>
   int followersCount = 0;
   bool isLoading = true;
 
+  // Saved characters
+  List<Map<String, String>> _savedCharacters = [];
+  bool _areCharactersLoading = true;
+
   // Additional state for this specific screen
   bool isFollowing = false;
+  bool _isFollowedBy = false;
   late TabController _tabController;
   late TabController _scrollTabController;
 
@@ -68,8 +74,16 @@ class _ProfileScreenState extends State<ProfileScreen>
       }
     });
 
+    if (!widget.isAI) {
+      _fetchSavedCharacters();
+    } else {
+      // For AI characters, no characters to load, so stop the loading indicator.
+      _areCharactersLoading = false;
+    }
+
     fetchUserProfile();
     fetchUserStats(widget.isAI);
+    checkFollowStatus();
   }
 
   @override
@@ -77,6 +91,51 @@ class _ProfileScreenState extends State<ProfileScreen>
     _tabController.dispose();
     _scrollTabController.dispose();
     super.dispose();
+  }
+
+  Future<void> _fetchSavedCharacters() async {
+    // _areCharactersLoading is initialized to true, so the loader will show on first build.
+    try {
+      final userDoc = await FirebaseFirestore.instance
+          .collection('humanUsers')
+          .doc(widget.uid)
+          .get();
+
+      List<Map<String, String>> fetchedCharacters = [];
+      if (userDoc.exists &&
+          userDoc.data() != null &&
+          userDoc.data()!.containsKey('savedCharacters')) {
+        final savedCharactersData =
+            userDoc.get('savedCharacters') as List<dynamic>;
+
+        fetchedCharacters = savedCharactersData
+            .map((charData) {
+              final name = charData['name'] as String?;
+              final imageUrl = charData['profilePictureUrl'] as String?;
+
+              if (name != null && imageUrl != null) {
+                return {'name': name, 'image': imageUrl};
+              }
+              return null;
+            })
+            .whereType<Map<String, String>>()
+            .toList();
+      }
+
+      if (mounted) {
+        setState(() {
+          _savedCharacters = fetchedCharacters;
+          _areCharactersLoading = false; // Update loading state here
+        });
+      }
+    } catch (e) {
+      debugPrint('Error fetching saved characters on profile screen: $e');
+      if (mounted) {
+        setState(() {
+          _areCharactersLoading = false; // Also stop loading on error
+        });
+      }
+    }
   }
 
   // Methods previously from BaseProfileScreen
@@ -97,8 +156,6 @@ class _ProfileScreenState extends State<ProfileScreen>
         ai: widget.isAI,
         profileImageUrl: profileImageUrl ?? this.profileImageUrl,
       ),
-
-      // Community tab - 스크롤 문제를 해결하기 위한 래핑
       Scaffold(
         backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         body: FollowersFollowingTab(
@@ -434,9 +491,6 @@ class _ProfileScreenState extends State<ProfileScreen>
         message: 'Could not load user profile',
       );
     }
-
-    // Check follow status for both human and AI users
-    await checkFollowStatus();
   }
 
   Future<void> fetchUserStats([bool isAi = false]) async {
@@ -478,19 +532,19 @@ class _ProfileScreenState extends State<ProfileScreen>
     try {
       String? currentUserId = await InZoneDatabase.getCurrentUserUid();
       if (currentUserId != null && currentUserId != userId) {
-        // Get the current user's profile to check who they're following
+        // Get the current user's profile to check their relationships
         Map<String, dynamic>? currentUserProfile =
             await InZoneDatabase.getCurrentUserProfile();
 
-        if (currentUserProfile != null &&
-            currentUserProfile.containsKey('following')) {
+        if (currentUserProfile != null) {
           List<dynamic> currentUserFollowing =
               currentUserProfile['following'] ?? [];
+          List<dynamic> currentUserFollowers =
+              currentUserProfile['followers'] ?? [];
 
           setState(() {
-            // Check if the profile we're viewing is in the current user's following list
+            // Check 1: Is the current user following the viewed profile?
             isFollowing = false;
-
             for (var followedUser in currentUserFollowing) {
               if (followedUser is Map<String, dynamic>) {
                 if (followedUser['id'] == userId) {
@@ -502,12 +556,27 @@ class _ProfileScreenState extends State<ProfileScreen>
                 break;
               }
             }
+
+            // Check 2: Is the viewed profile following the current user?
+            _isFollowedBy = false;
+            for (var follower in currentUserFollowers) {
+              if (follower is Map<String, dynamic>) {
+                if (follower['id'] == userId) {
+                  _isFollowedBy = true;
+                  break;
+                }
+              } else if (follower is String && follower == userId) {
+                _isFollowedBy = true;
+                break;
+              }
+            }
           });
         }
       }
     } catch (e) {
       setState(() {
         isFollowing = false;
+        _isFollowedBy = false;
       });
     }
   }
@@ -680,9 +749,9 @@ class _ProfileScreenState extends State<ProfileScreen>
       backgroundColor: Colors.transparent,
       context: context,
       builder: (context) => Container(
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.only(
+        decoration: BoxDecoration(
+          color: Theme.of(context).cardColor,
+          borderRadius: const BorderRadius.only(
             topRight: Radius.circular(30),
             topLeft: Radius.circular(30),
           ),
@@ -696,44 +765,58 @@ class _ProfileScreenState extends State<ProfileScreen>
               height: 5,
               margin: const EdgeInsets.only(bottom: 5),
               decoration: BoxDecoration(
-                color: Colors.grey[300],
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? Colors.grey.shade800
+                    : Colors.grey.shade300,
                 borderRadius: BorderRadius.circular(10),
               ),
             ),
             const SizedBox(height: 15),
             InkWell(
-              onTap: () async {
-                Navigator.of(context).pop(); // Close the bottom sheet
-                String? currentUserId =
-                    await InZoneDatabase.getCurrentUserUid();
-                if (currentUserId != null) {
-                  bool success =
-                      await InZoneDatabase.removeFromFollowers(getUserId());
-                  if (success) {
-                    ToastService.showToast(
-                      context,
-                      backgroundColor: Theme.of(context).canvasColor,
-                      shadowColor: Colors.transparent,
-                      leading: const Icon(
-                        Icons.person_remove,
-                        color: Colors.redAccent,
-                      ),
-                      message: 'User removed from your followers',
-                    );
-                    // Refresh the profile data
-                    fetchUserProfile();
-                  }
-                }
-              },
+              onTap: _isFollowedBy
+                  ? () async {
+                      Navigator.of(context).pop(); // Close the bottom sheet
+                      String? currentUserId =
+                          await InZoneDatabase.getCurrentUserUid();
+                      if (currentUserId != null) {
+                        bool success = await InZoneDatabase.removeFromFollowers(
+                            getUserId());
+                        if (success) {
+                          ToastService.showToast(
+                            context,
+                            backgroundColor: Theme.of(context).canvasColor,
+                            shadowColor: Colors.transparent,
+                            leading: const Icon(
+                              Icons.person_remove,
+                              color: Colors.redAccent,
+                            ),
+                            message: 'User removed from your followers',
+                          );
+                          // Refresh the profile data
+                          fetchUserProfile();
+                        }
+                      }
+                    }
+                  : null,
               child: Container(
                 padding: const EdgeInsets.all(16),
-                child: const Row(
+                child: Row(
                   children: [
-                    Icon(Icons.person_remove),
-                    SizedBox(width: 16),
+                    Icon(
+                      Icons.person_remove,
+                      color: _isFollowedBy
+                          ? Theme.of(context).iconTheme.color
+                          : Colors.grey,
+                    ),
+                    const SizedBox(width: 16),
                     Text(
                       'Remove from followers',
-                      style: TextStyle(fontSize: 16),
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: _isFollowedBy
+                            ? Theme.of(context).textTheme.bodyLarge?.color
+                            : Colors.grey,
+                      ),
                     ),
                   ],
                 ),
@@ -762,7 +845,6 @@ class _ProfileScreenState extends State<ProfileScreen>
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-
             Text(
               'AI Profile',
               style: TextStyle(
@@ -839,7 +921,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                   ],
                 ),
                 const SizedBox(height: 20),
-                
+
                 // Explanation text
                 Container(
                   padding: const EdgeInsets.all(16),
@@ -869,7 +951,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                   ),
                 ),
                 const SizedBox(height: 20),
-                
+
                 // Close button
                 SizedBox(
                   width: double.infinity,
@@ -955,6 +1037,8 @@ class _ProfileScreenState extends State<ProfileScreen>
                         followersCount: followersCount,
                         actionButtons: buildActionButtons(),
                         isProfilePage: true,
+                        savedCharacters: _savedCharacters,
+                        areCharactersLoading: _areCharactersLoading,
                       ),
 
                       Positioned(
