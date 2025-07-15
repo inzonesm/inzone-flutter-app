@@ -20,6 +20,7 @@ import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:inzone/router/routes.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:app_tracking_transparency/app_tracking_transparency.dart';
+import 'package:inzone/services/reward_ad_service.dart';
 
 // Key for storing first launch status in SharedPreferences
 const String FIRST_LAUNCH_KEY = 'is_first_launch';
@@ -101,6 +102,10 @@ void main() async {
   // Initialize AdMob with test device configuration
   MobileAds.instance.initialize();
 
+  // Initialize reward ad service
+  final rewardAdService = RewardAdService();
+  await rewardAdService.initialize();
+
   // Initialize SharedPreferences
   SharedPreferences prefs = await SharedPreferences.getInstance();
 
@@ -170,7 +175,7 @@ class _MyAppState extends State<MyApp> {
         // User is logged in - go to home
         print("User is logged in - going to home");
         AppRouter.setInitialRoute(Routes.home);
-        
+
         // Update first launch status if it was the first launch
         if (isFirstLaunch) {
           widget.prefs.setBool(FIRST_LAUNCH_KEY, false);
@@ -179,7 +184,7 @@ class _MyAppState extends State<MyApp> {
         // User is not logged in - always show onboarding
         print("User is not logged in - showing onboarding");
         AppRouter.setInitialRoute(Routes.onboarding);
-        
+
         // Update first launch status if it was the first launch
         if (isFirstLaunch) {
           widget.prefs.setBool(FIRST_LAUNCH_KEY, false);
