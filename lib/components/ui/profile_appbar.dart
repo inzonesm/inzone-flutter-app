@@ -14,6 +14,8 @@ class ProfileAppbar extends StatelessWidget {
   final int followersCount;
   final Widget actionButtons;
   final bool isProfilePage;
+  final List<Map<String, String>> savedCharacters;
+  final bool areCharactersLoading;
 
   const ProfileAppbar({
     super.key,
@@ -26,6 +28,8 @@ class ProfileAppbar extends StatelessWidget {
     required this.actionButtons,
     this.isProfilePage = false,
     required this.profileImageUrl,
+    this.savedCharacters = const [],
+    this.areCharactersLoading = true,
   });
 
   @override
@@ -132,6 +136,7 @@ class ProfileAppbar extends StatelessWidget {
                       ],
                     ),
                   ),
+                  _buildSavedCharactersSection(context),
 
                   // const Padding(
                   //   padding: EdgeInsets.only(left: 24, right: 0),
@@ -143,6 +148,82 @@ class ProfileAppbar extends StatelessWidget {
               ),
             ),
           ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSavedCharactersSection(BuildContext context) {
+    if (areCharactersLoading) {
+      return const Padding(
+        padding: EdgeInsets.only(top: 16.0),
+        child: Center(child: SizedBox(width: 20, height: 20)),
+      );
+    }
+
+    if (savedCharacters.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 20),
+        SizedBox(
+          height: 80,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.only(left: 20.0),
+            itemCount: savedCharacters.length,
+            itemBuilder: (context, index) {
+              final character = savedCharacters[index];
+              return Container(
+                width: 50,
+                height: 50,
+                margin: const EdgeInsets.only(right: 12.0),
+                child: Column(
+                  children: [
+                    Container(
+                      width: 50,
+                      height: 50,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color:
+                              Theme.of(context).primaryColor.withOpacity(0.5),
+                          width: 2,
+                        ),
+                      ),
+                      child: ClipOval(
+                        child: CachedNetworkImage(
+                          imageUrl: character['image']!,
+                          fit: BoxFit.cover,
+                          placeholder: (context, url) => Container(
+                            color: Colors.grey.withOpacity(0.2),
+                          ),
+                          errorWidget: (context, url, error) => Container(
+                            color: Colors.grey.withOpacity(0.2),
+                            child: const Icon(FeatherIcons.user, size: 24),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      character['name']!,
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: Theme.of(context).textTheme.bodySmall?.color,
+                      ),
+                      textAlign: TextAlign.center,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
         ),
       ],
     );

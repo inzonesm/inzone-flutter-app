@@ -7,6 +7,7 @@ import 'package:inzone/components/cards/post_card.dart';
 import 'package:inzone/components/profile/avatar_card.dart';
 import 'package:inzone/components/profile/user_posts_tab.dart';
 import 'package:inzone/components/ui/profile_appbar.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:inzone/data/inzone_avatar.dart';
 import 'package:inzone/data/inzone_post.dart';
 import 'package:inzone/router/routes.dart';
@@ -35,6 +36,10 @@ class _UserProfileScreenState extends State<UserProfileScreen>
   int followersCount = 0;
   bool isLoading = true;
   String? currentUserId;
+
+  // Saved characters
+  List<Map<String, String>> _savedCharacters = [];
+  bool _areCharactersLoading = true;
 
   // Tab controllers
   late TabController _tabController;
@@ -90,6 +95,52 @@ class _UserProfileScreenState extends State<UserProfileScreen>
     } else {
       await fetchUserProfile();
       await fetchUserStats();
+      await _fetchSavedCharacters();
+    }
+  }
+
+  Future<void> _fetchSavedCharacters() async {
+    if (currentUserId == null) {
+      if (mounted) {
+        setState(() => _areCharactersLoading = false);
+      }
+      return;
+    }
+
+    try {
+      final userDoc = await FirebaseFirestore.instance
+          .collection('humanUsers')
+          .doc(currentUserId!)
+          .get();
+
+      List<Map<String, String>> fetchedCharacters = [];
+      if (userDoc.exists && userDoc.data()!.containsKey('savedCharacters')) {
+        final savedCharactersData =
+            userDoc.get('savedCharacters') as List<dynamic>;
+        fetchedCharacters = savedCharactersData
+            .map((charData) {
+              final name = charData['name'] as String?;
+              final imageUrl = charData['profilePictureUrl'] as String?;
+              if (name != null && imageUrl != null) {
+                return {'name': name, 'image': imageUrl};
+              }
+              return null;
+            })
+            .whereType<Map<String, String>>()
+            .toList();
+      }
+
+      if (mounted) {
+        setState(() {
+          _savedCharacters = fetchedCharacters;
+          _areCharactersLoading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error fetching saved characters on user profile screen: $e');
+      if (mounted) {
+        setState(() => _areCharactersLoading = false);
+      }
     }
   }
 
@@ -329,6 +380,8 @@ class _UserProfileScreenState extends State<UserProfileScreen>
                     followersCount: followersCount,
                     actionButtons: buildActionButtons(),
                     isProfilePage: true,
+                    savedCharacters: _savedCharacters,
+                    areCharactersLoading: _areCharactersLoading,
                   ),
                 ),
               ),
