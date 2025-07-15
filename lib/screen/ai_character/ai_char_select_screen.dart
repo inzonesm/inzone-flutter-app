@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_feather_icons/flutter_feather_icons.dart';
@@ -1050,31 +1052,77 @@ class _AICharacterSelectionScreenState extends State<AICharacterSelectionScreen>
         : (_generatedCharacter?['profilePictureUrl'] ?? '');
 
     return ElevatedButton(
-      onPressed: () {
+      onPressed: () async {
         // Handle character selection with selected image
         final characterData = {
           'name': name,
           'personality': _generatedCharacter?['Personality'] ?? '',
           'characterId': _generatedCharacter?['PopularCharacterId'] ?? '',
-          'selectedImageUrl': selectedImageUrl,
-          'selectedImageIndex': _selectedImageIndex,
+          'profilePictureUrl': selectedImageUrl,
+          'createdAt': DateTime.now().millisecondsSinceEpoch,
         };
-        ToastService.showToast(
-          context,
-          shadowColor: Colors.transparent,
-          backgroundColor: Theme.of(context).canvasColor,
-          leading: const Icon(
-            FeatherIcons.checkCircle,
-            color: Colors.greenAccent,
-          ),
-          message:
-              'Selected character: $name with image ${_selectedImageIndex + 1}',
-        );
+        
+        // Save the character to the user's document in humanUsers collection
+        try {
+          // Get the current user ID from Firebase Auth
+          final currentUser = FirebaseAuth.instance.currentUser;
+          if (currentUser?.uid != null) {
+            // Add this character to the user's savedCharacters array in Firestore
+            await FirebaseFirestore.instance
+                .collection('humanUsers')
+                .doc(currentUser!.uid)
+                .update({
+              'savedCharacters': FieldValue.arrayUnion([characterData]),
+            }).catchError((error) {
+              // If the document doesn't exist yet, create it
+              if (error.code == 'not-found') {
+                return FirebaseFirestore.instance
+                    .collection('humanUsers')
+                    .doc(currentUser.uid)
+                    .set({
+                  'savedCharacters': [characterData],
+                });
+              }
+              throw error;
+            });
+            
+            ToastService.showToast(
+              context,
+              shadowColor: Colors.transparent,
+              backgroundColor: Theme.of(context).canvasColor,
+              leading: const Icon(
+                FeatherIcons.checkCircle,
+                color: Colors.greenAccent,
+              ),
+              message: 'Character saved to your collection',
+            );
+          } else {
+            ToastService.showToast(
+              context,
+              shadowColor: Colors.transparent,
+              backgroundColor: Theme.of(context).canvasColor,
+              leading: const Icon(
+                FeatherIcons.alertCircle,
+                color: Colors.orangeAccent,
+              ),
+              message: 'Could not save character: User not signed in',
+            );
+          }
+        } catch (e) {
+          print('Error saving character: $e');
+          ToastService.showToast(
+            context,
+            shadowColor: Colors.transparent,
+            backgroundColor: Theme.of(context).canvasColor,
+            leading: const Icon(
+              FeatherIcons.alertCircle,
+              color: Colors.redAccent,
+            ),
+            message: 'Error saving character: ${e.toString().substring(0, math.min(e.toString().length, 50))}',
+          );
+        }
 
         context.pushReplacement(Routes.home);
-
-        // Add navigation or callback logic here
-        // For example: context.push(Routes.chatWithCharacter, extra: characterData);
       },
       style: ElevatedButton.styleFrom(
         backgroundColor: colorPalette[0],
