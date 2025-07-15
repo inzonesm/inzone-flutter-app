@@ -15,6 +15,7 @@ import 'package:inzone/screen/settings/settings_screen.dart';
 import 'package:inzone/services/inzone_database.dart';
 import 'package:inzone/theme/app_colors.dart';
 import 'package:go_router/go_router.dart';
+import 'package:inzone/screen/chat/all_chats_screen.dart';
 
 class UserProfileScreen extends StatefulWidget {
   const UserProfileScreen({super.key});
@@ -121,8 +122,13 @@ class _UserProfileScreenState extends State<UserProfileScreen>
             .map((charData) {
               final name = charData['name'] as String?;
               final imageUrl = charData['profilePictureUrl'] as String?;
-              if (name != null && imageUrl != null) {
-                return {'name': name, 'image': imageUrl};
+              final characterId = charData['characterId'] as String?;
+              if (name != null && imageUrl != null && characterId != null) {
+                return {
+                  'id': characterId,
+                  'name': name,
+                  'image': imageUrl,
+                };
               }
               return null;
             })
@@ -365,6 +371,7 @@ class _UserProfileScreenState extends State<UserProfileScreen>
                 onRefresh: () async {
                   await fetchUserProfile();
                   await fetchUserStats();
+                  await _fetchSavedCharacters();
                 },
               ),
               SliverToBoxAdapter(
@@ -382,6 +389,15 @@ class _UserProfileScreenState extends State<UserProfileScreen>
                     isProfilePage: true,
                     savedCharacters: _savedCharacters,
                     areCharactersLoading: _areCharactersLoading,
+                    onCharacterTap: (characterId, characterName) {
+                      context.pushNamed('chat',
+                          extra: ChatUser(
+                            name: characterName,
+                            email: characterId,
+                            chatId: null,
+                            isHuman: false,
+                          ));
+                    },
                   ),
                 ),
               ),

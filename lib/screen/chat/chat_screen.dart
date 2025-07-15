@@ -27,8 +27,10 @@ class AIChatSessionTracker {
     _sessionInteractionTypes[characterId] = [];
   }
 
-  static void incrementMessageCount(String characterId, String interactionType) {
-    _sessionMessageCounts[characterId] = (_sessionMessageCounts[characterId] ?? 0) + 1;
+  static void incrementMessageCount(
+      String characterId, String interactionType) {
+    _sessionMessageCounts[characterId] =
+        (_sessionMessageCounts[characterId] ?? 0) + 1;
     _sessionInteractionTypes[characterId]?.add(interactionType);
   }
 
@@ -39,8 +41,9 @@ class AIChatSessionTracker {
       final messageCount = _sessionMessageCounts[characterId] ?? 0;
       final interactions = _sessionInteractionTypes[characterId] ?? [];
       final userId = FirebaseAuth.instance.currentUser?.uid;
-      
-      if (userId != null && duration > 5) { // Only track sessions longer than 5 seconds
+
+      if (userId != null && duration > 5) {
+        // Only track sessions longer than 5 seconds
         AppsFlyerService().trackAICharacterInteraction(
           characterId: characterId,
           userId: userId,
@@ -59,7 +62,7 @@ class AIChatSessionTracker {
           'timestamp': DateTime.now().millisecondsSinceEpoch,
         });
       }
-      
+
       _sessionStartTimes.remove(characterId);
       _sessionMessageCounts.remove(characterId);
       _sessionInteractionTypes.remove(characterId);
@@ -116,10 +119,10 @@ class _ChatScreenState extends State<ChatScreen> {
     super.initState();
     _chatStartTime = DateTime.now();
     _characterId = widget.userData.email ?? 'unknown';
-    
+
     // Start AI character session tracking
     AIChatSessionTracker.startSession(_characterId);
-    
+
     // Track AI character interaction start
     final userId = FirebaseAuth.instance.currentUser?.uid;
     if (userId != null) {
@@ -136,11 +139,11 @@ class _ChatScreenState extends State<ChatScreen> {
   void dispose() {
     // End AI character session tracking
     AIChatSessionTracker.endSession(_characterId);
-    
+
     // Track final session analytics
     final sessionDuration = DateTime.now().difference(_chatStartTime).inSeconds;
     final userId = FirebaseAuth.instance.currentUser?.uid;
-    
+
     if (userId != null && sessionDuration > 5) {
       AppsFlyerService().logEvent('ai_character_session_end', {
         'character_id': _characterId,
@@ -169,7 +172,8 @@ class _ChatScreenState extends State<ChatScreen> {
     return 'high';
   }
 
-  int get sessionDuration => DateTime.now().difference(_chatStartTime).inSeconds;
+  int get sessionDuration =>
+      DateTime.now().difference(_chatStartTime).inSeconds;
 
   getMessages() {
     return Column(
@@ -198,11 +202,12 @@ class _ChatScreenState extends State<ChatScreen> {
       );
 
       chatHistory.add({text, isMe ? "user" : "ai"});
-      
+
       // Track message types
       if (isMe) {
         _userMessageCount++;
-        AIChatSessionTracker.incrementMessageCount(_characterId, 'user_message');
+        AIChatSessionTracker.incrementMessageCount(
+            _characterId, 'user_message');
         _interactionTypes.add('user_message');
       } else {
         _aiResponseCount++;
@@ -300,10 +305,10 @@ class _ChatScreenState extends State<ChatScreen> {
                   addMessage(userMessage, true);
                   msg.clear();
                   scrollToEnd();
-                  
+
                   String? aiResponse;
                   final responseStartTime = DateTime.now();
-                  
+
                   if (widget.userData.chatId != null) {
                     if (kDebugMode) {
                       print("Chat id found.");
@@ -324,14 +329,17 @@ class _ChatScreenState extends State<ChatScreen> {
                     aiResponse = await InZoneDatabase.sendMessageToAI(
                         userMessage, widget.userData.email!, null, chatHistory);
                   }
-                  
+
                   if (aiResponse != null) {
                     addMessage(aiResponse, false);
-                    
+
                     // Track AI response analytics
-                    final responseTime = DateTime.now().difference(responseStartTime).inMilliseconds;
+                    final responseTime = DateTime.now()
+                        .difference(responseStartTime)
+                        .inMilliseconds;
                     if (userId != null) {
-                      AppsFlyerService().logEvent('ai_character_response_received', {
+                      AppsFlyerService()
+                          .logEvent('ai_character_response_received', {
                         'character_id': _characterId,
                         'character_name': widget.userData.name ?? 'Unknown',
                         'user_id': userId,

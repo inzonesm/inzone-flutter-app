@@ -1,4 +1,5 @@
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_feather_icons/flutter_feather_icons.dart';
@@ -112,9 +113,14 @@ class _ProfileScreenState extends State<ProfileScreen>
             .map((charData) {
               final name = charData['name'] as String?;
               final imageUrl = charData['profilePictureUrl'] as String?;
+              final characterId = charData['characterId'] as String?;
 
-              if (name != null && imageUrl != null) {
-                return {'name': name, 'image': imageUrl};
+              if (name != null && imageUrl != null && characterId != null) {
+                return {
+                  'id': characterId,
+                  'name': name,
+                  'image': imageUrl,
+                };
               }
               return null;
             })
@@ -135,6 +141,14 @@ class _ProfileScreenState extends State<ProfileScreen>
           _areCharactersLoading = false; // Also stop loading on error
         });
       }
+    }
+  }
+
+  Future<void> _handleRefresh() async {
+    await fetchUserProfile();
+    await fetchUserStats(widget.isAI);
+    if (!widget.isAI) {
+      await _fetchSavedCharacters();
     }
   }
 
@@ -1014,7 +1028,10 @@ class _ProfileScreenState extends State<ProfileScreen>
       body: SafeArea(
         child: NestedScrollView(
           headerSliverBuilder: (BuildContext context, bool innerBoxIsScrolled) {
-            return [
+            return <Widget>[
+              CupertinoSliverRefreshControl(
+                onRefresh: _handleRefresh,
+              ),
               // 상단 여백 (앱바 대신 사용)
               const SliverToBoxAdapter(
                 child: SizedBox(height: 0),
@@ -1039,6 +1056,15 @@ class _ProfileScreenState extends State<ProfileScreen>
                         isProfilePage: true,
                         savedCharacters: _savedCharacters,
                         areCharactersLoading: _areCharactersLoading,
+                        onCharacterTap: (characterId, characterName) {
+                          context.pushNamed('chat',
+                              extra: ChatUser(
+                                name: characterName,
+                                email: characterId,
+                                chatId: null,
+                                isHuman: false,
+                              ));
+                        },
                       ),
 
                       Positioned(
