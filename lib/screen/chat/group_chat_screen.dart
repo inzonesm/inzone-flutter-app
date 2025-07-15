@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_feather_icons/flutter_feather_icons.dart';
 import 'package:get/get_connect/http/src/utils/utils.dart';
 import 'package:inzone/router/routes.dart';
+import 'package:inzone/screen/chat/sample_chat.dart';
 import 'package:inzone/services/inzone_database.dart';
 import 'package:inzone/services/monetization_service.dart';
 import 'package:inzone/components/chat/chat_input.dart';
@@ -25,6 +26,7 @@ import 'package:purchases_ui_flutter/purchases_ui_flutter.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:toasty_box/toast_service.dart';
 import 'package:inzone/services/appsflyer_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 // Group Chat Session Tracker
 class GroupChatSessionTracker {
@@ -38,7 +40,7 @@ class GroupChatSessionTracker {
     _sessionMessageCounts[groupId] = 0;
     _sessionParticipants[groupId] = <String>{userId};
     _sessionActivityTypes[groupId] = ['session_start'];
-    
+
     // Track group chat joined event
     AppsFlyerService().trackGroupChatJoined(
       groupId: groupId,
@@ -46,7 +48,8 @@ class GroupChatSessionTracker {
     );
   }
 
-  static void incrementActivity(String groupId, String userId, String activityType) {
+  static void incrementActivity(
+      String groupId, String userId, String activityType) {
     _sessionMessageCounts[groupId] = (_sessionMessageCounts[groupId] ?? 0) + 1;
     _sessionParticipants[groupId]?.add(userId);
     _sessionActivityTypes[groupId]?.add(activityType);
@@ -59,8 +62,9 @@ class GroupChatSessionTracker {
       final messageCount = _sessionMessageCounts[groupId] ?? 0;
       final participants = _sessionParticipants[groupId]?.length ?? 0;
       final activities = _sessionActivityTypes[groupId] ?? [];
-      
-      if (duration > 10) { // Only track sessions longer than 10 seconds
+
+      if (duration > 10) {
+        // Only track sessions longer than 10 seconds
         AppsFlyerService().trackGroupChatActivity(
           groupId: groupId,
           userId: userId,
@@ -76,11 +80,12 @@ class GroupChatSessionTracker {
           'messages_sent': messageCount,
           'active_participants': participants,
           'activity_types': activities.join(','),
-          'engagement_quality': _calculateEngagementQuality(duration, messageCount),
+          'engagement_quality':
+              _calculateEngagementQuality(duration, messageCount),
           'timestamp': DateTime.now().millisecondsSinceEpoch,
         });
       }
-      
+
       _sessionStartTimes.remove(groupId);
       _sessionMessageCounts.remove(groupId);
       _sessionParticipants.remove(groupId);
@@ -149,10 +154,10 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     // Initialize session tracking
     _sessionStartTime = DateTime.now();
     _currentUserId = FirebaseAuth.instance.currentUser?.uid ?? 'anonymous';
-    
+
     // Start group chat session tracking
     GroupChatSessionTracker.startSession(_groupId, _currentUserId);
-    
+
     // Track group chat session start
     AppsFlyerService().logEvent('group_chat_session_start', {
       'group_id': _groupId,
@@ -170,6 +175,63 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
     // Fetch user profile images
     _fetchUserProfileImages();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkFirstTimeAndShowPopup();
+    });
+  }
+
+  String _getGroupCategoryKey(String groupName) {
+    final lowerCaseName = groupName.toLowerCase();
+    const keyPrefix = 'group_popup_seen';
+
+    if (lowerCaseName.contains('tiktok') ||
+        lowerCaseName.contains('hiphop') ||
+        lowerCaseName.contains('meme start') ||
+        lowerCaseName.contains('disney')) {
+      return '${keyPrefix}_social';
+    }
+
+    if (lowerCaseName.contains('marvel') ||
+        lowerCaseName.contains('anime') ||
+        lowerCaseName.contains('fantasy') ||
+        lowerCaseName.contains('video game')) {
+      return '${keyPrefix}_geek';
+    }
+
+    if (lowerCaseName.contains('sports superstars') ||
+        lowerCaseName.contains('greatest cartoon')) {
+      return '${keyPrefix}_icons';
+    }
+
+    return '${keyPrefix}_other';
+  }
+
+  void _checkFirstTimeAndShowPopup() async {
+    final categoryKey = _getGroupCategoryKey(widget.group.name);
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    bool isFirstTimeForCategory = prefs.getBool(categoryKey) ?? true;
+
+    if (isFirstTimeForCategory) {
+      HapticFeedback.mediumImpact();
+      final category = categoryKey.split('_').last;
+      await Navigator.push(
+        context,
+        PageRouteBuilder(
+          opaque: false,
+          pageBuilder: (context, animation, secondaryAnimation) =>
+              SampleChatPage(category: category),
+          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            return FadeTransition(
+              opacity: animation,
+              child: child,
+            );
+          },
+          transitionDuration: const Duration(milliseconds: 200),
+        ),
+      );
+      await prefs.setBool(categoryKey, false);
+    }
   }
 
   void _trackGroupJoinEvent() {
@@ -187,10 +249,11 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   void dispose() {
     // End group chat session tracking
     GroupChatSessionTracker.endSession(_groupId, _currentUserId);
-    
+
     // Track comprehensive session analytics
-    final sessionDuration = DateTime.now().difference(_sessionStartTime).inSeconds;
-    
+    final sessionDuration =
+        DateTime.now().difference(_sessionStartTime).inSeconds;
+
     if (sessionDuration > 5) {
       AppsFlyerService().logEvent('group_chat_engagement_summary', {
         'group_id': _groupId,
@@ -223,20 +286,21 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
   double _calculateEngagementScore() {
     double score = 0.0;
-    final sessionMinutes = DateTime.now().difference(_sessionStartTime).inMinutes;
-    
+    final sessionMinutes =
+        DateTime.now().difference(_sessionStartTime).inMinutes;
+
     // Base score from time spent
     score += sessionMinutes * 0.1;
-    
+
     // Bonus for sending messages
     score += _messagesSentThisSession * 2.0;
-    
+
     // Bonus for viewing messages
     score += _totalMessagesViewed * 0.5;
-    
+
     // Bonus for observing multiple participants
     score += _observedParticipants.length * 1.0;
-    
+
     return score.clamp(0.0, 100.0);
   }
 
@@ -409,10 +473,12 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     // Track message sending analytics
     _messagesSentThisSession++;
     _sessionActivities.add('message_sent');
-    GroupChatSessionTracker.incrementActivity(_groupId, currentUserId, 'message_sent');
-    
-    final sessionDurationSoFar = DateTime.now().difference(_sessionStartTime).inSeconds;
-    
+    GroupChatSessionTracker.incrementActivity(
+        _groupId, currentUserId, 'message_sent');
+
+    final sessionDurationSoFar =
+        DateTime.now().difference(_sessionStartTime).inSeconds;
+
     AppsFlyerService().logEvent('group_chat_message_sent', {
       'group_id': _groupId,
       'group_name': widget.group.name,
@@ -431,7 +497,8 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Text('You need to join this group before sending messages'),
+            content: const Text(
+                'You need to join this group before sending messages'),
             behavior: SnackBarBehavior.floating,
             backgroundColor: Theme.of(context).colorScheme.error,
             duration: const Duration(seconds: 2),
@@ -1691,7 +1758,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                 TextButton(
                   onPressed: () {
                     Navigator.of(context).pop();
-                  context.push(Routes.referral);
+                    context.push(Routes.referral);
                   },
                   child: const Text("Refer a friend"),
                 ),
