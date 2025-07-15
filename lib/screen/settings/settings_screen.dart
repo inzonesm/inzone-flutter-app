@@ -15,11 +15,41 @@ import 'package:purchases_flutter/purchases_flutter.dart' show Purchases;
 import 'package:purchases_ui_flutter/purchases_ui_flutter.dart';
 import 'package:inzone/services/monetization_service.dart';
 import 'package:inzone/services/auth_service.dart';
+import 'package:inzone/services/reward_ad_service.dart';
 
-class SettingsScreen extends StatelessWidget {
-  SettingsScreen({super.key});
+class SettingsScreen extends StatefulWidget {
+  const SettingsScreen({super.key});
 
+  @override
+  State<SettingsScreen> createState() => _SettingsScreenState();
+}
+
+class _SettingsScreenState extends State<SettingsScreen> {
   final MonetizationService _monetizationService = MonetizationService();
+  final RewardAdService _rewardAdService = RewardAdService();
+  final adunitId = Platform.isAndroid
+      ? "ca-app-pub-4474122990542651/6949210208"
+      : "ca-app-pub-4474122990542651/7222071742";
+
+  int _remainingAds = 5;
+  String _freeInCashSubtitle = "Watch ads to earn InCash (5 per day)";
+
+  @override
+  void initState() {
+    super.initState();
+    _loadRemainingAds();
+  }
+
+  /// Load remaining ads count and update subtitle
+  Future<void> _loadRemainingAds() async {
+    final remaining = await _rewardAdService.getRemainingRewardAds();
+    setState(() {
+      _remainingAds = remaining;
+      _freeInCashSubtitle =
+          "Watch ads to earn InCash ($remaining remaining today)";
+    });
+  }
+
   Future<void> _launchInBrowser(String url) async {
     if (await canLaunch(url)) {
       await launch(
@@ -222,13 +252,102 @@ class SettingsScreen extends StatelessWidget {
     return result ?? false;
   }
 
+  /// Show reward ad for Free InCash
+  Future<void> _showRewardAd(BuildContext context) async {
+    try {
+      // Check if user can watch reward ad
+      if (!await _rewardAdService.canWatchRewardAd()) {
+        final remaining = await _rewardAdService.getRemainingRewardAds();
+        ToastService.showToast(
+          context,
+          backgroundColor: Theme.of(context).canvasColor,
+          shadowColor: Colors.transparent,
+          leading: const Icon(
+            Icons.warning_amber_rounded,
+            color: Colors.orange,
+          ),
+          message: remaining > 0
+              ? 'You have $remaining reward ads remaining today.'
+              : 'Daily limit reached. Come back tomorrow for more free InCash!',
+        );
+        return;
+      }
+
+      // Initialize reward ad service if not already done
+      if (!_rewardAdService.isRewardAdReady) {
+        ToastService.showToast(
+          context,
+          backgroundColor: Theme.of(context).canvasColor,
+          shadowColor: Colors.transparent,
+          leading: const Icon(
+            Icons.info,
+            color: Colors.blue,
+          ),
+          message: 'Loading reward ad...',
+        );
+        await _rewardAdService.initialize();
+
+        // Give a small delay to ensure ad is loaded
+        await Future.delayed(const Duration(seconds: 2));
+      }
+
+      // Show reward ad
+      await _rewardAdService.showRewardAd(
+        context,
+        onRewardEarned: () {
+          // Success callback
+          ToastService.showToast(
+            context,
+            backgroundColor: Theme.of(context).canvasColor,
+            shadowColor: Colors.transparent,
+            leading: const Icon(
+              Icons.check_circle,
+              color: Colors.green,
+            ),
+            message:
+                'Congratulations! You earned ${RewardAdService.rewardAmountPerAd} InCash!',
+          );
+
+          // Update remaining ads count
+          _loadRemainingAds();
+        },
+        onError: (String error) {
+          // Error callback
+          ToastService.showToast(
+            context,
+            backgroundColor: Theme.of(context).canvasColor,
+            shadowColor: Colors.transparent,
+            leading: const Icon(
+              Icons.error,
+              color: Colors.redAccent,
+            ),
+            message: error,
+          );
+        },
+      );
+    } catch (e) {
+      print('Error showing reward ad: $e');
+      ToastService.showToast(
+        context,
+        backgroundColor: Theme.of(context).canvasColor,
+        shadowColor: Colors.transparent,
+        leading: const Icon(
+          Icons.error,
+          color: Colors.redAccent,
+        ),
+        message: 'Failed to show reward ad. Please try again.',
+      );
+    }
+  }
+
   List<String> category = ["Personal", "Others"];
 
-  List<String> personalTitleList = ["Interests", "Subscription"];
-  List<String> personalSubtitleList = [
-    "Select what you'd like to see in your feed",
-    "Manage your InCash subscription"
-  ];
+  List<String> personalTitleList = ["Interests", "Subscription", "Free InCash"];
+  List<String> get personalSubtitleList => [
+        "Select what you'd like to see in your feed",
+        "Manage your InCash subscription",
+        _freeInCashSubtitle
+      ];
   List<VoidCallback> personalOnPressedList(BuildContext context) {
     return [
       () {
@@ -263,6 +382,10 @@ class SettingsScreen extends StatelessWidget {
             message: 'Error navigating to subscription: $e',
           );
         }
+      },
+      () {
+        // Handle Free InCash reward ad
+        _showRewardAd(context);
       },
     ];
   }
