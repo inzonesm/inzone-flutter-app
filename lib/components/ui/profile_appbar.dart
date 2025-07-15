@@ -132,6 +132,13 @@ class ProfileAppbar extends StatelessWidget {
                       ],
                     ),
                   ),
+
+                  // const Padding(
+                  //   padding: EdgeInsets.only(left: 24, right: 0),
+                  //   child: Text(
+                  //     "This is profile page for the users",
+                  //   ),
+                  // ),
                 ],
               ),
             ),
