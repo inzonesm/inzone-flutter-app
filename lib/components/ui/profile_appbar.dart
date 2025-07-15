@@ -16,6 +16,7 @@ class ProfileAppbar extends StatelessWidget {
   final bool isProfilePage;
   final List<Map<String, String>> savedCharacters;
   final bool areCharactersLoading;
+  final Function(String, String)? onCharacterTap;
 
   const ProfileAppbar({
     super.key,
@@ -30,6 +31,7 @@ class ProfileAppbar extends StatelessWidget {
     required this.profileImageUrl,
     this.savedCharacters = const [],
     this.areCharactersLoading = true,
+    this.onCharacterTap,
   });
 
   @override
@@ -156,8 +158,8 @@ class ProfileAppbar extends StatelessWidget {
   Widget _buildSavedCharactersSection(BuildContext context) {
     if (areCharactersLoading) {
       return const Padding(
-        padding: EdgeInsets.only(top: 16.0),
-        child: Center(child: SizedBox(width: 20, height: 20)),
+        padding: EdgeInsets.all(16.0),
+        child: Center(child: CircularProgressIndicator()),
       );
     }
 
@@ -177,49 +179,52 @@ class ProfileAppbar extends StatelessWidget {
             itemCount: savedCharacters.length,
             itemBuilder: (context, index) {
               final character = savedCharacters[index];
-              return Container(
-                width: 50,
-                height: 50,
-                margin: const EdgeInsets.only(right: 12.0),
-                child: Column(
-                  children: [
-                    Container(
-                      width: 50,
-                      height: 50,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color:
-                              Theme.of(context).primaryColor.withOpacity(0.5),
-                          width: 2,
-                        ),
-                      ),
-                      child: ClipOval(
-                        child: CachedNetworkImage(
-                          imageUrl: character['image']!,
-                          fit: BoxFit.cover,
-                          placeholder: (context, url) => Container(
-                            color: Colors.grey.withOpacity(0.2),
-                          ),
-                          errorWidget: (context, url, error) => Container(
-                            color: Colors.grey.withOpacity(0.2),
-                            child: const Icon(FeatherIcons.user, size: 24),
+              return GestureDetector(
+                onTap: () {
+                  if (onCharacterTap != null && character['id'] != null) {
+                    onCharacterTap!(character['id']!, character['name']!);
+                  }
+                },
+                child: Container(
+                  width: 60,
+                  margin: const EdgeInsets.only(right: 12.0),
+                  child: Column(
+                    children: [
+                      Container(
+                        width: 50,
+                        height: 50,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color:
+                                Theme.of(context).primaryColor.withOpacity(0.5),
+                            width: 2,
                           ),
                         ),
+                        child: ClipOval(
+                          child: CachedNetworkImage(
+                            imageUrl: character['image']!,
+                            fit: BoxFit.cover,
+                            placeholder: (context, url) => Container(
+                              color: Colors.grey.withOpacity(0.2),
+                            ),
+                            errorWidget: (context, url, error) => Container(
+                              color: Colors.grey.withOpacity(0.2),
+                              child: const Icon(FeatherIcons.user, size: 24),
+                            ),
+                          ),
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      character['name']!,
-                      style: TextStyle(
-                        fontSize: 10,
-                        color: Theme.of(context).textTheme.bodySmall?.color,
+                      const SizedBox(height: 8),
+                      Text(
+                        character['name']!,
+                        style: Theme.of(context).textTheme.bodySmall,
+                        textAlign: TextAlign.center,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      textAlign: TextAlign.center,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               );
             },
