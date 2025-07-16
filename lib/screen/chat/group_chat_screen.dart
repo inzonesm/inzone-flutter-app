@@ -176,9 +176,9 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     // Fetch user profile images
     _fetchUserProfileImages();
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _checkFirstTimeAndShowPopup();
-    });
+    // WidgetsBinding.instance.addPostFrameCallback((_) {
+    //   _checkFirstTimeAndShowPopup();
+    // });
   }
 
   String _getGroupCategoryKey(String groupName) {
@@ -207,32 +207,32 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     return '${keyPrefix}_other';
   }
 
-  void _checkFirstTimeAndShowPopup() async {
-    final categoryKey = _getGroupCategoryKey(widget.group.name);
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    bool isFirstTimeForCategory = prefs.getBool(categoryKey) ?? true;
+  // void _checkFirstTimeAndShowPopup() async {
+  //   final categoryKey = _getGroupCategoryKey(widget.group.name);
+  //   SharedPreferences prefs = await SharedPreferences.getInstance();
+  //   bool isFirstTimeForCategory = prefs.getBool(categoryKey) ?? true;
 
-    if (isFirstTimeForCategory) {
-      HapticFeedback.mediumImpact();
-      final category = categoryKey.split('_').last;
-      await Navigator.push(
-        context,
-        PageRouteBuilder(
-          opaque: false,
-          pageBuilder: (context, animation, secondaryAnimation) =>
-              SampleChatPage(category: category),
-          transitionsBuilder: (context, animation, secondaryAnimation, child) {
-            return FadeTransition(
-              opacity: animation,
-              child: child,
-            );
-          },
-          transitionDuration: const Duration(milliseconds: 200),
-        ),
-      );
-      await prefs.setBool(categoryKey, false);
-    }
-  }
+  //   if (isFirstTimeForCategory) {
+  //     HapticFeedback.mediumImpact();
+  //     final category = categoryKey.split('_').last;
+  //     await Navigator.push(
+  //       context,
+  //       PageRouteBuilder(
+  //         opaque: false,
+  //         pageBuilder: (context, animation, secondaryAnimation) =>
+  //             SampleChatPage(category: category),
+  //         transitionsBuilder: (context, animation, secondaryAnimation, child) {
+  //           return FadeTransition(
+  //             opacity: animation,
+  //             child: child,
+  //           );
+  //         },
+  //         transitionDuration: const Duration(milliseconds: 200),
+  //       ),
+  //     );
+  //     await prefs.setBool(categoryKey, false);
+  //   }
+  // }
 
   void _trackGroupJoinEvent() {
     AppsFlyerService().logEvent('group_chat_join_action', {
