@@ -181,31 +181,31 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     // });
   }
 
-  String _getGroupCategoryKey(String groupName) {
-    final lowerCaseName = groupName.toLowerCase();
-    const keyPrefix = 'group_popup_seen';
+  // String _getGroupCategoryKey(String groupName) {
+  //   final lowerCaseName = groupName.toLowerCase();
+  //   const keyPrefix = 'group_popup_seen';
 
-    if (lowerCaseName.contains('tiktok') ||
-        lowerCaseName.contains('hiphop') ||
-        lowerCaseName.contains('meme start') ||
-        lowerCaseName.contains('disney')) {
-      return '${keyPrefix}_social';
-    }
+  //   if (lowerCaseName.contains('tiktok') ||
+  //       lowerCaseName.contains('hiphop') ||
+  //       lowerCaseName.contains('meme start') ||
+  //       lowerCaseName.contains('disney')) {
+  //     return '${keyPrefix}_social';
+  //   }
 
-    if (lowerCaseName.contains('marvel') ||
-        lowerCaseName.contains('anime') ||
-        lowerCaseName.contains('fantasy') ||
-        lowerCaseName.contains('video game')) {
-      return '${keyPrefix}_geek';
-    }
+  //   if (lowerCaseName.contains('marvel') ||
+  //       lowerCaseName.contains('anime') ||
+  //       lowerCaseName.contains('fantasy') ||
+  //       lowerCaseName.contains('video game')) {
+  //     return '${keyPrefix}_geek';
+  //   }
 
-    if (lowerCaseName.contains('sports superstars') ||
-        lowerCaseName.contains('greatest cartoon')) {
-      return '${keyPrefix}_icons';
-    }
+  //   if (lowerCaseName.contains('sports superstars') ||
+  //       lowerCaseName.contains('greatest cartoon')) {
+  //     return '${keyPrefix}_icons';
+  //   }
 
-    return '${keyPrefix}_other';
-  }
+  //   return '${keyPrefix}_other';
+  // }
 
   // void _checkFirstTimeAndShowPopup() async {
   //   final categoryKey = _getGroupCategoryKey(widget.group.name);
