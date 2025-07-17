@@ -91,6 +91,8 @@ class _ChatScreenState extends State<ChatScreen> {
       ScrollController(); // Create a ScrollController
   final ScrollController _mainScrollController = ScrollController();
 
+  bool _isSending = false;
+
   // AI Character Interaction Tracking
   late DateTime _chatStartTime;
   late String _characterId;
@@ -284,6 +286,12 @@ class _ChatScreenState extends State<ChatScreen> {
                 controller: msg,
                 scrollController: _scrollController,
                 onSend: () async {
+                  if (_isSending || msg.text.trim().isEmpty) return;
+
+                  setState(() {
+                    _isSending = true;
+                  });
+
                   scrollToEnd();
                   String userMessage = msg.text;
 
@@ -350,7 +358,15 @@ class _ChatScreenState extends State<ChatScreen> {
                         'timestamp': DateTime.now().millisecondsSinceEpoch,
                       });
                     }
+                  } else {
+                    // Handle failed message
+                    addMessage(
+                        "Failed to get a response. Please try again.", false);
                   }
+
+                  setState(() {
+                    _isSending = false;
+                  });
 
                   scrollToEnd();
                 },

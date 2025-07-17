@@ -389,13 +389,15 @@ class _UserProfileScreenState extends State<UserProfileScreen>
                     isProfilePage: true,
                     savedCharacters: _savedCharacters,
                     areCharactersLoading: _areCharactersLoading,
-                    onCharacterTap: (characterId, characterName) {
+                    onCharacterTap:
+                        (characterId, characterName, characterImage) {
                       context.pushNamed('chat',
                           extra: ChatUser(
                             name: characterName,
                             email: characterId,
                             chatId: null,
                             isHuman: false,
+                            profilePictureURL: characterImage,
                           ));
                     },
                   ),

@@ -5,6 +5,7 @@ import 'package:inzone/data/inzone_post.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:inzone/services/appsflyer_service.dart';
 import 'dart:async'; // Add Timer import
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../main.dart';
 
@@ -139,63 +140,96 @@ class InZoneDatabase {
 
   static Future<String?> sendMessageToAI(String userMessage, String aiUsername,
       String? chatID, List<Set> chatHistory) async {
-    String url;
-    if (aiUsername.contains('.')) {
-      url = 'https://ai-apis-912424781531.us-east1.run.app/chat/aiUser';
-    } else {
-      url =
-          'https://ai-apis-912424781531.us-east1.run.app/chat/popularCharacter';
+    String? currentUserUID = await InZoneDatabase.getCurrentUserUid();
+    if (currentUserUID == null) {
+      // Not logged in, so can't send message.
+      return null;
     }
 
-    String? currentUserUID;
+    String? personality;
+    String apiAiId = aiUsername; // Default to the ID passed in
+    final characterRef = FirebaseFirestore.instance
+        .collection('popularCharacters')
+        .doc(aiUsername);
+    final characterDoc = await characterRef.get();
 
-    await InZoneDatabase.getCurrentUserUid().then((value) {
-      if (value != null) {
-        currentUserUID = value;
+    if (characterDoc.exists) {
+      final characterData = characterDoc.data()!;
+      personality = characterData['Personality'];
+      // The API expects the character's name, not the document ID.
+      apiAiId = characterData['name'] ?? characterData['Name'] ?? aiUsername;
+
+      if (characterData['createdByHuman'] == true) {
+        final today = DateTime.now().toIso8601String().split('T').first;
+        final interactionRef = FirebaseFirestore.instance
+            .collection('aiCharacterInteractions')
+            .doc('${aiUsername}_${currentUserUID}_$today');
+
+        final interactionDoc = await interactionRef.get();
+
+        if (interactionDoc.exists) {
+          await interactionRef
+              .update({'interactionCount': FieldValue.increment(1)});
+        } else {
+          await interactionRef.set({
+            'characterId': aiUsername,
+            'userId': currentUserUID,
+            'date': today,
+            'interactionCount': 1,
+          });
+        }
       }
-    });
+    }
+
+    String url =
+        'https://ai-apis-912424781531.us-east1.run.app/chat/popularCharacter';
+
     // Convert each Set to a List (or call toJson() if it's a custom object)
     final chatHistoryJson = chatHistory.map((s) => s.toList()).toList();
-    if (currentUserUID != null) {
-      try {
-        Map<String, dynamic> requestBody = {
-          'message': userMessage,
-          'ai_id': aiUsername,
-          'chat_history': chatHistoryJson
-        };
-        print("Sending this: $requestBody");
 
-        if (chatID != null) {
-          requestBody['ConversationId'] = chatID;
-        }
+    print("Sending message to popularCharacter: $aiUsername");
 
-        // Make the POST request
-        final response = await http.post(
-          Uri.parse(url),
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: jsonEncode(requestBody),
-        );
-        // Check if the request was successful
-        if (response.statusCode == 200) {
-          // Decode the response body as JSON
-          final Map<String, dynamic> jsonResponse = jsonDecode(response.body);
+    try {
+      Map<String, dynamic> requestBody = {
+        'message': userMessage,
+        'ai_id': apiAiId, // Use the fetched name here
+        'chat_history': chatHistoryJson,
+        if (personality != null) 'personality': personality,
+      };
+      print("Sending this: $requestBody");
 
-          // Check if the response has the expected structure
-          if (jsonResponse.containsKey('data')) {
-            return jsonResponse['data']['message'];
-          }
-          return 'Unexpected response format from server';
-        } else {
-          // Return an error message if status code is not 200
-          return 'Failed to send message. Status code: ${response.statusCode}';
-        }
-      } catch (e) {
-        return 'Error occurred: $e';
+      if (chatID != null) {
+        requestBody['ConversationId'] = chatID;
       }
+
+      // Make the POST request
+      final response = await http.post(
+        Uri.parse(url),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode(requestBody),
+      );
+      // Check if the request was successful
+      if (response.statusCode == 200) {
+        // Decode the response body as JSON
+        final Map<String, dynamic> jsonResponse = jsonDecode(response.body);
+
+        // Check if the response has the expected structure
+        if (jsonResponse.containsKey('data')) {
+          return jsonResponse['data']['message'];
+        }
+        print('Unexpected response format from server');
+        return null;
+      } else {
+        // Return an error message if status code is not 200
+        print('Failed to send message. Status code: ${response.statusCode}');
+        return null;
+      }
+    } catch (e) {
+      print('Error occurred: $e');
+      return null;
     }
-    return null;
   }
 
   static Future<String?> startConversation(String aiUsername) async {

@@ -206,68 +206,89 @@ class _ProfileScreenState extends State<ProfileScreen>
               }
 
               String targetUserId = getUserId();
-              bool isAiUser = widget.isAI;
 
               try {
-                if (isAiUser) {
-                  // For AI users
-                  context.pushNamed('chat',
-                      extra: ChatUser(
+                // For AI characters, just navigate to the chat screen directly
+                if (widget.isAI) {
+                  Navigator.push(context, MaterialPageRoute(builder: (context) {
+                    return ChatScreen(
+                      userData: ChatUser(
                         name: name,
                         email: targetUserId,
                         chatId: null,
                         isHuman: false,
-                      ));
+                        profilePictureURL: profileImageUrl,
+                      ),
+                    );
+                  }));
+                  return;
+                }
+
+                // For human users, first check if they might be a human-created AI
+                final characterDoc = await FirebaseFirestore.instance
+                    .collection('popularCharacters')
+                    .doc(targetUserId)
+                    .get();
+
+                if (characterDoc.exists &&
+                    characterDoc.data()?['createdByHuman'] == true) {
+                  // This is a human-created AI character
+                  final characterData = characterDoc.data()!;
+                  final imageUrl = characterData['profile_picture_url'] ?? '';
+
+                  Navigator.push(context, MaterialPageRoute(builder: (context) {
+                    return ChatScreen(
+                      userData: ChatUser(
+                        name: name,
+                        email: targetUserId,
+                        chatId: null,
+                        isHuman: false,
+                        profilePictureURL: imageUrl,
+                      ),
+                    );
+                  }));
                 } else {
-                  // For human users
+                  // This is a regular human user
                   List<String> sortedIds = [currentUserId, targetUserId]
                     ..sort();
                   String conversationId = "${sortedIds[0]}_${sortedIds[1]}";
 
-                  try {
-                    final conversationDoc = await FirebaseFirestore.instance
+                  final conversationDoc = await FirebaseFirestore.instance
+                      .collection('conversations')
+                      .doc(conversationId)
+                      .get();
+
+                  if (!conversationDoc.exists) {
+                    String currentUserName =
+                        await _getCurrentUserName(currentUserId);
+
+                    await FirebaseFirestore.instance
                         .collection('conversations')
                         .doc(conversationId)
-                        .get();
-
-                    if (!conversationDoc.exists) {
-                      String currentUserName =
-                          await _getCurrentUserName(currentUserId);
-
-                      await FirebaseFirestore.instance
-                          .collection('conversations')
-                          .doc(conversationId)
-                          .set({
-                        'participants': [currentUserId, targetUserId],
-                        'participantNames': {
-                          currentUserId: currentUserName,
-                          targetUserId: name,
-                        },
-                        'createdAt': FieldValue.serverTimestamp(),
-                        'lastUpdated': FieldValue.serverTimestamp(),
-                        'lastMessageTime': FieldValue.serverTimestamp(),
-                      });
-                    }
-
-                    context.pushNamed('chat', extra: {
-                      'conversationId': conversationId,
-                      'otherUserName': name,
-                      'otherUserId': targetUserId,
+                        .set({
+                      'participants': [currentUserId, targetUserId],
+                      'participantNames': {
+                        currentUserId: currentUserName,
+                        targetUserId: name,
+                      },
+                      'createdAt': FieldValue.serverTimestamp(),
+                      'lastUpdated': FieldValue.serverTimestamp(),
+                      'lastMessageTime': FieldValue.serverTimestamp(),
                     });
-                  } catch (e) {
-                    ToastService.showToast(
-                      context,
-                      backgroundColor: Theme.of(context).canvasColor,
-                      shadowColor: Colors.transparent,
-                      leading: const Icon(
-                        FeatherIcons.xCircle,
-                        color: Colors.redAccent,
-                      ),
-                      message: 'Failed to open conversation: $e',
-                    );
                   }
+
+                  context.pushNamed(
+                    'human_chat',
+                    pathParameters: {'conversationId': conversationId},
+                    extra: {
+                      'otherUserId': targetUserId,
+                      'otherUserName': name,
+                      'otherUserProfilePicture': profileImageUrl,
+                    },
+                  );
                 }
               } catch (e) {
+                print('Error handling message button tap: $e');
                 ToastService.showToast(
                   context,
                   backgroundColor: Theme.of(context).canvasColor,
@@ -276,7 +297,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                     FeatherIcons.xCircle,
                     color: Colors.redAccent,
                   ),
-                  message: 'Error navigating to chat: $e',
+                  message: 'Failed to open conversation.',
                 );
               }
             },
@@ -1056,13 +1077,15 @@ class _ProfileScreenState extends State<ProfileScreen>
                         isProfilePage: true,
                         savedCharacters: _savedCharacters,
                         areCharactersLoading: _areCharactersLoading,
-                        onCharacterTap: (characterId, characterName) {
+                        onCharacterTap:
+                            (characterId, characterName, characterImage) {
                           context.pushNamed('chat',
                               extra: ChatUser(
                                 name: characterName,
                                 email: characterId,
                                 chatId: null,
                                 isHuman: false,
+                                profilePictureURL: characterImage,
                               ));
                         },
                       ),

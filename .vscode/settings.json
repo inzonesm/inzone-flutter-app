@@ -4,6 +4,6 @@
         "source.fixAll": "explicit"
     },
     "java.compile.nullAnalysis.mode": "automatic",
-    "cmake.sourceDirectory": "/Users/Files/Internship/InZone/inzone-remake/linux",
+    "cmake.sourceDirectory": "/Users/Files/Internship/InZone/inzone-flutter-app/linux/flutter",
     "java.configuration.updateBuildConfiguration": "automatic",
 }

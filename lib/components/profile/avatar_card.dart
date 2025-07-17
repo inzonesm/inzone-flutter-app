@@ -250,6 +250,7 @@ class _AvatarCardState extends State<AvatarCard> {
                                     name: widget.avatar.name,
                                     email: widget.avatar.id,
                                     chatId: null,
+                                    isHuman: false,
                                     profilePictureURL:
                                         widget.avatar.profilePicture,
                                   ),
