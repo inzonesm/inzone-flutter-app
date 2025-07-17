@@ -960,6 +960,7 @@ class InZoneDatabase {
     String? profilePictureUrl,
     int? votes,
     bool? createdByHuman,
+    String? creatorId,
   }) async {
     const String url =
         'https://ai-apis-912424781531.us-east1.run.app/create/popularCharacter';
@@ -977,6 +978,9 @@ class InZoneDatabase {
       body["ProfilePictureUrl"] = profilePictureUrl;
     if (votes != null) body["Votes"] = votes;
     if (createdByHuman != null) body["CreatedByHuman"] = createdByHuman;
+    if (creatorId != null) body["CreatorId"] = creatorId;
+
+    print("Creating popular character with body: ${jsonEncode(body)}");
 
     try {
       final response = await http.post(
