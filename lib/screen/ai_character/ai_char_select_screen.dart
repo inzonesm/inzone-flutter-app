@@ -201,6 +201,23 @@ class _AICharacterSelectionScreenState extends State<AICharacterSelectionScreen>
     // Reverse the animation
     _expandController.reverse(from: 1.0);
 
+    final creatorId = FirebaseAuth.instance.currentUser?.uid;
+    if (creatorId == null) {
+      print("Character creation failed: User is not logged in.");
+      ToastService.showToast(
+        context,
+        backgroundColor: Theme.of(context).canvasColor,
+        shadowColor: Colors.transparent,
+        leading: const Icon(FeatherIcons.alertTriangle, color: Colors.orange),
+        message: "You must be logged in to create a character.",
+      );
+      setState(() {
+        _isGenerating = false;
+        _isLoading = false;
+      });
+      return;
+    }
+
     try {
       // Call the API to create popular character
       final result = await InZoneDatabase.createPopularCharacter(
@@ -213,6 +230,7 @@ class _AICharacterSelectionScreenState extends State<AICharacterSelectionScreen>
         profilePictureUrl: "", // Empty for now
         votes: 0,
         createdByHuman: true,
+        creatorId: creatorId,
       );
 
       // Output result (for debugging)
@@ -1061,7 +1079,7 @@ class _AICharacterSelectionScreenState extends State<AICharacterSelectionScreen>
           'profilePictureUrl': selectedImageUrl,
           'createdAt': DateTime.now().millisecondsSinceEpoch,
         };
-        
+
         // Save the character to the user's document in humanUsers collection
         try {
           // Get the current user ID from Firebase Auth
@@ -1085,7 +1103,7 @@ class _AICharacterSelectionScreenState extends State<AICharacterSelectionScreen>
               }
               throw error;
             });
-            
+
             ToastService.showToast(
               context,
               shadowColor: Colors.transparent,
@@ -1118,7 +1136,8 @@ class _AICharacterSelectionScreenState extends State<AICharacterSelectionScreen>
               FeatherIcons.alertCircle,
               color: Colors.redAccent,
             ),
-            message: 'Error saving character: ${e.toString().substring(0, math.min(e.toString().length, 50))}',
+            message:
+                'Error saving character: ${e.toString().substring(0, math.min(e.toString().length, 50))}',
           );
         }
 
