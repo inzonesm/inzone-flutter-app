@@ -16,7 +16,7 @@ class ProfileAppbar extends StatelessWidget {
   final bool isProfilePage;
   final List<Map<String, String>> savedCharacters;
   final bool areCharactersLoading;
-  final Function(String, String)? onCharacterTap;
+  final Function(String, String, String)? onCharacterTap;
 
   const ProfileAppbar({
     super.key,
@@ -181,8 +181,12 @@ class ProfileAppbar extends StatelessWidget {
               final character = savedCharacters[index];
               return GestureDetector(
                 onTap: () {
-                  if (onCharacterTap != null && character['id'] != null) {
-                    onCharacterTap!(character['id']!, character['name']!);
+                  if (onCharacterTap != null &&
+                      character['id'] != null &&
+                      character['name'] != null &&
+                      character['image'] != null) {
+                    onCharacterTap!(character['id']!, character['name']!,
+                        character['image']!);
                   }
                 },
                 child: Container(
