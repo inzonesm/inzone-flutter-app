@@ -148,38 +148,6 @@ class InZoneDatabase {
 
     String? personality;
     String apiAiId = aiUsername; // Default to the ID passed in
-    final characterRef = FirebaseFirestore.instance
-        .collection('popularCharacters')
-        .doc(aiUsername);
-    final characterDoc = await characterRef.get();
-
-    if (characterDoc.exists) {
-      final characterData = characterDoc.data()!;
-      personality = characterData['Personality'];
-      // The API expects the character's name, not the document ID.
-      apiAiId = characterData['name'] ?? characterData['Name'] ?? aiUsername;
-
-      if (characterData['createdByHuman'] == true) {
-        final today = DateTime.now().toIso8601String().split('T').first;
-        final interactionRef = FirebaseFirestore.instance
-            .collection('aiCharacterInteractions')
-            .doc('${aiUsername}_${currentUserUID}_$today');
-
-        final interactionDoc = await interactionRef.get();
-
-        if (interactionDoc.exists) {
-          await interactionRef
-              .update({'interactionCount': FieldValue.increment(1)});
-        } else {
-          await interactionRef.set({
-            'characterId': aiUsername,
-            'userId': currentUserUID,
-            'date': today,
-            'interactionCount': 1,
-          });
-        }
-      }
-    }
 
     String url =
         'https://ai-apis-912424781531.us-east1.run.app/chat/popularCharacter';
@@ -193,8 +161,8 @@ class InZoneDatabase {
       Map<String, dynamic> requestBody = {
         'message': userMessage,
         'ai_id': apiAiId, // Use the fetched name here
+        'user_id': currentUserUID,
         'chat_history': chatHistoryJson,
-        if (personality != null) 'personality': personality,
       };
       print("Sending this: $requestBody");
 

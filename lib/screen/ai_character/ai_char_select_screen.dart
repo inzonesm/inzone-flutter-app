@@ -230,7 +230,7 @@ class _AICharacterSelectionScreenState extends State<AICharacterSelectionScreen>
         profilePictureUrl: "", // Empty for now
         votes: 0,
         createdByHuman: true,
-        creatorId: "sdfsdfsdfsdf",
+        creatorId: creatorId,
       );
 
       // Output result (for debugging)
