@@ -438,6 +438,7 @@ class HomeScreenState extends State<HomeScreen> {
       // Create avatar cards and story components for filtered avatars
       for (var avatar in avatars) {
         avatarCards.add(AvatarCard(avatar: avatar));
+        print('DEBUG: Adding avatar story component: ${avatar.name}');
         avatarStoryComponents.add(AvatarStoryComponent(avatar: avatar));
       }
     } catch (e) {

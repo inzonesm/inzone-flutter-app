@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:inzone/components/profile/avatar_card.dart';
 import 'package:inzone/data/inzone_avatar.dart';
+import 'package:inzone/router/routes.dart';
+import 'package:inzone/screen/chat/all_chats_screen.dart';
 
 class PopularCharactersCarousel extends StatelessWidget {
   final List<InZoneAvatar> avatars;
@@ -32,12 +35,25 @@ class PopularCharactersCarousel extends StatelessWidget {
               scrollDirection: Axis.horizontal,
               itemCount: avatars.length,
               itemBuilder: (context, index) {
+                final avatar = avatars[index];
                 return Padding(
                   padding: EdgeInsets.only(
                     left: index == 0 ? 16 : 5,
                     right: index == avatars.length - 1 ? 16 : 5,
                   ),
-                  child: AvatarCard(avatar: avatars[index]),
+                  child: GestureDetector(
+                    onTap: () {
+                      context.pushNamed('chat',
+                          extra: ChatUser(
+                            name: avatar.name,
+                            email: avatar.id,
+                            chatId: null,
+                            isHuman: false,
+                            profilePictureURL: avatar.profilePicture,
+                          ));
+                    },
+                    child: AvatarCard(avatar: avatars[index]),
+                  ),
                 );
               },
             ),

@@ -149,6 +149,28 @@ class InZoneDatabase {
     String? personality;
     String apiAiId = aiUsername; // Default to the ID passed in
 
+    try {
+      // Query Firestore to find the document ID for the given username
+      final querySnapshot = await FirebaseFirestore.instance
+          .collection('avatars')
+          .where('username', isEqualTo: aiUsername)
+          .limit(1)
+          .get();
+
+      if (querySnapshot.docs.isNotEmpty) {
+        // If a character with that username is found, use its document ID
+        apiAiId = querySnapshot.docs.first.id;
+        print(
+            "Fetched AI ID from Firestore: $apiAiId for username: $aiUsername");
+      } else {
+        print("Could not find AI with username: $aiUsername in Firestore.");
+        // Optional: you might want to handle this case,
+        // but for now we'll proceed with the original aiUsername as the ID.
+      }
+    } catch (e) {
+      print("Error fetching AI ID from Firestore: $e");
+    }
+
     String url =
         'https://ai-apis-912424781531.us-east1.run.app/chat/popularCharacter';
 
@@ -1534,30 +1556,22 @@ class InZoneDatabase {
     }
   }
 
-  static Future<List<Map<String, dynamic>>?> getCarouselCharacters() async {
-    const String url =
-        'https://inzoneapi-912424781531.us-central1.run.app/api/ai/carousel/characters?showPopularFirst=true';
-
+  static Future<List<dynamic>?> getCarouselCharacters() async {
     try {
-      final http.Response response = await http.get(
-        Uri.parse(url),
-        headers: <String, String>{
-          'Content-Type': 'application/json',
-        },
-      );
+      final querySnapshot = await FirebaseFirestore.instance
+          .collection('popularCharacters')
+          .get();
 
-      if (response.statusCode == 200) {
-        // Parse the response as a list of characters
-        final List<dynamic> responseData = jsonDecode(response.body);
+      // Convert each document to a map and include the document ID
+      final characters = querySnapshot.docs.map((doc) {
+        final data = doc.data();
+        data['id'] = doc.id; // Add the document ID to the map
+        return data;
+      }).toList();
 
-        // Convert the dynamic list to a list of maps
-        return responseData
-            .map((character) => character as Map<String, dynamic>)
-            .toList();
-      } else {
-        return null;
-      }
+      return characters;
     } catch (e) {
+      print('Error fetching carousel characters: $e');
       return null;
     }
   }
