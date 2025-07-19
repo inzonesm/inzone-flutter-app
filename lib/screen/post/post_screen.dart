@@ -272,7 +272,6 @@ class _PostScreenState extends State<PostScreen> {
 
   @override
   void dispose() {
-    // TODO: implement dispose
     DateTime endTime = DateTime.now().toUtc();
     Duration timeSpent = endTime.difference(_startTime);
     InZoneDatabase.logEvent('post_screen',
@@ -502,8 +501,9 @@ class _PostScreenState extends State<PostScreen> {
                                           "Images: ${imageUrls.length}, Videos: ${videoUrls.length}");
                                       if (selectedCharacter != null) {
                                         print(
-                                            "Posting as character: ${selectedCharacter!['name']}");
-                                        // TODO: Add character information to post when backend supports it
+                                            "Posting as character. Name: ${selectedCharacter!['name']}, Image: ${selectedCharacter!['image']}");
+                                      } else {
+                                        print("Posting as regular user.");
                                       }
 
                                       final result =
@@ -511,6 +511,13 @@ class _PostScreenState extends State<PostScreen> {
                                         content: postContent,
                                         imageRefs: imageUrls,
                                         videoRefs: videoUrls,
+                                        characterName: selectedCharacter != null
+                                            ? selectedCharacter!['name']
+                                            : null,
+                                        characterImage:
+                                            selectedCharacter != null
+                                                ? selectedCharacter!['image']
+                                                : null,
                                       );
 
                                       print("Create post result: $result");

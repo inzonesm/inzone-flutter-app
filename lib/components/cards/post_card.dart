@@ -204,7 +204,9 @@ class _PostCardState extends State<PostCard>
   void initState() {
     super.initState();
     _loadLikedState(); // Load the liked state when the widget is initialized
-    _loadUserProfileImage();
+    if (widget.post.characterInfo == null) {
+      _loadUserProfileImage();
+    }
     _checkIfInfluencer();
 
     // Load native ad if isAd is true
@@ -422,6 +424,16 @@ class _PostCardState extends State<PostCard>
     final FirebaseAuth auth = FirebaseAuth.instance;
     final String? currentUserUid = auth.currentUser?.uid;
 
+    final bool isCharacterPost = widget.post.characterInfo != null;
+    final String mainName = isCharacterPost
+        ? widget.post.characterInfo!['name']!
+        : widget.post.userName;
+    final String? imageUrl = isCharacterPost
+        ? widget.post.characterInfo!['image']!
+        : (profileImageUrl.isNotEmpty
+            ? profileImageUrl
+            : widget.profileImageUrl);
+
     if (widget.isAd) {
       if (_nativeAdIsLoaded) {
         // If this is an ad and it's loaded, show the ad view with similar styling to regular posts
@@ -600,9 +612,9 @@ class _PostCardState extends State<PostCard>
                 children: [
                   ClipRRect(
                     borderRadius: BorderRadius.circular(20),
-                    child: widget.profileImageUrl != null
+                    child: imageUrl != null && imageUrl.isNotEmpty
                         ? CachedNetworkImage(
-                            imageUrl: widget.profileImageUrl!,
+                            imageUrl: imageUrl,
                             width: 40,
                             height: 40,
                             fit: BoxFit.cover,
@@ -613,20 +625,7 @@ class _PostCardState extends State<PostCard>
                             errorWidget: (context, url, error) =>
                                 const Icon(Icons.account_circle, size: 40),
                           )
-                        : profileImageUrl.isNotEmpty
-                            ? CachedNetworkImage(
-                                imageUrl: profileImageUrl,
-                                width: 40,
-                                height: 40,
-                                fit: BoxFit.cover,
-                                color: null, // Remove any color overlay
-                                colorBlendMode:
-                                    BlendMode.srcOver, // Use default blend mode
-                                placeholder: (context, url) => const SizedBox(),
-                                errorWidget: (context, url, error) =>
-                                    const Icon(Icons.account_circle, size: 40),
-                              )
-                            : const Icon(Icons.account_circle, size: 40),
+                        : const Icon(Icons.account_circle, size: 40),
                   ),
                   // Image.asset(post.profilePicturePath),
                   // RandomAvatar(widget.post.userName, height: 40, width: 40),
@@ -634,41 +633,50 @@ class _PostCardState extends State<PostCard>
                   const SizedBox(
                     width: 10,
                   ),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      GestureDetector(
-                        onTap: () {
-                          if (widget.inProfile == true) {
-                            return;
-                          } else {
-                            if (widget.post.isAi) {
-                              print(widget.post.userName);
-                              context.push(
-                                  Routes.aiProfilePath(widget.post.userName));
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        GestureDetector(
+                          onTap: () {
+                            if (widget.inProfile == true) {
+                              return;
                             } else {
-                              context.push(Routes.regularProfilePath(
-                                  widget.post.userReference));
+                              if (widget.post.isAi || isCharacterPost) {
+                                print(widget.post.userName);
+                                context.push(
+                                    Routes.aiProfilePath(widget.post.userName));
+                              } else {
+                                context.push(Routes.regularProfilePath(
+                                    widget.post.userReference));
+                              }
                             }
-                          }
-                        },
-                        child: SizedBox(
-                          width: 230,
-                          child: Text(
-                            widget.post.userName,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              color:
-                                  Theme.of(context).textTheme.titleLarge?.color,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 20,
+                          },
+                          child: SizedBox(
+                            width: 230,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  mainName,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    color: Theme.of(context)
+                                        .textTheme
+                                        .titleLarge
+                                        ?.color,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 20,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                  const Spacer(),
+                  // const Spacer(),
                   GestureDetector(
                     onTap: () {
                       _showOptionsBottomSheet(context);
@@ -683,9 +691,6 @@ class _PostCardState extends State<PostCard>
                     ),
                   ),
                 ],
-              ),
-              const SizedBox(
-                height: 10,
               ),
               widget.post.textContent == null
                   ? const SizedBox()
@@ -776,6 +781,35 @@ class _PostCardState extends State<PostCard>
                                         .uncomment, // Show correct icon based on state
                                   ),
                                 )),
+                      const Spacer(),
+                      if (isCharacterPost)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF2196F3).withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: const Color(0xFF2196F3).withOpacity(0.3),
+                              width: 1,
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                "made by ${widget.post.userName}",
+                                style: TextStyle(
+                                  color:
+                                      const Color(0xFF2196F3).withOpacity(0.8),
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
                       // if (isCommentPresentbool == false)
                       //   InkWell(
                       //       onTap: () {
@@ -804,7 +838,6 @@ class _PostCardState extends State<PostCard>
                       //       //     ));
                       //     },
                       //     child: SvgPicture.asset(CustomIcons.send)),
-                      const Spacer(),
                     ],
                   ),
                 ],
