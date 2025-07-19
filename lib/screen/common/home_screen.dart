@@ -423,13 +423,8 @@ class HomeScreenState extends State<HomeScreen> {
         print(
             'DEBUG: Parsed avatar: ${avatar.name} - showFirst: ${avatar.showFirst}');
 
-        // Only add avatars with showFirst: true
-        if (avatar.showFirst) {
-          avatars.add(avatar);
-          print('DEBUG: Added avatar with showFirst=true: ${avatar.name}');
-        } else {
-          print('DEBUG: Skipped avatar with showFirst=false: ${avatar.name}');
-        }
+        // Add all avatars from popularCharacters
+        avatars.add(avatar);
       }
 
       // Debug: Log final count
