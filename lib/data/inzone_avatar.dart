@@ -38,7 +38,8 @@ class InZoneAvatar {
       subCategory: json['character']['sub_category'] ?? '',
       age: json['character']['age'] ?? 0,
       greeting: null,
-      showFirst: json['showFirst'] == true || json['character']['showFirst'] == true,
+      showFirst:
+          json['showFirst'] == true || json['character']['showFirst'] == true,
     );
   }
   factory InZoneAvatar.fromRepostJson(Map<String, dynamic> json) {
@@ -60,7 +61,7 @@ class InZoneAvatar {
   // New factory for direct format from getCarouselCharacters()
   factory InZoneAvatar.fromDirectJson(Map<String, dynamic> json) {
     return InZoneAvatar(
-      id: json['name'] ?? '',
+      id: json['id'] ?? json['name'] ?? '',
       name: json['name'] ?? '',
       bio: json['personality'] ?? '',
       username: json['name'] ?? '',

@@ -1,4 +1,5 @@
 import 'dart:math';
+import 'dart:developer' as log;
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -75,11 +76,17 @@ class _AvatarCardState extends State<AvatarStoryComponent> {
 
   void navigateToChat() {
     // Use GoRouter instead of MaterialPageRoute
-    context.push(Routes.chat,
+    log.log(
+        '===============DEBUG: Navigating to chat with avatar ID: ${widget.avatar.id}');
+    log.log('DEBUG: Navigating to chat with avatar ID: ${widget.avatar.name}');
+    log.log(
+        'DEBUG: Navigating to chat with avatar ID: ${widget.avatar.profilePicture}');
+    context.pushNamed('chat',
         extra: ChatUser(
             name: widget.avatar.name,
             email: widget.avatar.id,
             chatId: null,
+            isHuman: false,
             profilePictureURL: widget.avatar.profilePicture));
 
     // Mark story as seen when clicked
@@ -128,7 +135,13 @@ class _AvatarCardState extends State<AvatarStoryComponent> {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: navigateToChat,
+      onTap: () {
+        if (widget.onTap != null) {
+          widget.onTap!(widget.avatar.id);
+        } else {
+          navigateToChat();
+        }
+      },
       child: Container(
         width: 78,
         margin: const EdgeInsets.symmetric(horizontal: 3),
