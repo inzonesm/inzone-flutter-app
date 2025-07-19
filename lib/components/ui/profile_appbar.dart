@@ -138,7 +138,10 @@ class ProfileAppbar extends StatelessWidget {
                       ],
                     ),
                   ),
-                  _buildSavedCharactersSection(context),
+                  if (savedCharacters.isNotEmpty)
+                    _buildSavedCharactersSection(context)
+                  else
+                    const SizedBox(height: 20),
 
                   // const Padding(
                   //   padding: EdgeInsets.only(left: 24, right: 0),

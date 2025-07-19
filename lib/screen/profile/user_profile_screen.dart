@@ -7,6 +7,7 @@ import 'package:inzone/components/cards/post_card.dart';
 import 'package:inzone/components/profile/avatar_card.dart';
 import 'package:inzone/components/profile/user_posts_tab.dart';
 import 'package:inzone/components/ui/profile_appbar.dart';
+import 'package:inzone/components/posts/shimmering.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:inzone/data/inzone_avatar.dart';
 import 'package:inzone/data/inzone_post.dart';
@@ -24,8 +25,7 @@ class UserProfileScreen extends StatefulWidget {
   State<UserProfileScreen> createState() => _UserProfileScreenState();
 }
 
-class _UserProfileScreenState extends State<UserProfileScreen>
-    with TickerProviderStateMixin {
+class _UserProfileScreenState extends State<UserProfileScreen> {
   // State variables
   int currentPage = 0;
   String name = "Loading";
@@ -36,50 +36,22 @@ class _UserProfileScreenState extends State<UserProfileScreen>
   int followingCount = 0;
   int followersCount = 0;
   bool isLoading = true;
+  bool isRefreshing = false;
   String? currentUserId;
+  List<InZonePost> _posts = [];
 
   // Saved characters
   List<Map<String, String>> _savedCharacters = [];
   bool _areCharactersLoading = true;
 
-  // Tab controllers
-  late TabController _tabController;
-  late TabController _scrollTabController;
-
-  // Store the community tab data
-  Map<String, List<Map<String, dynamic>>> _communityTabData = {
-    "followers": [],
-    "following": []
-  };
-
   @override
   void initState() {
     super.initState();
-    // Initialize the tab controllers
-    _tabController = TabController(length: getTabLabels().length, vsync: this);
-    _tabController.addListener(() {
-      setState(() {
-        currentPage = _tabController.index;
-      });
-    });
-
-    _scrollTabController =
-        TabController(length: getTabLabels().length, vsync: this);
-    _scrollTabController.addListener(() {
-      if (_scrollTabController.index != currentPage) {
-        setState(() {
-          currentPage = _scrollTabController.index;
-        });
-      }
-    });
-
     _getCurrentUserId();
   }
 
   @override
   void dispose() {
-    _tabController.dispose();
-    _scrollTabController.dispose();
     super.dispose();
   }
 
@@ -95,8 +67,26 @@ class _UserProfileScreenState extends State<UserProfileScreen>
       });
     } else {
       await fetchUserProfile();
-      await fetchUserStats();
+      await fetchUserPosts();
       await _fetchSavedCharacters();
+    }
+  }
+
+  Future<void> _handleRefresh() async {
+    setState(() {
+      isRefreshing = true;
+    });
+
+    try {
+      await fetchUserProfile();
+      await fetchUserPosts();
+      await _fetchSavedCharacters();
+    } finally {
+      if (mounted) {
+        setState(() {
+          isRefreshing = false;
+        });
+      }
     }
   }
 
@@ -155,25 +145,6 @@ class _UserProfileScreenState extends State<UserProfileScreen>
     return currentUserId ?? '';
   }
 
-  List<String> getTabLabels() {
-    return const ['Posts'];
-  }
-
-  List<Widget> getTabViews() {
-    if (currentUserId == null) {
-      return [
-        const Center(child: Text('Please log in to view your posts')),
-      ];
-    }
-    return [
-      UserPostsTab(
-        userId: currentUserId!,
-        profileImageUrl: profileImageUrl,
-        ai: false,
-      ),
-    ];
-  }
-
   Widget buildActionButtons() {
     final theme = Theme.of(context);
 
@@ -217,7 +188,7 @@ class _UserProfileScreenState extends State<UserProfileScreen>
               ).then((updated) {
                 if (updated == true) {
                   fetchUserProfile();
-                  fetchUserStats();
+                  fetchUserPosts();
                 }
               });
             },
@@ -323,10 +294,6 @@ class _UserProfileScreenState extends State<UserProfileScreen>
               "";
           followersCount = followers.length;
           followingCount = following.length;
-          _communityTabData = {
-            "followers": formattedFollowers,
-            "following": formattedFollowing,
-          };
         });
       }
     } else {
@@ -336,153 +303,153 @@ class _UserProfileScreenState extends State<UserProfileScreen>
     }
   }
 
-  Future<void> fetchUserStats([bool isAi = false]) async {
+  Future<void> fetchUserPosts() async {
     String userId = getUserId();
     if (userId.isEmpty) {
-      setState(() {
-        isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+        });
+      }
       return;
     }
-
-    // Fetch post count from user posts
-    List posts = [];
-    final result = await InZoneDatabase.getUserPosts(userId);
-    if (result != null) {
-      posts = result;
-    }
-
     if (mounted) {
       setState(() {
-        postCount = posts.length;
-        isLoading = false;
+        isLoading = true;
       });
+    }
+
+    try {
+      final result = await InZoneDatabase.getUserPosts(userId);
+      List<InZonePost> fetchedPosts = [];
+      if (result != null) {
+        fetchedPosts = result.map((json) => InZonePost.fromJson(json)).toList();
+      }
+
+      if (mounted) {
+        setState(() {
+          _posts = fetchedPosts;
+          postCount = fetchedPosts.length;
+        });
+      }
+    } catch (e) {
+      debugPrint("Error fetching user posts: $e");
+    } finally {
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+        });
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: SafeArea(
-        child: NestedScrollView(
-          headerSliverBuilder: (BuildContext context, bool innerBoxIsScrolled) {
-            return [
-              CupertinoSliverRefreshControl(
-                onRefresh: () async {
-                  await fetchUserProfile();
-                  await fetchUserStats();
-                  await _fetchSavedCharacters();
-                },
-              ),
-              SliverToBoxAdapter(
-                child: Container(
-                  color: Theme.of(context).cardColor,
-                  child: ProfileAppbar(
-                    name: name,
-                    bio: bio,
-                    profileImageUrl: profileImageUrl,
-                    username: username,
-                    postCount: postCount,
-                    followingCount: followingCount,
-                    followersCount: followersCount,
-                    actionButtons: buildActionButtons(),
-                    isProfilePage: true,
-                    savedCharacters: _savedCharacters,
-                    areCharactersLoading: _areCharactersLoading,
-                    onCharacterTap:
-                        (characterId, characterName, characterImage) {
-                      context.pushNamed('chat',
-                          extra: ChatUser(
-                            name: characterName,
-                            email: characterId,
-                            chatId: null,
-                            isHuman: false,
-                            profilePictureURL: characterImage,
-                          ));
-                    },
-                  ),
+    // Show shimmering during initial loading or refresh
+    // if (true) {
+    if (isLoading || isRefreshing) {
+      // Changed to always show shimmering
+      return Scaffold(
+        body: SafeArea(
+          child: Stack(
+            children: [
+              // Show dimmed content only during refresh (not initial load)
+              if (isRefreshing && !isLoading)
+                Opacity(
+                  opacity: 0.3,
+                  child: _buildMainContent(),
                 ),
-              ),
-              SliverPersistentHeader(
-                delegate: _SliverAppBarDelegate(
-                  Container(
-                    height: 54.0,
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).cardColor,
-                      borderRadius: const BorderRadius.only(
-                        bottomLeft: Radius.circular(30),
-                        bottomRight: Radius.circular(30),
-                      ),
-                    ),
-                    child: Center(
-                      child: TabBar(
-                        controller: _scrollTabController,
-                        tabs: getTabLabels()
-                            .map((label) => Tab(text: label))
-                            .toList(),
-                        indicatorColor: Theme.of(context).primaryColor,
-                        labelColor: Theme.of(context).primaryColor,
-                        unselectedLabelColor: Theme.of(context)
-                            .textTheme
-                            .bodyMedium
-                            ?.color
-                            ?.withOpacity(0.6),
-                        indicatorWeight: 3,
-                        indicatorSize: TabBarIndicatorSize.label,
-                        dividerColor: Colors.transparent,
-                        indicator: UnderlineTabIndicator(
-                          borderSide: BorderSide(
-                              width: 3,
-                              color: Theme.of(context).colorScheme.primary),
-                          insets: const EdgeInsets.symmetric(horizontal: 0),
-                        ),
-                        labelPadding: const EdgeInsets.symmetric(
-                            vertical: 8, horizontal: 16),
-                      ),
-                    ),
-                  ),
-                ),
-                pinned: true,
-              ),
-              // Add space
-              const SliverToBoxAdapter(
-                child: SizedBox(height: 5),
-              ),
-            ];
-          },
-          body: TabBarView(
-            controller: _scrollTabController,
-            children: getTabViews(),
+              // Shimmering overlay
+              ProfileShimmering(context, false),
+            ],
           ),
         ),
+      );
+    }
+
+    return Scaffold(
+      body: SafeArea(
+        child: _buildMainContent(),
       ),
     );
   }
-}
 
-class _SliverAppBarDelegate extends SliverPersistentHeaderDelegate {
-  final Widget child;
+  Widget _buildMainContent() {
+    return RefreshIndicator(
+      onRefresh: _handleRefresh,
+      child: CustomScrollView(
+        slivers: [
+          // Profile header
+          SliverToBoxAdapter(
+            child: Container(
+              color: Theme.of(context).cardColor,
+              child: ProfileAppbar(
+                name: name,
+                bio: bio,
+                profileImageUrl: profileImageUrl,
+                username: username,
+                postCount: postCount,
+                followingCount: followingCount,
+                followersCount: followersCount,
+                actionButtons: buildActionButtons(),
+                isProfilePage: true,
+                savedCharacters: _savedCharacters,
+                areCharactersLoading: _areCharactersLoading,
+                onCharacterTap: (characterId, characterName, characterImage) {
+                  context.pushNamed('chat',
+                      extra: ChatUser(
+                        name: characterName,
+                        email: characterId,
+                        chatId: null,
+                        isHuman: false,
+                        profilePictureURL: characterImage,
+                      ));
+                },
+              ),
+            ),
+          ),
 
-  _SliverAppBarDelegate(this.child);
-
-  @override
-  double get minExtent => 54.0;
-
-  @override
-  double get maxExtent => 54.0;
-
-  @override
-  Widget build(
-      BuildContext context, double shrinkOffset, bool overlapsContent) {
-    return SizedBox(
-      width: double.infinity,
-      child: child,
+          // Posts list
+          if (_posts.isEmpty)
+            const SliverToBoxAdapter(
+              child: Center(
+                child: Padding(
+                  padding: EdgeInsets.all(50.0),
+                  child: Text(
+                    'No posts found',
+                    style: TextStyle(fontSize: 16),
+                  ),
+                ),
+              ),
+            )
+          else
+            SliverPadding(
+              padding: const EdgeInsets.all(15.0),
+              sliver: SliverList(
+                delegate: SliverChildBuilderDelegate(
+                  (context, index) {
+                    if (index == _posts.length) {
+                      return const SizedBox(height: 100);
+                    }
+                    return Column(
+                      children: [
+                        PostCard(
+                          post: _posts[index],
+                          profileImageUrl: profileImageUrl,
+                          showHue: false,
+                          onTap: (postId) {},
+                          inProfile: true,
+                        ),
+                      ],
+                    );
+                  },
+                  childCount: _posts.length + 1,
+                ),
+              ),
+            ),
+        ],
+      ),
     );
-  }
-
-  @override
-  bool shouldRebuild(_SliverAppBarDelegate oldDelegate) {
-    return true;
   }
 }
 
