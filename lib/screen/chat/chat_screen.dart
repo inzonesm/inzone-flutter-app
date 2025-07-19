@@ -228,7 +228,13 @@ class _ChatScreenState extends State<ChatScreen> {
         avatarId: widget.userData.name ?? "  ",
         avatarUrl: widget.userData.profilePictureURL,
         onBack: () {
-          if (mounted) context.pop();
+          if (mounted) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted) {
+                Navigator.of(context).pop();
+              }
+            });
+          }
         },
       ),
       body: SafeArea(
