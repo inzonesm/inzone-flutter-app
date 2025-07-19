@@ -574,7 +574,7 @@ class _PostCardState extends State<PostCard>
         padding: const EdgeInsets.only(bottom: 20.0),
         child: Container(
           constraints: BoxConstraints(
-            minHeight: imageSuccess ? 350 : 250,
+            minHeight: imageSuccess ? 350 : 130,
           ),
           width: MediaQuery.of(context).size.width - 30,
           padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 10),
@@ -694,15 +694,20 @@ class _PostCardState extends State<PostCard>
               ),
               widget.post.textContent == null
                   ? const SizedBox()
-                  : Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        widget.post.textContent,
-                        textAlign: TextAlign.start,
-                        style: TextStyle(
-                            height: 1,
-                            color:
-                                Theme.of(context).textTheme.bodyMedium?.color),
+                  : Padding(
+                      padding: const EdgeInsets.only(top: 10),
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          widget.post.textContent,
+                          textAlign: TextAlign.start,
+                          style: TextStyle(
+                              height: 1,
+                              color: Theme.of(context)
+                                  .textTheme
+                                  .bodyMedium
+                                  ?.color),
+                        ),
                       ),
                     ),
               (validImages.isNotEmpty || validVideos.isNotEmpty)
