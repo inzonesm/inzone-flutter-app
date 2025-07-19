@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:skeleton_text/skeleton_text.dart';
+import 'package:shimmer/shimmer.dart';
 
 class SkeletonContainer extends StatelessWidget {
   final double? width;
@@ -580,6 +581,320 @@ Widget SearchLoading(BuildContext context) {
         ),
       ),
     ],
+  );
+}
+
+Widget ProfileShimmering(BuildContext context, bool isAI) {
+  return SingleChildScrollView(
+    child: Column(
+      children: [
+        // Profile header
+        Container(
+          color: Theme.of(context).cardColor,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  // Header background
+                  Container(
+                    height: 120,
+                    width: double.infinity,
+                    color: Theme.of(context).canvasColor,
+                  ),
+                  // Profile image positioned
+                  Positioned(
+                    left: 16,
+                    bottom: -40,
+                    child: SkeletonContainer.rounded(
+                      width: 80,
+                      height: 80,
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? const Color.fromARGB(255, 44, 44, 44)
+                          : Colors.grey[200],
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                  ),
+                ],
+              ),
+              // Action buttons row
+              Padding(
+                padding: const EdgeInsets.only(right: 10, top: 5),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    SkeletonContainer.rounded(
+                      width: 80,
+                      height: 35,
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? const Color.fromARGB(255, 44, 44, 44)
+                          : Colors.grey[200],
+                      borderRadius: BorderRadius.circular(17),
+                    ),
+                    const SizedBox(width: 12),
+                    SkeletonContainer.rounded(
+                      width: 100,
+                      height: 35,
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? const Color.fromARGB(255, 44, 44, 44)
+                          : Colors.grey[200],
+                      borderRadius: BorderRadius.circular(17),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 30),
+              // Content row
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                mainAxisAlignment: MainAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Name
+                        Padding(
+                          padding: const EdgeInsets.only(left: 24, right: 0),
+                          child: SkeletonContainer.rounded(
+                            width: 150,
+                            height: 24,
+                            color:
+                                Theme.of(context).brightness == Brightness.dark
+                                    ? const Color.fromARGB(255, 44, 44, 44)
+                                    : Colors.grey[200],
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        // Bio
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 24),
+                          child: SkeletonContainer.rounded(
+                            width: double.infinity,
+                            height: 40,
+                            color:
+                                Theme.of(context).brightness == Brightness.dark
+                                    ? const Color.fromARGB(255, 44, 44, 44)
+                                    : Colors.grey[200],
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                        const SizedBox(height: 5),
+                        // Stats row
+                        Padding(
+                          padding: const EdgeInsets.only(left: 24, right: 0),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              // Posts stat
+                              Row(
+                                children: [
+                                  SkeletonContainer.rounded(
+                                    width: 30,
+                                    height: 20,
+                                    color: Theme.of(context).brightness ==
+                                            Brightness.dark
+                                        ? const Color.fromARGB(255, 44, 44, 44)
+                                        : Colors.grey[200],
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  const SizedBox(width: 5),
+                                  SkeletonContainer.rounded(
+                                    width: 35,
+                                    height: 16,
+                                    color: Theme.of(context).brightness ==
+                                            Brightness.dark
+                                        ? const Color.fromARGB(255, 44, 44, 44)
+                                        : Colors.grey[200],
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(width: 20),
+                              // Following stat
+                              Row(
+                                children: [
+                                  SkeletonContainer.rounded(
+                                    width: 30,
+                                    height: 20,
+                                    color: Theme.of(context).brightness ==
+                                            Brightness.dark
+                                        ? const Color.fromARGB(255, 44, 44, 44)
+                                        : Colors.grey[200],
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  const SizedBox(width: 5),
+                                  SkeletonContainer.rounded(
+                                    width: 55,
+                                    height: 16,
+                                    color: Theme.of(context).brightness ==
+                                            Brightness.dark
+                                        ? const Color.fromARGB(255, 44, 44, 44)
+                                        : Colors.grey[200],
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(width: 20),
+                              // Followers stat
+                              Row(
+                                children: [
+                                  SkeletonContainer.rounded(
+                                    width: 30,
+                                    height: 20,
+                                    color: Theme.of(context).brightness ==
+                                            Brightness.dark
+                                        ? const Color.fromARGB(255, 44, 44, 44)
+                                        : Colors.grey[200],
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  const SizedBox(width: 5),
+                                  SkeletonContainer.rounded(
+                                    width: 55,
+                                    height: 16,
+                                    color: Theme.of(context).brightness ==
+                                            Brightness.dark
+                                        ? const Color.fromARGB(255, 44, 44, 44)
+                                        : Colors.grey[200],
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 15),
+                        if (!isAI)
+                          SizedBox(
+                            height: 70,
+                            child: ListView.builder(
+                              scrollDirection: Axis.horizontal,
+                              padding: const EdgeInsets.only(left: 20.0),
+                              itemCount: 6, // Number of skeleton items to show
+                              itemBuilder: (context, index) {
+                                return Container(
+                                  width: 60,
+                                  margin: const EdgeInsets.only(right: 12.0),
+                                  child: Column(
+                                    children: [
+                                      SkeletonContainer.rounded(
+                                        width: 50,
+                                        height: 50,
+                                        color: Theme.of(context).brightness ==
+                                                Brightness.dark
+                                            ? const Color.fromARGB(
+                                                255, 44, 44, 44)
+                                            : Colors.grey[200],
+                                        borderRadius: BorderRadius.circular(25),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      SkeletonContainer.rounded(
+                                        width: 40,
+                                        height: 12,
+                                        color: Theme.of(context).brightness ==
+                                                Brightness.dark
+                                            ? const Color.fromARGB(
+                                                255, 44, 44, 44)
+                                            : Colors.grey[200],
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                        const SizedBox(height: 20),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 10),
+        // Posts shimmer
+        Stack(
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 15),
+              child: Skelton(
+                  height: 320, width: MediaQuery.of(context).size.width),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 30),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // 왼쪽 Column
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            SkeletonContainer.circular(
+                              height: 40,
+                              width: 40,
+                              color: Theme.of(context).brightness ==
+                                      Brightness.dark
+                                  ? const Color.fromARGB(255, 44, 44, 44)
+                                  : Colors.grey[200],
+                            ),
+                            const SizedBox(width: 10),
+                            SkeletonContainer.circular(
+                              height: 40,
+                              width: 200,
+                              color: Theme.of(context).brightness ==
+                                      Brightness.dark
+                                  ? const Color.fromARGB(255, 44, 44, 44)
+                                  : Colors.grey[200],
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 20),
+                        SkeletonContainer.rounded(
+                          height: 180,
+                          color: Theme.of(context).brightness == Brightness.dark
+                              ? const Color.fromARGB(255, 44, 44, 44)
+                              : Colors.grey[200],
+                        ),
+                        const SizedBox(height: 10),
+                        Row(
+                          children: [
+                            SkeletonContainer.circular(
+                              height: 40,
+                              width: 40,
+                              color: Theme.of(context).brightness ==
+                                      Brightness.dark
+                                  ? const Color.fromARGB(255, 44, 44, 44)
+                                  : Colors.grey[200],
+                            ),
+                            const SizedBox(width: 10),
+                            SkeletonContainer.circular(
+                              height: 40,
+                              width: 40,
+                              color: Theme.of(context).brightness ==
+                                      Brightness.dark
+                                  ? const Color.fromARGB(255, 44, 44, 44)
+                                  : Colors.grey[200],
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ],
+    ),
   );
 }
 

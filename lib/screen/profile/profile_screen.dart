@@ -6,6 +6,8 @@ import 'package:flutter_feather_icons/flutter_feather_icons.dart';
 import 'package:inzone/components/profile/user_posts_tab.dart';
 import 'package:inzone/components/profile/followers_following_tab.dart';
 import 'package:inzone/components/ui/profile_appbar.dart';
+import 'package:inzone/components/cards/post_card.dart';
+import 'package:inzone/components/posts/shimmering.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:inzone/screen/chat/chat_screen.dart';
 import 'package:inzone/screen/chat/human_chat_screen.dart';
@@ -13,6 +15,7 @@ import 'package:inzone/screen/chat/all_chats_screen.dart'; // For ChatUser class
 import 'package:inzone/services/inzone_database.dart';
 import 'package:go_router/go_router.dart';
 import 'package:toasty_box/toast_service.dart';
+import 'package:inzone/data/inzone_post.dart';
 
 class ProfileScreen extends StatefulWidget {
   final String uid;
@@ -24,8 +27,7 @@ class ProfileScreen extends StatefulWidget {
   State<ProfileScreen> createState() => _ProfileScreenState();
 }
 
-class _ProfileScreenState extends State<ProfileScreen>
-    with TickerProviderStateMixin {
+class _ProfileScreenState extends State<ProfileScreen> {
   // State variables that were previously in BaseProfileScreenState
   int currentPage = 0;
   String name = "Loading";
@@ -36,6 +38,8 @@ class _ProfileScreenState extends State<ProfileScreen>
   int followingCount = 0;
   int followersCount = 0;
   bool isLoading = true;
+  bool isRefreshing = false;
+  List<InZonePost> _posts = [];
 
   // Saved characters
   List<Map<String, String>> _savedCharacters = [];
@@ -44,8 +48,6 @@ class _ProfileScreenState extends State<ProfileScreen>
   // Additional state for this specific screen
   bool isFollowing = false;
   bool _isFollowedBy = false;
-  late TabController _tabController;
-  late TabController _scrollTabController;
 
   // Store the community tab data
   Map<String, List<Map<String, dynamic>>> _communityTabData = {
@@ -56,41 +58,23 @@ class _ProfileScreenState extends State<ProfileScreen>
   @override
   void initState() {
     super.initState();
-    // Initialize tab controllers
-    _tabController = TabController(length: getTabLabels().length, vsync: this);
-    _tabController.addListener(() {
-      setState(() {
-        currentPage = _tabController.index;
-      });
-    });
-
-    // Create a separate controller for our scrollable UI
-    _scrollTabController =
-        TabController(length: getTabLabels().length, vsync: this);
-    _scrollTabController.addListener(() {
-      if (_scrollTabController.index != currentPage) {
-        setState(() {
-          currentPage = _scrollTabController.index;
-        });
-      }
-    });
-
     if (!widget.isAI) {
       _fetchSavedCharacters();
     } else {
-      // For AI characters, no characters to load, so stop the loading indicator.
-      _areCharactersLoading = false;
+      // AI 프로필의 경우 saved characters를 표시하지 않음
+      setState(() {
+        _areCharactersLoading = false;
+        _savedCharacters = [];
+      });
     }
 
     fetchUserProfile();
-    fetchUserStats(widget.isAI);
+    fetchUserPosts(widget.isAI);
     checkFollowStatus();
   }
 
   @override
   void dispose() {
-    _tabController.dispose();
-    _scrollTabController.dispose();
     super.dispose();
   }
 
@@ -145,39 +129,34 @@ class _ProfileScreenState extends State<ProfileScreen>
   }
 
   Future<void> _handleRefresh() async {
-    await fetchUserProfile();
-    await fetchUserStats(widget.isAI);
-    if (!widget.isAI) {
-      await _fetchSavedCharacters();
+    setState(() {
+      isRefreshing = true;
+    });
+
+    try {
+      await fetchUserProfile();
+      await fetchUserPosts(widget.isAI);
+      if (!widget.isAI) {
+        await _fetchSavedCharacters();
+      } else {
+        // AI 프로필의 경우 saved characters를 표시하지 않음
+        setState(() {
+          _areCharactersLoading = false;
+          _savedCharacters = [];
+        });
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          isRefreshing = false;
+        });
+      }
     }
   }
 
   // Methods previously from BaseProfileScreen
   String getUserId() {
     return widget.uid;
-  }
-
-  List<String> getTabLabels() {
-    // Both AI and human users show Posts and Community tabs
-    return const ['Posts', 'Community'];
-  }
-
-  List<Widget> getTabViews({String? profileImageUrl}) {
-    return [
-      // Posts tab
-      UserPostsTab(
-        userId: getUserId(),
-        ai: widget.isAI,
-        profileImageUrl: profileImageUrl ?? this.profileImageUrl,
-      ),
-      Scaffold(
-        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-        body: FollowersFollowingTab(
-          userList: _communityTabData,
-          userId: getUserId(),
-        ),
-      ),
-    ];
   }
 
   Widget buildActionButtons() {
@@ -528,35 +507,59 @@ class _ProfileScreenState extends State<ProfileScreen>
     }
   }
 
-  Future<void> fetchUserStats([bool isAi = false]) async {
+  Future<void> fetchUserPosts([bool isAi = false]) async {
     String userId = getUserId();
     if (userId.isEmpty) {
-      setState(() {
-        isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+        });
+      }
       return;
     }
 
-    // Fetch post count from user posts
-    List posts = [];
-    if (isAi) {
-      final result = await InZoneDatabase.getAIUserPosts(userId);
-      if (result != null) {
-        posts = result;
+    // Set loading state at the beginning. This ensures that when refreshing,
+    // the UI shows a loading state for the posts tab as well.
+    if (mounted) {
+      setState(() {
+        isLoading = true;
+      });
+    }
+
+    try {
+      // Fetch post data from the database.
+      List? postJsonList = [];
+      if (isAi) {
+        postJsonList = await InZoneDatabase.getAIUserPosts(userId);
+      } else {
+        postJsonList = await InZoneDatabase.getUserPosts(userId);
       }
-    } else {
-      final result = await InZoneDatabase.getUserPosts(userId);
-      if (result != null) {
-        posts = result;
+
+      List<InZonePost> fetchedPosts = [];
+      if (postJsonList != null && postJsonList.isNotEmpty) {
+        // Convert JSON data to a list of InZonePost objects.
+        fetchedPosts =
+            postJsonList.map((json) => InZonePost.fromJson(json)).toList();
+      }
+
+      // Update the state with the fetched posts.
+      if (mounted) {
+        setState(() {
+          postCount = fetchedPosts.length;
+          _posts = fetchedPosts;
+        });
+      }
+    } catch (e) {
+      // Handle any errors during the fetch operation.
+      debugPrint("Error fetching user posts: $e");
+    } finally {
+      // Ensure the loading indicator is turned off.
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+        });
       }
     }
-    setState(() {
-      postCount = posts.length;
-    });
-
-    setState(() {
-      isLoading = false;
-    });
   }
 
   // Follow functionality
@@ -1045,195 +1048,167 @@ class _ProfileScreenState extends State<ProfileScreen>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: SafeArea(
-        child: NestedScrollView(
-          headerSliverBuilder: (BuildContext context, bool innerBoxIsScrolled) {
-            return <Widget>[
-              CupertinoSliverRefreshControl(
-                onRefresh: _handleRefresh,
-              ),
-              // 상단 여백 (앱바 대신 사용)
-              const SliverToBoxAdapter(
-                child: SizedBox(height: 0),
-              ),
-
-              // Profile header
-              SliverToBoxAdapter(
-                child: Container(
-                  color: Theme.of(context).cardColor,
-                  child: Stack(
-                    children: [
-                      // Profile info section
-                      ProfileAppbar(
-                        name: name,
-                        bio: bio,
-                        profileImageUrl: profileImageUrl,
-                        username: username,
-                        postCount: postCount,
-                        followingCount: followingCount,
-                        followersCount: followersCount,
-                        actionButtons: buildActionButtons(),
-                        isProfilePage: true,
-                        savedCharacters: _savedCharacters,
-                        areCharactersLoading: _areCharactersLoading,
-                        onCharacterTap:
-                            (characterId, characterName, characterImage) {
-                          context.pushNamed('chat',
-                              extra: ChatUser(
-                                name: characterName,
-                                email: characterId,
-                                chatId: null,
-                                isHuman: false,
-                                profilePictureURL: characterImage,
-                              ));
-                        },
-                      ),
-
-                      Positioned(
-                        top: 10,
-                        left: 15,
-                        child: GestureDetector(
-                          onTap: () {
-                            Navigator.pop(context);
-                          },
-                          child: CircleAvatar(
-                            radius: 22,
-                            backgroundColor:
-                                Theme.of(context).brightness == Brightness.dark
-                                    ? Colors.grey.shade800
-                                    : Colors.grey.shade200,
-                            child: Padding(
-                              padding: const EdgeInsets.only(left: 5),
-                              child: Center(
-                                child: Icon(
-                                  Icons.arrow_back_ios,
-                                  size: 18,
-                                  color: Theme.of(context).iconTheme.color,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-
-                      // AI Badge (only show for AI profiles)
-                      if (widget.isAI)
-                        Positioned(
-                          top: 15,
-                          right: 20,
-                          child: _buildAIBadge(),
-                        ),
-
-                      // More options button (AI가 아닐 때만 표시)
-                      if (!widget.isAI)
-                        Positioned(
-                          top: 10,
-                          right: 10,
-                          child: GestureDetector(
-                            onTap: () => _showOptionsBottomSheet(context),
-                            child: Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: Theme.of(context)
-                                    .cardColor
-                                    .withOpacity(0.7),
-                                shape: BoxShape.circle,
-                              ),
-                              child: Icon(
-                                Icons.more_horiz,
-                                color: Theme.of(context).primaryColor,
-                                size: 24,
-                              ),
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
+    // Show shimmering during initial loading or refresh
+    if (isLoading || isRefreshing) {
+      return Scaffold(
+        body: SafeArea(
+          child: Stack(
+            children: [
+              // Show dimmed content only during refresh (not initial load)
+              if (isRefreshing && !isLoading)
+                Opacity(
+                  opacity: 0.3,
+                  child: _buildMainContent(),
                 ),
-              ),
-
-              // Tab bar
-              SliverPersistentHeader(
-                delegate: _SliverAppBarDelegate(
-                  Container(
-                    height: 54.0,
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).cardColor,
-                      borderRadius: const BorderRadius.only(
-                        bottomLeft: Radius.circular(30),
-                        bottomRight: Radius.circular(30),
-                      ),
-                    ),
-                    child: Center(
-                      child: TabBar(
-                        controller: _scrollTabController,
-                        tabs: getTabLabels()
-                            .map((label) => Tab(text: label))
-                            .toList(),
-                        indicatorColor: Theme.of(context).primaryColor,
-                        labelColor: Theme.of(context).primaryColor,
-                        unselectedLabelColor: Theme.of(context)
-                            .textTheme
-                            .bodyMedium
-                            ?.color
-                            ?.withOpacity(0.6),
-                        indicatorWeight: 3,
-                        indicatorSize: TabBarIndicatorSize.label,
-                        dividerColor: Colors.transparent,
-                        indicator: UnderlineTabIndicator(
-                          borderSide: BorderSide(
-                              width: 3,
-                              color: Theme.of(context).colorScheme.primary),
-                          insets: const EdgeInsets.symmetric(horizontal: 0),
-                        ),
-                        labelPadding: const EdgeInsets.symmetric(
-                            vertical: 8, horizontal: 16),
-                      ),
-                    ),
-                  ),
-                ),
-                pinned: true,
-              ),
-
-              // Add space
-              const SliverToBoxAdapter(
-                child: SizedBox(height: 5),
-              ),
-            ];
-          },
-          body: TabBarView(
-            controller: _scrollTabController,
-            children: getTabViews(profileImageUrl: profileImageUrl),
+              // Shimmering overlay
+              ProfileShimmering(context, widget.isAI),
+            ],
           ),
         ),
+      );
+    }
+
+    return Scaffold(
+      body: SafeArea(
+        child: _buildMainContent(),
       ),
     );
   }
-}
 
-class _SliverAppBarDelegate extends SliverPersistentHeaderDelegate {
-  final Widget child;
+  Widget _buildMainContent() {
+    return RefreshIndicator(
+      onRefresh: _handleRefresh,
+      child: CustomScrollView(
+        slivers: [
+          // Profile header
+          SliverToBoxAdapter(
+            child: Container(
+              color: Theme.of(context).cardColor,
+              child: Stack(
+                children: [
+                  ProfileAppbar(
+                    name: name,
+                    bio: bio,
+                    profileImageUrl: profileImageUrl,
+                    username: username,
+                    postCount: postCount,
+                    followingCount: followingCount,
+                    followersCount: followersCount,
+                    actionButtons: buildActionButtons(),
+                    isProfilePage: true,
+                    savedCharacters: _savedCharacters,
+                    areCharactersLoading: _areCharactersLoading,
+                    onCharacterTap:
+                        (characterId, characterName, characterImage) {
+                      context.pushNamed('chat',
+                          extra: ChatUser(
+                            name: characterName,
+                            email: characterId,
+                            chatId: null,
+                            isHuman: false,
+                            profilePictureURL: characterImage,
+                          ));
+                    },
+                  ),
+                  Positioned(
+                    top: 10,
+                    left: 15,
+                    child: GestureDetector(
+                      onTap: () {
+                        Navigator.pop(context);
+                      },
+                      child: CircleAvatar(
+                        radius: 22,
+                        backgroundColor:
+                            Theme.of(context).brightness == Brightness.dark
+                                ? Colors.grey.shade800
+                                : Colors.grey.shade200,
+                        child: Padding(
+                          padding: const EdgeInsets.only(left: 5),
+                          child: Center(
+                            child: Icon(
+                              Icons.arrow_back_ios,
+                              size: 18,
+                              color: Theme.of(context).iconTheme.color,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  // AI Badge (only show for AI profiles)
+                  if (widget.isAI)
+                    Positioned(
+                      top: 15,
+                      right: 20,
+                      child: _buildAIBadge(),
+                    ),
+                  // More options button (AI가 아닐 때만 표시)
+                  if (!widget.isAI)
+                    Positioned(
+                      top: 10,
+                      right: 10,
+                      child: GestureDetector(
+                        onTap: () => _showOptionsBottomSheet(context),
+                        child: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).cardColor.withOpacity(0.7),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            Icons.more_horiz,
+                            color: Theme.of(context).primaryColor,
+                            size: 24,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
 
-  _SliverAppBarDelegate(this.child);
-
-  @override
-  double get minExtent => 54.0;
-
-  @override
-  double get maxExtent => 54.0;
-
-  @override
-  Widget build(
-      BuildContext context, double shrinkOffset, bool overlapsContent) {
-    return SizedBox(
-      width: double.infinity,
-      child: child,
+          // Posts list
+          if (_posts.isEmpty)
+            const SliverToBoxAdapter(
+              child: Center(
+                child: Padding(
+                  padding: EdgeInsets.all(50.0),
+                  child: Text(
+                    'No posts found',
+                    style: TextStyle(fontSize: 16),
+                  ),
+                ),
+              ),
+            )
+          else
+            SliverPadding(
+              padding: const EdgeInsets.all(15.0),
+              sliver: SliverList(
+                delegate: SliverChildBuilderDelegate(
+                  (context, index) {
+                    if (index == _posts.length) {
+                      return const SizedBox(height: 100);
+                    }
+                    return Column(
+                      children: [
+                        PostCard(
+                          post: _posts[index],
+                          profileImageUrl: profileImageUrl,
+                          showHue: false,
+                          onTap: (postId) {},
+                          inProfile: true,
+                        ),
+                      ],
+                    );
+                  },
+                  childCount: _posts.length + 1,
+                ),
+              ),
+            ),
+        ],
+      ),
     );
-  }
-
-  @override
-  bool shouldRebuild(_SliverAppBarDelegate oldDelegate) {
-    return true;
   }
 }

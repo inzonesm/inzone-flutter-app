@@ -1,97 +1,28 @@
 import 'package:flutter/material.dart';
 import 'package:inzone/components/cards/post_card.dart';
 import 'package:inzone/data/inzone_post.dart';
-import 'package:inzone/services/inzone_database.dart';
 
-class UserPostsTab extends StatefulWidget {
-  final String userId;
+class UserPostsTab extends StatelessWidget {
+  final List<InZonePost> posts;
   final String profileImageUrl;
-  final bool ai;
-  final bool isUser;
+  final bool isLoading;
 
   const UserPostsTab({
     super.key,
-    required this.userId,
-    required this.ai,
+    required this.posts,
     required this.profileImageUrl,
-    this.isUser = false,
+    required this.isLoading,
   });
-
-  @override
-  State<UserPostsTab> createState() => _UserPostsTabState();
-}
-
-class _UserPostsTabState extends State<UserPostsTab> {
-  List<Widget> postWidgets = [];
-  bool isLoading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    fetchUserPosts();
-  }
-
-  Future<void> fetchUserPosts() async {
-    if (!mounted) return; // Check if widget is still mounted before proceeding
-
-    setState(() {
-      isLoading = true;
-    });
-
-    try {
-      List? posts = [];
-      if (widget.ai) {
-        posts = await InZoneDatabase.getAIUserPosts(widget.userId);
-      } else {
-        posts = await InZoneDatabase.getUserPosts(widget.userId);
-      }
-
-      if (!mounted) return; // Check again after the async operation
-
-      if (posts != null && posts.isNotEmpty) {
-        setState(() {
-          // Convert each post JSON to a PostCard widget
-          postWidgets = [];
-          posts ??= [];
-          for (var postJson in posts!) {
-            try {
-              // Verify postJson is not null
-              if (postJson == null) {
-                continue;
-              }
-
-              // Create an InZonePost from the JSON
-              final post = InZonePost.fromJson(postJson);
-
-              // Return a PostCard widget
-              postWidgets.add(PostCard(
-                post: post,
-                profileImageUrl: widget.profileImageUrl,
-                showHue: false,
-                onTap: (postId) {},
-                inProfile: true,
-              ));
-            } catch (e) {}
-          }
-        });
-      } else {}
-    } finally {
-      if (mounted) {
-        // Check if still mounted before final setState
-        setState(() {
-          isLoading = false;
-        });
-      }
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
     if (isLoading) {
+      // While parent is fetching data, show an empty box.
+      // The parent screen (e.g., ProfileScreen) is responsible for showing a loading indicator.
       return const SizedBox();
     }
 
-    if (postWidgets.isEmpty) {
+    if (posts.isEmpty) {
       return const Center(
         child: Text(
           'No posts found',
@@ -100,21 +31,39 @@ class _UserPostsTabState extends State<UserPostsTab> {
       );
     }
 
-    return RefreshIndicator(
-      onRefresh: fetchUserPosts,
-      child: Padding(
-        padding: const EdgeInsets.all(15.0),
-        child: ListView.separated(
-          itemCount: postWidgets.length + 1,
-          separatorBuilder: (context, index) => const SizedBox(height: 15),
-          itemBuilder: (context, index) {
-            if (index == postWidgets.length) {
-              return const SizedBox(height: 100);
-            }
-            return postWidgets[index];
-          },
+    // Use CustomScrollView with SliverOverlapInjector for proper NestedScrollView integration
+    return CustomScrollView(
+      slivers: [
+        SliverOverlapInjector(
+          handle: NestedScrollView.sliverOverlapAbsorberHandleFor(context),
         ),
-      ),
+        SliverPadding(
+          padding: const EdgeInsets.all(15.0),
+          sliver: SliverList(
+            delegate: SliverChildBuilderDelegate(
+              (context, index) {
+                if (index == posts.length) {
+                  // Add some space at the bottom of the list.
+                  return const SizedBox(height: 100);
+                }
+                return Column(
+                  children: [
+                    PostCard(
+                      post: posts[index],
+                      profileImageUrl: profileImageUrl,
+                      showHue: false,
+                      onTap: (postId) {},
+                      inProfile: true,
+                    ),
+                    if (index < posts.length - 1) const SizedBox(height: 15),
+                  ],
+                );
+              },
+              childCount: posts.length + 1,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

@@ -579,12 +579,6 @@ class _PostCardState extends State<PostCard>
           width: MediaQuery.of(context).size.width - 30,
           padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 10),
           decoration: BoxDecoration(
-              border: Border.all(
-                color: (!widget.post.isAi && widget.showHue)
-                    ? Colors.lightBlueAccent.withOpacity(0.5)
-                    : Colors.transparent,
-                width: 2,
-              ),
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withOpacity(0.1),
@@ -787,6 +781,21 @@ class _PostCardState extends State<PostCard>
                                   ),
                                 )),
                       const Spacer(),
+                      if (!widget.post.isAi &&
+                          widget.showHue &&
+                          !isCharacterPost)
+                        Padding(
+                          padding: const EdgeInsets.only(right: 10),
+                          child: Container(
+                            width: 10,
+                            height: 10,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF2196F3).withOpacity(0.1),
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                        ),
+
                       if (isCharacterPost)
                         Container(
                           padding: const EdgeInsets.symmetric(

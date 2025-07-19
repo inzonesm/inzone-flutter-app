@@ -201,6 +201,9 @@ class _FollowersFollowingTabState extends State<FollowersFollowingTab> {
   @override
   Widget build(BuildContext context) {
     final backgroundColor = Theme.of(context).canvasColor;
+    final currentList = followersSelected
+        ? displayUserList["followers"]!
+        : displayUserList["following"]!;
 
     if (isLoading) {
       return const Center(
@@ -284,12 +287,134 @@ class _FollowersFollowingTabState extends State<FollowersFollowingTab> {
           ),
         ),
         const SizedBox(height: 10),
-        Expanded(
-            child: messageShown
-                ? Center(
-                    child: Text(
-                        "No ${followersSelected ? "Followers" : "Following"} yet"))
-                : buildUserList()),
+        messageShown
+            ? Text(
+                followersSelected
+                    ? "This user has no followers"
+                    : "This user is not following anyone",
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.grey,
+                ),
+              )
+            : Expanded(
+                child: ListView.separated(
+                  // No need for PrimaryScrollController in CustomScrollView structure
+                  itemCount: currentList.length,
+                  itemBuilder: (context, index) {
+                    final user = currentList[index];
+                    final userId = user['id'] ?? '';
+                    // Use only the username key from the API response
+                    final userName = user['username'] ?? '';
+                    final userType = user['type'] ?? 'human';
+
+                    // Get profile image if available
+                    final profileImageUrl = _userProfileImages[userId] ?? '';
+
+                    return FutureBuilder<String?>(
+                        future: InZoneDatabase.getCurrentUserUid(),
+                        builder: (context, snapshot) {
+                          final isCurrentUser =
+                              snapshot.hasData && userId == snapshot.data;
+
+                          return ListTile(
+                            leading: ClipRRect(
+                              borderRadius: BorderRadius.circular(20),
+                              child: profileImageUrl.isNotEmpty
+                                  ? Image.network(
+                                      profileImageUrl,
+                                      width: 40,
+                                      height: 40,
+                                      fit: BoxFit.cover,
+                                      errorBuilder:
+                                          (context, error, stackTrace) =>
+                                              const Icon(Icons.account_circle),
+                                    )
+                                  : const Icon(Icons.account_circle),
+                            ),
+                            title: Text(
+                              userName,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            subtitle: Text(userType == 'ai' ? 'AI User' : ''),
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                // Show follow/unfollow button if not the current user
+                                if (!isCurrentUser && !followersSelected)
+                                  SizedBox(
+                                    width: 100,
+                                    child: OutlinedButton(
+                                      onPressed: () async {
+                                        // Handle unfollow action
+                                        if (userType == 'ai') {
+                                          await InZoneDatabase.unfollowAIUser(
+                                              userId);
+                                        } else {
+                                          await InZoneDatabase.unfollowUser(
+                                              userId);
+                                        }
+                                        // Refresh the list
+                                        setState(() {
+                                          displayUserList["following"]!
+                                              .removeWhere((u) =>
+                                                  u['id'] == userId ||
+                                                  u['uid'] == userId);
+                                          updateMessageShown();
+                                        });
+                                      },
+                                      style: OutlinedButton.styleFrom(
+                                        foregroundColor: Colors.black,
+                                        side: BorderSide(
+                                            color: Colors.grey.shade300),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(20),
+                                        ),
+                                        padding: const EdgeInsets.symmetric(
+                                            vertical: 0),
+                                      ),
+                                      child: const Text('Unfollow'),
+                                    ),
+                                  ),
+
+                                // Show remove follower option for followers tab
+                                if (!isCurrentUser && followersSelected)
+                                  IconButton(
+                                    icon: const Icon(Icons.more_vert),
+                                    onPressed: () =>
+                                        _showRemoveFollowerBottomSheet(
+                                            context, userId),
+                                  ),
+                              ],
+                            ),
+                            onTap: () {
+                              // Navigate to user profile using GoRouter instead of MaterialPageRoute
+                              if (userType == 'ai') {
+                                context
+                                    .push(Routes.aiProfilePath(userId))
+                                    .then((_) {
+                                  // Refresh the list when returning from profile
+                                  fetchFollowersAndFollowing();
+                                });
+                              } else {
+                                context
+                                    .push(Routes.regularProfilePath(userId))
+                                    .then((_) {
+                                  // Refresh the list when returning from profile
+                                  fetchFollowersAndFollowing();
+                                });
+                              }
+                            },
+                          );
+                        });
+                  },
+                  separatorBuilder: (context, index) => const Divider(),
+                ),
+              ),
         Container(
           height: 60,
           width: MediaQuery.of(context).size.width,
