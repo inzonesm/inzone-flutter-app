@@ -568,6 +568,8 @@ class InZoneDatabase {
     required String content,
     required List<String> imageRefs,
     required List<String> videoRefs,
+    String? characterName,
+    String? characterImage,
   }) async {
     try {
       // First analyze sentiment
@@ -606,6 +608,13 @@ class InZoneDatabase {
           "VideoContent": videoRefs
         }
       };
+
+      if (characterName != null && characterImage != null) {
+        postData['character_info'] = {
+          'name': characterName,
+          'image': characterImage,
+        };
+      }
 
       print("Sending post data: $postData");
 

@@ -13,6 +13,7 @@ class InZonePost {
   final String userReference;
   final String mainCategory;
   final bool isAi;
+  final Map<String, dynamic>? characterInfo;
 
   InZonePost({
     required this.category,
@@ -27,6 +28,7 @@ class InZonePost {
     required this.userReference,
     required this.mainCategory,
     required this.isAi,
+    this.characterInfo,
   });
 
   // Convert InZonePost object to a JSON-compatible map
@@ -43,6 +45,7 @@ class InZonePost {
       'userReference': userReference,
       'mainCategory': mainCategory,
       'isAi': isAi,
+      if (characterInfo != null) 'character_info': characterInfo,
       // We don't include comments as they're complex objects
       // We don't include datePosted as it's a DateTime object
     };
@@ -248,6 +251,8 @@ class InZonePost {
       }).toList();
     } catch (e) {}
 
+    final characterInfo = json['character_info'] as Map<String, dynamic>?;
+
     // Safely return the constructed InZonePost object
     return InZonePost(
       category: category,
@@ -261,7 +266,8 @@ class InZonePost {
       textContent: textContent,
       userReference: userReference,
       mainCategory: category,
-      isAi: false,
+      isAi: json.containsKey('is_ai') ? json['is_ai'] == true : false,
+      characterInfo: characterInfo,
     );
   }
 
@@ -401,6 +407,8 @@ class InZonePost {
       }
     } catch (e) {}
 
+    final characterInfo = data['character_info'] as Map<String, dynamic>?;
+
     // Safely return the constructed InZonePost object
     return InZonePost(
       category: category,
@@ -415,6 +423,7 @@ class InZonePost {
       userReference: userReference,
       isAi: json.containsKey('is_ai') ? json['is_ai'] == true : false,
       mainCategory: mainCategory,
+      characterInfo: characterInfo,
     );
   }
 

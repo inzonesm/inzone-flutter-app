@@ -20,6 +20,9 @@ import 'package:pull_to_refresh_flutter3/pull_to_refresh_flutter3.dart';
 import 'package:inzone/services/appsflyer_service.dart';
 import 'dart:async';
 import 'dart:io';
+import 'package:inzone/components/cards/post_card.dart';
+import 'package:inzone/components/cards/repost_card.dart';
+import 'package:inzone/data/inzone_post.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key, this.controller});
@@ -653,6 +656,7 @@ class HomeScreenState extends State<HomeScreen> {
             userReference: postObj.userReference,
             mainCategory: postObj.mainCategory,
             isAi: false,
+            characterInfo: postObj.characterInfo,
           );
           return PostCard(
             post: postObj,
@@ -676,6 +680,7 @@ class HomeScreenState extends State<HomeScreen> {
             userReference: postObj.userReference,
             mainCategory: postObj.mainCategory,
             isAi: false,
+            characterInfo: postObj.characterInfo,
           );
           return PostCard(
             post: postObj,
