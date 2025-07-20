@@ -16,6 +16,7 @@ import 'package:inzone/services/inzone_database.dart';
 import 'package:go_router/go_router.dart';
 import 'package:toasty_box/toast_service.dart';
 import 'package:inzone/data/inzone_post.dart';
+import 'package:pull_to_refresh_flutter3/pull_to_refresh_flutter3.dart';
 
 class ProfileScreen extends StatefulWidget {
   final String uid;
@@ -55,9 +56,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
     "following": []
   };
 
+  // SmartRefresher controller
+  final RefreshController _refreshController =
+      RefreshController(initialRefresh: false);
+
   @override
   void initState() {
     super.initState();
+
     if (!widget.isAI) {
       _fetchSavedCharacters();
     } else {
@@ -75,6 +81,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   void dispose() {
+    _refreshController.dispose();
     super.dispose();
   }
 
@@ -152,6 +159,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
         });
       }
     }
+  }
+
+  void _onRefresh() async {
+    await _handleRefresh();
+    _refreshController.refreshCompleted();
   }
 
   // Methods previously from BaseProfileScreen
@@ -560,6 +572,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
         });
       }
     }
+  }
+
+  Widget refreshIcon() {
+    return Image.asset(
+      'assets/icons/dark.png',
+      width: 35,
+      height: 35,
+    );
   }
 
   // Follow functionality
@@ -1048,36 +1068,50 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Show shimmering during initial loading or refresh
-    if (isLoading || isRefreshing) {
-      return Scaffold(
-        body: SafeArea(
-          child: Stack(
-            children: [
-              // Show dimmed content only during refresh (not initial load)
-              if (isRefreshing && !isLoading)
-                Opacity(
-                  opacity: 0.3,
-                  child: _buildMainContent(),
-                ),
-              // Shimmering overlay
-              ProfileShimmering(context, widget.isAI),
-            ],
-          ),
-        ),
-      );
-    }
-
     return Scaffold(
       body: SafeArea(
-        child: _buildMainContent(),
+        child: Stack(
+          children: [
+            // Main content is always present
+            _buildMainContent(),
+            // Show shimmering overlay during loading or refresh
+            if (isLoading || isRefreshing)
+              Positioned(
+                top: isRefreshing ? 80 : 0, // refresh 시 아이콘 영역 비워둠
+                left: 0,
+                right: 0,
+                bottom: 0,
+                child: Container(
+                  color: Theme.of(context)
+                      .scaffoldBackgroundColor
+                      .withOpacity(isRefreshing ? 0.9 : 1.0),
+                  child: ProfileShimmering(context, widget.isAI),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildMainContent() {
-    return RefreshIndicator(
-      onRefresh: _handleRefresh,
+    return SmartRefresher(
+      enablePullDown: true,
+      controller: _refreshController,
+      onRefresh: _onRefresh,
+      physics: const BouncingScrollPhysics(),
+      header: ClassicHeader(
+        releaseIcon: refreshIcon(),
+        refreshingIcon: refreshIcon(),
+        completeIcon: refreshIcon(),
+        idleIcon: refreshIcon(),
+        failedIcon: refreshIcon(),
+        refreshingText: "",
+        releaseText: "",
+        completeText: "",
+        idleText: "",
+        failedText: "",
+      ),
       child: CustomScrollView(
         slivers: [
           // Profile header
