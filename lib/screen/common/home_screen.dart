@@ -764,6 +764,11 @@ class HomeScreenState extends State<HomeScreen> {
                   completeIcon: refreshIcon(),
                   idleIcon: refreshIcon(),
                   failedIcon: refreshIcon(),
+                  refreshingText: "",
+                  releaseText: "",
+                  completeText: "",
+                  idleText: "",
+                  failedText: "",
                 ),
                 child: CustomScrollView(
                   controller: _scrollController,
