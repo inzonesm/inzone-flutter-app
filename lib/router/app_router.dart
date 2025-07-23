@@ -23,6 +23,7 @@ import 'package:inzone/screen/profile/user_profile_screen.dart';
 import 'package:inzone/screen/profile/profile_screen.dart';
 import 'package:inzone/screen/profile/edit_profile_screen.dart';
 import 'package:inzone/screen/profile/edit_field_screen.dart';
+import 'package:inzone/screen/profile/followers_following_screen.dart';
 import 'package:inzone/screen/post/post_screen.dart';
 import 'package:inzone/screen/chat/group_chat_screen.dart';
 import 'package:inzone/screen/chat/chat_screen.dart';
@@ -451,6 +452,18 @@ class AppRouter {
         builder: (context, state) {
           final uid = state.pathParameters['uid'] ?? '';
           return ProfileScreen(uid: uid);
+        },
+      ),
+      GoRoute(
+        path: Routes.followersFollowing,
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) {
+          final userId = state.pathParameters['userId'] ?? '';
+          final startWithFollowers = state.extra as bool? ?? true;
+          return FollowersFollowingScreen(
+            userId: userId,
+            startWithFollowers: startWithFollowers,
+          );
         },
       ),
       GoRoute(

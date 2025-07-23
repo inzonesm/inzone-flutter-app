@@ -45,6 +45,7 @@ class Routes {
   static const String regularProfile = '/profile/:uid';
   static const String groupChat = '/group-chat';
   static const String chat = '/chat';
+  static const String followersFollowing = '/followers-following/:userId';
 
   // Settings routes
   static const String settings = '/settings';
@@ -66,4 +67,6 @@ class Routes {
   static String aiProfilePath(String username) => '/ai-profile/$username';
   static String regularProfilePath(String uid) => '/profile/$uid';
   static String editFieldPath(String fieldType) => '/edit-field/$fieldType';
+  static String followersFollowingPath(String userId) =>
+      '/followers-following/$userId';
 }

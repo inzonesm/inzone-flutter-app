@@ -8,6 +8,7 @@ import 'package:inzone/screen/common/home_screen.dart';
 import 'package:inzone/screen/explore/groups_explore_screen.dart';
 import 'package:inzone/screen/chat/all_chats_screen.dart';
 import 'package:inzone/screen/profile/user_profile_screen.dart';
+import 'package:inzone/components/video/video_widget.dart';
 import 'package:iconify_flutter/iconify_flutter.dart';
 import 'package:iconify_flutter/icons/ri.dart';
 import 'package:iconify_flutter/icons/mdi.dart';
@@ -105,6 +106,14 @@ class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
     _homeScrollController.dispose();
     _rootFocusNode.dispose();
     _rotationController.dispose();
+
+    // Clean up video cache to prevent memory leaks
+    try {
+      disposeAllVideoCache();
+    } catch (e) {
+      debugPrint('Error disposing video cache in RootApp: $e');
+    }
+
     super.dispose();
   }
 

@@ -47,18 +47,41 @@ final Map<String, bool> _cachedInitStatus = {};
 
 // 캐시 관리를 위한 FIFO 큐
 final List<String> _cacheQueue = [];
-const int _maxCacheSize = 5; // 최대 캐시 크기 제한
+const int _maxCacheSize = 3; // 최대 캐시 크기를 줄여서 메모리 사용량 감소
 
 void _cleanupCache() {
   // 캐시 크기가 제한을 초과하면 가장 오래된 항목 제거
   while (_cacheQueue.length > _maxCacheSize) {
     String oldestUrl = _cacheQueue.removeAt(0);
     final player = _cachedPlayers.remove(oldestUrl);
-    _cachedControllers.remove(oldestUrl);
+    final controller = _cachedControllers.remove(oldestUrl);
     _cachedInitStatus.remove(oldestUrl);
 
     // 실제 플레이어 자원 해제
-    player?.dispose();
+    try {
+      player?.dispose();
+      // VideoController는 Player dispose시 함께 정리됨
+    } catch (e) {
+      debugPrint('Error disposing cached player: $e');
+    }
+
+    debugPrint('Cleaned up cached player for: $oldestUrl');
+  }
+}
+
+// 앱 종료시 모든 캐시 정리하는 함수
+void disposeAllVideoCache() {
+  try {
+    for (final player in _cachedPlayers.values) {
+      player.dispose();
+    }
+    _cachedPlayers.clear();
+    _cachedControllers.clear();
+    _cachedInitStatus.clear();
+    _cacheQueue.clear();
+    debugPrint('All video cache disposed');
+  } catch (e) {
+    debugPrint('Error disposing all video cache: $e');
   }
 }
 
@@ -819,10 +842,14 @@ class _VideoWidgetState extends State<VideoWidget> with WidgetsBindingObserver {
     // Remove observer
     WidgetsBinding.instance.removeObserver(this);
 
-    // Cancel timers
+    // Cancel timers first to prevent any callbacks
     _loadingTimeoutTimer?.cancel();
     _scrubbingTimer?.cancel();
     _hideControlsTimer?.cancel();
+
+    // Cancel subscriptions to prevent memory leaks
+    _muteSubscription?.cancel();
+    _positionSubscription?.cancel();
 
     // Make sure to reset orientation and UI mode when disposing
     if (_isFullscreen) {
@@ -834,15 +861,19 @@ class _VideoWidgetState extends State<VideoWidget> with WidgetsBindingObserver {
       );
     }
 
-    // Cancel mute state subscription
-    _muteSubscription?.cancel();
-    _positionSubscription?.cancel();
-
-    // 캐시에 없는 플레이어만 해제
+    // Only dispose players that are not cached to avoid double disposal
     if (_mediaKitPlayer != null &&
         !_cachedPlayers.containsValue(_mediaKitPlayer)) {
-      _mediaKitPlayer!.dispose();
+      try {
+        _mediaKitPlayer!.dispose();
+      } catch (e) {
+        debugPrint('Error disposing media player: $e');
+      }
     }
+
+    // Clear references to prevent memory leaks
+    _mediaKitPlayer = null;
+    _mediaKitVideoController = null;
 
     super.dispose();
   }

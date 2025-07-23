@@ -16,6 +16,7 @@ import 'package:inzone/screen/settings/settings_screen.dart';
 import 'package:inzone/services/inzone_database.dart';
 import 'package:inzone/theme/app_colors.dart';
 import 'package:go_router/go_router.dart';
+import 'package:inzone/router/routes.dart';
 import 'package:inzone/screen/chat/all_chats_screen.dart';
 import 'package:pull_to_refresh_flutter3/pull_to_refresh_flutter3.dart';
 
@@ -452,6 +453,20 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                             isHuman: false,
                             profilePictureURL: characterImage,
                           ));
+                    },
+                    onFollowersTap: () {
+                      if (currentUserId != null) {
+                        context.push(
+                            Routes.followersFollowingPath(currentUserId!),
+                            extra: true);
+                      }
+                    },
+                    onFollowingTap: () {
+                      if (currentUserId != null) {
+                        context.push(
+                            Routes.followersFollowingPath(currentUserId!),
+                            extra: false);
+                      }
                     },
                   ),
                 ),

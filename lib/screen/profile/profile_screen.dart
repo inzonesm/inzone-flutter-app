@@ -16,6 +16,7 @@ import 'package:inzone/services/inzone_database.dart';
 import 'package:go_router/go_router.dart';
 import 'package:toasty_box/toast_service.dart';
 import 'package:inzone/data/inzone_post.dart';
+import 'package:inzone/router/routes.dart';
 import 'package:pull_to_refresh_flutter3/pull_to_refresh_flutter3.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -610,10 +611,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
         }
       }
     } catch (e) {
-      setState(() {
-        isFollowing = false;
-        _isFollowedBy = false;
-      });
+      if (mounted) {
+        setState(() {
+          isFollowing = false;
+          _isFollowedBy = false;
+        });
+      }
     }
   }
 
@@ -1097,6 +1100,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 isHuman: false,
                                 profilePictureURL: characterImage,
                               ));
+                        },
+                        onFollowersTap: () {
+                          context.push(
+                              Routes.followersFollowingPath(widget.uid),
+                              extra: true);
+                        },
+                        onFollowingTap: () {
+                          context.push(
+                              Routes.followersFollowingPath(widget.uid),
+                              extra: false);
                         },
                       ),
                       Positioned(
