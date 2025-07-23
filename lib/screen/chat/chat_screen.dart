@@ -272,6 +272,9 @@ class _ChatScreenState extends State<ChatScreen> {
                                     fit: BoxFit.fitWidth,
                                     width:
                                         MediaQuery.of(context).size.width - 60,
+                                    color: null, // Remove any color overlay
+                                    colorBlendMode: BlendMode
+                                        .srcOver, // Use default blend mode
                                     placeholder: (context, url) =>
                                         const SizedBox(),
                                     errorWidget: (context, url, error) {

@@ -739,6 +739,9 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                         height: 40,
                         width: 40,
                         fit: BoxFit.cover,
+                        color: null, // Remove any color overlay
+                        colorBlendMode:
+                            BlendMode.srcOver, // Use default blend mode
                         placeholder: (context, url) => const SizedBox(),
                         errorWidget: (context, url, error) {
                           print('Error loading group image: $error');
@@ -1186,6 +1189,8 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
           fit: BoxFit.cover,
           height: 35,
           width: 35,
+          color: null, // Remove any color overlay
+          colorBlendMode: BlendMode.srcOver, // Use default blend mode
           placeholder: (context, url) => const SizedBox(),
           errorWidget: (context, url, error) {
             return Center(
@@ -1217,6 +1222,8 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
             fit: BoxFit.cover,
             height: 35,
             width: 35,
+            color: null, // Remove any color overlay
+            colorBlendMode: BlendMode.srcOver, // Use default blend mode
             placeholder: (context, url) => const SizedBox(),
             errorWidget: (context, url, error) {
               // For AI fallback to AI icon, for users fallback to initials
@@ -1550,6 +1557,8 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
           fit: BoxFit.cover,
           width: 24,
           height: 24,
+          color: null, // Remove any color overlay
+          colorBlendMode: BlendMode.srcOver, // Use default blend mode
           placeholder: (context, url) => const SizedBox(),
           errorWidget: (context, url, error) {
             return Center(
@@ -1576,6 +1585,8 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
           imageUrl: participant.profilePictureUrl!,
           fit: BoxFit.cover,
           width: 24,
+          color: null, // Remove any color overlay
+          colorBlendMode: BlendMode.srcOver, // Use default blend mode
           height: 24,
           placeholder: (context, url) => const SizedBox(),
           errorWidget: (context, url, error) {

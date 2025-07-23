@@ -48,6 +48,9 @@ class ReferralTile extends StatelessWidget {
                             width: 50,
                             height: 50,
                             fit: BoxFit.cover,
+                            color: null, // Remove any color overlay
+                            colorBlendMode:
+                                BlendMode.srcOver, // Use default blend mode
                             errorBuilder: (context, error, stackTrace) {
                               return _buildDefaultAvatar(theme, context);
                             },

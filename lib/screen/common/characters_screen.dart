@@ -66,7 +66,7 @@ class _CharactersScreenState extends State<CharactersScreen> {
     super.initState();
     _sessionStartTime = DateTime.now();
     _loadCharacters();
-    
+
     // Track character browse session start
     final userId = FirebaseAuth.instance.currentUser?.uid;
     if (userId != null) {
@@ -80,9 +80,10 @@ class _CharactersScreenState extends State<CharactersScreen> {
   @override
   void dispose() {
     // Track character browse session end
-    final sessionDuration = DateTime.now().difference(_sessionStartTime).inSeconds;
+    final sessionDuration =
+        DateTime.now().difference(_sessionStartTime).inSeconds;
     final userId = FirebaseAuth.instance.currentUser?.uid;
-    
+
     if (userId != null && sessionDuration > 5) {
       AppsFlyerService().logEvent('ai_character_browse_end', {
         'user_id': userId,
@@ -98,8 +99,11 @@ class _CharactersScreenState extends State<CharactersScreen> {
       AppsFlyerService().logEvent('ai_character_discovery_patterns', {
         'user_id': userId,
         'browse_duration': sessionDuration,
-        'discovery_rate': _viewedCharacters.length / (sessionDuration / 60), // characters per minute
-        'search_to_view_ratio': _searchAttempts > 0 ? _viewedCharacters.length / _searchAttempts : 0,
+        'discovery_rate': _viewedCharacters.length /
+            (sessionDuration / 60), // characters per minute
+        'search_to_view_ratio': _searchAttempts > 0
+            ? _viewedCharacters.length / _searchAttempts
+            : 0,
         'timestamp': DateTime.now().millisecondsSinceEpoch,
       });
     }
@@ -519,21 +523,26 @@ class _CharactersScreenState extends State<CharactersScreen> {
                       if (userId != null) {
                         // Add to viewed characters set
                         _viewedCharacters.add(avatar.id);
-                        
+
                         AppsFlyerService().logEvent('ai_character_selected', {
                           'character_id': avatar.id,
                           'character_name': avatar.name,
                           'user_id': userId,
                           'selection_method': 'grid_tap',
                           'character_category': 'popular',
-                          'search_query': searchQuery.isNotEmpty ? searchQuery : null,
-                          'session_duration_so_far': DateTime.now().difference(_sessionStartTime).inSeconds,
-                          'characters_viewed_before_selection': _viewedCharacters.length - 1,
+                          'search_query':
+                              searchQuery.isNotEmpty ? searchQuery : null,
+                          'session_duration_so_far': DateTime.now()
+                              .difference(_sessionStartTime)
+                              .inSeconds,
+                          'characters_viewed_before_selection':
+                              _viewedCharacters.length - 1,
                           'timestamp': DateTime.now().millisecondsSinceEpoch,
                         });
 
                         // Track character popularity
-                        AppsFlyerService().logEvent('ai_character_popularity_increase', {
+                        AppsFlyerService()
+                            .logEvent('ai_character_popularity_increase', {
                           'character_id': avatar.id,
                           'character_name': avatar.name,
                           'user_id': userId,
@@ -555,6 +564,9 @@ class _CharactersScreenState extends State<CharactersScreen> {
                       fit: BoxFit.cover,
                       width: 105,
                       height: 105,
+                      color: null, // Remove any color overlay
+                      colorBlendMode:
+                          BlendMode.srcOver, // Use default blend mode
                       errorBuilder: (context, error, stackTrace) {
                         return Container(
                           color: Colors.grey[300],

@@ -188,6 +188,9 @@ class _AvatarCardState extends State<AvatarStoryComponent> {
                         fit: BoxFit.cover,
                         width: 78,
                         height: 78,
+                        color: null, // Remove any color overlay
+                        colorBlendMode:
+                            BlendMode.srcOver, // Use default blend mode
                         errorBuilder: (context, error, stackTrace) {
                           return Container(
                             color: Colors.grey[300],

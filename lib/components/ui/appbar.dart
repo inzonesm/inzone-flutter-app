@@ -384,6 +384,10 @@ class _CustomAppBarState extends State<CustomAppBar> {
                                         child: Image.network(
                                           widget.profileImageUrl!,
                                           fit: BoxFit.cover,
+                                          color:
+                                              null, // Remove any color overlay
+                                          colorBlendMode: BlendMode
+                                              .srcOver, // Use default blend mode
                                           errorBuilder:
                                               (context, error, stackTrace) {
                                             // Replace RandomAvatar with Icon
