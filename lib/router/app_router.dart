@@ -39,6 +39,8 @@ import 'package:inzone/screen/settings/unity_webview_screen.dart';
 import 'package:inzone/components/cards/tip_screen.dart';
 // Onboarding screens
 import 'package:inzone/screen/onboarding/onboardinScreen.dart';
+// Force update screen
+import 'package:inzone/screen/auth/force_update_screen.dart';
 
 // Models
 import 'package:inzone/data/group_data.dart';
@@ -133,10 +135,12 @@ class AppRouter {
       // Onboarding screen should only be accessible when not logged in
       if (isOnboardingScreen) {
         if (isLoggedIn) {
-          print("GoRouter redirect - User is logged in, redirecting from onboarding to home");
+          print(
+              "GoRouter redirect - User is logged in, redirecting from onboarding to home");
           return Routes.home;
         } else {
-          print("GoRouter redirect - User not logged in, allowing access to onboarding");
+          print(
+              "GoRouter redirect - User not logged in, allowing access to onboarding");
           return null;
         }
       }
@@ -177,6 +181,12 @@ class AppRouter {
     // Handle redirects
     redirectLimit: 5,
     routes: [
+      // 🚀 Force Update route (should be first to bypass all redirects)
+      GoRoute(
+        path: Routes.forceUpdate,
+        builder: (context, state) => const ForceUpdateScreen(),
+      ),
+
       // 🚀 Onboarding route
       GoRoute(
         path: Routes.onboarding,
@@ -551,7 +561,7 @@ class AppRouter {
       GoRoute(
         path: Routes.settings,
         parentNavigatorKey: rootNavigatorKey,
-        builder: (context, state) => SettingsScreen(),
+        builder: (context, state) => const SettingsScreen(),
       ),
 
       GoRoute(

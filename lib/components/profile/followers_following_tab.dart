@@ -12,11 +12,13 @@ class FollowersFollowingTab extends StatefulWidget {
   final Map<String, List<Map<String, dynamic>>> userList;
   final String
       userId; // The ID of the user whose followers/following we're viewing
+  final bool startWithFollowers;
 
   const FollowersFollowingTab({
     super.key,
     required this.userList,
     required this.userId,
+    this.startWithFollowers = true,
   });
 
   @override
@@ -24,7 +26,7 @@ class FollowersFollowingTab extends StatefulWidget {
 }
 
 class _FollowersFollowingTabState extends State<FollowersFollowingTab> {
-  bool followersSelected = true;
+  late bool followersSelected;
   bool messageShown = false;
   bool isLoading = true;
   Map<String, List<Map<String, dynamic>>> displayUserList = {
@@ -37,6 +39,10 @@ class _FollowersFollowingTabState extends State<FollowersFollowingTab> {
   @override
   void initState() {
     super.initState();
+
+    // Set initial tab based on startWithFollowers parameter
+    followersSelected = widget.startWithFollowers;
+
     // Create a new mutable map instead of using the one from widget.userList directly
     displayUserList = {
       "followers":

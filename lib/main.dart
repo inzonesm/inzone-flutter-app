@@ -1,14 +1,14 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_remote_config/firebase_remote_config.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter/foundation.dart';
 import 'package:inzone/config/default_firebase_options.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:inzone/theme/theme_manager.dart';
 import 'package:provider/provider.dart';
 import 'package:inzone/router/app_router.dart';
-import 'package:in_app_purchase/in_app_purchase.dart';
+import 'package:inzone/router/routes.dart';
 import 'package:inzone/services/appsflyer_service.dart';
 import 'package:purchases_flutter/models/purchases_configuration.dart'
     show PurchasesConfiguration;
@@ -21,9 +21,100 @@ import 'package:inzone/router/routes.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:app_tracking_transparency/app_tracking_transparency.dart';
 import 'package:inzone/services/reward_ad_service.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 // Key for storing first launch status in SharedPreferences
 const String FIRST_LAUNCH_KEY = 'is_first_launch';
+
+// Firebase Remote Config setup
+Future<void> setupRemoteConfig() async {
+  final remoteConfig = FirebaseRemoteConfig.instance;
+
+  // Set default values - 이것이 중요합니다!
+  await remoteConfig.setDefaults({
+    'required_version': '4.2.8',
+  });
+
+  // Configure settings - 테스트를 위해 minimumFetchInterval을 0으로 설정
+  await remoteConfig.setConfigSettings(RemoteConfigSettings(
+    fetchTimeout: const Duration(minutes: 1),
+    minimumFetchInterval: Duration.zero, // 즉시 fetch 가능
+  ));
+
+  try {
+    // Fetch and activate
+    await remoteConfig.fetchAndActivate();
+    print('Remote Config fetched and activated successfully');
+
+    // 현재 Remote Config 값들을 출력
+    print('Current Remote Config values:');
+    print('  required_version: ${remoteConfig.getString('required_version')}');
+    print('  Source: ${remoteConfig.getValue('required_version').source}');
+  } catch (e) {
+    print('Failed to fetch remote config: $e');
+  }
+}
+
+// Force update 체크 함수
+Future<bool> checkForceUpdateRequired() async {
+  try {
+    // 현재 앱 버전 가져오기
+    PackageInfo packageInfo = await PackageInfo.fromPlatform();
+    String currentVersion = packageInfo.version;
+
+    // Remote Config에서 required version 가져오기
+    final remoteConfig = FirebaseRemoteConfig.instance;
+    String requiredVersion = remoteConfig.getString('required_version');
+
+    print('Current app version: $currentVersion');
+    print('Required version from Remote Config: $requiredVersion');
+
+    // 버전 유효성 검사
+    if (!_isValidVersionString(currentVersion) ||
+        !_isValidVersionString(requiredVersion)) {
+      print('Invalid version format detected');
+      return false;
+    }
+
+    // 버전 비교
+    bool updateRequired = _isUpdateRequired(currentVersion, requiredVersion);
+    print('Update required: $updateRequired');
+
+    return updateRequired;
+  } catch (e) {
+    print('Error checking for force update: $e');
+    return false;
+  }
+}
+
+// 버전 문자열 유효성 검사
+bool _isValidVersionString(String version) {
+  if (version.isEmpty) return false;
+  final versionRegex = RegExp(r'^\d+\.\d+\.\d+(\+\d+)?$');
+  return versionRegex.hasMatch(version);
+}
+
+// 버전 비교 함수
+bool _isUpdateRequired(String currentVersion, String requiredVersion) {
+  List<int> current = _parseVersionString(currentVersion);
+  List<int> required = _parseVersionString(requiredVersion);
+
+  for (int i = 0; i < 3; i++) {
+    if (current[i] < required[i]) {
+      return true; // 업데이트 필요
+    } else if (current[i] > required[i]) {
+      return false; // 현재 버전이 더 높음
+    }
+  }
+  return false; // 같은 버전
+}
+
+// 버전 문자열을 숫자 리스트로 파싱
+List<int> _parseVersionString(String version) {
+  String cleanVersion = version.split('+')[0];
+  return cleanVersion.split('.').map((e) => int.parse(e)).toList();
+}
 
 Future<void> validateFirebaseSession() async {
   final user = FirebaseAuth.instance.currentUser;
@@ -118,6 +209,12 @@ void main() async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
+  // Setup Firebase Remote Config
+  await setupRemoteConfig();
+
+  // Check for force update BEFORE initializing the app
+  bool needsUpdate = await checkForceUpdateRequired();
+
   // Firebase auth check
   await validateFirebaseSession();
 
@@ -141,7 +238,7 @@ void main() async {
     runApp(
       ChangeNotifierProvider(
         create: (_) => ThemeManager(),
-        child: MyApp(prefs: prefs),
+        child: MyApp(prefs: prefs, needsUpdate: needsUpdate),
       ),
     );
   });
@@ -149,8 +246,9 @@ void main() async {
 
 class MyApp extends StatefulWidget {
   final SharedPreferences prefs;
+  final bool needsUpdate;
 
-  const MyApp({super.key, required this.prefs});
+  const MyApp({super.key, required this.prefs, required this.needsUpdate});
 
   @override
   State<MyApp> createState() => _MyAppState();
@@ -163,6 +261,13 @@ class _MyAppState extends State<MyApp> {
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       FlutterNativeSplash.remove();
+
+      // If update is required, show force update screen
+      if (widget.needsUpdate) {
+        print("Force update required - showing update screen");
+        AppRouter.setInitialRoute(Routes.forceUpdate);
+        return;
+      }
 
       // Check if this is the first launch
       bool isFirstLaunch = widget.prefs.getBool(FIRST_LAUNCH_KEY) ?? true;

@@ -1,4 +1,7 @@
 class Routes {
+  // Force update route
+  static const String forceUpdate = '/force-update';
+
   // Auth routes
   static const String splash = '/splash';
   static const String login = '/auth/login';
