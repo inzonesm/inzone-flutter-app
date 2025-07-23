@@ -408,32 +408,13 @@ class HomeScreenState extends State<HomeScreen> {
     try {
       List<InZoneAvatar> avatars = [];
 
-      // Debug: Log total fetched characters
-      print('DEBUG: Total fetched characters: ${fetchedCharacters.length}');
-
       for (var characterData in fetchedCharacters) {
-        // Debug: Log each character data
-        print(
-            'DEBUG: Character data: ${characterData['name']} - showFirst: ${characterData['showFirst']}');
-
-        // Use the new factory method
         InZoneAvatar avatar = InZoneAvatar.fromDirectJson(characterData);
-
-        // Debug: Log parsed avatar
-        print(
-            'DEBUG: Parsed avatar: ${avatar.name} - showFirst: ${avatar.showFirst}');
-
-        // Add all avatars from popularCharacters
         avatars.add(avatar);
       }
 
-      // Debug: Log final count
-      print('DEBUG: Total avatars with showFirst=true: ${avatars.length}');
-
-      // Create avatar cards and story components for filtered avatars
       for (var avatar in avatars) {
         avatarCards.add(AvatarCard(avatar: avatar));
-        print('DEBUG: Adding avatar story component: ${avatar.name}');
         avatarStoryComponents.add(AvatarStoryComponent(avatar: avatar));
       }
     } catch (e) {
@@ -757,7 +738,8 @@ class HomeScreenState extends State<HomeScreen> {
                 enablePullDown: true,
                 controller: _refreshController,
                 onRefresh: _onRefresh,
-                physics: const BouncingScrollPhysics(),
+                // Use AlwaysScrollableScrollPhysics for consistent behavior
+                physics: const AlwaysScrollableScrollPhysics(),
                 header: ClassicHeader(
                   releaseIcon: refreshIcon(),
                   refreshingIcon: refreshIcon(),
@@ -772,6 +754,7 @@ class HomeScreenState extends State<HomeScreen> {
                 ),
                 child: CustomScrollView(
                   controller: _scrollController,
+                  // Use AlwaysScrollableScrollPhysics for consistency
                   physics: const AlwaysScrollableScrollPhysics(),
                   // Cache extent to prebuild the next ~3 cards (assuming ~200px per card)
                   cacheExtent: 600.0,

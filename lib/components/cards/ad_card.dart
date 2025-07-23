@@ -47,9 +47,11 @@ class _AdCardState extends State<AdCard> {
       request: const AdRequest(),
       listener: NativeAdListener(
         onAdLoaded: (Ad ad) {
-          setState(() {
-            _nativeAdIsLoaded = true;
-          });
+          if (mounted) {
+            setState(() {
+              _nativeAdIsLoaded = true;
+            });
+          }
         },
         onAdFailedToLoad: (Ad ad, LoadAdError error) {
           ad.dispose();
@@ -62,50 +64,43 @@ class _AdCardState extends State<AdCard> {
 
   @override
   Widget build(BuildContext context) {
-    return _nativeAdIsLoaded
-        ? Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 4),
-            child: Container(
-              height: Platform.isAndroid ? 150 : 130,
-              width: double.infinity,
-              decoration: BoxDecoration(
-                color: Theme.of(context).cardColor,
-                borderRadius: BorderRadius.circular(24),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
-                    blurRadius: 8,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: Padding(
-                padding: EdgeInsets.symmetric(
-                    horizontal: Platform.isAndroid ? 16.0 : 0),
-                child: AdWidget(ad: _nativeAd!),
-              ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 4),
+      child: Container(
+        height: Platform.isAndroid ? 150 : 130,
+        width: double.infinity,
+        decoration: BoxDecoration(
+          color: Theme.of(context).cardColor,
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 8,
+              offset: const Offset(0, 4),
             ),
-          )
-        : Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 4),
-            child: Container(
-              height: Platform.isAndroid ? 150 : 130,
-              width: double.infinity,
-              decoration: BoxDecoration(
-                color: Theme.of(context).cardColor,
-                borderRadius: BorderRadius.circular(24),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
-                    blurRadius: 8,
-                    offset: const Offset(0, 4),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(24),
+          child: _nativeAdIsLoaded && _nativeAd != null
+              ? Padding(
+                  padding: EdgeInsets.symmetric(
+                      horizontal: Platform.isAndroid ? 16.0 : 0),
+                  child: SizedBox(
+                    height: Platform.isAndroid ? 150 : 130,
+                    width: double.infinity,
+                    child: AdWidget(ad: _nativeAd!),
                   ),
-                ],
-              ),
-              child: const Center(
-                child: Text("Advertisement"),
-              ),
-            ),
-          );
+                )
+              : SizedBox(
+                  height: Platform.isAndroid ? 150 : 130,
+                  width: double.infinity,
+                  child: const Center(
+                    child: CircularProgressIndicator(),
+                  ),
+                ),
+        ),
+      ),
+    );
   }
 }

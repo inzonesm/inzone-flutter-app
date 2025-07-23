@@ -50,12 +50,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   bool isFollowing = false;
   bool _isFollowedBy = false;
 
-  // Store the community tab data
-  Map<String, List<Map<String, dynamic>>> _communityTabData = {
-    "followers": [],
-    "following": []
-  };
-
   // SmartRefresher controller
   final RefreshController _refreshController =
       RefreshController(initialRefresh: false);
@@ -367,43 +361,33 @@ class _ProfileScreenState extends State<ProfileScreen> {
       return;
     }
 
-    // First, get basic user profile data
+    // Get profile data directly from Firebase instead of API
     Map<String, dynamic>? userProfile;
 
-    // Use different API endpoints based on whether the user is an AI user or not
-    if (widget.isAI) {
-      // For AI users, use the AI user profile endpoint
-      userProfile = await InZoneDatabase.getAIUserProfile(userId);
-      // If API fails, try to get profile from Firestore
-      if (userProfile == null) {
-        try {
-          DocumentSnapshot userDoc = await FirebaseFirestore.instance
-              .collection('aiUsers')
-              .doc(userId)
-              .get();
+    try {
+      if (widget.isAI) {
+        // For AI users, get from aiUsers collection
+        DocumentSnapshot userDoc = await FirebaseFirestore.instance
+            .collection('aiUsers')
+            .doc(userId)
+            .get();
 
-          if (userDoc.exists && userDoc.data() != null) {
-            userProfile = userDoc.data() as Map<String, dynamic>;
-          }
-        } catch (e) {}
+        if (userDoc.exists && userDoc.data() != null) {
+          userProfile = userDoc.data() as Map<String, dynamic>;
+        }
+      } else {
+        // For human users, get from humanUsers collection
+        DocumentSnapshot userDoc = await FirebaseFirestore.instance
+            .collection('humanUsers')
+            .doc(userId)
+            .get();
+
+        if (userDoc.exists && userDoc.data() != null) {
+          userProfile = userDoc.data() as Map<String, dynamic>;
+        }
       }
-    } else {
-      // For human users, use the regular user profile endpoint
-      userProfile = await InZoneDatabase.getUserProfile(userId);
-
-      // If API fails, try to get profile from Firestore
-      if (userProfile == null) {
-        try {
-          DocumentSnapshot userDoc = await FirebaseFirestore.instance
-              .collection('humanUsers')
-              .doc(userId)
-              .get();
-
-          if (userDoc.exists && userDoc.data() != null) {
-            userProfile = userDoc.data() as Map<String, dynamic>;
-          }
-        } catch (e) {}
-      }
+    } catch (e) {
+      debugPrint('Error fetching profile from Firebase: $e');
     }
 
     if (userProfile != null) {
@@ -486,15 +470,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
             userProfile["profile_picture_url"] ??
             "";
 
-        // Get followers and following counts from the profile data if available
+        // Get followers and following counts - prioritize API count fields, fallback to array length
         followersCount = userProfile["followers_count"] ?? followers.length;
         followingCount = userProfile["following_count"] ?? following.length;
-
-        // Update the community tab data
-        _communityTabData = {
-          "followers": formattedFollowers,
-          "following": formattedFollowing
-        };
       });
     } else {
       // Set default values if profile couldn't be fetched
@@ -661,16 +639,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     bool currentFollowState = isFollowing;
     bool newFollowState = !currentFollowState;
 
-    setState(() {
-      // Optimistically update UI
-      isFollowing = newFollowState;
-      if (newFollowState) {
-        followersCount++;
-      } else {
-        followersCount = followersCount > 0 ? followersCount - 1 : 0;
-      }
-    });
-
     try {
       bool success = false;
       if (widget.isAI) {
@@ -737,19 +705,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
       }
 
       if (success) {
-        // If successful, refresh the profile data to get updated followers/following lists
+        // Refresh profile after successful follow/unfollow to get accurate counts
         await fetchUserProfile();
+        await checkFollowStatus(); // Also refresh follow status
       } else {
-        // If the operation failed, revert the UI changes
-        setState(() {
-          isFollowing = currentFollowState;
-          if (currentFollowState) {
-            followersCount++;
-          } else {
-            followersCount = followersCount > 0 ? followersCount - 1 : 0;
-          }
-        });
-
         ToastService.showToast(
           context,
           backgroundColor: Theme.of(context).canvasColor,
@@ -762,16 +721,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
         );
       }
     } catch (e) {
-      // If there's an error, revert the UI change
-      setState(() {
-        isFollowing = currentFollowState;
-        if (currentFollowState) {
-          followersCount++;
-        } else {
-          followersCount = followersCount > 0 ? followersCount - 1 : 0;
-        }
-      });
-
       // Show error message
       ToastService.showToast(
         context,
@@ -1099,7 +1048,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
       enablePullDown: true,
       controller: _refreshController,
       onRefresh: _onRefresh,
-      physics: const BouncingScrollPhysics(),
+      // Use AlwaysScrollableScrollPhysics
+      physics: const AlwaysScrollableScrollPhysics(),
       header: ClassicHeader(
         releaseIcon: refreshIcon(),
         refreshingIcon: refreshIcon(),
@@ -1112,135 +1062,135 @@ class _ProfileScreenState extends State<ProfileScreen> {
         idleText: "",
         failedText: "",
       ),
+      // Use CustomScrollView instead of nested SingleChildScrollView for better performance
       child: CustomScrollView(
+        // Remove nested scroll physics conflicts
+        physics: const NeverScrollableScrollPhysics(),
         slivers: [
-          // Profile header
           SliverToBoxAdapter(
-            child: Container(
-              color: Theme.of(context).cardColor,
-              child: Stack(
-                children: [
-                  ProfileAppbar(
-                    name: name,
-                    bio: bio,
-                    profileImageUrl: profileImageUrl,
-                    username: username,
-                    postCount: postCount,
-                    followingCount: followingCount,
-                    followersCount: followersCount,
-                    actionButtons: buildActionButtons(),
-                    isProfilePage: true,
-                    savedCharacters: _savedCharacters,
-                    areCharactersLoading: _areCharactersLoading,
-                    onCharacterTap:
-                        (characterId, characterName, characterImage) {
-                      context.pushNamed('chat',
-                          extra: ChatUser(
-                            name: characterName,
-                            email: characterId,
-                            chatId: null,
-                            isHuman: false,
-                            profilePictureURL: characterImage,
-                          ));
-                    },
-                  ),
-                  Positioned(
-                    top: 10,
-                    left: 15,
-                    child: GestureDetector(
-                      onTap: () {
-                        Navigator.pop(context);
-                      },
-                      child: CircleAvatar(
-                        radius: 22,
-                        backgroundColor:
-                            Theme.of(context).brightness == Brightness.dark
-                                ? Colors.grey.shade800
-                                : Colors.grey.shade200,
-                        child: Padding(
-                          padding: const EdgeInsets.only(left: 5),
-                          child: Center(
-                            child: Icon(
-                              Icons.arrow_back_ios,
-                              size: 18,
-                              color: Theme.of(context).iconTheme.color,
+            child: Column(
+              children: [
+                // Profile header
+                Container(
+                  color: Theme.of(context).cardColor,
+                  child: Stack(
+                    children: [
+                      ProfileAppbar(
+                        name: name,
+                        bio: bio,
+                        profileImageUrl: profileImageUrl,
+                        username: username,
+                        postCount: postCount,
+                        followingCount: followingCount,
+                        followersCount: followersCount,
+                        actionButtons: buildActionButtons(),
+                        isProfilePage: true,
+                        savedCharacters: _savedCharacters,
+                        areCharactersLoading: _areCharactersLoading,
+                        onCharacterTap:
+                            (characterId, characterName, characterImage) {
+                          context.pushNamed('chat',
+                              extra: ChatUser(
+                                name: characterName,
+                                email: characterId,
+                                chatId: null,
+                                isHuman: false,
+                                profilePictureURL: characterImage,
+                              ));
+                        },
+                      ),
+                      Positioned(
+                        top: 10,
+                        left: 15,
+                        child: GestureDetector(
+                          onTap: () {
+                            Navigator.pop(context);
+                          },
+                          child: CircleAvatar(
+                            radius: 22,
+                            backgroundColor:
+                                Theme.of(context).brightness == Brightness.dark
+                                    ? Colors.grey.shade800
+                                    : Colors.grey.shade200,
+                            child: Padding(
+                              padding: const EdgeInsets.only(left: 5),
+                              child: Center(
+                                child: Icon(
+                                  Icons.arrow_back_ios,
+                                  size: 18,
+                                  color: Theme.of(context).iconTheme.color,
+                                ),
+                              ),
                             ),
                           ),
                         ),
                       ),
-                    ),
-                  ),
-                  // AI Badge (only show for AI profiles)
-                  if (widget.isAI)
-                    Positioned(
-                      top: 15,
-                      right: 20,
-                      child: _buildAIBadge(),
-                    ),
-                  // More options button (AI가 아닐 때만 표시)
-                  if (!widget.isAI)
-                    Positioned(
-                      top: 10,
-                      right: 10,
-                      child: GestureDetector(
-                        onTap: () => _showOptionsBottomSheet(context),
-                        child: Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: Theme.of(context).cardColor.withOpacity(0.7),
-                            shape: BoxShape.circle,
-                          ),
-                          child: Icon(
-                            Icons.more_horiz,
-                            color: Theme.of(context).primaryColor,
-                            size: 24,
+                      // AI Badge (only show for AI profiles)
+                      if (widget.isAI)
+                        Positioned(
+                          top: 15,
+                          right: 20,
+                          child: _buildAIBadge(),
+                        ),
+                      // More options button (AI가 아닐 때만 표시)
+                      if (!widget.isAI)
+                        Positioned(
+                          top: 10,
+                          right: 10,
+                          child: GestureDetector(
+                            onTap: () => _showOptionsBottomSheet(context),
+                            child: Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: Theme.of(context)
+                                    .cardColor
+                                    .withOpacity(0.7),
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(
+                                Icons.more_horiz,
+                                color: Theme.of(context).primaryColor,
+                                size: 24,
+                              ),
+                            ),
                           ),
                         ),
+                    ],
+                  ),
+                ),
+
+                // Posts list
+                if (_posts.isEmpty)
+                  const Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(50.0),
+                      child: Text(
+                        'No posts found',
+                        style: TextStyle(fontSize: 16),
                       ),
                     ),
-                ],
-              ),
+                  )
+                else
+                  Padding(
+                    padding: const EdgeInsets.all(15.0),
+                    child: Column(
+                      children: [
+                        ...List.generate(_posts.length, (index) {
+                          return PostCard(
+                            post: _posts[index],
+                            profileImageUrl: profileImageUrl,
+                            showHue: false,
+                            onTap: (postId) {},
+                            inProfile: true,
+                          );
+                        }),
+                        const SizedBox(height: 100), // 하단 여백
+                      ],
+                    ),
+                  ),
+              ],
             ),
           ),
-
-          // Posts list
-          if (_posts.isEmpty)
-            const SliverToBoxAdapter(
-              child: Center(
-                child: Padding(
-                  padding: EdgeInsets.all(50.0),
-                  child: Text(
-                    'No posts found',
-                    style: TextStyle(fontSize: 16),
-                  ),
-                ),
-              ),
-            )
-          else
-            SliverPadding(
-              padding: const EdgeInsets.all(15.0),
-              sliver: SliverList(
-                delegate: SliverChildBuilderDelegate(
-                  (context, index) {
-                    if (index == _posts.length) {
-                      return const SizedBox(height: 100);
-                    }
-                    return Column(
-                      children: [
-                        PostCard(
-                          post: _posts[index],
-                          profileImageUrl: profileImageUrl,
-                          showHue: false,
-                          onTap: (postId) {},
-                          inProfile: true,
-                        ),
-                      ],
-                    );
-                  },
-                  childCount: _posts.length + 1,
-                ),
-              ),
-            ),
         ],
       ),
     );

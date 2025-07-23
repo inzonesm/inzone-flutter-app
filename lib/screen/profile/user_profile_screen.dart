@@ -242,12 +242,26 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
   Future<void> fetchUserProfile() async {
     if (currentUserId == null) return;
 
-    Map<String, dynamic>? userProfile =
-        await InZoneDatabase.getUserProfile(currentUserId!);
+    // Get profile data directly from Firebase
+    Map<String, dynamic>? userProfile;
+
+    try {
+      DocumentSnapshot userDoc = await FirebaseFirestore.instance
+          .collection('humanUsers')
+          .doc(currentUserId!)
+          .get();
+
+      if (userDoc.exists && userDoc.data() != null) {
+        userProfile = userDoc.data() as Map<String, dynamic>;
+      }
+    } catch (e) {
+      debugPrint('Error fetching profile from Firebase: $e');
+    }
 
     if (userProfile != null) {
-      List<dynamic> followers = userProfile["followers"] ?? [];
-      List<dynamic> following = userProfile["following"] ?? [];
+      final profile = userProfile; // Non-null assertion
+      List<dynamic> followers = profile["followers"] ?? [];
+      List<dynamic> following = profile["following"] ?? [];
 
       List<Map<String, dynamic>> formattedFollowers = [];
       List<Map<String, dynamic>> formattedFollowing = [];
@@ -304,15 +318,14 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
 
       if (mounted) {
         setState(() {
-          name = userProfile["name"] ?? userProfile["Name"] ?? "Unknown";
-          username =
-              userProfile["username"] ?? userProfile["Username"] ?? "Unknown";
-          bio = userProfile["bio"] ?? userProfile["Bio"] ?? "";
-          profileImageUrl = userProfile["profilePicture"] ??
-              userProfile["ProfilePicture"] ??
-              "";
-          followersCount = followers.length;
-          followingCount = following.length;
+          name = profile["name"] ?? profile["Name"] ?? "Unknown";
+          username = profile["username"] ?? profile["Username"] ?? "Unknown";
+          bio = profile["bio"] ?? profile["Bio"] ?? "";
+          profileImageUrl =
+              profile["profilePicture"] ?? profile["ProfilePicture"] ?? "";
+          // Get followers and following counts - prioritize Firebase count fields, fallback to array length
+          followersCount = profile["followers_count"] ?? followers.length;
+          followingCount = profile["following_count"] ?? following.length;
         });
       }
     } else {
@@ -395,7 +408,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
       enablePullDown: true,
       controller: _refreshController,
       onRefresh: _onRefresh,
-      physics: const BouncingScrollPhysics(),
+      physics: const AlwaysScrollableScrollPhysics(),
       header: ClassicHeader(
         releaseIcon: refreshIcon(),
         refreshingIcon: refreshIcon(),
@@ -409,75 +422,72 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
         failedText: "",
       ),
       child: CustomScrollView(
+        physics: const NeverScrollableScrollPhysics(),
         slivers: [
-          // Profile header
           SliverToBoxAdapter(
-            child: Container(
-              color: Theme.of(context).cardColor,
-              child: ProfileAppbar(
-                name: name,
-                bio: bio,
-                profileImageUrl: profileImageUrl,
-                username: username,
-                postCount: postCount,
-                followingCount: followingCount,
-                followersCount: followersCount,
-                actionButtons: buildActionButtons(),
-                isProfilePage: true,
-                savedCharacters: _savedCharacters,
-                areCharactersLoading: _areCharactersLoading,
-                onCharacterTap: (characterId, characterName, characterImage) {
-                  context.pushNamed('chat',
-                      extra: ChatUser(
-                        name: characterName,
-                        email: characterId,
-                        chatId: null,
-                        isHuman: false,
-                        profilePictureURL: characterImage,
-                      ));
-                },
-              ),
-            ),
-          ),
-
-          // Posts list
-          if (_posts.isEmpty)
-            const SliverToBoxAdapter(
-              child: Center(
-                child: Padding(
-                  padding: EdgeInsets.all(50.0),
-                  child: Text(
-                    'No posts found',
-                    style: TextStyle(fontSize: 16),
+            child: Column(
+              children: [
+                // Profile header
+                Container(
+                  color: Theme.of(context).cardColor,
+                  child: ProfileAppbar(
+                    name: name,
+                    bio: bio,
+                    profileImageUrl: profileImageUrl,
+                    username: username,
+                    postCount: postCount,
+                    followingCount: followingCount,
+                    followersCount: followersCount,
+                    actionButtons: buildActionButtons(),
+                    isProfilePage: true,
+                    savedCharacters: _savedCharacters,
+                    areCharactersLoading: _areCharactersLoading,
+                    onCharacterTap:
+                        (characterId, characterName, characterImage) {
+                      context.pushNamed('chat',
+                          extra: ChatUser(
+                            name: characterName,
+                            email: characterId,
+                            chatId: null,
+                            isHuman: false,
+                            profilePictureURL: characterImage,
+                          ));
+                    },
                   ),
                 ),
-              ),
-            )
-          else
-            SliverPadding(
-              padding: const EdgeInsets.all(15.0),
-              sliver: SliverList(
-                delegate: SliverChildBuilderDelegate(
-                  (context, index) {
-                    if (index == _posts.length) {
-                      return const SizedBox(height: 100);
-                    }
-                    return Column(
+
+                // Posts list
+                if (_posts.isEmpty)
+                  const Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(50.0),
+                      child: Text(
+                        'No posts found',
+                        style: TextStyle(fontSize: 16),
+                      ),
+                    ),
+                  )
+                else
+                  Padding(
+                    padding: const EdgeInsets.all(15.0),
+                    child: Column(
                       children: [
-                        PostCard(
-                          post: _posts[index],
-                          profileImageUrl: profileImageUrl,
-                          showHue: false,
-                          onTap: (postId) {},
-                          inProfile: true,
-                        ),
+                        ...List.generate(_posts.length, (index) {
+                          return PostCard(
+                            post: _posts[index],
+                            profileImageUrl: profileImageUrl,
+                            showHue: false,
+                            onTap: (postId) {},
+                            inProfile: true,
+                          );
+                        }),
+                        const SizedBox(height: 100), // 하단 여백
                       ],
-                    );
-                  },
-                  childCount: _posts.length + 1,
-                ),
-              ),
+                    ),
+                  ),
+              ],
             ),
+          ),
         ],
       ),
     );

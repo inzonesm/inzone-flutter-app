@@ -470,6 +470,7 @@ class _GroupsExploreScreenState extends State<GroupsExploreScreen> {
               if (snapshot.connectionState == ConnectionState.waiting ||
                   _isRefreshing) {
                 return CustomScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
                   slivers: [
                     ...commonSlivers,
                     SliverPadding(
@@ -580,7 +581,8 @@ class _GroupsExploreScreenState extends State<GroupsExploreScreen> {
               }
 
               return CustomScrollView(
-                physics: const AlwaysScrollableScrollPhysics(),
+                physics: const AlwaysScrollableScrollPhysics(
+                    parent: BouncingScrollPhysics()),
                 slivers: [
                   ...commonSlivers,
                   SliverPadding(

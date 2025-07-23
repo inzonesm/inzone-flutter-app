@@ -239,12 +239,10 @@ class _PostCardState extends State<PostCard>
           .get();
 
       if (influencerDoc.exists) {
-        print('User $userUid is an influencer.');
         setState(() {
           _isInfluencer = true;
         });
       } else {
-        print('User $userUid is NOT an influencer.');
         setState(() {
           _isInfluencer = false;
         });

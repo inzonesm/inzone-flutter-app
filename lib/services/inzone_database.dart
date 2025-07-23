@@ -1556,22 +1556,50 @@ class InZoneDatabase {
     }
   }
 
-  static Future<List<dynamic>?> getCarouselCharacters() async {
+  // static Future<List<dynamic>?> getCarouselCharacters() async {
+  //   try {
+  //     final querySnapshot = await FirebaseFirestore.instance
+  //         .collection('popularCharacters')
+  //         .get();
+
+  //     // Convert each document to a map and include the document ID
+  //     final characters = querySnapshot.docs.map((doc) {
+  //       final data = doc.data();
+  //       data['id'] = doc.id; // Add the document ID to the map
+  //       return data;
+  //     }).toList();
+
+  //     return characters;
+  //   } catch (e) {
+  //     print('Error fetching carousel characters: $e');
+  //     return null;
+  //   }
+  // }
+
+  static Future<List<Map<String, dynamic>>?> getCarouselCharacters() async {
+    const String url =
+        'https://inzoneapi-912424781531.us-central1.run.app/api/ai/carousel/characters?showPopularFirst=true';
+
     try {
-      final querySnapshot = await FirebaseFirestore.instance
-          .collection('popularCharacters')
-          .get();
+      final http.Response response = await http.get(
+        Uri.parse(url),
+        headers: <String, String>{
+          'Content-Type': 'application/json',
+        },
+      );
 
-      // Convert each document to a map and include the document ID
-      final characters = querySnapshot.docs.map((doc) {
-        final data = doc.data();
-        data['id'] = doc.id; // Add the document ID to the map
-        return data;
-      }).toList();
+      if (response.statusCode == 200) {
+        // Parse the response as a list of characters
+        final List<dynamic> responseData = jsonDecode(response.body);
 
-      return characters;
+        // Convert the dynamic list to a list of maps
+        return responseData
+            .map((character) => character as Map<String, dynamic>)
+            .toList();
+      } else {
+        return null;
+      }
     } catch (e) {
-      print('Error fetching carousel characters: $e');
       return null;
     }
   }
