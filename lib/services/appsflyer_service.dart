@@ -15,7 +15,8 @@ class PostViewTracker {
     _postViewStartTimes[postId] = DateTime.now();
   }
 
-  static void stopViewingPost(String postId, {
+  static void stopViewingPost(
+    String postId, {
     String? category,
     String? postType,
     String? authorId,
@@ -24,8 +25,9 @@ class PostViewTracker {
     if (startTime != null) {
       final viewDuration = DateTime.now().difference(startTime).inSeconds;
       final userId = AppsFlyerService().getCurrentUserId();
-      
-      if (userId != null && viewDuration > 1) { // Only track views longer than 1 second
+
+      if (userId != null && viewDuration > 1) {
+        // Only track views longer than 1 second
         AppsFlyerService().trackPostView(
           postId: postId,
           timeSpentSeconds: viewDuration,
@@ -35,7 +37,7 @@ class PostViewTracker {
           authorId: authorId,
         );
       }
-      
+
       _postViewStartTimes.remove(postId);
     }
   }
@@ -43,7 +45,7 @@ class PostViewTracker {
   static void trackRewatch(String postId) {
     _postRewatchCounts[postId] = (_postRewatchCounts[postId] ?? 0) + 1;
     final userId = AppsFlyerService().getCurrentUserId();
-    
+
     if (userId != null) {
       AppsFlyerService().trackPostRewatch(
         postId: postId,
@@ -257,7 +259,7 @@ class AppsFlyerService {
 
       // Add 1500 to balance for both users
       await _updateUserBalance(referrerId, 1500); // Referrer gets 1500
-      await _updateUserBalance(user.uid, 1500);   // Installer gets 1500
+      await _updateUserBalance(user.uid, 1500); // Installer gets 1500
 
       log('Successfully saved referral data to Firestore with complete user details');
       log('Successfully added 1500 balance to both referrer ($referrerId) and installer (${user.uid})');
@@ -279,10 +281,9 @@ class AppsFlyerService {
   }
 
   String _getPlatform() {
-    if (Platform.isIOS){
+    if (Platform.isIOS) {
       return "ios";
-
-    } else if (Platform.isAndroid){
+    } else if (Platform.isAndroid) {
       return "android";
     } else {
       return "unknown";
@@ -293,17 +294,17 @@ class AppsFlyerService {
     appsflyerSdk.setCustomerUserId(userId);
   }
 
-  Future<bool?> logEvent( 
+  Future<bool?> logEvent(
       String eventName, Map<String, dynamic>? eventValues) async {
     // Debug logging for testing
-    print('🔥 AppsFlyer Event: $eventName');
+    // print('🔥 AppsFlyer Event: $eventName');
     if (eventValues != null) {
       print('📊 Parameters: ${eventValues.toString()}');
     }
-    
+
     final result = await appsflyerSdk.logEvent(eventName, eventValues);
-    print('✅ Event sent successfully: $result');
-    
+    // print('✅ Event sent successfully: $result');
+
     return result;
   }
 
@@ -339,7 +340,7 @@ class AppsFlyerService {
   }
 
   // ==================== BEHAVIORAL TRACKING METHODS ====================
-  
+
   // Post Engagement Tracking
   Future<bool?> trackPostView({
     required String postId,
@@ -622,12 +623,13 @@ class AppsFlyerService {
   }
 
   // ==================== ADVANCED ANALYTICS METHODS ====================
-  
+
   // AI Character Advanced Analytics
   Future<bool?> trackAICharacterRecommendation({
     required String characterId,
     required String userId,
-    required String recommendationType, // 'popular', 'similar', 'trending', 'personalized'
+    required String
+        recommendationType, // 'popular', 'similar', 'trending', 'personalized'
     List<String>? basedOnCharacters,
     String? algorithmVersion,
   }) {
@@ -736,7 +738,8 @@ class AppsFlyerService {
   // User Behavior Pattern Analytics
   Future<bool?> trackUserJourneyMilestone({
     required String userId,
-    required String milestone, // 'first_ai_chat', 'first_group_join', 'first_week_active', etc.
+    required String
+        milestone, // 'first_ai_chat', 'first_group_join', 'first_week_active', etc.
     required int daysFromSignup,
     Map<String, dynamic>? additionalData,
   }) {
@@ -751,7 +754,8 @@ class AppsFlyerService {
 
   Future<bool?> trackPersonalizationInsight({
     required String userId,
-    required String insightType, // 'preferred_ai_personality', 'active_time_pattern', 'content_preference'
+    required String
+        insightType, // 'preferred_ai_personality', 'active_time_pattern', 'content_preference'
     required Map<String, dynamic> insights,
     String? confidenceLevel,
   }) {
@@ -798,7 +802,7 @@ class AppsFlyerService {
   }
 
   // ==================== UTILITY METHODS ====================
-  
+
   // Get current user ID from Firebase Auth
   String? getCurrentUserId() {
     return FirebaseAuth.instance.currentUser?.uid;
@@ -821,13 +825,13 @@ class AppsFlyerService {
   }
 
   // ==================== TESTING METHODS ====================
-  
+
   /// Test method to fire sample events for verification
   Future<void> testAllAnalytics() async {
     final userId = getCurrentUserId() ?? 'test_user';
-    
+
     print('🧪 Starting AppsFlyer Analytics Test...');
-    
+
     // Test 1: AI Character Analytics
     await Future.delayed(const Duration(milliseconds: 500));
     await trackAICharacterInteraction(
@@ -837,7 +841,7 @@ class AppsFlyerService {
       messageCount: 5,
       interactionType: 'test_chat',
     );
-    
+
     // Test 2: Group Chat Analytics
     await Future.delayed(const Duration(milliseconds: 500));
     await trackGroupChatActivity(
@@ -846,7 +850,7 @@ class AppsFlyerService {
       durationSeconds: 180,
       messagesSent: 3,
     );
-    
+
     // Test 3: Search Analytics
     await Future.delayed(const Duration(milliseconds: 500));
     await trackSearchQuery(
@@ -855,7 +859,7 @@ class AppsFlyerService {
       resultCount: 10,
       category: 'test',
     );
-    
+
     // Test 4: Post Engagement
     await Future.delayed(const Duration(milliseconds: 500));
     await trackPostView(
@@ -865,7 +869,7 @@ class AppsFlyerService {
       userId: userId,
       postType: 'video',
     );
-    
+
     // Test 5: Session Analytics
     await Future.delayed(const Duration(milliseconds: 500));
     await trackSessionStart(
@@ -873,7 +877,7 @@ class AppsFlyerService {
       location: 'test_location',
       deviceModel: 'test_device',
     );
-    
+
     print('✅ Analytics Test Complete! Check console for event logs.');
   }
 }

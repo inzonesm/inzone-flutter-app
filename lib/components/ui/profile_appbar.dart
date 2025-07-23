@@ -17,6 +17,8 @@ class ProfileAppbar extends StatelessWidget {
   final List<Map<String, String>> savedCharacters;
   final bool areCharactersLoading;
   final Function(String, String, String)? onCharacterTap;
+  final VoidCallback? onFollowersTap;
+  final VoidCallback? onFollowingTap;
 
   const ProfileAppbar({
     super.key,
@@ -32,6 +34,8 @@ class ProfileAppbar extends StatelessWidget {
     this.savedCharacters = const [],
     this.areCharactersLoading = true,
     this.onCharacterTap,
+    this.onFollowersTap,
+    this.onFollowingTap,
   });
 
   @override
@@ -128,13 +132,13 @@ class ProfileAppbar extends StatelessWidget {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         _buildStatColumn(
-                            postCount.toString(), "Posts", context),
+                            postCount.toString(), "Posts", context, null),
                         const SizedBox(width: 20),
-                        _buildStatColumn(
-                            followingCount.toString(), "Following", context),
+                        _buildStatColumn(followingCount.toString(), "Following",
+                            context, onFollowingTap),
                         const SizedBox(width: 20),
-                        _buildStatColumn(
-                            followersCount.toString(), "Followers", context),
+                        _buildStatColumn(followersCount.toString(), "Followers",
+                            context, onFollowersTap),
                       ],
                     ),
                   ),
@@ -241,8 +245,9 @@ class ProfileAppbar extends StatelessWidget {
     );
   }
 
-  Widget _buildStatColumn(String value, String label, BuildContext context) {
-    return Row(
+  Widget _buildStatColumn(
+      String value, String label, BuildContext context, VoidCallback? onTap) {
+    Widget content = Row(
       children: [
         Text(
           value,
@@ -255,6 +260,21 @@ class ProfileAppbar extends StatelessWidget {
         ),
       ],
     );
+
+    if (onTap != null) {
+      return GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: content,
+        ),
+      );
+    }
+
+    return content;
   }
 
   @override
