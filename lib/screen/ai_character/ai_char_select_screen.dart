@@ -174,7 +174,56 @@ class _AICharacterSelectionScreenState extends State<AICharacterSelectionScreen>
     }
   }
 
+  // Add validation method after existing methods
+  bool _validateForm() {
+    // Check if all required fields are filled
+    if (_nameFieldController.text.trim().isEmpty) {
+      _showValidationError('Please enter a name for your character');
+      return false;
+    }
+
+    if (_genderFieldController.text.trim().isEmpty) {
+      _showValidationError('Please specify the gender');
+      return false;
+    }
+
+    if (_ageFieldController.text.trim().isEmpty) {
+      _showValidationError('Please enter the age');
+      return false;
+    }
+
+    if (_eyeColorFieldController.text.trim().isEmpty) {
+      _showValidationError('Please specify if this is a celebrity character');
+      return false;
+    }
+
+    if (_DescriptionFieldController.text.trim().isEmpty) {
+      _showValidationError('Please provide a description for your character');
+      return false;
+    }
+
+    return true;
+  }
+
+  void _showValidationError(String message) {
+    ToastService.showToast(
+      context,
+      backgroundColor: Theme.of(context).canvasColor,
+      shadowColor: Colors.transparent,
+      leading: const Icon(
+        FeatherIcons.alertTriangle,
+        color: Colors.orange,
+      ),
+      message: message,
+    );
+  }
+
   void _generateCharacter() async {
+    // Validate all form fields first
+    if (!_validateForm()) {
+      return;
+    }
+
     if (_promptController.text.trim().isEmpty) {
       ToastService.showToast(
         context,
@@ -513,25 +562,28 @@ class _AICharacterSelectionScreenState extends State<AICharacterSelectionScreen>
               children: [
                 const SizedBox(height: 20),
                 // Name field
-                _buildFormField('Name:', _nameFieldController, 'Steve'),
+                _buildFormField('Name:', _nameFieldController,
+                    'Enter character name (e.g., Steve, Emma)'),
                 const SizedBox(height: 16),
 
                 // Gender field
-                _buildFormField('Gender:', _genderFieldController, 'Male'),
+                _buildFormField('Gender:', _genderFieldController,
+                    'Enter gender (e.g., Male, Female, Non-binary)'),
                 const SizedBox(height: 16),
 
                 // Age field
-                _buildFormField('Age:', _ageFieldController, '23'),
+                _buildFormField(
+                    'Age:', _ageFieldController, 'Enter age (e.g., 23, 25)'),
                 const SizedBox(height: 16),
 
                 // Celebrity field
-                _buildFormField(
-                    'Celebrity:', _eyeColorFieldController, 'Yes / No'),
+                _buildFormField('Celebrity:', _eyeColorFieldController,
+                    'Is this based on a celebrity? (Yes/No)'),
                 const SizedBox(height: 16),
 
                 // Description field
                 _buildFormField('Description:', _DescriptionFieldController,
-                    'Describe your character\'s interests, hobbies, or personality'),
+                    'Describe personality, interests, hobbies (e.g., Loves video games, friendly, adventurous)'),
                 const SizedBox(height: 30),
               ],
             ),
@@ -557,13 +609,17 @@ class _AICharacterSelectionScreenState extends State<AICharacterSelectionScreen>
             ),
             child: TextButton(
               onPressed: () {
+                // Validate form before proceeding
+                if (!_validateForm()) {
+                  return;
+                }
+
                 // Combine all fields into a structured prompt
-                final prompt =
-                    'Name: ${_nameFieldController.text.isEmpty ? "Steve" : _nameFieldController.text}\n'
-                    'Gender: ${_genderFieldController.text.isEmpty ? "Male" : _genderFieldController.text}\n'
-                    'Age: ${_ageFieldController.text.isEmpty ? "23" : _ageFieldController.text}\n'
-                    'Celebrity: ${_eyeColorFieldController.text.isEmpty ? "Yes / No" : _eyeColorFieldController.text}\n'
-                    'Description: ${_DescriptionFieldController.text.isEmpty ? "Video Games, Dogs, Music" : _DescriptionFieldController.text}';
+                final prompt = 'Name: ${_nameFieldController.text.trim()}\n'
+                    'Gender: ${_genderFieldController.text.trim()}\n'
+                    'Age: ${_ageFieldController.text.trim()}\n'
+                    'Celebrity: ${_eyeColorFieldController.text.trim()}\n'
+                    'Description: ${_DescriptionFieldController.text.trim()}';
 
                 // Set the prompt controller text
                 _promptController.text = prompt;
@@ -1316,25 +1372,28 @@ class _AICharacterSelectionScreenState extends State<AICharacterSelectionScreen>
               child: Column(
                 children: [
                   // Name field
-                  _buildFormField('Name:', _nameFieldController, 'Steve'),
+                  _buildFormField('Name:', _nameFieldController,
+                      'Enter character name (e.g., Steve, Emma)'),
                   const SizedBox(height: 12),
 
                   // Gender field
-                  _buildFormField('Gender:', _genderFieldController, 'Male'),
+                  _buildFormField('Gender:', _genderFieldController,
+                      'Enter gender (e.g., Male, Female, Non-binary)'),
                   const SizedBox(height: 12),
 
                   // Age field
-                  _buildFormField('Age:', _ageFieldController, '23'),
+                  _buildFormField(
+                      'Age:', _ageFieldController, 'Enter age (e.g., 23, 25)'),
                   const SizedBox(height: 12),
 
                   // Celebrity field
-                  _buildFormField(
-                      'Celebrity:', _eyeColorFieldController, 'Yes / No'),
+                  _buildFormField('Celebrity:', _eyeColorFieldController,
+                      'Is this based on a celebrity? (Yes/No)'),
                   const SizedBox(height: 12),
 
                   // Description field
                   _buildFormField('Description:', _DescriptionFieldController,
-                      'Describe your character\'s interests, hobbies, or personality'),
+                      'Describe personality, interests, hobbies (e.g., Loves video games, friendly, adventurous)'),
                   const SizedBox(height: 30),
                 ],
               ),
@@ -1361,13 +1420,17 @@ class _AICharacterSelectionScreenState extends State<AICharacterSelectionScreen>
                 ),
                 child: TextButton(
                   onPressed: () {
+                    // Validate form before proceeding
+                    if (!_validateForm()) {
+                      return;
+                    }
+
                     // Combine all fields into a structured prompt
-                    final prompt =
-                        'Name: ${_nameFieldController.text.isEmpty ? "Steve" : _nameFieldController.text}\n'
-                        'Gender: ${_genderFieldController.text.isEmpty ? "Male" : _genderFieldController.text}\n'
-                        'Age: ${_ageFieldController.text.isEmpty ? "23" : _ageFieldController.text}\n'
-                        'Celebrity: ${_eyeColorFieldController.text.isEmpty ? "Yes / No" : _eyeColorFieldController.text}\n'
-                        'Description: ${_DescriptionFieldController.text.isEmpty ? "Video Games, Dogs, Music" : _DescriptionFieldController.text}';
+                    final prompt = 'Name: ${_nameFieldController.text.trim()}\n'
+                        'Gender: ${_genderFieldController.text.trim()}\n'
+                        'Age: ${_ageFieldController.text.trim()}\n'
+                        'Celebrity: ${_eyeColorFieldController.text.trim()}\n'
+                        'Description: ${_DescriptionFieldController.text.trim()}';
 
                     // Set the prompt controller text
                     _promptController.text = prompt;
@@ -1449,13 +1512,27 @@ class _AICharacterSelectionScreenState extends State<AICharacterSelectionScreen>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Label
-        Text(
-          label,
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 14,
-            color: Theme.of(context).textTheme.headlineMedium?.color,
+        // Label with required asterisk
+        RichText(
+          text: TextSpan(
+            children: [
+              TextSpan(
+                text: label,
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                  color: Theme.of(context).textTheme.headlineMedium?.color,
+                ),
+              ),
+              const TextSpan(
+                text: ' *',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                  color: Colors.red,
+                ),
+              ),
+            ],
           ),
         ),
         const SizedBox(height: 4),
@@ -1468,9 +1545,11 @@ class _AICharacterSelectionScreenState extends State<AICharacterSelectionScreen>
                 : Colors.grey.shade100,
             borderRadius: BorderRadius.circular(10),
             border: Border.all(
-              color: Theme.of(context).brightness == Brightness.dark
-                  ? Colors.grey.shade600.withOpacity(0.5)
-                  : Colors.grey.shade300,
+              color: controller.text.trim().isEmpty
+                  ? Colors.red.withOpacity(0.3)
+                  : (Theme.of(context).brightness == Brightness.dark
+                      ? Colors.grey.shade600.withOpacity(0.5)
+                      : Colors.grey.shade300),
               width: 1,
             ),
           ),
@@ -1489,6 +1568,10 @@ class _AICharacterSelectionScreenState extends State<AICharacterSelectionScreen>
                   const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               border: InputBorder.none,
             ),
+            onChanged: (value) {
+              // Trigger rebuild to update border color
+              setState(() {});
+            },
             onTap: isDescriptionField
                 ? () {
                     // Ensure the form is expanded when description field is tapped
