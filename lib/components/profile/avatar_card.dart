@@ -103,6 +103,8 @@ class _AvatarCardState extends State<AvatarCard> {
                   child: Image.network(
                     widget.avatar.profilePicture,
                     fit: BoxFit.cover,
+                    color: null, // Remove any color overlay
+                    colorBlendMode: BlendMode.srcOver, // Use default blend mode
                     errorBuilder: (context, error, stackTrace) {
                       return Container(
                         color: theme.dividerColor,

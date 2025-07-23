@@ -158,6 +158,9 @@ class _RepostCardState extends State<RepostCard>
                               widget.repost.profilePicture,
                               fit: BoxFit.fitWidth,
                               width: MediaQuery.of(context).size.width - 60,
+                              color: null, // Remove any color overlay
+                              colorBlendMode:
+                                  BlendMode.srcOver, // Use default blend mode
                               errorBuilder: (context, object, st) {
                                 return const SizedBox();
                               },

@@ -648,6 +648,8 @@ class _ChatUserCardState extends State<ChatUserCard> {
                     width: 50,
                     height: 50,
                     fit: BoxFit.cover,
+                    color: null, // Remove any color overlay
+                    colorBlendMode: BlendMode.srcOver, // Use default blend mode
                     placeholder: (context, url) => const SizedBox(),
                     errorWidget: (context, url, error) => const Icon(
                         Icons.account_circle,

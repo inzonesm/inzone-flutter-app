@@ -73,6 +73,9 @@ class ProfileAppbar extends StatelessWidget {
                           width: 80,
                           height: 80,
                           fit: BoxFit.cover,
+                          color: null, // Remove any color overlay
+                          colorBlendMode:
+                              BlendMode.srcOver, // Use default blend mode
                           errorWidget: (context, url, error) {
                             debugPrint('Error loading profile image: $error');
                             return const Icon(Icons.account_circle, size: 80);
@@ -216,6 +219,9 @@ class ProfileAppbar extends StatelessWidget {
                           child: CachedNetworkImage(
                             imageUrl: character['image']!,
                             fit: BoxFit.cover,
+                            color: null, // Remove any color overlay
+                            colorBlendMode:
+                                BlendMode.srcOver, // Use default blend mode
                             placeholder: (context, url) => Container(
                               color: Colors.grey.withOpacity(0.2),
                             ),

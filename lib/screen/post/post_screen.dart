@@ -346,6 +346,9 @@ class _PostScreenState extends State<PostScreen> {
                                       child: CachedNetworkImage(
                                         imageUrl: selectedCharacter!['image']!,
                                         fit: BoxFit.cover,
+                                        color: null, // Remove any color overlay
+                                        colorBlendMode: BlendMode
+                                            .srcOver, // Use default blend mode
                                         placeholder: (context, url) =>
                                             Container(
                                           color: Colors.grey.withOpacity(0.2),
@@ -1001,6 +1004,11 @@ class _PostScreenState extends State<PostScreen> {
                                                                   character[
                                                                       'image']!,
                                                               fit: BoxFit.cover,
+                                                              color:
+                                                                  null, // Remove any color overlay
+                                                              colorBlendMode:
+                                                                  BlendMode
+                                                                      .srcOver, // Use default blend mode
                                                               placeholder:
                                                                   (context,
                                                                           url) =>
@@ -1238,6 +1246,10 @@ class _PostScreenState extends State<PostScreen> {
                                             width: 140,
                                             fit: BoxFit.fill,
                                             imageUrl: thumbnailUrls[index],
+                                            color:
+                                                null, // Remove any color overlay
+                                            colorBlendMode: BlendMode
+                                                .srcOver, // Use default blend mode
                                             placeholder: (context, url) =>
                                                 ImageLoading(context),
                                             errorWidget:

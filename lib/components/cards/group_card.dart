@@ -23,19 +23,20 @@ class GroupCard extends StatefulWidget {
 }
 
 class _GroupCardState extends State<GroupCard> {
-
   // Get random participant profile pictures
-  List<String> _getRandomParticipantProfilePictures(List<Participant> participants) {
+  List<String> _getRandomParticipantProfilePictures(
+      List<Participant> participants) {
     if (!widget.group.showRandomCharacters || participants.isEmpty) {
       return [];
     }
 
     // Filter participants that have profile pictures
     List<String> availablePictures = participants
-        .where((p) => p.profilePictureUrl != null && p.profilePictureUrl!.isNotEmpty)
+        .where((p) =>
+            p.profilePictureUrl != null && p.profilePictureUrl!.isNotEmpty)
         .map((p) => p.profilePictureUrl!)
         .toList();
-    
+
     // Shuffle and take up to 3
     if (availablePictures.isNotEmpty) {
       availablePictures.shuffle();
@@ -48,7 +49,7 @@ class _GroupCardState extends State<GroupCard> {
   // Build composite group profile picture with 3 AI characters side by side
   Widget _buildCompositeGroupAvatar(List<Participant> participants) {
     final profilePictures = _getRandomParticipantProfilePictures(participants);
-    
+
     if (profilePictures.isEmpty) {
       // Show fallback icon if no participant pictures available
       return Container(
@@ -90,6 +91,8 @@ class _GroupCardState extends State<GroupCard> {
         fit: BoxFit.cover,
         width: 64,
         height: 64,
+        color: null, // Remove any color overlay
+        colorBlendMode: BlendMode.srcOver, // Use default blend mode
         placeholder: (context, url) => const Center(
           child: Icon(FeatherIcons.image, size: 24),
         ),
@@ -112,6 +115,8 @@ class _GroupCardState extends State<GroupCard> {
                 imageUrl: imageUrls[0],
                 fit: BoxFit.cover,
                 height: 64,
+                color: null, // Remove any color overlay
+                colorBlendMode: BlendMode.srcOver, // Use default blend mode
                 placeholder: (context, url) => const Center(
                   child: Icon(FeatherIcons.image, size: 16),
                 ),
@@ -133,6 +138,8 @@ class _GroupCardState extends State<GroupCard> {
                 imageUrl: imageUrls[1],
                 fit: BoxFit.cover,
                 height: 64,
+                color: null, // Remove any color overlay
+                colorBlendMode: BlendMode.srcOver, // Use default blend mode
                 placeholder: (context, url) => const Center(
                   child: Icon(FeatherIcons.image, size: 16),
                 ),
@@ -159,6 +166,8 @@ class _GroupCardState extends State<GroupCard> {
                 imageUrl: imageUrls[0],
                 fit: BoxFit.cover,
                 height: 64,
+                color: null, // Remove any color overlay
+                colorBlendMode: BlendMode.srcOver, // Use default blend mode
                 placeholder: (context, url) => const Center(
                   child: Icon(FeatherIcons.image, size: 12),
                 ),
@@ -178,6 +187,8 @@ class _GroupCardState extends State<GroupCard> {
               imageUrl: imageUrls[1],
               fit: BoxFit.cover,
               height: 64,
+              color: null, // Remove any color overlay
+              colorBlendMode: BlendMode.srcOver, // Use default blend mode
               placeholder: (context, url) => const Center(
                 child: Icon(FeatherIcons.image, size: 12),
               ),
@@ -198,6 +209,8 @@ class _GroupCardState extends State<GroupCard> {
                 imageUrl: imageUrls[2],
                 fit: BoxFit.cover,
                 height: 64,
+                color: null, // Remove any color overlay
+                colorBlendMode: BlendMode.srcOver, // Use default blend mode
                 placeholder: (context, url) => const Center(
                   child: Icon(FeatherIcons.image, size: 12),
                 ),
@@ -303,7 +316,8 @@ class _GroupCardState extends State<GroupCard> {
                           children: [
                             // Avatar section - either composite or single image
                             widget.group.showRandomCharacters
-                                ? _buildCompositeGroupAvatar(groupChatData.participants)
+                                ? _buildCompositeGroupAvatar(
+                                    groupChatData.participants)
                                 : ClipRRect(
                                     borderRadius: BorderRadius.circular(12),
                                     child: Image.network(
@@ -311,7 +325,11 @@ class _GroupCardState extends State<GroupCard> {
                                       width: 64,
                                       height: 64,
                                       fit: BoxFit.cover,
-                                      loadingBuilder: (context, child, progress) {
+                                      color: null, // Remove any color overlay
+                                      colorBlendMode: BlendMode
+                                          .srcOver, // Use default blend mode
+                                      loadingBuilder:
+                                          (context, child, progress) {
                                         return progress == null
                                             ? child
                                             : Container(
@@ -323,11 +341,13 @@ class _GroupCardState extends State<GroupCard> {
                                                       BorderRadius.circular(12),
                                                 ),
                                                 child: const Center(
-                                                  child: Icon(FeatherIcons.image),
+                                                  child:
+                                                      Icon(FeatherIcons.image),
                                                 ),
                                               );
                                       },
-                                      errorBuilder: (context, error, stackTrace) {
+                                      errorBuilder:
+                                          (context, error, stackTrace) {
                                         return Container(
                                           width: 64,
                                           height: 64,
