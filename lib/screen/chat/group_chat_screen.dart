@@ -135,6 +135,10 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   int _totalMessagesViewed = 0;
   final Set<String> _observedParticipants = <String>{};
   final List<String> _sessionActivities = [];
+  
+  // Track initial load to prevent double scrolling
+  bool _hasInitiallyScrolled = false;
+  int _previousMessageCount = 0;
 
   // Define the cost to join a group chat
   final int _joinGroupCost = 100; // Cost in InCash to join the group
@@ -576,11 +580,15 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
       // Now send the message
       await GroupChatService.sendMessageToGroup(_groupId, content);
+      // Update message count expectation to prevent double scroll
+      _previousMessageCount++;
       _scrollToBottom();
     } catch (e) {
       print('Error checking/updating participant status: $e');
       // Fallback to direct message send
       GroupChatService.sendMessageToGroup(_groupId, content);
+      // Update message count expectation to prevent double scroll
+      _previousMessageCount++;
       _scrollToBottom();
     }
   }
@@ -588,8 +596,9 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   void _scrollToBottom() {
     Future.delayed(const Duration(milliseconds: 300), () {
       if (_scrollController.hasClients) {
+        // For reversed ListView, scroll to position 0 (which is the bottom)
         _scrollController.animateTo(
-          _scrollController.position.maxScrollExtent,
+          0,
           duration: const Duration(milliseconds: 300),
           curve: Curves.easeOut,
         );
@@ -967,9 +976,18 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                     }
                     _sessionActivities.add('messages_viewed');
 
-                    // Scroll to bottom when new messages come in
-                    WidgetsBinding.instance
-                        .addPostFrameCallback((_) => _scrollToBottom());
+                    // Only scroll to bottom when new messages are added (not on initial load)
+                    final currentMessageCount = _groupChatData!.messages.length;
+                    if (_hasInitiallyScrolled && currentMessageCount > _previousMessageCount) {
+                      WidgetsBinding.instance
+                          .addPostFrameCallback((_) => _scrollToBottom());
+                    }
+                    
+                    // Mark as initially loaded after first render
+                    if (!_hasInitiallyScrolled) {
+                      _hasInitiallyScrolled = true;
+                    }
+                    _previousMessageCount = currentMessageCount;
 
                     return _buildMessageList(_groupChatData!.messages);
                   } catch (e) {
@@ -1035,9 +1053,12 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       return ListView.builder(
         controller: _scrollController,
         padding: const EdgeInsets.all(16),
+        reverse: true, // Start from bottom
         itemCount: messageWidgets.length,
         itemBuilder: (context, index) {
-          return messageWidgets[index];
+          // Reverse the index to show messages in correct order
+          final reversedIndex = messageWidgets.length - 1 - index;
+          return messageWidgets[reversedIndex];
         },
       );
     }
@@ -1120,9 +1141,12 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     return ListView.builder(
       controller: _scrollController,
       padding: const EdgeInsets.all(16),
+      reverse: true, // Start from bottom
       itemCount: messageWidgets.length,
       itemBuilder: (context, index) {
-        return messageWidgets[index];
+        // Reverse the index to show messages in correct order
+        final reversedIndex = messageWidgets.length - 1 - index;
+        return messageWidgets[reversedIndex];
       },
     );
   }
