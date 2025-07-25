@@ -111,7 +111,6 @@
                 android:layout_above="@id/qwer"
                 android:gravity="center"
                 android:orientation="vertical"
-                android:padding="5dp"
                 android:background="@android:color/transparent">
 
                 <androidx.cardview.widget.CardView

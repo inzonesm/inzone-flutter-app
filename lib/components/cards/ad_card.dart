@@ -83,15 +83,11 @@ class _AdCardState extends State<AdCard> {
         child: ClipRRect(
           borderRadius: BorderRadius.circular(24),
           child: _nativeAdIsLoaded && _nativeAd != null
-              ? Padding(
-                  padding: EdgeInsets.symmetric(
-                      horizontal: Platform.isAndroid ? 16.0 : 0),
-                  child: SizedBox(
-                    height: Platform.isAndroid ? 150 : 130,
-                    width: double.infinity,
-                    child: AdWidget(ad: _nativeAd!),
-                  ),
-                )
+              ? SizedBox(
+                height: Platform.isAndroid ? 150 : 130,
+                width: double.infinity,
+                child: AdWidget(ad: _nativeAd!),
+              )
               : SizedBox(
                   height: Platform.isAndroid ? 150 : 130,
                   width: double.infinity,
