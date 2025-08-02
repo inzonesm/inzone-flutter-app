@@ -10,6 +10,7 @@ import 'package:provider/provider.dart';
 import 'package:inzone/router/app_router.dart';
 import 'package:inzone/router/routes.dart';
 import 'package:inzone/services/appsflyer_service.dart';
+import 'package:inzone/services/inzone_database.dart';
 import 'package:purchases_flutter/models/purchases_configuration.dart'
     show PurchasesConfiguration;
 import 'dart:io' show Platform;
@@ -227,6 +228,10 @@ void main() async {
   await initPlatformState();
   String? advertisingId = await appsFlyerService.getAdvertisingId();
   print("The advertising ID is $advertisingId");
+
+  // Warm up Cloud Run container to improve app performance
+  // This runs asynchronously and doesn't block app startup
+  InZoneDatabase.warmUpCloudRun();
 
   // // TESTING: Uncomment the line below to test all analytics
   // await appsFlyerService.testAllAnalytics();

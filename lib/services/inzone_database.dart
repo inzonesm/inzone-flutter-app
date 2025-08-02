@@ -14,6 +14,35 @@ class InZoneDatabase {
   static DateTime? _lastFeedApiCallTime;
   static const _minTimeBetweenCalls = Duration(milliseconds: 500);
 
+  // Warm-up function to pre-warm Cloud Run container on app startup
+  static Future<void> warmUpCloudRun() async {
+    try {
+      // Send a lightweight request to warm up the Cloud Run container
+      const String warmUpUrl = 'https://inzoneapi-912424781531.us-central1.run.app/health';
+      
+      // Make a simple GET request with a short timeout
+      final response = await http.get(
+        Uri.parse(warmUpUrl),
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+      ).timeout(
+        const Duration(seconds: 5),
+        onTimeout: () {
+          // If timeout occurs, just return a dummy response
+          // The goal is just to wake up the container
+          return http.Response('timeout', 408);
+        },
+      );
+      
+      print('Cloud Run warm-up request completed with status: ${response.statusCode}');
+    } catch (e) {
+      // Silently handle errors - warm-up is not critical for app functionality
+      print('Cloud Run warm-up failed (non-critical): $e');
+    }
+  }
+
   static Future<dynamic> getFeed({int? page}) async {
     // Throttle API requests to prevent overloading
     if (_lastFeedApiCallTime != null) {
