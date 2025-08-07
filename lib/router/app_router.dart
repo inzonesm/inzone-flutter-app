@@ -38,6 +38,8 @@ import 'package:inzone/screen/3d_model/3d_model_select_screen.dart';
 import 'package:inzone/screen/3d_model/3d_model_intro.dart';
 import 'package:inzone/screen/settings/unity_webview_screen.dart';
 import 'package:inzone/components/cards/tip_screen.dart';
+import 'package:inzone/screen/chat/voice_screen.dart';
+
 // Onboarding screens
 import 'package:inzone/screen/onboarding/onboardinScreen.dart';
 // Force update screen
@@ -532,6 +534,27 @@ class AppRouter {
           throw Exception(
               'Unexpected extra type for chat route: ${state.extra.runtimeType}');
         },
+        routes: [
+          GoRoute(
+            path: 'voice',
+            parentNavigatorKey: rootNavigatorKey,
+            pageBuilder: (context, state) {
+              final extra = state.extra as Map<String, String>?;
+              final avatarUrl = extra?['avatarUrl'] ?? '';
+              final avatarId = extra?['avatarId'] ?? '';
+              return CustomTransitionPage(
+                key: state.pageKey,
+                child: VoiceScreen(avatarUrl: avatarUrl, avatarId: avatarId),
+                transitionsBuilder:
+                    (context, animation, secondaryAnimation, child) {
+                  return FadeTransition(opacity: animation, child: child);
+                },
+                opaque: false,
+                transitionDuration: const Duration(milliseconds: 300),
+              );
+            },
+          ),
+        ],
       ),
       GoRoute(
         path: Routes.postChat,

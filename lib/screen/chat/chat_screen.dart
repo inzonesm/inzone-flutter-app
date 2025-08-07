@@ -292,6 +292,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 ),
               ),
               ChatInput(
+                receiverAvatarUrl: widget.userData.profilePictureURL ?? "",
                 controller: msg,
                 scrollController: _scrollController,
                 onSend: () async {
