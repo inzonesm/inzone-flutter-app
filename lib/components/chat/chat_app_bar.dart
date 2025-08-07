@@ -32,14 +32,16 @@ class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
             radius: 22,
             backgroundColor: Theme.of(context).brightness == Brightness.dark
                 ? Colors.grey.shade800
-                : Colors.grey.shade200,
+                : Theme.of(context).colorScheme.primary.withOpacity(0.2),
             child: Padding(
               padding: const EdgeInsets.only(left: 8.0),
               child: Center(
                 child: Icon(
                   Icons.arrow_back_ios,
                   size: 18,
-                  color: Theme.of(context).iconTheme.color,
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? Colors.grey.shade400
+                      : Colors.blue.shade600,
                 ),
               ),
             ),
@@ -49,8 +51,8 @@ class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
       title: Row(
         children: [
           Container(
-            width: 40,
-            height: 40,
+            width: 45,
+            height: 45,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               color: Theme.of(context).cardColor,
@@ -59,20 +61,20 @@ class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
             child: avatarUrl != null && avatarUrl!.isNotEmpty
                 ? CachedNetworkImage(
                     imageUrl: avatarUrl!,
-                    width: 40,
-                    height: 40,
+                    width: 45,
+                    height: 45,
                     fit: BoxFit.cover,
                     color: null, // Remove any color overlay
                     colorBlendMode: BlendMode.srcOver, // Use default blend mode
                     placeholder: (context, url) => const SizedBox(),
                     errorWidget: (context, url, error) {
                       return const Center(
-                        child: Icon(Icons.account_circle, size: 40),
+                        child: Icon(Icons.account_circle, size: 45),
                       );
                     },
                   )
                 : const Center(
-                    child: Icon(Icons.account_circle, size: 40),
+                    child: Icon(Icons.account_circle, size: 45),
                   ),
           ),
           const SizedBox(width: 10),

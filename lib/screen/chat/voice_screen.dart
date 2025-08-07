@@ -65,14 +65,19 @@ class _VoiceScreenState extends State<VoiceScreen>
                     backgroundColor:
                         Theme.of(context).brightness == Brightness.dark
                             ? Colors.grey.shade800
-                            : Colors.grey.shade200,
+                            : Theme.of(context)
+                                .colorScheme
+                                .primary
+                                .withOpacity(0.2),
                     child: Padding(
                       padding: const EdgeInsets.only(left: 8.0),
                       child: Center(
                         child: Icon(
                           Icons.arrow_back_ios,
                           size: 18,
-                          color: Theme.of(context).iconTheme.color,
+                          color: Theme.of(context).brightness == Brightness.dark
+                              ? Colors.grey.shade400
+                              : Colors.blue.shade600,
                         ),
                       ),
                     ),
@@ -90,7 +95,10 @@ class _VoiceScreenState extends State<VoiceScreen>
               builder: (context, radius, child) {
                 return CircleAvatar(
                   radius: radius,
-                  backgroundImage: NetworkImage(widget.avatarUrl),
+                  backgroundColor: Colors.transparent,
+                  backgroundImage: widget.avatarUrl.isNotEmpty
+                      ? NetworkImage(widget.avatarUrl)
+                      : null,
                 );
               },
             ),

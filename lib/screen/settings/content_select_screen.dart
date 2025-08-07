@@ -175,16 +175,23 @@ class _ContentSelectionSettingsScreenState
                       },
                       child: CircleAvatar(
                         radius: 22,
-                        backgroundColor: Theme.of(context).cardColor,
-                        foregroundColor: Theme.of(context).cardColor,
+                        backgroundColor:
+                            Theme.of(context).brightness == Brightness.dark
+                                ? Colors.grey.shade800
+                                : Theme.of(context)
+                                    .colorScheme
+                                    .primary
+                                    .withOpacity(0.2),
                         child: Padding(
                           padding: const EdgeInsets.only(left: 5),
                           child: Center(
                             child: Icon(
                               Icons.arrow_back_ios,
                               size: 18,
-                              color:
-                                  Theme.of(context).textTheme.bodyMedium?.color,
+                              color: Theme.of(context).brightness ==
+                                      Brightness.dark
+                                  ? Colors.grey.shade400
+                                  : Colors.blue.shade600,
                             ),
                           ),
                         ),

@@ -8,6 +8,7 @@ class ChatInput extends StatefulWidget {
   final String hintText;
   final ScrollController? scrollController;
   final String receiverAvatarUrl;
+  final bool isGroupChat;
 
   const ChatInput({
     super.key,
@@ -16,6 +17,7 @@ class ChatInput extends StatefulWidget {
     this.hintText = ' Start a conversation',
     this.scrollController,
     this.receiverAvatarUrl = "",
+    this.isGroupChat = false,
   });
 
   @override
@@ -106,26 +108,45 @@ class _ChatInputState extends State<ChatInput> {
               ),
             ),
             const SizedBox(width: 10),
-            MaterialButton(
-              minWidth: 45,
-              height: 50,
-              elevation: 0,
-              color: Theme.of(context).brightness == Brightness.dark
-                  ? Colors.grey.shade800
-                  : Theme.of(context).colorScheme.primary.withOpacity(0.8),
-              shape: const CircleBorder(),
-              onPressed: _isTextEmpty
-                  ? () => context.push('/chat/voice',
-                      extra: {'avatarUrl': widget.receiverAvatarUrl})
-                  : widget.onSend,
-              child: Center(
-                child: Icon(
-                  _isTextEmpty ? Icons.mic : FeatherIcons.arrowUp,
-                  color: Colors.white,
-                  size: 20,
+            if (!widget.isGroupChat)
+              MaterialButton(
+                minWidth: 45,
+                height: 50,
+                elevation: 0,
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? Colors.grey.shade800
+                    : Theme.of(context).colorScheme.primary.withOpacity(0.8),
+                shape: const CircleBorder(),
+                onPressed: _isTextEmpty
+                    ? () => context.push('/chat/voice',
+                        extra: {'avatarUrl': widget.receiverAvatarUrl})
+                    : widget.onSend,
+                child: Center(
+                  child: Icon(
+                    _isTextEmpty ? Icons.mic : FeatherIcons.arrowUp,
+                    color: Colors.white,
+                    size: 20,
+                  ),
                 ),
               ),
-            ),
+            if (widget.isGroupChat)
+              MaterialButton(
+                minWidth: 45,
+                height: 50,
+                elevation: 0,
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? Colors.grey.shade800
+                    : Theme.of(context).colorScheme.primary.withOpacity(0.8),
+                shape: const CircleBorder(),
+                onPressed: widget.onSend,
+                child: const Center(
+                  child: Icon(
+                    FeatherIcons.arrowUp,
+                    color: Colors.white,
+                    size: 20,
+                  ),
+                ),
+              ),
           ],
         ),
       ),
