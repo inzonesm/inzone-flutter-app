@@ -67,6 +67,8 @@
 		</dict>
 		<key>NSAppleMusicUsageDescription</key>
 		<string>We need access to your photo library to upload and share photos within the app.</string>
+		<key>NSMicrophoneUsageDescription</key>
+		<string>We need your microphone for video chatting with your AI characters.</string>
 		<key>NSCameraUsageDescription</key>
 		<string>We need access to your camera to upload and share photos within the app.</string>
 		<key>NSMicrophoneUsageDescription</key>
