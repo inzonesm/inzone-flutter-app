@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_feather_icons/flutter_feather_icons.dart';
 import 'package:go_router/go_router.dart';
 
 class ChatInput extends StatefulWidget {
@@ -12,7 +13,7 @@ class ChatInput extends StatefulWidget {
     super.key,
     required this.controller,
     required this.onSend,
-    this.hintText = 'Send a message',
+    this.hintText = ' Start a conversation',
     this.scrollController,
     this.receiverAvatarUrl = "",
   });
@@ -61,7 +62,9 @@ class _ChatInputState extends State<ChatInput> {
                   constraints: const BoxConstraints(maxHeight: 100),
                   child: TextFormField(
                     scrollController: widget.scrollController,
-                    cursorColor: Theme.of(context).primaryColor,
+                    cursorColor: Theme.of(context).brightness == Brightness.dark
+                        ? Colors.grey.shade400
+                        : Colors.blue.shade600,
                     controller: widget.controller,
                     maxLines: null,
                     keyboardType: TextInputType.multiline,
@@ -69,16 +72,22 @@ class _ChatInputState extends State<ChatInput> {
                         _isTextEmpty ? null : (_) => widget.onSend(),
                     textInputAction: TextInputAction.send,
                     decoration: InputDecoration(
-                      suffixIconColor: Theme.of(context).iconTheme.color,
                       contentPadding:
-                          const EdgeInsets.only(top: 10, left: 15, right: 10),
+                          const EdgeInsets.only(left: 20, right: 10),
                       border: InputBorder.none,
                       hintText: widget.hintText,
+                      hintStyle: TextStyle(
+                        color: Theme.of(context).brightness == Brightness.dark
+                            ? Colors.grey.shade400
+                            : Colors.blue.shade600,
+                      ),
                       filled: true,
-                      fillColor: Theme.of(context)
-                          .colorScheme
-                          .primary
-                          .withOpacity(0.2),
+                      fillColor: Theme.of(context).brightness == Brightness.dark
+                          ? Colors.grey.shade800
+                          : Theme.of(context)
+                              .colorScheme
+                              .primary
+                              .withOpacity(0.2),
                       enabledBorder: OutlineInputBorder(
                         borderSide: const BorderSide(
                           color: Colors.transparent,
@@ -86,9 +95,8 @@ class _ChatInputState extends State<ChatInput> {
                         borderRadius: BorderRadius.circular(30),
                       ),
                       focusedBorder: OutlineInputBorder(
-                        borderSide: BorderSide(
-                          color:
-                              Theme.of(context).primaryColor.withOpacity(0.3),
+                        borderSide: const BorderSide(
+                          color: Colors.transparent,
                         ),
                         borderRadius: BorderRadius.circular(30),
                       ),
@@ -99,9 +107,12 @@ class _ChatInputState extends State<ChatInput> {
             ),
             const SizedBox(width: 10),
             MaterialButton(
-              minWidth: 43,
-              height: 43,
-              color: Theme.of(context).colorScheme.primary,
+              minWidth: 45,
+              height: 50,
+              elevation: 0,
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? Colors.grey.shade800
+                  : Theme.of(context).colorScheme.primary.withOpacity(0.8),
               shape: const CircleBorder(),
               onPressed: _isTextEmpty
                   ? () => context.push('/chat/voice',
@@ -109,9 +120,9 @@ class _ChatInputState extends State<ChatInput> {
                   : widget.onSend,
               child: Center(
                 child: Icon(
-                  _isTextEmpty ? Icons.mic : Icons.send_rounded,
+                  _isTextEmpty ? Icons.mic : FeatherIcons.arrowUp,
                   color: Colors.white,
-                  size: 18,
+                  size: 20,
                 ),
               ),
             ),
