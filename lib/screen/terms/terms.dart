@@ -326,10 +326,21 @@ class TermsScreen extends StatelessWidget {
                         width: 40,
                         height: 40,
                         decoration: BoxDecoration(
-                          color: Theme.of(context).cardColor,
+                          color: Theme.of(context).brightness == Brightness.dark
+                              ? Colors.grey.shade800
+                              : Theme.of(context)
+                                  .colorScheme
+                                  .primary
+                                  .withOpacity(0.2),
                           shape: BoxShape.circle,
                         ),
-                        child: const Icon(FeatherIcons.x, size: 20),
+                        child: Icon(
+                          FeatherIcons.x,
+                          size: 20,
+                          color: Theme.of(context).brightness == Brightness.dark
+                              ? Colors.grey.shade400
+                              : Colors.blue.shade600,
+                        ),
                       ),
                     ),
                   ],

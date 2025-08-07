@@ -135,7 +135,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   int _totalMessagesViewed = 0;
   final Set<String> _observedParticipants = <String>{};
   final List<String> _sessionActivities = [];
-  
+
   // Track initial load to prevent double scrolling
   bool _hasInitiallyScrolled = false;
   int _previousMessageCount = 0;
@@ -813,14 +813,19 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                     backgroundColor:
                         Theme.of(context).brightness == Brightness.dark
                             ? Colors.grey.shade800
-                            : Colors.grey.shade200,
+                            : Theme.of(context)
+                                .colorScheme
+                                .primary
+                                .withOpacity(0.2),
                     child: Padding(
                       padding: const EdgeInsets.only(left: 8.0),
                       child: Center(
                         child: Icon(
                           Icons.arrow_back_ios,
                           size: 18,
-                          color: Theme.of(context).iconTheme.color,
+                          color: Theme.of(context).brightness == Brightness.dark
+                              ? Colors.grey.shade400
+                              : Colors.blue.shade600,
                         ),
                       ),
                     ),
@@ -978,11 +983,12 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
                     // Only scroll to bottom when new messages are added (not on initial load)
                     final currentMessageCount = _groupChatData!.messages.length;
-                    if (_hasInitiallyScrolled && currentMessageCount > _previousMessageCount) {
+                    if (_hasInitiallyScrolled &&
+                        currentMessageCount > _previousMessageCount) {
                       WidgetsBinding.instance
                           .addPostFrameCallback((_) => _scrollToBottom());
                     }
-                    
+
                     // Mark as initially loaded after first render
                     if (!_hasInitiallyScrolled) {
                       _hasInitiallyScrolled = true;
@@ -1002,6 +1008,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
             ChatInput(
               controller: _msgController,
               onSend: _sendMessage,
+              isGroupChat: true,
             ),
           ],
         ),

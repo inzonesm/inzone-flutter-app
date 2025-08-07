@@ -313,18 +313,38 @@ class _EditFieldScreenState extends State<EditFieldScreen> {
     return Scaffold(
       backgroundColor: backgroundColor,
       appBar: AppBar(
-        backgroundColor: surfaceColor,
+        backgroundColor: backgroundColor,
         elevation: 0,
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: textColor),
-          onPressed: () => context.pop(false),
+        leading: Padding(
+          padding: const EdgeInsets.only(left: 15.0),
+          child: GestureDetector(
+            onTap: () => context.pop(false),
+            child: CircleAvatar(
+              radius: 20,
+              backgroundColor: Theme.of(context).brightness == Brightness.dark
+                  ? Colors.grey.shade800
+                  : Theme.of(context).colorScheme.primary.withOpacity(0.2),
+              child: Padding(
+                padding: const EdgeInsets.only(left: 8.0),
+                child: Center(
+                  child: Icon(
+                    Icons.arrow_back_ios,
+                    size: 18,
+                    color: Theme.of(context).brightness == Brightness.dark
+                        ? Colors.grey.shade400
+                        : Colors.blue.shade600,
+                  ),
+                ),
+              ),
+            ),
+          ),
         ),
         title: Text(
           _getTitle(),
-          style: TextStyle(
-            color: textColor,
-            fontWeight: FontWeight.bold,
-          ),
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                fontSize: 22,
+                fontWeight: FontWeight.w600,
+              ),
         ),
         centerTitle: true,
         actions: [

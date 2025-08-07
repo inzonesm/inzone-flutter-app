@@ -99,12 +99,43 @@ class _CustomAppBarState extends State<CustomAppBar> {
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   if (widget.isSettings)
-                    IconButton(
-                      onPressed: () {
-                        Navigator.of(context).pop();
-                      },
-                      icon: const Icon(CupertinoIcons.back),
+                    Padding(
+                      padding: const EdgeInsets.only(left: 3.0),
+                      child: GestureDetector(
+                        onTap: () {
+                          Navigator.of(context).pop();
+                        },
+                        child: CircleAvatar(
+                          radius: 20,
+                          backgroundColor:
+                              Theme.of(context).brightness == Brightness.dark
+                                  ? Colors.grey.shade800
+                                  : Theme.of(context)
+                                      .colorScheme
+                                      .primary
+                                      .withOpacity(0.2),
+                          child: Padding(
+                            padding: const EdgeInsets.only(left: 8.0),
+                            child: Center(
+                              child: Icon(
+                                Icons.arrow_back_ios,
+                                size: 18,
+                                color: Theme.of(context).brightness ==
+                                        Brightness.dark
+                                    ? Colors.grey.shade400
+                                    : Colors.blue.shade600,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
                     ),
+                  // IconButton(
+                  //   onPressed: () {
+                  //     Navigator.of(context).pop();
+                  //   },
+                  //   icon: const Icon(CupertinoIcons.back),
+                  // ),
 
                   if (widget.isHome &&
                       !widget.isGroup &&
@@ -199,15 +230,24 @@ class _CustomAppBarState extends State<CustomAppBar> {
                         ],
                       ),
                     ),
-                  Text(
-                    widget.isCustom
-                        ? widget.title!
-                        : widget.isChat
-                            ? 'Chats'
-                            : widget.isSettings
-                                ? widget.title ?? 'InZone'
-                                : '',
-                    style: Theme.of(context).textTheme.headlineMedium,
+                  if (widget.isSettings) const SizedBox(width: 10),
+                  Padding(
+                    padding: EdgeInsets.only(top: widget.isSettings ? 0 : 5),
+                    child: Text(
+                      widget.isCustom
+                          ? widget.title!
+                          : widget.isChat
+                              ? 'Chats'
+                              : widget.isSettings
+                                  ? widget.title ?? 'InZone'
+                                  : '',
+                      style: widget.isSettings
+                          ? Theme.of(context).textTheme.titleLarge?.copyWith(
+                                fontSize: 22,
+                                fontWeight: FontWeight.w600,
+                              )
+                          : Theme.of(context).textTheme.headlineMedium,
+                    ),
                   ),
                   const Spacer(),
                   if (widget.isHome &&

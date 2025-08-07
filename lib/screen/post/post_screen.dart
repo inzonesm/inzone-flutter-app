@@ -302,14 +302,35 @@ class _PostScreenState extends State<PostScreen> {
                       mainAxisAlignment: MainAxisAlignment.start,
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        IconButton(
-                          onPressed: () => context.pop(),
-                          icon: Icon(
-                            FeatherIcons.x,
-                            color: Theme.of(context).iconTheme.color,
-                            size: 35,
+                        Padding(
+                          padding: const EdgeInsets.only(left: 8.0),
+                          child: GestureDetector(
+                            onTap: () {
+                              Navigator.pop(context);
+                            },
+                            child: CircleAvatar(
+                              radius: 20,
+                              backgroundColor: Theme.of(context).brightness ==
+                                      Brightness.dark
+                                  ? Colors.grey.shade800
+                                  : Theme.of(context)
+                                      .colorScheme
+                                      .primary
+                                      .withOpacity(0.2),
+                              child: Center(
+                                child: Icon(
+                                  FeatherIcons.x,
+                                  size: 22,
+                                  color: Theme.of(context).brightness ==
+                                          Brightness.dark
+                                      ? Colors.grey.shade400
+                                      : Colors.blue.shade600,
+                                ),
+                              ),
+                            ),
                           ),
                         ),
+
                         // Character indicator in header
                         if (selectedCharacter != null)
                           Expanded(
