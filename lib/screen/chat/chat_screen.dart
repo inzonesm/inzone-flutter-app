@@ -293,6 +293,8 @@ class _ChatScreenState extends State<ChatScreen> {
               ),
               ChatInput(
                 receiverAvatarUrl: widget.userData.profilePictureURL ?? "",
+                receiverAvatarId: widget.userData.email ??
+                    "", // AI character ID is stored in email field
                 controller: msg,
                 scrollController: _scrollController,
                 onSend: () async {

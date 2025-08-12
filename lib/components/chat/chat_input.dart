@@ -8,6 +8,7 @@ class ChatInput extends StatefulWidget {
   final String hintText;
   final ScrollController? scrollController;
   final String receiverAvatarUrl;
+  final String receiverAvatarId;
   final bool isGroupChat;
 
   const ChatInput({
@@ -17,6 +18,7 @@ class ChatInput extends StatefulWidget {
     this.hintText = ' Start a conversation',
     this.scrollController,
     this.receiverAvatarUrl = "",
+    this.receiverAvatarId = "",
     this.isGroupChat = false,
   });
 
@@ -118,8 +120,10 @@ class _ChatInputState extends State<ChatInput> {
                     : Theme.of(context).colorScheme.primary.withOpacity(0.8),
                 shape: const CircleBorder(),
                 onPressed: _isTextEmpty
-                    ? () => context.push('/chat/voice',
-                        extra: {'avatarUrl': widget.receiverAvatarUrl})
+                    ? () => context.push('/chat/voice', extra: {
+                          'avatarUrl': widget.receiverAvatarUrl,
+                          'avatarId': widget.receiverAvatarId,
+                        })
                     : widget.onSend,
                 child: Center(
                   child: Icon(
