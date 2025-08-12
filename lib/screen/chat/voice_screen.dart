@@ -52,7 +52,7 @@ class _VoiceScreenState extends State<VoiceScreen>
   bool _isPlayingResponse = false;
 
   // Mute state
-  bool _isMuted = false;
+  bool _isMuted = false; // Auto-listen on enter
 
   // Animation for processing
   late AnimationController _processingAnimationController;
@@ -60,6 +60,13 @@ class _VoiceScreenState extends State<VoiceScreen>
 
   // Scroll controller for AI responses
   final ScrollController _aiScrollController = ScrollController();
+
+  // Helper: auto-start listening when ready
+  void _maybeAutoStartListening() {
+    if (!_isMuted && !isRecording && !_isProcessing && _isSttAvailable) {
+      _startListening();
+    }
+  }
 
   @override
   void initState() {
@@ -106,27 +113,40 @@ class _VoiceScreenState extends State<VoiceScreen>
       _startStopTimer();
     });
 
-    // Auto-start listening after initialization
-    Future.delayed(const Duration(milliseconds: 500), () {
+    // Auto-start listening on init (after first frame)
+    WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
-        _startListening();
+        _maybeAutoStartListening();
       }
     });
   }
 
   void _initializeStt() async {
-    _isSttAvailable = await _speech.initialize();
+    final available = await _speech.initialize();
     if (mounted) {
-      setState(() {});
+      setState(() {
+        _isSttAvailable = available;
+      });
+      // If user expects immediate listening, start as soon as STT becomes available
+      _maybeAutoStartListening();
     }
   }
 
   void _startStopTimer() {
     _stopTimer?.cancel();
-    _stopTimer = Timer(const Duration(seconds: 1), () {
+    _stopTimer = Timer(const Duration(milliseconds: 600), () {
       if (isRecording) {
-        print("Silence detected for 1 seconds");
-        _stopListening();
+        // If no speech for timeout, stop and process if we have text, otherwise restart listening
+        final hasSpeech = _recognizedWords.trim().isNotEmpty;
+        print(
+            "Silence detected, hasSpeech=$hasSpeech -> ${hasSpeech ? 'process' : 'restart'}");
+        _stopListening(shouldProcess: hasSpeech);
+        if (!hasSpeech && !_isMuted) {
+          // Restart listening immediately for continuous mode
+          if (mounted && !isRecording && !_isProcessing) {
+            _startListening();
+          }
+        }
       }
     });
   }
@@ -173,9 +193,17 @@ class _VoiceScreenState extends State<VoiceScreen>
       return;
     }
 
-    await _vadHandler.startListening();
+    try {
+      await _vadHandler.startListening();
+    } catch (_) {}
 
-    _speech.listen(
+    // Ensure STT is ready; if not, initialize then try again
+    if (!_isSttAvailable) {
+      _initializeStt();
+      if (!_isSttAvailable) return;
+    }
+
+    await _speech.listen(
       onResult: (result) {
         if (mounted) {
           _resetStopTimer();
@@ -393,31 +421,15 @@ class _VoiceScreenState extends State<VoiceScreen>
       await _audioPlayer.setFilePath(audioPath);
       await _audioPlayer.play();
 
-      // Start listening while AI is speaking (allow interruption)
-      if (!_isMuted && !isRecording && !_isProcessing) {
-        // Make sure playback engine is in a fully stopped state before STT
-        try {
-          await _audioPlayer.stop();
-        } catch (_) {}
-        if (mounted) {
-          setState(() {
-            _isPlayingResponse = false;
-          });
-        }
-        _startListening();
-      }
+      // Do NOT start listening automatically while AI is speaking.
+      // We will only start listening immediately after interrupt or after playback completes.
 
-      // Monitor speech detection to interrupt AI if user speaks
+      // Monitor speech detection to pause AI if user speaks (we rely on interrupt button to fully stop)
       StreamSubscription? speechDetectionSub;
       speechDetectionSub = _vadHandler.onSpeechStart.listen((_) {
-        if (_isPlayingResponse && isRecording) {
-          print('User interrupted AI response - stopping playback');
-          // Stop AI playback completely when user speaks
-          _audioPlayer.stop();
-          setState(() {
-            _isPlayingResponse = false;
-          });
-          speechDetectionSub?.cancel();
+        if (_isPlayingResponse) {
+          print('User started speaking - pausing AI playback');
+          _audioPlayer.pause();
         }
       });
 
@@ -431,7 +443,7 @@ class _VoiceScreenState extends State<VoiceScreen>
             });
             speechDetectionSub?.cancel();
 
-            // Continue listening if not already recording
+            // Auto-start listening immediately after AI finishes speaking
             if (!_isMuted && !isRecording && !_isProcessing) {
               _startListening();
             }
@@ -511,38 +523,17 @@ class _VoiceScreenState extends State<VoiceScreen>
               Container(
                 margin: const EdgeInsets.symmetric(horizontal: 24),
                 padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                decoration: BoxDecoration(
-                  color: Theme.of(context)
-                      .colorScheme
-                      .surfaceContainerHighest
-                      .withOpacity(0.5),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color:
-                        Theme.of(context).colorScheme.outline.withOpacity(0.2),
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Text(
+                  _recognizedWords,
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w500,
+                    color: Theme.of(context)
+                        .colorScheme
+                        .onSurface
+                        .withOpacity(0.3),
                   ),
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.person_outline_rounded,
-                      size: 20,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        _recognizedWords,
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                          letterSpacing: 0.1,
-                        ),
-                      ),
-                    ),
-                  ],
                 ),
               ),
 
@@ -772,25 +763,24 @@ class _VoiceScreenState extends State<VoiceScreen>
                 children: [
                   GestureDetector(
                     onTap: () async {
+                      // Toggle mute
+                      final nextMuted = !_isMuted;
                       setState(() {
-                        _isMuted = !_isMuted;
+                        _isMuted = nextMuted;
                       });
 
-                      if (_isMuted) {
-                        // When muting, stop listening without processing
+                      if (nextMuted) {
+                        // Muting: stop listening immediately, don't process
                         if (isRecording) {
                           _stopListening(shouldProcess: false);
                         }
-                        // Cancel any pending audio playback
                         _audioPlayer.stop();
-                      } else {
-                        // When unmuting, start listening immediately if not processing
-                        if (!isRecording && !_isProcessing) {
-                          // Small delay to ensure UI updates first
-                          await Future.delayed(
-                              const Duration(milliseconds: 100));
-                          _startListening();
-                        }
+                        return;
+                      }
+
+                      // Unmuting: start listening immediately (no delay)
+                      if (!isRecording && !_isProcessing) {
+                        _startListening();
                       }
                     },
                     child: Container(
