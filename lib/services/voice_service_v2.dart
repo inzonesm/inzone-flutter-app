@@ -63,7 +63,7 @@ class EnhancedVoiceService {
   // ⚠️ HARDCODED API KEY - 여기에 실제 API 키를 입력하세요!
   // ElevenLabs API 키: https://elevenlabs.io/api 에서 발급
   static const String ELEVENLABS_API_KEY =
-      "sk_1df407597347b429a360585c0366fae50d5ded7d6b4f78c6"; // ElevenLabs API 키
+      "sk_ad6f50123f65e1194a132e66907c72eb8275d378594a6527"; // ElevenLabs API 키
 
   // API URLs
   static const String _elevenLabsUrl =
@@ -90,6 +90,9 @@ class EnhancedVoiceService {
       debugPrint('AI Character ID: $aiCharacterId');
       debugPrint('Message: $message');
 
+      // Debug: List available voices (remove this in production)
+      await debugListAvailableVoices();
+
       // Step 1: Get AI character details from Firebase
       final aiCharDoc = await _firestore
           .collection('popularCharacters')
@@ -108,22 +111,9 @@ class EnhancedVoiceService {
       }
 
       final aiCharacter = aiCharDoc.data()!;
-      final voiceSettings =
-          aiCharacter['voice_settings'] as Map<String, dynamic>? ?? {};
-      final voiceEnabled = voiceSettings['voice_enabled'] ?? true;
-      final voiceId = voiceSettings['voice_id'] ??
-          'JBFqnCBsd6RMkjVDRZzb'; // Default voice ID
-
-      if (!voiceEnabled) {
-        return (
-          response: null,
-          error: VoiceError(
-            message: 'Voice is not enabled for this character',
-            currentBalance: 0,
-            requiredCoins: 0,
-          )
-        );
-      }
+      // Voice ID is now directly on the document, not under voice_settings
+      final voiceId =
+          aiCharacter['voice_id'] as String? ?? 'JBFqnCBsd6RMkjVDRZzb';
 
       // Step 2: Check user's coin balance
       final userDoc =
@@ -181,7 +171,7 @@ class EnhancedVoiceService {
       final audioBase64 = await _convertTextToSpeech(
         text: aiResponseText,
         voiceId: voiceId,
-        voiceSettings: voiceSettings,
+        voiceSettings: {}, // Using default voice settings
       );
 
       if (audioBase64 == null) {
@@ -324,16 +314,9 @@ class EnhancedVoiceService {
     Map<String, dynamic>? voiceSettings,
   }) async {
     try {
-      // Check if API key is configured
-      // if (ELEVENLABS_API_KEY == "YOUR_ELEVENLABS_API_KEY_HERE") {
-      //   debugPrint(
-      //       'ERROR: Please set your ElevenLabs API key in enhanced_voice_service.dart');
-      //   debugPrint(
-      //       'Look for ELEVENLABS_API_KEY constant at the top of the class');
-      //   return null;
-      // }
+      // Try with the provided voice ID first
+      debugPrint('Attempting TTS with voice ID: $voiceId');
 
-      // ElevenLabs API call with hardcoded key
       final response = await _dio.post(
         '$_elevenLabsUrl/$voiceId',
         data: {
@@ -357,6 +340,7 @@ class EnhancedVoiceService {
       );
 
       if (response.statusCode == 200) {
+        debugPrint('Successfully generated voice with ID: $voiceId');
         // Convert audio bytes to base64
         final bytes = response.data as List<int>;
         return base64Encode(bytes);
@@ -364,6 +348,50 @@ class EnhancedVoiceService {
 
       return null;
     } catch (e) {
+      // Check if it's a 404 error (voice not found)
+      if (e is DioException && e.response?.statusCode == 404) {
+        debugPrint(
+            'Voice ID $voiceId not found in ElevenLabs, trying fallback voice...');
+
+        // Try with fallback voice ID
+        const fallbackVoiceId = 'JBFqnCBsd6RMkjVDRZzb'; // George voice
+
+        try {
+          final fallbackResponse = await _dio.post(
+            '$_elevenLabsUrl/$fallbackVoiceId',
+            data: {
+              'text': text,
+              'model_id': 'eleven_monolingual_v1',
+              'voice_settings': {
+                'stability': 0.5,
+                'similarity_boost': 0.75,
+                'style': 0.0,
+                'use_speaker_boost': true,
+              }
+            },
+            options: Options(
+              headers: {
+                'Accept': 'audio/mpeg',
+                'Content-Type': 'application/json',
+                'xi-api-key': ELEVENLABS_API_KEY,
+              },
+              responseType: ResponseType.bytes,
+            ),
+          );
+
+          if (fallbackResponse.statusCode == 200) {
+            debugPrint(
+                'Successfully generated voice with fallback ID: $fallbackVoiceId');
+            // Convert audio bytes to base64
+            final bytes = fallbackResponse.data as List<int>;
+            return base64Encode(bytes);
+          }
+        } catch (fallbackError) {
+          debugPrint('Fallback voice also failed: $fallbackError');
+          return null;
+        }
+      }
+
       debugPrint('Error in text to speech conversion: $e');
       return null;
     }
@@ -412,6 +440,49 @@ class EnhancedVoiceService {
     } catch (e) {
       debugPrint('Error getting conversation history: $e');
       return [];
+    }
+  }
+
+  /// Debug function to list all available voices from ElevenLabs
+  Future<void> debugListAvailableVoices() async {
+    try {
+      debugPrint('=== FETCHING AVAILABLE VOICES FROM ELEVENLABS ===');
+
+      final response = await _dio.get(
+        'https://api.elevenlabs.io/v1/voices',
+        options: Options(
+          headers: {
+            'xi-api-key': ELEVENLABS_API_KEY,
+          },
+        ),
+      );
+
+      if (response.statusCode == 200) {
+        final voices = response.data['voices'] as List;
+        debugPrint('Found ${voices.length} voices in your account:');
+
+        for (var voice in voices) {
+          debugPrint('Voice: ${voice['name']} - ID: ${voice['voice_id']}');
+        }
+
+        // Check if the problematic voice ID exists
+        const problematicId = 'SMHkF9u8z4tpQZiNqJ14';
+        final voiceExists = voices.any((v) => v['voice_id'] == problematicId);
+
+        if (voiceExists) {
+          debugPrint('✅ Voice ID $problematicId FOUND in your account');
+        } else {
+          debugPrint('❌ Voice ID $problematicId NOT FOUND in your account');
+          debugPrint('This voice might be:');
+          debugPrint('  - Created in a different ElevenLabs account');
+          debugPrint('  - Deleted from ElevenLabs');
+          debugPrint('  - Not added to "My Voices" yet');
+        }
+      }
+
+      debugPrint('===========================================');
+    } catch (e) {
+      debugPrint('Error fetching voices: $e');
     }
   }
 }
