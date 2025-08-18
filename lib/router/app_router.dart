@@ -30,7 +30,6 @@ import 'package:inzone/screen/chat/chat_screen.dart';
 import 'package:inzone/screen/chat/human_chat_screen.dart';
 import 'package:inzone/screen/chat/post_chat_screen.dart';
 import 'package:inzone/screen/settings/content_select_screen.dart';
-import 'package:inzone/screen/settings/subscription_purchase.dart';
 import 'package:inzone/screen/settings/referral_screen.dart';
 import 'package:inzone/screen/settings/settings_screen.dart';
 import 'package:inzone/screen/3d_model/3d_model_prompt_screen.dart';
