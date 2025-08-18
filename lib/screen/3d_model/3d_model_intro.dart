@@ -35,21 +35,19 @@ class _ModelIntroScreenState extends State<ModelIntroScreen>
   late Animation<double> _titleSlideAnimation;
   late Animation<double> _backgroundAnimation;
 
-  // 화려한 색상 팔레트 정의
   static const List<Color> colorPalette = [
-    Color(0xFF4A00E0), // 보라색
-    Color(0xFF8E2DE2), // 자주색
-    Color(0xFF5E35B1), // 딥 퍼플
-    Color(0xFF3949AB), // 인디고
-    Color(0xFF1976D2), // 블루
+    Color(0xFF4A00E0),
+    Color(0xFF8E2DE2),
+    Color(0xFF5E35B1),
+    Color(0xFF3949AB),
+    Color(0xFF1976D2),
   ];
 
-  // 그라데이션 정의 - 더 예쁘게 수정
   final LinearGradient _titleGradient = const LinearGradient(
     colors: [
-      Color(0xFF4A00E0), // 보라색
-      Color(0xFF8E2DE2), // 자주색
-      Color(0xFF1976D2), // 블루
+      Color(0xFF4A00E0),
+      Color(0xFF8E2DE2),
+      Color(0xFF1976D2),
     ],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
@@ -184,8 +182,7 @@ class _ModelIntroScreenState extends State<ModelIntroScreen>
                 _modelLoadingProgress = 0.0;
               });
 
-              // 모델이 로드된 후 플랫폼을 보여줄 것이므로, 여기서는 보여주지 않음
-              _startModelRotation(); // Schedule next change
+              _startModelRotation();
             }
           });
         }
@@ -194,19 +191,15 @@ class _ModelIntroScreenState extends State<ModelIntroScreen>
   }
 
   void _navigateToPromptScreen() async {
-    // Mark intro as seen before navigating
     await ModelIntroScreen.markIntroAsSeen();
     if (mounted) {
-      // Fade out the current screen
       setState(() {
         _isNavigating = true;
       });
 
-      // Wait for the fade out animation
       await Future.delayed(const Duration(milliseconds: 400));
 
       if (mounted) {
-        // Navigate to prompt screen with fade transition
         context.push(
           Routes.create3dModel,
           extra: {'transition': 'fade'},
@@ -221,7 +214,6 @@ class _ModelIntroScreenState extends State<ModelIntroScreen>
     super.dispose();
   }
 
-  // 회전하는 플랫폼 위젯 - 더 차분하게 수정
   Widget _buildRotatingPlatform() {
     return AnimatedBuilder(
       animation: _controller,
@@ -255,7 +247,6 @@ class _ModelIntroScreenState extends State<ModelIntroScreen>
                 ),
                 // Wave effect
                 ...List.generate(3, (index) {
-                  // 파동 효과 개수 줄임
                   final delay = index * 0.3;
                   return AnimatedBuilder(
                     animation: _controller,
@@ -290,14 +281,11 @@ class _ModelIntroScreenState extends State<ModelIntroScreen>
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: Stack(
         children: [
-          // 배경색 단순하게 변경
           Container(
             decoration: BoxDecoration(
               color: Theme.of(context).scaffoldBackgroundColor,
             ),
           ),
-
-          // 메인 콘텐츠
           AnimatedOpacity(
             duration: const Duration(milliseconds: 400),
             opacity: _isNavigating ? 0.0 : 1.0,
@@ -305,7 +293,6 @@ class _ModelIntroScreenState extends State<ModelIntroScreen>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // 제목 다시 예쁘게 스타일링
                   AnimatedBuilder(
                     animation: _fadeInAnimation,
                     builder: (context, child) {
@@ -359,8 +346,6 @@ class _ModelIntroScreenState extends State<ModelIntroScreen>
                       );
                     },
                   ),
-
-                  // 3D model in the center with backdrop filter
                   Expanded(
                     child: AnimatedBuilder(
                       animation: _modelFadeAnimation,
@@ -374,7 +359,6 @@ class _ModelIntroScreenState extends State<ModelIntroScreen>
                               child: Stack(
                                 alignment: Alignment.center,
                                 children: [
-                                  // 3D 모델 주변 장식적 원 - 더 차분한 스타일로 수정
                                   Container(
                                     width: 280,
                                     height: 280,
@@ -387,7 +371,6 @@ class _ModelIntroScreenState extends State<ModelIntroScreen>
                                       ),
                                     ),
                                   ),
-
                                   Container(
                                     width: 320,
                                     height: 320,
@@ -400,13 +383,11 @@ class _ModelIntroScreenState extends State<ModelIntroScreen>
                                       ),
                                     ),
                                   ),
-
-                                  // 3D 모델 뷰어
                                   SizedBox(
                                     height: 350,
                                     width: double.infinity,
                                     child: AbsorbPointer(
-                                      absorbing: true, // 모든 사용자 입력 차단
+                                      absorbing: true,
                                       child: Flutter3DViewer(
                                         controller: _3dController,
                                         src: _3dAssets[_currentModelIndex],
@@ -432,8 +413,6 @@ class _ModelIntroScreenState extends State<ModelIntroScreen>
                                       ),
                                     ),
                                   ),
-
-                                  // 로딩 인디케이터
                                   if (_modelLoadingProgress < 1.0 &&
                                       !_3dController.onModelLoaded.value)
                                     SizedBox(
@@ -457,8 +436,6 @@ class _ModelIntroScreenState extends State<ModelIntroScreen>
                       },
                     ),
                   ),
-
-                  // Get Started button at the bottom with gradient
                   Padding(
                     padding: const EdgeInsets.symmetric(
                         horizontal: 32, vertical: 24),
@@ -471,7 +448,7 @@ class _ModelIntroScreenState extends State<ModelIntroScreen>
                             height: 56,
                             decoration: BoxDecoration(
                               borderRadius: BorderRadius.circular(28),
-                              color: colorPalette[0], // 단색으로 변경
+                              color: colorPalette[0],
                               boxShadow: [
                                 BoxShadow(
                                   color: colorPalette[0].withOpacity(0.2),

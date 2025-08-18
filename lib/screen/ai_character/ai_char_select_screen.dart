@@ -381,19 +381,17 @@ class _AICharacterSelectionScreenState extends State<AICharacterSelectionScreen>
 
   @override
   Widget build(BuildContext context) {
-    // 키보드 높이 확인
     final keyboardHeight = MediaQuery.of(context).viewInsets.bottom;
     final isKeyboardVisible = keyboardHeight > 0;
 
     return ColorfulSafeArea(
       color: Theme.of(context).dialogBackgroundColor,
       child: GestureDetector(
-        // Close keyboard when tapping outside of text fields
         onTap: () => FocusScope.of(context).unfocus(),
         child: Scaffold(
           backgroundColor: Theme.of(context).dialogBackgroundColor,
           appBar: isKeyboardVisible && _isFormExpanded
-              ? null // 키보드가 보이고 폼이 확장되었을 때는 AppBar를 숨김
+              ? null
               : AppBar(
                   backgroundColor: Colors.transparent,
                   elevation: 0,
@@ -450,7 +448,6 @@ class _AICharacterSelectionScreenState extends State<AICharacterSelectionScreen>
                 ),
           body: Stack(
             children: [
-              // 기본 화면 내용
               _isLoading
                   ? _buildLoadingState()
                   : _errorMessage != null
@@ -458,8 +455,6 @@ class _AICharacterSelectionScreenState extends State<AICharacterSelectionScreen>
                       : _generatedCharacter != null
                           ? _buildGeneratedCharacter()
                           : _buildEmptyState(),
-
-              // 키보드가 나타날 때 폼이 화면 전체를 덮도록 함
               if (isKeyboardVisible && _isFormExpanded)
                 Positioned(
                   top: 0,
@@ -480,17 +475,15 @@ class _AICharacterSelectionScreenState extends State<AICharacterSelectionScreen>
                 ? _buildSelectButton()
                 : _buildPromptInput(),
           ),
-          resizeToAvoidBottomInset: false, // 키보드가 화면을 리사이즈하지 않도록 설정
+          resizeToAvoidBottomInset: false,
         ),
       ),
     );
   }
 
-  // 키보드가 나타날 때 전체 화면 폼
   Widget _buildFullScreenForm() {
     return Column(
       children: [
-        // 상단 닫기 버튼과 제목
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           child: Row(
@@ -557,8 +550,6 @@ class _AICharacterSelectionScreenState extends State<AICharacterSelectionScreen>
             ],
           ),
         ),
-
-        // 폼 내용
         Expanded(
           child: SingleChildScrollView(
             physics: const BouncingScrollPhysics(),
@@ -567,7 +558,6 @@ class _AICharacterSelectionScreenState extends State<AICharacterSelectionScreen>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const SizedBox(height: 20),
-                // Name field
                 _buildFormField('Name:', _nameFieldController,
                     'Enter character name (e.g., Steve, Emma)'),
                 const SizedBox(height: 16),
@@ -595,8 +585,6 @@ class _AICharacterSelectionScreenState extends State<AICharacterSelectionScreen>
             ),
           ),
         ),
-
-        // Generate 버튼
         Padding(
           padding: const EdgeInsets.all(16.0),
           child: Container(
@@ -615,7 +603,6 @@ class _AICharacterSelectionScreenState extends State<AICharacterSelectionScreen>
             ),
             child: TextButton(
               onPressed: () {
-                // Validate form before proceeding
                 if (!_validateForm()) {
                   return;
                 }

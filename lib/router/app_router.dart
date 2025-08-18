@@ -120,7 +120,6 @@ class AppRouter {
               state.matchedLocation.startsWith('/auth/interests');
       final bool isAuthScreen = state.matchedLocation.contains('/auth/');
 
-      // 온보딩 화면 접근 허용
       final bool isOnboardingScreen =
           state.matchedLocation.startsWith('/onboarding');
 
@@ -129,7 +128,6 @@ class AppRouter {
       print("GoRouter redirect - Auth screen: $isAuthScreen");
       print("GoRouter redirect - Onboarding screen: $isOnboardingScreen");
 
-      // Don't redirect while still loading
       if (isLoading) {
         print("GoRouter redirect - Still loading, no redirect");
         return null;

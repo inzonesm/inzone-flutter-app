@@ -547,7 +547,6 @@ class _GroupsExploreScreenState extends State<GroupsExploreScreen> {
                 GroupChatService.ensureDefaultGroupExists();
               }
 
-              // 검색 필터
               if (_searchQuery.isNotEmpty) {
                 groups = groups
                     .where((group) =>
@@ -556,14 +555,13 @@ class _GroupsExploreScreenState extends State<GroupsExploreScreen> {
                     .toList();
               }
 
-              // 정렬: showFirst가 true인 그룹을 맨 앞으로
               groups.sort((a, b) {
                 if (a.showFirst && !b.showFirst) {
-                  return -1; // a comes first
+                  return -1;
                 } else if (!a.showFirst && b.showFirst) {
-                  return 1; // b comes first
+                  return 1;
                 } else {
-                  return 0; // maintain original order
+                  return 0;
                 }
               });
 

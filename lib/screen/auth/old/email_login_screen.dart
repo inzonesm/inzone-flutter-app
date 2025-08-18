@@ -17,7 +17,6 @@ class _EmailLogInPageState extends State<EmailLogInPage> {
   String? errorMessage;
   bool isLoading = false;
 
-  // 로딩 다이얼로그를 안전하게 닫기 위한 메서드
   void _dismissLoadingDialog() {
     if (mounted && Navigator.of(context).canPop()) {
       Navigator.of(context).pop();
@@ -194,7 +193,6 @@ class _EmailLogInPageState extends State<EmailLogInPage> {
                                       errorMessage = null;
                                     });
 
-                                    // 스플래시 스크린 대신 로딩 인디케이터 표시
                                     showDialog(
                                       context: context,
                                       barrierDismissible: false,
@@ -240,7 +238,6 @@ class _EmailLogInPageState extends State<EmailLogInPage> {
                                       // Wait for minimum loading time
                                       await loadingDelay;
 
-                                      // 로딩 다이얼로그 닫기
                                       _dismissLoadingDialog();
 
                                       // Only navigate if the widget is still mounted
@@ -252,7 +249,6 @@ class _EmailLogInPageState extends State<EmailLogInPage> {
                                       // Wait for minimum loading time
                                       await loadingDelay;
 
-                                      // 로딩 다이얼로그 닫기
                                       _dismissLoadingDialog();
 
                                       setState(() {
@@ -264,7 +260,6 @@ class _EmailLogInPageState extends State<EmailLogInPage> {
                                       // Wait for minimum loading time
                                       await loadingDelay;
 
-                                      // 로딩 다이얼로그 닫기
                                       _dismissLoadingDialog();
 
                                       setState(() {
