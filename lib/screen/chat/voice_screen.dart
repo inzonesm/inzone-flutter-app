@@ -1,15 +1,13 @@
 import 'dart:convert';
-import 'dart:io';
 import 'package:animated_text_kit/animated_text_kit.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_feather_icons/flutter_feather_icons.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shimmer/shimmer.dart';
 import 'dart:async';
-import 'package:vad/vad.dart';
+
 import 'package:speech_to_text/speech_to_text.dart' as stt;
-import 'package:record/record.dart';
-import 'package:path_provider/path_provider.dart';
+
 import 'package:just_audio/just_audio.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
@@ -27,20 +25,13 @@ class VoiceScreen extends StatefulWidget {
 class _VoiceScreenState extends State<VoiceScreen>
     with TickerProviderStateMixin {
   bool isRecording = false;
-  dynamic _vadHandler;
-  StreamSubscription? _frameSubscription;
   double _speechProbability = 0.0;
   double _baseAvatarRadius = 80.0;
 
   late stt.SpeechToText _speech;
   bool _isSttAvailable = false;
   String _recognizedWords = "";
-  Timer? _stopTimer;
 
-  DateTime? _lastRestartTime;
-
-  final AudioRecorder _audioRecorder = AudioRecorder();
-  String? _audioPath;
   bool _isProcessing = false;
 
   final AudioPlayer _audioPlayer = AudioPlayer();
@@ -62,7 +53,6 @@ class _VoiceScreenState extends State<VoiceScreen>
 
     _speech = stt.SpeechToText();
     _initializeStt();
-    _vadHandler = VadHandler.create(isDebug: true);
 
     _processingAnimationController = AnimationController(
       duration: const Duration(milliseconds: 800),
@@ -72,17 +62,6 @@ class _VoiceScreenState extends State<VoiceScreen>
       CurvedAnimation(
           parent: _processingAnimationController, curve: Curves.easeInOut),
     );
-
-    _frameSubscription = _vadHandler.onFrameProcessed.listen((frameData) {
-      if (mounted && isRecording) {
-        setState(() => _speechProbability = frameData.isSpeech);
-      }
-    });
-
-    _vadHandler.onSpeechStart.listen((_) => _resetStopTimer());
-    _vadHandler.onSpeechEnd.listen((_) {
-      if (_recognizedWords.trim().isNotEmpty) _startStopTimer();
-    });
 
     // 페이지 진입 시 자동으로 리스닝 시작
     Future.delayed(const Duration(milliseconds: 500), () {
@@ -104,19 +83,6 @@ class _VoiceScreenState extends State<VoiceScreen>
     if (mounted) setState(() {});
   }
 
-  void _startStopTimer() {
-    _stopTimer?.cancel();
-    _stopTimer = Timer(const Duration(milliseconds: 1500), () {
-      if (isRecording && _recognizedWords.trim().isNotEmpty) {
-        _stopListening();
-      } else if (isRecording && _recognizedWords.trim().isEmpty) {
-        _stopListening(shouldProcess: false);
-      }
-    });
-  }
-
-  void _resetStopTimer() => _stopTimer?.cancel();
-
   void _startListening() async {
     debugPrint(
         '_startListening called - STT Available: $_isSttAvailable, Recording: $isRecording, Processing: $_isProcessing, Muted: $_isMuted');
@@ -127,38 +93,11 @@ class _VoiceScreenState extends State<VoiceScreen>
         _isMuted ||
         _isPlayingResponse) return;
 
-    if (_lastRestartTime != null) {
-      final diff = DateTime.now().difference(_lastRestartTime!);
-      if (diff.inMilliseconds < 300) return; // 더 빠른 반응을 위해 300ms로 감소
-    }
-
-    _resetStopTimer();
-    _lastRestartTime = DateTime.now();
-
-    try {
-      await _vadHandler.startListening();
-    } catch (_) {
-      return;
-    }
-
-    await Future.delayed(const Duration(milliseconds: 100));
-
-    try {
-      final directory = await getTemporaryDirectory();
-      _audioPath =
-          '${directory.path}/recording_${DateTime.now().millisecondsSinceEpoch}.wav';
-      await _audioRecorder.start(
-        const RecordConfig(
-          encoder: AudioEncoder.wav,
-          sampleRate: 16000,
-          bitRate: 16000,
-          numChannels: 1,
-        ),
-        path: _audioPath!,
-      );
-    } catch (_) {
-      _vadHandler.stopListening();
-      return;
+    if (mounted) {
+      setState(() {
+        _recognizedWords = "";
+        _aiResponseText = "";
+      });
     }
 
     try {
@@ -169,10 +108,8 @@ class _VoiceScreenState extends State<VoiceScreen>
               'Speech result: ${result.recognizedWords}, final: ${result.finalResult}');
           if (!mounted) return;
           setState(() => _recognizedWords = result.recognizedWords);
-          if (result.finalResult && result.recognizedWords.trim().isNotEmpty) {
-            _startStopTimer();
-          } else {
-            _resetStopTimer();
+          if (result.finalResult) {
+            _stopListening();
           }
         },
         localeId: 'en_US',
@@ -181,6 +118,15 @@ class _VoiceScreenState extends State<VoiceScreen>
         cancelOnError: true,
         partialResults: true,
         listenMode: stt.ListenMode.confirmation,
+        onSoundLevelChange: (level) {
+          if (!mounted) return;
+          // level은 보통 -120에서 0 사이의 dB 값입니다.
+          // 이를 0.0에서 1.0 사이로 정규화하여 UI에 사용합니다.
+          final normalizedLevel = (level + 120) / 120;
+          setState(() {
+            _speechProbability = normalizedLevel.clamp(0.0, 1.0);
+          });
+        },
       );
       debugPrint('Speech listening started successfully');
       if (mounted) {
@@ -191,25 +137,14 @@ class _VoiceScreenState extends State<VoiceScreen>
       }
     } catch (e) {
       debugPrint('Failed to start speech listening: $e');
-      await _audioRecorder.stop();
-      _vadHandler.stopListening();
     }
   }
 
   void _stopListening({bool shouldProcess = true}) async {
     if (!isRecording) return;
 
-    _resetStopTimer();
-
     try {
       await _speech.stop();
-    } catch (_) {}
-    await Future.delayed(const Duration(milliseconds: 50));
-    try {
-      await _audioRecorder.stop();
-    } catch (_) {}
-    try {
-      _vadHandler.stopListening();
     } catch (_) {}
 
     final hasSpeech = _recognizedWords.trim().isNotEmpty;
@@ -226,15 +161,9 @@ class _VoiceScreenState extends State<VoiceScreen>
       });
     }
 
-    if (_audioPath != null && shouldProcess && hasSpeech) {
+    if (shouldProcess && hasSpeech) {
       await _sendTextToBackend();
-    } else if (_audioPath != null) {
-      try {
-        final f = File(_audioPath!);
-        if (f.existsSync()) await f.delete();
-        _audioPath = null;
-      } catch (_) {}
-
+    } else {
       // 음성이 없었으면 자동으로 다시 리스닝 시작
       if (!hasSpeech && !_isMuted && mounted) {
         Future.delayed(const Duration(milliseconds: 500), () {
@@ -292,14 +221,6 @@ class _VoiceScreenState extends State<VoiceScreen>
         });
       }
 
-      if (_audioPath != null) {
-        try {
-          final f = File(_audioPath!);
-          if (f.existsSync()) await f.delete();
-          _audioPath = null;
-        } catch (_) {}
-      }
-
       // AI 응답 재생이 끝나면 _playAIResponse에서 자동으로 리스닝을 시작하므로 여기서는 시작하지 않음
     } catch (e) {
       debugPrint('Error in _sendTextToBackend: $e');
@@ -316,23 +237,20 @@ class _VoiceScreenState extends State<VoiceScreen>
   Future<void> _playAIResponse(String base64Audio) async {
     if (base64Audio.isEmpty) return;
 
-    File? tempFile;
-
     try {
       setState(() => _isPlayingResponse = true);
 
-      // Decode and save audio
+      // Decode audio
       final audioData = base64Decode(base64Audio);
-      final dir = await getTemporaryDirectory();
-      final p = '${dir.path}/ai_${DateTime.now().millisecondsSinceEpoch}.mp3';
-      tempFile = File(p);
-      await tempFile.writeAsBytes(audioData);
 
       // Stop any currently playing audio
       await _audioPlayer.stop();
 
-      // Set file and play
-      await _audioPlayer.setFilePath(p);
+      // Create a custom AudioSource
+      final audioSource = _MyCustomSource(audioData);
+
+      // Set source and play
+      await _audioPlayer.setAudioSource(audioSource);
       await _audioPlayer.play();
 
       // Wait for completion
@@ -344,11 +262,6 @@ class _VoiceScreenState extends State<VoiceScreen>
       if (mounted) {
         setState(() => _isPlayingResponse = false);
       }
-
-      // Clean up temp file
-      try {
-        await tempFile.delete();
-      } catch (_) {}
 
       // Start listening again after AI response
       if (!_isMuted && mounted) {
@@ -364,11 +277,6 @@ class _VoiceScreenState extends State<VoiceScreen>
       }
     } catch (e) {
       debugPrint('Error playing AI response: $e');
-
-      // Clean up on error
-      try {
-        await tempFile?.delete();
-      } catch (_) {}
 
       if (mounted) {
         setState(() => _isPlayingResponse = false);
@@ -386,11 +294,7 @@ class _VoiceScreenState extends State<VoiceScreen>
 
   @override
   void dispose() {
-    _stopTimer?.cancel();
-    _frameSubscription?.cancel();
-    _vadHandler.dispose();
     _speech.stop();
-    _audioRecorder.dispose();
     _audioPlayer.dispose();
     _processingAnimationController.dispose();
     _aiScrollController.dispose();
@@ -761,6 +665,25 @@ class _VoiceScreenState extends State<VoiceScreen>
           ],
         ),
       ),
+    );
+  }
+}
+
+class _MyCustomSource extends StreamAudioSource {
+  final List<int> bytes;
+
+  _MyCustomSource(this.bytes);
+
+  @override
+  Future<StreamAudioResponse> request([int? start, int? end]) async {
+    start ??= 0;
+    end ??= bytes.length;
+    return StreamAudioResponse(
+      sourceLength: bytes.length,
+      contentLength: end - start,
+      offset: start,
+      stream: Stream.value(bytes.sublist(start, end)),
+      contentType: 'audio/mpeg',
     );
   }
 }

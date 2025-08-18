@@ -28,19 +28,16 @@ import 'package:package_info_plus/package_info_plus.dart';
 // Key for storing first launch status in SharedPreferences
 const String FIRST_LAUNCH_KEY = 'is_first_launch';
 
-// Firebase Remote Config setup
 Future<void> setupRemoteConfig() async {
   final remoteConfig = FirebaseRemoteConfig.instance;
 
-  // Set default values - 이것이 중요합니다!
   await remoteConfig.setDefaults({
     'required_version': '4.2.8',
   });
 
-  // Configure settings - 테스트를 위해 minimumFetchInterval을 0으로 설정
   await remoteConfig.setConfigSettings(RemoteConfigSettings(
     fetchTimeout: const Duration(minutes: 1),
-    minimumFetchInterval: Duration.zero, // 즉시 fetch 가능
+    minimumFetchInterval: Duration.zero,
   ));
 
   try {
@@ -48,7 +45,6 @@ Future<void> setupRemoteConfig() async {
     await remoteConfig.fetchAndActivate();
     print('Remote Config fetched and activated successfully');
 
-    // 현재 Remote Config 값들을 출력
     print('Current Remote Config values:');
     print('  required_version: ${remoteConfig.getString('required_version')}');
     print('  Source: ${remoteConfig.getValue('required_version').source}');
@@ -57,28 +53,23 @@ Future<void> setupRemoteConfig() async {
   }
 }
 
-// Force update 체크 함수
 Future<bool> checkForceUpdateRequired() async {
   try {
-    // 현재 앱 버전 가져오기
     PackageInfo packageInfo = await PackageInfo.fromPlatform();
     String currentVersion = packageInfo.version;
 
-    // Remote Config에서 required version 가져오기
     final remoteConfig = FirebaseRemoteConfig.instance;
     String requiredVersion = remoteConfig.getString('required_version');
 
     print('Current app version: $currentVersion');
     print('Required version from Remote Config: $requiredVersion');
 
-    // 버전 유효성 검사
     if (!_isValidVersionString(currentVersion) ||
         !_isValidVersionString(requiredVersion)) {
       print('Invalid version format detected');
       return false;
     }
 
-    // 버전 비교
     bool updateRequired = _isUpdateRequired(currentVersion, requiredVersion);
     print('Update required: $updateRequired');
 
@@ -89,29 +80,26 @@ Future<bool> checkForceUpdateRequired() async {
   }
 }
 
-// 버전 문자열 유효성 검사
 bool _isValidVersionString(String version) {
   if (version.isEmpty) return false;
   final versionRegex = RegExp(r'^\d+\.\d+\.\d+(\+\d+)?$');
   return versionRegex.hasMatch(version);
 }
 
-// 버전 비교 함수
 bool _isUpdateRequired(String currentVersion, String requiredVersion) {
   List<int> current = _parseVersionString(currentVersion);
   List<int> required = _parseVersionString(requiredVersion);
 
   for (int i = 0; i < 3; i++) {
     if (current[i] < required[i]) {
-      return true; // 업데이트 필요
+      return true;
     } else if (current[i] > required[i]) {
-      return false; // 현재 버전이 더 높음
+      return false;
     }
   }
-  return false; // 같은 버전
+  return false;
 }
 
-// 버전 문자열을 숫자 리스트로 파싱
 List<int> _parseVersionString(String version) {
   String cleanVersion = version.split('+')[0];
   return cleanVersion.split('.').map((e) => int.parse(e)).toList();
