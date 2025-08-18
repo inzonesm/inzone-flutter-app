@@ -447,7 +447,7 @@ class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
                                 ),
                                 child: Iconify(
                                   _iconifyPaths[index],
-                                  size: 100, // 실제 크기는 FittedBox가 제어함
+                                  size: 100,
                                 ),
                               ),
                             ),

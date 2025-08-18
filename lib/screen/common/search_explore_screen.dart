@@ -34,11 +34,12 @@ class SearchSessionTracker {
     _sessionCategories[sessionId] = <String>{};
   }
 
-  static void trackQuery(String userId, String query, int resultCount, String category) {
+  static void trackQuery(
+      String userId, String query, int resultCount, String category) {
     final sessionId = _generateSessionId(userId);
     _sessionQueries[sessionId]?.add(query);
     _sessionCategories[sessionId]?.add(category);
-    
+
     // Track individual search query
     AppsFlyerService().trackSearchQuery(
       query: query,
@@ -48,10 +49,12 @@ class SearchSessionTracker {
     );
   }
 
-  static void trackResultClick(String userId, String query, int resultIndex, String contentType) {
+  static void trackResultClick(
+      String userId, String query, int resultIndex, String contentType) {
     final sessionId = _generateSessionId(userId);
-    _sessionResultClicks[sessionId] = (_sessionResultClicks[sessionId] ?? 0) + 1;
-    
+    _sessionResultClicks[sessionId] =
+        (_sessionResultClicks[sessionId] ?? 0) + 1;
+
     // Track search result interaction
     AppsFlyerService().logEvent('search_result_clicked', {
       'user_id': userId,
@@ -65,13 +68,13 @@ class SearchSessionTracker {
   static void endSession(String userId) {
     final sessionId = _generateSessionId(userId);
     final startTime = _sessionStartTimes[sessionId];
-    
+
     if (startTime != null) {
       final duration = DateTime.now().difference(startTime).inSeconds;
       final queries = _sessionQueries[sessionId] ?? [];
       final clicks = _sessionResultClicks[sessionId] ?? 0;
       final categories = _sessionCategories[sessionId] ?? <String>{};
-      
+
       if (duration > 5 && queries.isNotEmpty) {
         AppsFlyerService().logEvent('search_session_summary', {
           'user_id': userId,
@@ -81,11 +84,12 @@ class SearchSessionTracker {
           'unique_categories_searched': categories.length,
           'search_queries': queries.join('|'),
           'categories_explored': categories.join(','),
-          'click_through_rate': queries.isNotEmpty ? clicks / queries.length : 0,
+          'click_through_rate':
+              queries.isNotEmpty ? clicks / queries.length : 0,
           'timestamp': DateTime.now().millisecondsSinceEpoch,
         });
       }
-      
+
       // Clean up session data
       _sessionStartTimes.remove(sessionId);
       _sessionQueries.remove(sessionId);
@@ -128,31 +132,28 @@ class _SearchExploreScreenState extends State<SearchExploreScreen> {
   final Set<String> _uniqueQueries = <String>{};
   String _lastSearchQuery = '';
 
-  // 디바운스 타이머
   Timer? _debounce;
 
-  // 최근 검색어 저장 키
   static const String searchHistoryKey = 'search_history';
 
   @override
   void initState() {
     super.initState();
-    
+
     // Initialize search analytics
     _screenStartTime = DateTime.now();
     _currentUserId = FirebaseAuth.instance.currentUser?.uid ?? 'anonymous';
-    
+
     // Start search session tracking
     SearchSessionTracker.startSession(_currentUserId);
-    
+
     // Track search screen session start
     AppsFlyerService().logEvent('search_screen_session_start', {
       'user_id': _currentUserId,
       'timestamp': DateTime.now().millisecondsSinceEpoch,
     });
-    
+
     _loadInitialData();
-    // SharedPreferences 문제가 발생하지 않도록 예외 처리와 함께 호출
     try {
       _loadSearchHistory();
     } catch (e) {
@@ -162,12 +163,11 @@ class _SearchExploreScreenState extends State<SearchExploreScreen> {
 
   @override
   void dispose() {
-    // End search session tracking
     SearchSessionTracker.endSession(_currentUserId);
-    
-    // Track comprehensive search session analytics
-    final sessionDuration = DateTime.now().difference(_screenStartTime).inSeconds;
-    
+
+    final sessionDuration =
+        DateTime.now().difference(_screenStartTime).inSeconds;
+
     if (sessionDuration > 5) {
       AppsFlyerService().logEvent('search_screen_session_end', {
         'user_id': _currentUserId,
@@ -175,7 +175,8 @@ class _SearchExploreScreenState extends State<SearchExploreScreen> {
         'total_searches_performed': _totalSearches,
         'total_result_clicks': _totalResultClicks,
         'unique_queries_searched': _uniqueQueries.length,
-        'search_efficiency': _totalSearches > 0 ? _totalResultClicks / _totalSearches : 0,
+        'search_efficiency':
+            _totalSearches > 0 ? _totalResultClicks / _totalSearches : 0,
         'last_search_query': _lastSearchQuery,
         'search_abandon_rate': _calculateSearchAbandonRate(),
         'timestamp': DateTime.now().millisecondsSinceEpoch,
@@ -184,16 +185,18 @@ class _SearchExploreScreenState extends State<SearchExploreScreen> {
       // Track search discovery patterns
       AppsFlyerService().logEvent('search_discovery_patterns', {
         'user_id': _currentUserId,
-        'search_frequency': _totalSearches / (sessionDuration / 60), // searches per minute
-        'query_diversity': _uniqueQueries.length / (_totalSearches.clamp(1, 100)),
-        'engagement_depth': _totalResultClicks / (sessionDuration / 60), // clicks per minute
+        'search_frequency':
+            _totalSearches / (sessionDuration / 60), // searches per minute
+        'query_diversity':
+            _uniqueQueries.length / (_totalSearches.clamp(1, 100)),
+        'engagement_depth':
+            _totalResultClicks / (sessionDuration / 60), // clicks per minute
         'timestamp': DateTime.now().millisecondsSinceEpoch,
       });
     }
 
     _searchController.dispose();
     _searchFocusNode.dispose();
-    // 타이머 해제
     _debounce?.cancel();
     super.dispose();
   }
@@ -204,7 +207,6 @@ class _SearchExploreScreenState extends State<SearchExploreScreen> {
     return searchesWithoutClicks / _totalSearches;
   }
 
-  // 저장된 검색 기록 불러오기
   Future<void> _loadSearchHistory() async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -216,7 +218,6 @@ class _SearchExploreScreenState extends State<SearchExploreScreen> {
       }
     } catch (e) {
       debugPrint('Error loading search history: $e');
-      // 실패한 경우 빈 리스트로 초기화
       if (mounted) {
         setState(() {
           searchHistory = [];
@@ -234,7 +235,6 @@ class _SearchExploreScreenState extends State<SearchExploreScreen> {
     }
   }
 
-  // 검색 기록 전체 삭제
   Future<void> _clearSearchHistory() async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -264,13 +264,11 @@ class _SearchExploreScreenState extends State<SearchExploreScreen> {
     });
 
     try {
-      // Load characters
       final characters = await InZoneDatabase.getCarouselCharacters();
       if (characters != null && mounted) {
         _processAvatars(characters);
       }
 
-      // Load recommended posts
       final response = await InZoneDatabase.getFeed();
       if (response != null && response['posts'] != null && mounted) {
         List<dynamic> posts = response['posts'];
@@ -295,7 +293,6 @@ class _SearchExploreScreenState extends State<SearchExploreScreen> {
     avatarStoryComponents.clear();
     try {
       for (var characterData in fetchedCharacters) {
-        // Use the new factory method
         InZoneAvatar avatar = InZoneAvatar.fromDirectJson(characterData);
         avatarCards.add(AvatarCard(avatar: avatar));
         avatarStoryComponents.add(AvatarStoryComponent(avatar: avatar));
@@ -309,14 +306,11 @@ class _SearchExploreScreenState extends State<SearchExploreScreen> {
     }
   }
 
-  // 텍스트 변경 시 디바운스 처리
   void _onSearchTextChanged(String text) {
-    // 이전 타이머가 있으면 취소
     if (_debounce?.isActive ?? false) {
       _debounce!.cancel();
     }
 
-    // 검색어가 비어있으면 바로 결과 초기화
     if (text.trim().isEmpty) {
       setState(() {
         isSearching = false;
@@ -327,32 +321,25 @@ class _SearchExploreScreenState extends State<SearchExploreScreen> {
       return;
     }
 
-    // 검색 로딩 상태 활성화
     setState(() {
       isSearchLoading = true;
     });
 
-    // 검색어가 있으면 타이머 시작 (700ms)
     _debounce = Timer(const Duration(milliseconds: 700), () {
-      // 타이머가 끝나면 검색 실행
       _performSearch(text);
     });
   }
 
-  // 엔터 키 또는 검색 버튼 클릭 시
   void _onSearchSubmitted(String text) {
-    // 이미 활성화된 타이머가 있으면 취소
     if (_debounce?.isActive ?? false) {
       _debounce!.cancel();
     }
 
-    // 검색어가 비어있지 않으면 로딩 상태 활성화
     if (text.trim().isNotEmpty) {
       setState(() {
         isSearchLoading = true;
       });
 
-      // Track search submission method
       AppsFlyerService().logEvent('search_submitted', {
         'user_id': _currentUserId,
         'query': text.trim(),
@@ -362,15 +349,12 @@ class _SearchExploreScreenState extends State<SearchExploreScreen> {
         'timestamp': DateTime.now().millisecondsSinceEpoch,
       });
 
-      // 바로 검색 실행
       _performSearch(text);
     }
   }
 
-  // Call API to search for posts
   Future<List<InZonePost>> _searchPostsApi(String query, {int k = 20}) async {
     try {
-      // Encode the query parameters for the URL
       final encodedQuery = Uri.encodeComponent(query);
       final url =
           'https://ai-apis-912424781531.us-east1.run.app/search/posts?keywords=$encodedQuery&k=$k';
@@ -382,23 +366,20 @@ class _SearchExploreScreenState extends State<SearchExploreScreen> {
 
         if (data != null && data['results'] != null) {
           return (data['results'] as List).map((result) {
-            // Extract post data from the nested structure
             final postData = result['post'];
             final id = result['id'] as String;
             final collection = result['collection'] as String? ?? 'General';
 
-            // Extract text, image, and video content
             final textContent = postData['text_content'] ?? '';
             final imageContent =
                 List<String>.from(postData['image_content'] ?? []);
             final videoContent =
                 List<String>.from(postData['video_content'] ?? []);
 
-            // Create a post object with required fields
             return InZonePost(
               id: id,
               userName: 'AI User',
-              comments: [], // Empty comments list
+              comments: [],
               datePosted: DateTime.now().toUtc(),
               likes: 0,
               textContent: textContent,
@@ -413,7 +394,6 @@ class _SearchExploreScreenState extends State<SearchExploreScreen> {
         }
       }
 
-      // Handle error cases
       debugPrint('API search error: ${response.statusCode} - ${response.body}');
       return [];
     } catch (e) {
@@ -438,13 +418,9 @@ class _SearchExploreScreenState extends State<SearchExploreScreen> {
     _uniqueQueries.add(query.trim());
     _lastSearchQuery = query.trim();
 
-    // 검색어 추가 및 중복 제거 (같은 검색어는 맨 앞으로 이동)
     setState(() {
-      // 기존 항목이 있으면 제거
       searchHistory.remove(query);
-      // 새로운 항목을 맨 앞에 추가
       searchHistory.insert(0, query);
-      // 최대 5개까지만 유지
       if (searchHistory.length > 5) {
         searchHistory.removeLast();
       }
@@ -454,13 +430,12 @@ class _SearchExploreScreenState extends State<SearchExploreScreen> {
       searchQuery = query;
     });
 
-    // Track search performance timing
     final searchStartTime = DateTime.now();
 
-    // Call the API search endpoint
     final results = await _searchPostsApi(query);
 
-    final searchDuration = DateTime.now().difference(searchStartTime).inMilliseconds;
+    final searchDuration =
+        DateTime.now().difference(searchStartTime).inMilliseconds;
 
     if (mounted) {
       setState(() {
@@ -470,8 +445,9 @@ class _SearchExploreScreenState extends State<SearchExploreScreen> {
     }
 
     // Track search query and results
-    SearchSessionTracker.trackQuery(_currentUserId, query.trim(), results.length, 'posts');
-    
+    SearchSessionTracker.trackQuery(
+        _currentUserId, query.trim(), results.length, 'posts');
+
     // Track detailed search analytics
     AppsFlyerService().logEvent('search_completed', {
       'user_id': _currentUserId,
@@ -499,17 +475,19 @@ class _SearchExploreScreenState extends State<SearchExploreScreen> {
         'user_id': _currentUserId,
         'successful_query': query.trim(),
         'result_count': results.length,
-        'search_effectiveness': results.length > 10 ? 'high' : results.length > 5 ? 'medium' : 'low',
+        'search_effectiveness': results.length > 10
+            ? 'high'
+            : results.length > 5
+                ? 'medium'
+                : 'low',
         'timestamp': DateTime.now().millisecondsSinceEpoch,
       });
     }
 
-    // 검색 기록 저장
     _saveSearchHistory();
   }
 
   void _clearSearch() {
-    // Track search clearing behavior
     if (searchQuery.isNotEmpty) {
       AppsFlyerService().logEvent('search_cleared', {
         'user_id': _currentUserId,
@@ -523,7 +501,6 @@ class _SearchExploreScreenState extends State<SearchExploreScreen> {
 
     _searchController.clear();
 
-    // 이전 타이머가 있으면 취소
     if (_debounce?.isActive ?? false) {
       _debounce!.cancel();
     }
@@ -653,7 +630,6 @@ class _SearchExploreScreenState extends State<SearchExploreScreen> {
               ),
             ),
 
-            // Expanded content area - 로딩 중이면 shimmer 효과 표시
             Expanded(
               child: isLoading
                   ? SearchLoading(context)
@@ -711,7 +687,7 @@ class _SearchExploreScreenState extends State<SearchExploreScreen> {
                 index,
                 'post',
               );
-              
+
               AppsFlyerService().logEvent('search_result_interaction', {
                 'user_id': _currentUserId,
                 'search_query': searchQuery,
@@ -723,8 +699,8 @@ class _SearchExploreScreenState extends State<SearchExploreScreen> {
                 'timestamp': DateTime.now().millisecondsSinceEpoch,
               });
             },
-          child: PostCard(
-            post: searchResults[index],
+            child: PostCard(
+              post: searchResults[index],
             ),
           ),
         );
@@ -854,7 +830,7 @@ class _SearchExploreScreenState extends State<SearchExploreScreen> {
                       'session_search_count': _totalSearches,
                       'timestamp': DateTime.now().millisecondsSinceEpoch,
                     });
-                    
+
                     _searchController.text = searchHistory[index];
                     _performSearch(searchHistory[index]);
                   },

@@ -32,7 +32,7 @@ class CustomBottomSheet {
                   : const BorderRadius.vertical(top: Radius.circular(15)),
             ),
             child: Theme(
-              data: theme, // 여기 중요!
+              data: theme,
               child: child,
             ),
           ),

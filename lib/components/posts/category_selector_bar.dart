@@ -91,13 +91,10 @@ class _CategorySelectorBarState extends State<CategorySelectorBar> {
   ];
 
   String _getCategoryIcon(String category) {
-    // 모든 카테고리명을 소문자로 변환하여 일관성 유지
     String lowerCategory = category.toLowerCase();
 
-    // 기본 아이콘 경로
     const String defaultIcon = "icons/category_icons/creativity.svg";
 
-    // 사용 가능한 아이콘 목록 (실제 존재하는 파일명과 일치)
     final availableIcons = [
       "animals",
       "art",
@@ -127,18 +124,15 @@ class _CategorySelectorBarState extends State<CategorySelectorBar> {
       "video_game_reviews"
     ];
 
-    // 요청된 카테고리가 사용 가능한 아이콘 목록에 있는지 확인
     if (availableIcons.contains(lowerCategory)) {
       return "icons/category_icons/$lowerCategory.svg";
     }
 
-    // 공백이 있는 카테고리명 처리 (예: "social media" -> "social_media")
     final underscoreCategory = lowerCategory.replaceAll(' ', '_');
     if (availableIcons.contains(underscoreCategory)) {
       return "icons/category_icons/$underscoreCategory.svg";
     }
 
-    // 기본 아이콘 반환
     return defaultIcon;
   }
 
@@ -157,20 +151,16 @@ class _CategorySelectorBarState extends State<CategorySelectorBar> {
             bool isSelected = index == selectedCategoryIndex;
             String capitalizedCategory = replaceAndCapitalize(category);
 
-            // Use modulo to loop through the color lists
             int colorIndex = index % startColorList.length;
 
-            // Construct the icon path and log it for debugging
             String categoryIconPath = _getCategoryIcon(category);
 
             return GestureDetector(
               onTap: () {
                 setState(() {
-                  // If the same category is tapped again, deselect it
                   if (selectedCategoryIndex == index) {
                     selectedCategoryIndex = null;
-                    widget.onTap(
-                        null); // Pass null to indicate no category is selected
+                    widget.onTap(null);
                   } else {
                     selectedCategoryIndex = index;
                     widget.onTap(

@@ -23,21 +23,18 @@ class ModelPromptScreen extends StatefulWidget {
 
 class _ModelPromptScreenState extends State<ModelPromptScreen>
     with SingleTickerProviderStateMixin {
-  // 화려한 색상 팔레트 정의
   static const List<Color> colorPalette = [
-    Color(0xFF4A00E0), // 보라색
-    Color(0xFF8E2DE2), // 자주색
-    Color(0xFFFF4B2B), // 주황색
-    Color(0xFFF857A6), // 핑크색
-    Color(0xFF00CCFF), // 하늘색
+    Color(0xFF4A00E0),
+    Color(0xFF8E2DE2),
+    Color(0xFFFF4B2B),
+    Color(0xFFF857A6),
+    Color(0xFF00CCFF),
   ];
 
-  // 고정된 색상 사용 (랜덤 대신)
   Color getThemeColor(int index) {
     return colorPalette[index % colorPalette.length];
   }
 
-  // 고정된 그라데이션 사용
   LinearGradient getGradient() {
     return const LinearGradient(
       colors: [Color(0xFF4A00E0), Color(0xFFF857A6)],
@@ -60,9 +57,8 @@ class _ModelPromptScreenState extends State<ModelPromptScreen>
   late LinearGradient _currentGradient;
   DateTime? _generationStartTime;
 
-  // 타이머 관련 변수
   int _elapsedSeconds = 0;
-  static const int _maxWaitTimeInSeconds = 300; // 5분
+  static const int _maxWaitTimeInSeconds = 300;
 
   late AnimationController _rotationController;
   late Animation<double> _rotationAnimation;
@@ -71,10 +67,8 @@ class _ModelPromptScreenState extends State<ModelPromptScreen>
   void initState() {
     super.initState();
 
-    // 초기 그라데이션 설정
     _currentGradient = getGradient();
 
-    // Setup rotation animation for the base platform
     _rotationController = AnimationController(
       duration: const Duration(seconds: 20),
       vsync: this,
@@ -82,7 +76,7 @@ class _ModelPromptScreenState extends State<ModelPromptScreen>
 
     _rotationAnimation = Tween<double>(
       begin: 0,
-      end: 2 * math.pi, // Full rotation (2π)
+      end: 2 * math.pi,
     ).animate(_rotationController);
   }
 
@@ -109,7 +103,6 @@ class _ModelPromptScreenState extends State<ModelPromptScreen>
       _elapsedSeconds = 0;
     });
 
-    // 타이머 시작 - 매 초마다 경과 시간 업데이트
     Future.doWhile(() async {
       if (!_isGenerating || !mounted) return false;
       await Future.delayed(const Duration(seconds: 1));
@@ -125,14 +118,12 @@ class _ModelPromptScreenState extends State<ModelPromptScreen>
     });
 
     try {
-      // Call the actual API to generate a 3D model
       AvatarData avatar;
       try {
         avatar = await _avatarService.generateAvatar(
           _promptController.text.trim(),
         );
       } catch (apiError) {
-        // API 오류 발생 시 Mock 데이터 사용
         debugPrint('API error occurred: $apiError, using mock data instead');
         avatar = await _avatarService.generateMockAvatar(
           _promptController.text.trim(),
@@ -147,7 +138,6 @@ class _ModelPromptScreenState extends State<ModelPromptScreen>
           _generationStartTime = null;
         });
 
-        // Start animation if available after model is loaded
         _3dController.onModelLoaded.addListener(() {
           if (_3dController.onModelLoaded.value) {
             _tryPlayAnimation();
@@ -565,7 +555,6 @@ class _ModelPromptScreenState extends State<ModelPromptScreen>
   }
 
   Widget _buildLoadingAnimation() {
-    // 남은 시간 계산
     final int remainingSeconds = _maxWaitTimeInSeconds - _elapsedSeconds;
     final int minutes = remainingSeconds ~/ 60;
     final int seconds = remainingSeconds % 60;
@@ -573,14 +562,12 @@ class _ModelPromptScreenState extends State<ModelPromptScreen>
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        // 3D Lottie animation
         SizedBox(
           height: 200,
           width: 200,
           child: Stack(
             alignment: Alignment.center,
             children: [
-              // Background glow effect
               Container(
                 width: 180,
                 height: 180,
@@ -595,15 +582,12 @@ class _ModelPromptScreenState extends State<ModelPromptScreen>
                   ],
                 ),
               ),
-
-              // 3D Cube animation
               Lottie.network(
                 'https://assets1.lottiefiles.com/packages/lf20_kkflmtur.json',
                 width: 150,
                 height: 150,
                 fit: BoxFit.contain,
                 errorBuilder: (context, error, stackTrace) {
-                  // Fallback animation if Lottie fails to load
                   return AnimatedBuilder(
                     animation: _rotationController,
                     builder: (context, child) {
@@ -648,7 +632,6 @@ class _ModelPromptScreenState extends State<ModelPromptScreen>
           ),
         ),
         const SizedBox(height: 24),
-        // Glowing text with animation
         ShaderMask(
           shaderCallback: (bounds) {
             return LinearGradient(
@@ -673,12 +656,10 @@ class _ModelPromptScreenState extends State<ModelPromptScreen>
           child: LinearProgressIndicator(
             backgroundColor: colorPalette[0].withOpacity(0.2),
             valueColor: AlwaysStoppedAnimation<Color>(colorPalette[0]),
-            // 시간에 따른 진행 상황 표시
             value: _elapsedSeconds / _maxWaitTimeInSeconds,
           ),
         ),
         const SizedBox(height: 12),
-        // 남은 시간 표시
         Text(
           'Time elapsed: ${_elapsedSeconds}s / Estimated time remaining: $minutes:${seconds.toString().padLeft(2, '0')}',
           style: TextStyle(
@@ -795,7 +776,6 @@ class _ModelPromptScreenState extends State<ModelPromptScreen>
 
   // Improved rotating platform with wave effect
   Widget _buildRotatingPlatform() {
-    // 고정 색상 사용
     final baseColor = colorPalette[0];
     final waveColor = colorPalette[1];
 

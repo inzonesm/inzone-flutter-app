@@ -40,7 +40,7 @@ class _VoiceScreenState extends State<VoiceScreen>
   String _aiResponseText = "";
   bool _isPlayingResponse = false;
   bool _isMuted = false;
-  bool _isVoiceReady = false; // Voice 준비 상태 추가
+  bool _isVoiceReady = false;
 
   late AnimationController _processingAnimationController;
   late Animation<double> _processingAnimation;
@@ -63,10 +63,9 @@ class _VoiceScreenState extends State<VoiceScreen>
           parent: _processingAnimationController, curve: Curves.easeInOut),
     );
 
-    // 페이지 진입 시 자동으로 리스닝 시작
     Future.delayed(const Duration(milliseconds: 500), () {
       setState(() {
-        _isVoiceReady = true; // 바로 준비 완료로 설정
+        _isVoiceReady = true;
       });
       if (mounted && !isRecording && !_isProcessing && !_isMuted) {
         _startListening();
@@ -120,8 +119,6 @@ class _VoiceScreenState extends State<VoiceScreen>
         listenMode: stt.ListenMode.confirmation,
         onSoundLevelChange: (level) {
           if (!mounted) return;
-          // level은 보통 -120에서 0 사이의 dB 값입니다.
-          // 이를 0.0에서 1.0 사이로 정규화하여 UI에 사용합니다.
           final normalizedLevel = (level + 120) / 120;
           setState(() {
             _speechProbability = normalizedLevel.clamp(0.0, 1.0);
@@ -164,7 +161,6 @@ class _VoiceScreenState extends State<VoiceScreen>
     if (shouldProcess && hasSpeech) {
       await _sendTextToBackend();
     } else {
-      // 음성이 없었으면 자동으로 다시 리스닝 시작
       if (!hasSpeech && !_isMuted && mounted) {
         Future.delayed(const Duration(milliseconds: 500), () {
           if (mounted && !isRecording && !_isProcessing && !_isMuted) {
@@ -186,7 +182,7 @@ class _VoiceScreenState extends State<VoiceScreen>
         userId: userId,
         aiCharacterId: widget.avatarId,
         message: _recognizedWords,
-        chatHistory: null, // 백엔드가 처리하도록 null 전달
+        chatHistory: null,
       );
 
       if (!mounted) return;
@@ -204,8 +200,6 @@ class _VoiceScreenState extends State<VoiceScreen>
           _aiResponseText = r.aiResponseText;
         });
 
-        // Voice response received successfully
-
         await _playAIResponse(r.aiResponseAudio);
       } else if (result.error != null) {
         final e = result.error!;
@@ -220,8 +214,6 @@ class _VoiceScreenState extends State<VoiceScreen>
           _recognizedWords = "Failed to process voice message";
         });
       }
-
-      // AI 응답 재생이 끝나면 _playAIResponse에서 자동으로 리스닝을 시작하므로 여기서는 시작하지 않음
     } catch (e) {
       debugPrint('Error in _sendTextToBackend: $e');
       if (!mounted) return;
@@ -240,30 +232,23 @@ class _VoiceScreenState extends State<VoiceScreen>
     try {
       setState(() => _isPlayingResponse = true);
 
-      // Decode audio
       final audioData = base64Decode(base64Audio);
 
-      // Stop any currently playing audio
       await _audioPlayer.stop();
 
-      // Create a custom AudioSource
       final audioSource = _MyCustomSource(audioData);
 
-      // Set source and play
       await _audioPlayer.setAudioSource(audioSource);
       await _audioPlayer.play();
 
-      // Wait for completion
       await _audioPlayer.playerStateStream.firstWhere(
         (state) => state.processingState == ProcessingState.completed,
       );
 
-      // Playback completed
       if (mounted) {
         setState(() => _isPlayingResponse = false);
       }
 
-      // Start listening again after AI response
       if (!_isMuted && mounted) {
         debugPrint('AI response completed, restarting listening...');
         await Future.delayed(const Duration(milliseconds: 100));
@@ -282,7 +267,6 @@ class _VoiceScreenState extends State<VoiceScreen>
         setState(() => _isPlayingResponse = false);
       }
 
-      // Try to restart listening even on error
       if (!_isMuted && mounted) {
         await Future.delayed(const Duration(milliseconds: 300));
         if (mounted && !isRecording && !_isProcessing && !_isMuted) {
@@ -504,7 +488,6 @@ class _VoiceScreenState extends State<VoiceScreen>
                     children: [
                       GestureDetector(
                         onTap: () async {
-                          // AI가 말하는 중에는 아무 동작도 하지 않음
                           if (_isPlayingResponse || _isProcessing) {
                             return;
                           }
@@ -603,7 +586,6 @@ class _VoiceScreenState extends State<VoiceScreen>
                 ),
               ],
             ),
-            // 로딩 오버레이
             if (!_isVoiceReady)
               Positioned.fill(
                 child: Container(
@@ -612,7 +594,6 @@ class _VoiceScreenState extends State<VoiceScreen>
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        // 아바타 이미지를 로딩 중에도 표시
                         if (widget.avatarUrl.isNotEmpty)
                           TweenAnimationBuilder<double>(
                             tween: Tween<double>(begin: 0.8, end: 1.2),
@@ -629,7 +610,6 @@ class _VoiceScreenState extends State<VoiceScreen>
                               );
                             },
                             onEnd: () {
-                              // 애니메이션 반복을 위해 rebuild
                               if (!_isVoiceReady && mounted) {
                                 setState(() {});
                               }

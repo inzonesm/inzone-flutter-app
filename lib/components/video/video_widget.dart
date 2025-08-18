@@ -40,27 +40,22 @@ class VideoAspectRatioNotification extends Notification {
   VideoAspectRatioNotification(this.aspectRatio);
 }
 
-// 비디오 플레이어 캐시를 위한 전역 맵
 final Map<String, Player> _cachedPlayers = {};
 final Map<String, VideoController> _cachedControllers = {};
 final Map<String, bool> _cachedInitStatus = {};
 
-// 캐시 관리를 위한 FIFO 큐
 final List<String> _cacheQueue = [];
-const int _maxCacheSize = 3; // 최대 캐시 크기를 줄여서 메모리 사용량 감소
+const int _maxCacheSize = 3;
 
 void _cleanupCache() {
-  // 캐시 크기가 제한을 초과하면 가장 오래된 항목 제거
   while (_cacheQueue.length > _maxCacheSize) {
     String oldestUrl = _cacheQueue.removeAt(0);
     final player = _cachedPlayers.remove(oldestUrl);
     final controller = _cachedControllers.remove(oldestUrl);
     _cachedInitStatus.remove(oldestUrl);
 
-    // 실제 플레이어 자원 해제
     try {
       player?.dispose();
-      // VideoController는 Player dispose시 함께 정리됨
     } catch (e) {
       debugPrint('Error disposing cached player: $e');
     }
@@ -69,7 +64,6 @@ void _cleanupCache() {
   }
 }
 
-// 앱 종료시 모든 캐시 정리하는 함수
 void disposeAllVideoCache() {
   try {
     for (final player in _cachedPlayers.values) {
@@ -150,13 +144,11 @@ class _VideoWidgetState extends State<VideoWidget> with WidgetsBindingObserver {
     // Register this object as an observer for app lifecycle changes
     WidgetsBinding.instance.addObserver(this);
 
-    // 이미 캐시된 플레이어가 있는지 확인
     if (_cachedPlayers.containsKey(widget.videoUrl) &&
         _cachedControllers.containsKey(widget.videoUrl) &&
         _cachedInitStatus[widget.videoUrl] == true) {
       debugPrint('Using cached player for URL: ${widget.videoUrl}');
 
-      // 캐시 사용 시 큐에서 해당 URL을 제거하고 맨 뒤에 추가하여 LRU 방식으로 관리
       _cacheQueue.remove(widget.videoUrl);
       _cacheQueue.add(widget.videoUrl);
 
@@ -165,7 +157,6 @@ class _VideoWidgetState extends State<VideoWidget> with WidgetsBindingObserver {
       _isInitialized = true;
       _isLoading = false;
 
-      // 비디오 크기 정보가 있으면 바로 비율 업데이트
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted && _mediaKitPlayer != null) {
           final videoWidth = _mediaKitPlayer!.state.width?.toDouble();
@@ -182,10 +173,8 @@ class _VideoWidgetState extends State<VideoWidget> with WidgetsBindingObserver {
         }
       });
 
-      // 볼륨 상태 동기화
       if (_mediaKitPlayer != null) {
         _mediaKitPlayer!.setVolume(VideoMuteManager.isMuted ? 0 : 100);
-        // Start autoplay for cached players too
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted && _mediaKitPlayer != null) {
             _mediaKitPlayer!.play();
@@ -196,7 +185,6 @@ class _VideoWidgetState extends State<VideoWidget> with WidgetsBindingObserver {
       _initializeVideo();
     }
 
-    // Set a manual timeout for loading to prevent infinite spinner
     _loadingTimeoutTimer = Timer(const Duration(seconds: 15), () {
       if (mounted && _isLoading) {
         setState(() {
@@ -327,7 +315,6 @@ class _VideoWidgetState extends State<VideoWidget> with WidgetsBindingObserver {
         }
       });
 
-      // 비디오 위치 업데이트를 통해 크기 정보를 더 빠르게 확인
       _positionSubscription =
           _mediaKitPlayer!.stream.position.listen((position) {
         if (mounted) {
@@ -347,16 +334,13 @@ class _VideoWidgetState extends State<VideoWidget> with WidgetsBindingObserver {
               widget.onAspectRatioUpdated!(aspectRatio);
             }
 
-            // 비디오 크기를 확인했으면 캐시에 이 플레이어를 추가
             if (!_cachedPlayers.containsKey(widget.videoUrl)) {
               _cachedPlayers[widget.videoUrl] = _mediaKitPlayer!;
               _cachedControllers[widget.videoUrl] = _mediaKitVideoController!;
               _cachedInitStatus[widget.videoUrl] = true;
 
-              // 캐시 큐에 추가
               _cacheQueue.add(widget.videoUrl);
 
-              // 캐시 정리
               _cleanupCache();
 
               debugPrint('Player cached for URL: ${widget.videoUrl}');
@@ -398,16 +382,13 @@ class _VideoWidgetState extends State<VideoWidget> with WidgetsBindingObserver {
       // Enable autoplay - start playing automatically when initialized
       _mediaKitPlayer!.play();
 
-      // 비디오가 로드되었고 캐시에 없다면 캐시에 추가
       if (!_cachedPlayers.containsKey(widget.videoUrl)) {
         _cachedPlayers[widget.videoUrl] = _mediaKitPlayer!;
         _cachedControllers[widget.videoUrl] = _mediaKitVideoController!;
         _cachedInitStatus[widget.videoUrl] = true;
 
-        // 캐시 큐에 추가
         _cacheQueue.add(widget.videoUrl);
 
-        // 캐시 정리
         _cleanupCache();
 
         debugPrint('Player cached for URL: ${widget.videoUrl}');
@@ -812,7 +793,6 @@ class _VideoWidgetState extends State<VideoWidget> with WidgetsBindingObserver {
       );
     }
 
-    // 비디오 위젯을 VisibilityDetector로 감싸서 화면에 보이지 않을 때 자원을 절약
     return VisibilityDetector(
       key: Key('video-${widget.videoUrl}'),
       onVisibilityChanged: (visibilityInfo) {
@@ -822,11 +802,9 @@ class _VideoWidgetState extends State<VideoWidget> with WidgetsBindingObserver {
           _isVisible = isVisible;
           if (_mediaKitPlayer != null && _isInitialized) {
             if (isVisible) {
-              // 화면에 보이면 자동 재생 (autoplay)
               _mediaKitPlayer!.play();
               _trackVideoStart();
             } else {
-              // 화면에 보이지 않으면 일시정지
               _mediaKitPlayer!.pause();
             }
           }

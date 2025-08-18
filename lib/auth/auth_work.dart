@@ -97,31 +97,24 @@ class AuthWork {
         '${tempDir.path}/${DateTime.now().toUtc().millisecondsSinceEpoch}_thumbnail.jpg';
 
     try {
-      // video_player를 사용하여 비디오의 첫 프레임 가져오기
       final controller = VideoPlayerController.file(videoFile);
       await controller.initialize();
 
-      // 비디오의 첫 프레임으로 이동
-      controller.seekTo(const Duration(milliseconds: 1000)); // 1초 지점으로 이동
-      await Future.delayed(const Duration(milliseconds: 100)); // 시크 완료 대기
+      controller.seekTo(const Duration(milliseconds: 1000));
+      await Future.delayed(const Duration(milliseconds: 100));
 
-      // 이미지 캡처를 위한 UI 렌더링 필요 (백그라운드에서 작동하도록 수정)
       final thumbnailFile = File(thumbnailPath);
 
-      // 썸네일 파일 생성 (실제로는 UI 렌더링 없이 이 부분을 구현하기 어려움)
-      // 실제 구현에서는 아래 부분을 대체해야 함
-      await thumbnailFile.writeAsBytes(List<int>.filled(1024, 0)); // 더미 데이터
+      await thumbnailFile.writeAsBytes(List<int>.filled(1024, 0));
 
-      // 컨트롤러 해제
       await controller.dispose();
 
       return thumbnailFile;
     } catch (e) {
       print('Error generating thumbnail: $e');
 
-      // 에러 발생 시 빈 이미지 파일 생성
       final thumbnailFile = File(thumbnailPath);
-      await thumbnailFile.writeAsBytes(List<int>.filled(1024, 0)); // 더미 데이터
+      await thumbnailFile.writeAsBytes(List<int>.filled(1024, 0));
       return thumbnailFile;
     }
   }
@@ -562,7 +555,6 @@ class AuthWork {
     } on FirebaseAuthException catch (e) {
       print("❌ Login failed: ${e.code}");
 
-      // ✅ 여기 수정
       if (e.code == 'user-not-found' || e.code == 'invalid-credential') {
         try {
           final credential = await auth.createUserWithEmailAndPassword(

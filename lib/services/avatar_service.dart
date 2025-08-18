@@ -4,21 +4,17 @@ import 'package:flutter/foundation.dart';
 import 'package:inzone/data/avatar_data.dart';
 
 class AvatarService {
-  // API endpoint URL
   static const String baseUrl =
       'https://inzoneapi-912424781531.us-central1.run.app';
 
-  // Common headers for API requests
   static const Map<String, String> _headers = {
     'Content-Type': 'application/json',
     'Accept': 'application/json',
-    'Access-Control-Allow-Origin': '*', // For CORS issues
+    'Access-Control-Allow-Origin': '*',
   };
 
-  // 더 긴 타임아웃 설정 (5분 = 300초)
   static const Duration _apiTimeout = Duration(minutes: 5);
 
-  // Generate 3D avatar from prompt
   Future<AvatarData> generateAvatar(String prompt) async {
     try {
       debugPrint('Sending request to API: $baseUrl/api/generate_3d_avatar');
@@ -27,10 +23,8 @@ class AvatarService {
       final requestBody = jsonEncode({'prompt': prompt});
       debugPrint('Request body: $requestBody');
 
-      // HTTP 클라이언트 생성 및 타임아웃 설정
       final client = http.Client();
 
-      // API 호출 (타임아웃 5분)
       final response = await client
           .post(
         Uri.parse('$baseUrl/api/generate_3d_avatar'),
@@ -43,7 +37,6 @@ class AvatarService {
             'API request timed out after 5 minutes. The server might be busy, please try again later.');
       });
 
-      // 요청 완료 후 클라이언트 닫기
       client.close();
 
       debugPrint('Response status code: ${response.statusCode}');
@@ -65,7 +58,6 @@ class AvatarService {
       }
     } catch (e) {
       debugPrint('API Error details: $e');
-      // 오류 메시지에 따른 구체적인 피드백
       if (e.toString().contains("HEADERS")) {
         throw Exception(
             'API configuration error. Please check connection and try again.');
@@ -80,16 +72,12 @@ class AvatarService {
     }
   }
 
-  // For development and testing - returns mock data
   Future<AvatarData> generateMockAvatar(String prompt) async {
-    // Simulate network delay
     await Future.delayed(const Duration(seconds: 3));
 
-    // Return mock data with a known valid asset path
     return AvatarData(
-      modelGlb:
-          'assets/3d/first.glb', // Make sure this file exists in your assets
-      modelObj: '', // Optional, can be empty
+      modelGlb: 'assets/3d/first.glb',
+      modelObj: '',
       texture: '',
       thumbnail: '',
       seed: 12345,

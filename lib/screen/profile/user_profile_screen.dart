@@ -382,12 +382,10 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
       body: SafeArea(
         child: Stack(
           children: [
-            // Main content is always present
             _buildMainContent(),
-            // Show shimmering overlay during loading or refresh
             if (isLoading || isRefreshing)
               Positioned(
-                top: isRefreshing ? 80 : 0, // refresh 시 아이콘 영역 비워둠
+                top: isRefreshing ? 80 : 0,
                 left: 0,
                 right: 0,
                 bottom: 0,
@@ -496,7 +494,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                             inProfile: true,
                           );
                         }),
-                        const SizedBox(height: 100), // 하단 여백
+                        const SizedBox(height: 100),
                       ],
                     ),
                   ),

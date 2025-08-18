@@ -99,7 +99,7 @@ class ProfileAppbar extends StatelessWidget {
         ),
         const SizedBox(height: 30),
         Row(
-          crossAxisAlignment: CrossAxisAlignment.center, // 핵심: center로
+          crossAxisAlignment: CrossAxisAlignment.center,
           mainAxisAlignment: MainAxisAlignment.start,
           children: [
             Expanded(
@@ -120,7 +120,7 @@ class ProfileAppbar extends StatelessWidget {
                   //     style: theme.textTheme.titleLarge,
                   //   ),
                   // ),
-                  const SizedBox(height: 8), // name과 bio 사이 간격
+                  const SizedBox(height: 8),
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 24),
                     child: Text(
@@ -219,9 +219,8 @@ class ProfileAppbar extends StatelessWidget {
                           child: CachedNetworkImage(
                             imageUrl: character['image']!,
                             fit: BoxFit.cover,
-                            color: null, // Remove any color overlay
-                            colorBlendMode:
-                                BlendMode.srcOver, // Use default blend mode
+                            color: null,
+                            colorBlendMode: BlendMode.srcOver,
                             placeholder: (context, url) => Container(
                               color: Colors.grey.withOpacity(0.2),
                             ),

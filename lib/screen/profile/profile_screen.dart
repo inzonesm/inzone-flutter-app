@@ -62,7 +62,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (!widget.isAI) {
       _fetchSavedCharacters();
     } else {
-      // AI 프로필의 경우 saved characters를 표시하지 않음
       setState(() {
         _areCharactersLoading = false;
         _savedCharacters = [];
@@ -141,7 +140,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       if (!widget.isAI) {
         await _fetchSavedCharacters();
       } else {
-        // AI 프로필의 경우 saved characters를 표시하지 않음
         setState(() {
           _areCharactersLoading = false;
           _savedCharacters = [];
@@ -161,7 +159,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _refreshController.refreshCompleted();
   }
 
-  // Methods previously from BaseProfileScreen
   String getUserId() {
     return widget.uid;
   }
@@ -1024,12 +1021,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
       body: SafeArea(
         child: Stack(
           children: [
-            // Main content is always present
             _buildMainContent(),
-            // Show shimmering overlay during loading or refresh
             if (isLoading || isRefreshing)
               Positioned(
-                top: isRefreshing ? 80 : 0, // refresh 시 아이콘 영역 비워둠
+                top: isRefreshing ? 80 : 0,
                 left: 0,
                 right: 0,
                 bottom: 0,
@@ -1051,7 +1046,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       enablePullDown: true,
       controller: _refreshController,
       onRefresh: _onRefresh,
-      // Use AlwaysScrollableScrollPhysics
       physics: const AlwaysScrollableScrollPhysics(),
       header: ClassicHeader(
         releaseIcon: refreshIcon(),
@@ -1065,15 +1059,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
         idleText: "",
         failedText: "",
       ),
-      // Use CustomScrollView instead of nested SingleChildScrollView for better performance
       child: CustomScrollView(
-        // Remove nested scroll physics conflicts
         physics: const NeverScrollableScrollPhysics(),
         slivers: [
           SliverToBoxAdapter(
             child: Column(
               children: [
-                // Profile header
                 Container(
                   color: Theme.of(context).cardColor,
                   child: Stack(
@@ -1138,14 +1129,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ),
                         ),
                       ),
-                      // AI Badge (only show for AI profiles)
                       if (widget.isAI)
                         Positioned(
                           top: 15,
                           right: 20,
                           child: _buildAIBadge(),
                         ),
-                      // More options button (AI가 아닐 때만 표시)
                       if (!widget.isAI)
                         Positioned(
                           top: 10,
@@ -1197,7 +1186,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             inProfile: true,
                           );
                         }),
-                        const SizedBox(height: 100), // 하단 여백
+                        const SizedBox(height: 100),
                       ],
                     ),
                   ),

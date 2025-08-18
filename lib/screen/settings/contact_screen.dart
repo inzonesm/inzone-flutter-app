@@ -110,13 +110,10 @@ class _ContactScreenState extends State<ContactScreen> {
                   onPressed: () {
                     final title = item['title'];
                     if (title == "Call Us") {
-                      launchUrl(Uri.parse("tel:+12272057616")); // 전화번호 바꿔도 돼
+                      launchUrl(Uri.parse("tel:+12272057616"));
                     } else if (title == "Email Us") {
                       launchUrl(Uri.parse("mailto:inzonesm@gmail.com"),
                           mode: LaunchMode.externalApplication);
-                      // } else if (title == "Chat") {
-                      //   // TODO: Chat 연결 기능 넣기
-                      //   print("Chat clicked");
                     }
                   },
                 );
@@ -133,7 +130,7 @@ class _ContactScreenState extends State<ContactScreen> {
                     color: Colors.grey.withOpacity(0.2),
                     spreadRadius: 2,
                     blurRadius: 5,
-                    offset: const Offset(0, 3), // changes position of shadow
+                    offset: const Offset(0, 3),
                   ),
                 ],
               ),
@@ -232,7 +229,7 @@ class ContactTile extends StatelessWidget {
               color: Colors.grey.withOpacity(0.2),
               spreadRadius: 2,
               blurRadius: 5,
-              offset: const Offset(0, 3), // changes position of shadow
+              offset: const Offset(0, 3),
             ),
           ],
         ),

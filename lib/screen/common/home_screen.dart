@@ -48,12 +48,12 @@ class HomeScreenState extends State<HomeScreen> {
   late DateTime _startTime;
   int pageOpened = 0;
   int _currentPage = 0;
-  final int _pageSize = 10; // 페이지 사이즈 감소 (기존 20)
+  final int _pageSize = 10; //
   bool hasMorePosts = true;
   String? selectedCategory; // Track the currently selected category
   int reloadCount = 0; // Track number of reloads
   int _currentVisibleIndex = 0; // Track current visible card index
-  Timer? _scrollThrottleTimer; // 스크롤 이벤트 제한용 타이머
+  Timer? _scrollThrottleTimer;
 
   // Scroll tracking variables
   double _lastScrollPosition = 0;
@@ -124,34 +124,26 @@ class HomeScreenState extends State<HomeScreen> {
   }
 
   void _onScroll() {
-    // 스크롤 이벤트 제한 (300ms 마다만 처리)
     if (_scrollThrottleTimer?.isActive ?? false) return;
 
     _scrollThrottleTimer = Timer(const Duration(milliseconds: 300), () {
       if (!_scrollController.hasClients) return;
-      // Track scroll behavior
       _trackScrollBehavior();
 
-      // Calculate approximate current visible index based on scroll position
-      // Assuming average card height of ~200px
       double scrollPosition = _scrollController.position.pixels;
       int estimatedVisibleIndex = (scrollPosition / 200).floor();
 
-      // Update current visible index if it has changed significantly
       if ((estimatedVisibleIndex - _currentVisibleIndex).abs() > 3) {
         _currentVisibleIndex = estimatedVisibleIndex;
 
-        // Ensure we have enough posts loaded ahead
         int totalItemsWithAds = posts.length + (posts.length ~/ 10);
         int remainingItems = totalItemsWithAds - _currentVisibleIndex;
 
-        // If we're within 10 items of the end, load more (더 빨리 로드 시작)
         if (remainingItems <= 10 && !isLoadingMore && hasMorePosts) {
           _loadMorePosts();
         }
       }
 
-      // Original logic: 화면 끝에서 더 일찍(800픽셀 전) 데이터 로딩을 시작 (기존 500)
       if (_scrollController.position.pixels >=
               _scrollController.position.maxScrollExtent - 800 &&
           !isLoadingMore &&
@@ -166,7 +158,6 @@ class HomeScreenState extends State<HomeScreen> {
     final currentPosition = _scrollController.position.pixels;
     final currentTime = DateTime.now();
 
-    // Calculate scroll speed and direction
     final deltaPosition = currentPosition - _lastScrollPosition;
     final deltaTime = currentTime.difference(_lastScrollTime).inMilliseconds;
 
@@ -175,7 +166,6 @@ class HomeScreenState extends State<HomeScreen> {
           deltaPosition.abs() / deltaTime * 1000; // pixels per second
       final scrollDirection = deltaPosition > 0 ? 'down' : 'up';
 
-      // Track significant scroll events (speed > 100 px/s and moved more than 50px)
       if (scrollSpeed > 100 && deltaPosition.abs() > 50) {
         final userId = AppsFlyerService().getCurrentUserId();
         if (userId != null) {
@@ -196,10 +186,8 @@ class HomeScreenState extends State<HomeScreen> {
     _lastScrollTime = currentTime;
   }
 
-  // Handle refresh completion
   void _onRefresh() async {
     try {
-      // Only increment reload count if the previous load finished
       if (!isLoading && !isLoadingMore) {
         setState(() {
           reloadCount++;
@@ -209,12 +197,10 @@ class HomeScreenState extends State<HomeScreen> {
     } catch (e) {
       print('Error during refresh: $e');
     } finally {
-      // Tell the RefreshController to finish the refresh process
       _refreshController.refreshCompleted();
     }
   }
 
-  // Handle loading more data
   void _onLoading() async {
     try {
       if (!isLoadingMore && hasMorePosts) {
@@ -223,7 +209,6 @@ class HomeScreenState extends State<HomeScreen> {
     } catch (e) {
       print('Error loading more: $e');
     } finally {
-      // Tell the RefreshController to finish the loading process
       _refreshController.loadComplete();
     }
   }
@@ -263,7 +248,6 @@ class HomeScreenState extends State<HomeScreen> {
     });
 
     try {
-      // Use page=1 for initial load to ensure consistent behavior
       final response =
           await InZoneDatabase.getFeed(page: isRefresh ? 1 : reloadCount);
 
@@ -275,10 +259,8 @@ class HomeScreenState extends State<HomeScreen> {
 
           setState(() {
             posts.addAll(newPosts);
-            originalPosts =
-                List.from(posts); // Store original posts for filtering
+            originalPosts = List.from(posts);
 
-            // Extract categories from posts
             for (var post in newPosts) {
               String category = _extractCategoryFromPost(post);
               if (category.isNotEmpty && !categoriesList.contains(category)) {
@@ -290,10 +272,8 @@ class HomeScreenState extends State<HomeScreen> {
             hasMorePosts = newPosts.isNotEmpty;
           });
         } else {
-          // Handle empty response gracefully
           setState(() {
             if (isRefresh) {
-              // If it was a refresh, reset to empty state
               posts.clear();
               originalPosts.clear();
             }
@@ -523,7 +503,6 @@ class HomeScreenState extends State<HomeScreen> {
 
     // Check if this position should show an ad (every 11th item: 10, 21, 32, etc.)
     if ((index + 1) % 11 == 0) {
-      // 광고를 위한 더미 포스트 생성
       InZonePost adPost = InZonePost(
         category: '',
         userName: '',

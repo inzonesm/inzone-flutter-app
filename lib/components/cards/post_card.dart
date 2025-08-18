@@ -2138,18 +2138,15 @@ class _DynamicPageViewState extends State<_DynamicPageView> {
   int _currentIndex = 0;
   bool _isCardVisible = false;
 
-  // 이미지 캐싱을 위한 맵 - 크기 제한 추가
   static final Map<String, ImageProvider> _cachedImages = {};
   static final Map<String, double> _cachedImageHeights = {};
-  static final List<String> _cacheQueue = []; // LRU 캐시 관리를 위한 큐
-  static const int _maxImageCacheSize = 30; // 최대 30개 이미지만 캐싱
+  static final List<String> _cacheQueue = [];
+  static const int _maxImageCacheSize = 30;
 
-  // Cache for video aspect ratios to prevent layout jumping on reload.
   static final Map<String, double> _cachedVideoAspectRatios = {};
   static final List<String> _videoCacheQueue = [];
   static const int _maxVideoCacheSize = 20;
 
-  // 이미지 캐시 정리 함수
   static void _cleanupImageCache() {
     while (_cacheQueue.length > _maxImageCacheSize) {
       String oldestUrl = _cacheQueue.removeAt(0);
@@ -2158,7 +2155,6 @@ class _DynamicPageViewState extends State<_DynamicPageView> {
     }
   }
 
-  // Function to clean up the video aspect ratio cache using an LRU strategy.
   static void _cleanupVideoCache() {
     while (_videoCacheQueue.length > _maxVideoCacheSize) {
       String oldestUrl = _videoCacheQueue.removeAt(0);
@@ -2187,10 +2183,8 @@ class _DynamicPageViewState extends State<_DynamicPageView> {
     _loadedItems.add(id);
     _heights[index] = newHeight;
 
-    // 이미지 높이 캐싱
     _cachedImageHeights[key] = newHeight;
 
-    // 캐시 큐 업데이트
     _cacheQueue.remove(key);
     _cacheQueue.add(key);
     _cleanupImageCache();
@@ -2205,7 +2199,6 @@ class _DynamicPageViewState extends State<_DynamicPageView> {
     }
   }
 
-  // Allow external updates of the height (used by VideoWidget)
   void updateVideoHeight(int index, double newHeight) {
     if (_heights[index] != newHeight) {
       _heights[index] = newHeight;
@@ -2260,7 +2253,6 @@ class _DynamicPageViewState extends State<_DynamicPageView> {
                 final imageUrl = validImages[index];
                 return LayoutBuilder(
                   builder: (context, constraints) {
-                    // 캐시된 이미지 높이가 있으면 바로 사용
                     if (_cachedImageHeights.containsKey(imageUrl)) {
                       _heights[index] = _cachedImageHeights[imageUrl]!;
                       if (_currentIndex == index) {
@@ -2273,22 +2265,17 @@ class _DynamicPageViewState extends State<_DynamicPageView> {
                         });
                       }
 
-                      // 캐시 큐 업데이트 (LRU)
                       _cacheQueue.remove(imageUrl);
                       _cacheQueue.add(imageUrl);
                     }
 
-                    // 캐시된 이미지 있는지 확인
                     ImageProvider? cachedImage;
                     if (_cachedImages.containsKey(imageUrl)) {
                       cachedImage = _cachedImages[imageUrl];
-                      // 캐시 큐 업데이트 (LRU)
                       _cacheQueue.remove(imageUrl);
                       _cacheQueue.add(imageUrl);
                     } else {
-                      // 저해상도 미리보기 이미지 URL 생성 (가능한 경우)
                       String optimizedUrl = imageUrl;
-                      // 고화질 이미지를 중간 해상도로 최적화
                       if (imageUrl.contains('?')) {
                         optimizedUrl = '$imageUrl&quality=70&width=800';
                       } else {
@@ -2298,7 +2285,7 @@ class _DynamicPageViewState extends State<_DynamicPageView> {
                       cachedImage = CachedNetworkImageProvider(
                         optimizedUrl,
                         cacheKey: imageUrl,
-                        maxWidth: 800, // 최대 너비 제한
+                        maxWidth: 800,
                       );
 
                       _cachedImages[imageUrl] = cachedImage;
@@ -2309,19 +2296,16 @@ class _DynamicPageViewState extends State<_DynamicPageView> {
                     return VisibilityDetector(
                       key: Key('image-$imageUrl'),
                       onVisibilityChanged: (info) {
-                        // 화면에 보이지 않는 이미지는 캐시에서 우선순위를 낮춤
                         if (info.visibleFraction < 0.1 &&
                             _cacheQueue.contains(imageUrl)) {
                           _cacheQueue.remove(imageUrl);
-                          _cacheQueue.insert(
-                              0, imageUrl); // 가장 앞으로 이동 (가장 먼저 제거될 수 있도록)
+                          _cacheQueue.insert(0, imageUrl);
                         }
                       },
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(12),
                         child: GestureDetector(
                           onTap: () {
-                            // Open the image in fullscreen
                             Navigator.of(context).push(
                               MaterialPageRoute(
                                 builder: (context) =>
@@ -2330,31 +2314,25 @@ class _DynamicPageViewState extends State<_DynamicPageView> {
                             );
                           },
                           onDoubleTap: () {
-                            // Find parent PostCard state and trigger like
                             final PostCard postCard = context
                                 .findAncestorWidgetOfExactType<PostCard>()!;
                             final _PostCardState? postCardState = context
                                 .findAncestorStateOfType<_PostCardState>();
                             if (postCardState != null) {
                               postCardState.handleLike();
-                              HapticFeedback
-                                  .mediumImpact(); // Add haptic feedback for better UX
+                              HapticFeedback.mediumImpact();
                             }
                           },
                           child: Image(
                             image: cachedImage!,
                             fit: BoxFit.contain,
-                            color: null, // Remove any color overlay
-                            colorBlendMode:
-                                BlendMode.srcOver, // Use default blend mode
-                            filterQuality: FilterQuality
-                                .high, // Ensure high quality rendering
-                            gaplessPlayback:
-                                true, // Smooth transitions between images
-                            isAntiAlias: true, // Enable anti-aliasing
+                            color: null,
+                            colorBlendMode: BlendMode.srcOver,
+                            filterQuality: FilterQuality.high,
+                            gaplessPlayback: true,
+                            isAntiAlias: true,
                             loadingBuilder: (context, child, loadingProgress) {
                               if (loadingProgress == null) {
-                                // 로딩이 완료된 경우 캐시된 높이가 없으면 높이 계산
                                 if (!_cachedImageHeights
                                     .containsKey(imageUrl)) {
                                   cachedImage!
@@ -2376,7 +2354,6 @@ class _DynamicPageViewState extends State<_DynamicPageView> {
                                 return child;
                               } else if (_cachedImageHeights
                                   .containsKey(imageUrl)) {
-                                // 이미지 로딩 중이지만 이미 높이 알고 있는 경우 이전 이미지 표시
                                 return child;
                               } else {
                                 return Center(child: ImageLoading(context));
@@ -2399,11 +2376,8 @@ class _DynamicPageViewState extends State<_DynamicPageView> {
 
                 return LayoutBuilder(
                   builder: (context, constraints) {
-                    // Get the available width for the video.
                     double width = constraints.maxWidth;
 
-                    // Use a cached aspect ratio if available, otherwise default to 16:9.
-                    // This helps prevent the layout from jumping when the video loads.
                     double aspectRatio =
                         _cachedVideoAspectRatios[videoUrl] ?? 9 / 16;
                     double calculatedHeight = width / aspectRatio;

@@ -72,7 +72,6 @@ Widget PostLoading(BuildContext context) {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // 왼쪽 Column
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -134,7 +133,6 @@ Widget AdPostLoading(BuildContext context) {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // 광고 라벨
             Row(
               mainAxisAlignment: MainAxisAlignment.start,
               children: [
@@ -151,13 +149,11 @@ Widget AdPostLoading(BuildContext context) {
               ],
             ),
             const SizedBox(height: 20),
-            // 광고 이미지
             SkeletonContainer.rounded(
               height: 180,
               color: Theme.of(context).cardColor.withOpacity(0.9),
             ),
             const SizedBox(height: 15),
-            // 광고 하단 버튼
             SkeletonContainer.rounded(
               height: 40,
               width: 120,
@@ -213,33 +209,6 @@ Widget CategoryLoading(BuildContext context) {
           ),
         ),
       ),
-      // Padding(
-      //   padding: const EdgeInsets.symmetric(vertical: 0, horizontal: 20),
-      //   child: SingleChildScrollView(
-      //     scrollDirection: Axis.horizontal,
-      //     child: Row(
-      //       children: [
-      //         SkeletonContainer.circular(
-      //           height: 45,
-      //           width: 100,
-      //           color: Theme.of(context).cardColor,
-      //         ),
-      //         const SizedBox(width: 10),
-      //         SkeletonContainer.circular(
-      //           height: 45,
-      //           width: 200,
-      //           color: Theme.of(context).cardColor,
-      //         ),
-      //         const SizedBox(width: 10),
-      //         SkeletonContainer.circular(
-      //           height: 45,
-      //           width: 120,
-      //           color: Theme.of(context).cardColor,
-      //         ),
-      //       ],
-      //     ),
-      //   ),
-      // ),
     ],
   );
 }
@@ -334,17 +303,12 @@ Widget GroupCardLoading(BuildContext context) {
                 ),
               ],
             ),
-
             SizedBox(height: 12),
-
-            // Title area
             SkeletonContainer.rounded(
               height: 12,
               width: double.infinity,
             ),
             SizedBox(height: 12),
-
-            // Description area
             SkeletonContainer.rounded(
               height: 48,
               width: double.infinity,
@@ -413,11 +377,9 @@ Widget AvatarLoading(BuildContext context) {
   );
 }
 
-// 검색/탐색 화면에서 사용할 전체 레이아웃 로딩 위젯
 Widget SearchLoading(BuildContext context) {
   return CustomScrollView(
     slivers: [
-      // 캐릭터 섹션 제목
       SliverToBoxAdapter(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -438,7 +400,6 @@ Widget SearchLoading(BuildContext context) {
           ),
         ),
       ),
-
       SliverToBoxAdapter(
         child: SizedBox(
           height: 130,
@@ -502,7 +463,6 @@ Widget SearchLoading(BuildContext context) {
           ),
         ),
       ),
-
       SliverToBoxAdapter(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
@@ -523,7 +483,6 @@ Widget SearchLoading(BuildContext context) {
           ),
         ),
       ),
-
       SliverList(
         delegate: SliverChildBuilderDelegate(
           (context, index) {
@@ -556,7 +515,6 @@ Widget SearchLoading(BuildContext context) {
           childCount: 3,
         ),
       ),
-
       SliverToBoxAdapter(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(16, 24, 16, 8),
@@ -567,7 +525,6 @@ Widget SearchLoading(BuildContext context) {
           ),
         ),
       ),
-
       SliverList(
         delegate: SliverChildBuilderDelegate(
           (context, index) {
@@ -588,7 +545,6 @@ Widget ProfileShimmering(BuildContext context, bool isAI) {
   return SingleChildScrollView(
     child: Column(
       children: [
-        // Profile header
         Container(
           color: Theme.of(context).cardColor,
           child: Column(
@@ -597,13 +553,11 @@ Widget ProfileShimmering(BuildContext context, bool isAI) {
               Stack(
                 clipBehavior: Clip.none,
                 children: [
-                  // Header background
                   Container(
                     height: 120,
                     width: double.infinity,
                     color: Theme.of(context).canvasColor,
                   ),
-                  // Profile image positioned
                   Positioned(
                     left: 16,
                     bottom: -40,
@@ -618,7 +572,6 @@ Widget ProfileShimmering(BuildContext context, bool isAI) {
                   ),
                 ],
               ),
-              // Action buttons row
               Padding(
                 padding: const EdgeInsets.only(right: 10, top: 5),
                 child: Row(
@@ -830,7 +783,6 @@ Widget ProfileShimmering(BuildContext context, bool isAI) {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // 왼쪽 Column
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -898,7 +850,6 @@ Widget ProfileShimmering(BuildContext context, bool isAI) {
   );
 }
 
-// 검색 결과 화면에서 사용할 로딩 위젯
 Widget SearchResultsLoading(BuildContext context) {
   return ListView.builder(
     itemCount: 5,
