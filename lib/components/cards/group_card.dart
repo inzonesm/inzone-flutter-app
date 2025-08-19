@@ -91,8 +91,6 @@ class _GroupCardState extends State<GroupCard> {
         fit: BoxFit.cover,
         width: 64,
         height: 64,
-        color: null, // Remove any color overlay
-        colorBlendMode: BlendMode.srcOver, // Use default blend mode
         placeholder: (context, url) => const Center(
           child: Icon(FeatherIcons.image, size: 24),
         ),
@@ -115,8 +113,6 @@ class _GroupCardState extends State<GroupCard> {
                 imageUrl: imageUrls[0],
                 fit: BoxFit.cover,
                 height: 64,
-                color: null, // Remove any color overlay
-                colorBlendMode: BlendMode.srcOver, // Use default blend mode
                 placeholder: (context, url) => const Center(
                   child: Icon(FeatherIcons.image, size: 16),
                 ),
@@ -138,8 +134,6 @@ class _GroupCardState extends State<GroupCard> {
                 imageUrl: imageUrls[1],
                 fit: BoxFit.cover,
                 height: 64,
-                color: null, // Remove any color overlay
-                colorBlendMode: BlendMode.srcOver, // Use default blend mode
                 placeholder: (context, url) => const Center(
                   child: Icon(FeatherIcons.image, size: 16),
                 ),
@@ -166,8 +160,6 @@ class _GroupCardState extends State<GroupCard> {
                 imageUrl: imageUrls[0],
                 fit: BoxFit.cover,
                 height: 64,
-                color: null, // Remove any color overlay
-                colorBlendMode: BlendMode.srcOver, // Use default blend mode
                 placeholder: (context, url) => const Center(
                   child: Icon(FeatherIcons.image, size: 12),
                 ),
@@ -187,8 +179,6 @@ class _GroupCardState extends State<GroupCard> {
               imageUrl: imageUrls[1],
               fit: BoxFit.cover,
               height: 64,
-              color: null, // Remove any color overlay
-              colorBlendMode: BlendMode.srcOver, // Use default blend mode
               placeholder: (context, url) => const Center(
                 child: Icon(FeatherIcons.image, size: 12),
               ),
@@ -209,8 +199,6 @@ class _GroupCardState extends State<GroupCard> {
                 imageUrl: imageUrls[2],
                 fit: BoxFit.cover,
                 height: 64,
-                color: null, // Remove any color overlay
-                colorBlendMode: BlendMode.srcOver, // Use default blend mode
                 placeholder: (context, url) => const Center(
                   child: Icon(FeatherIcons.image, size: 12),
                 ),
@@ -325,9 +313,6 @@ class _GroupCardState extends State<GroupCard> {
                                       width: 64,
                                       height: 64,
                                       fit: BoxFit.cover,
-                                      color: null, // Remove any color overlay
-                                      colorBlendMode: BlendMode
-                                          .srcOver, // Use default blend mode
                                       loadingBuilder:
                                           (context, child, progress) {
                                         return progress == null

@@ -1036,9 +1036,6 @@ class _AICharacterSelectionScreenState extends State<AICharacterSelectionScreen>
                       width: 250, // Increased image size
                       height: 250, // Increased image size
                       fit: BoxFit.cover,
-                      color: null, // Remove any color overlay
-                      colorBlendMode:
-                          BlendMode.srcOver, // Use default blend mode
                       errorBuilder: (context, error, stackTrace) {
                         print("Image error: $error");
                         return Center(
@@ -1766,9 +1763,6 @@ class _AICharacterSelectionScreenState extends State<AICharacterSelectionScreen>
                       width: 200,
                       height: 200,
                       fit: BoxFit.cover,
-                      color: null, // Remove any color overlay
-                      colorBlendMode:
-                          BlendMode.srcOver, // Use default blend mode
                       errorBuilder: (context, error, stackTrace) {
                         // If image fails to load, show default icon
                         return Center(
@@ -1865,8 +1859,6 @@ class _AICharacterSelectionScreenState extends State<AICharacterSelectionScreen>
                     width: 200,
                     height: 200,
                     fit: BoxFit.cover,
-                    color: null, // Remove any color overlay
-                    colorBlendMode: BlendMode.srcOver, // Use default blend mode
                     errorBuilder: (context, error, stackTrace) {
                       return Center(
                         child: Icon(

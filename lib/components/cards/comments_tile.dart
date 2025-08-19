@@ -125,8 +125,6 @@ class _CommentsTileState extends State<CommentsTile> {
                     width: 40,
                     height: 40,
                     fit: BoxFit.cover,
-                    color: null,
-                    colorBlendMode: BlendMode.srcOver,
                     placeholder: (context, url) => const SizedBox(),
                     errorWidget: (context, url, error) =>
                         const Icon(Icons.account_circle, size: 40),

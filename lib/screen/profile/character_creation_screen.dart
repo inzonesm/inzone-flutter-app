@@ -148,9 +148,6 @@ class _CharacterCreationScreenState extends State<CharacterCreationScreen> {
                                     child: Image.network(
                                       url!,
                                       fit: BoxFit.fitWidth,
-                                      color: null, // Remove any color overlay
-                                      colorBlendMode: BlendMode
-                                          .srcOver, // Use default blend mode
                                       errorBuilder: (context, object, st) {
                                         return const Text("error");
                                       },

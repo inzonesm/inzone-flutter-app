@@ -748,17 +748,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                         height: 40,
                         width: 40,
                         fit: BoxFit.cover,
-                        color: null, // Remove any color overlay
-                        colorBlendMode:
-                            BlendMode.srcOver, // Use default blend mode
-                        placeholder: (context, url) => const SizedBox(),
-                        errorWidget: (context, url, error) {
-                          print('Error loading group image: $error');
-                          // Fallback to icon if image fails to load
-                          return const Center(
-                            child: Icon(Icons.account_circle, size: 40),
-                          );
-                        },
                       ),
                     );
                   } else if (data.containsKey('avatars') &&
@@ -782,12 +771,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                           height: 40,
                           width: 40,
                           fit: BoxFit.cover,
-                          placeholder: (context, url) => const SizedBox(),
-                          errorWidget: (context, url, error) {
-                            return const Center(
-                              child: Icon(Icons.account_circle, size: 40),
-                            );
-                          },
                         ),
                       );
                     }
@@ -1220,20 +1203,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
           fit: BoxFit.cover,
           height: 35,
           width: 35,
-          color: null, // Remove any color overlay
-          colorBlendMode: BlendMode.srcOver, // Use default blend mode
-          placeholder: (context, url) => const SizedBox(),
-          errorWidget: (context, url, error) {
-            return Center(
-              child: Text(
-                sender.name.isNotEmpty ? sender.name[0].toUpperCase() : '?',
-                style: TextStyle(
-                  color: Theme.of(context).colorScheme.primary,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            );
-          },
         ),
       );
     }
@@ -1253,9 +1222,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
             fit: BoxFit.cover,
             height: 35,
             width: 35,
-            color: null, // Remove any color overlay
-            colorBlendMode: BlendMode.srcOver, // Use default blend mode
-            placeholder: (context, url) => const SizedBox(),
             errorWidget: (context, url, error) {
               // For AI fallback to AI icon, for users fallback to initials
               if (sender.type == 'ai') {
@@ -1588,8 +1554,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
           fit: BoxFit.cover,
           width: 24,
           height: 24,
-          color: null, // Remove any color overlay
-          colorBlendMode: BlendMode.srcOver, // Use default blend mode
           placeholder: (context, url) => const SizedBox(),
           errorWidget: (context, url, error) {
             return Center(
@@ -1616,10 +1580,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
           imageUrl: participant.profilePictureUrl!,
           fit: BoxFit.cover,
           width: 24,
-          color: null, // Remove any color overlay
-          colorBlendMode: BlendMode.srcOver, // Use default blend mode
           height: 24,
-          placeholder: (context, url) => const SizedBox(),
           errorWidget: (context, url, error) {
             // Different fallbacks based on user type
             if (participant.type == 'ai') {

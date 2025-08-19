@@ -610,9 +610,6 @@ class _PostCardState extends State<PostCard>
                             width: 40,
                             height: 40,
                             fit: BoxFit.cover,
-                            color: null, // Remove any color overlay
-                            colorBlendMode:
-                                BlendMode.srcOver, // Use default blend mode
                             placeholder: (context, url) => const SizedBox(),
                             errorWidget: (context, url, error) =>
                                 const Icon(Icons.account_circle, size: 40),

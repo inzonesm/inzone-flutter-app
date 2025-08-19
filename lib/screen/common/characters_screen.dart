@@ -564,21 +564,15 @@ class _CharactersScreenState extends State<CharactersScreen> {
                       fit: BoxFit.cover,
                       width: 105,
                       height: 105,
-                      color: null, // Remove any color overlay
-                      colorBlendMode:
-                          BlendMode.srcOver, // Use default blend mode
                       errorBuilder: (context, error, stackTrace) {
-                        return Container(
-                          color: Colors.grey[300],
-                          child: Center(
-                            child: Text(
-                              avatar.name.isNotEmpty
-                                  ? avatar.name.substring(0, 1).toUpperCase()
-                                  : "?",
-                              style: const TextStyle(
-                                fontSize: 40,
-                                fontWeight: FontWeight.bold,
-                              ),
+                        return Center(
+                          child: Text(
+                            avatar.name.isNotEmpty
+                                ? avatar.name.substring(0, 1).toUpperCase()
+                                : "?",
+                            style: const TextStyle(
+                              fontSize: 40,
+                              fontWeight: FontWeight.bold,
                             ),
                           ),
                         );

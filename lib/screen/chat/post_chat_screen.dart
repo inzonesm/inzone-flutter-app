@@ -378,9 +378,6 @@ class _RepostPostCardState extends State<RepostPostCard> {
                                 imageUrl: widget.profileImageURL!,
                                 fit: BoxFit.fitWidth,
                                 width: MediaQuery.of(context).size.width - 60,
-                                color: null, // Remove any color overlay
-                                colorBlendMode:
-                                    BlendMode.srcOver, // Use default blend mode
                                 placeholder: (context, url) => const SizedBox(),
                                 errorWidget: (context, url, error) {
                                   return Icon(

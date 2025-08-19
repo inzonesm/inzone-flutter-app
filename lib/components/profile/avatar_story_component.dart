@@ -188,23 +188,17 @@ class _AvatarCardState extends State<AvatarStoryComponent> {
                         fit: BoxFit.cover,
                         width: 78,
                         height: 78,
-                        color: null, // Remove any color overlay
-                        colorBlendMode:
-                            BlendMode.srcOver, // Use default blend mode
                         errorBuilder: (context, error, stackTrace) {
-                          return Container(
-                            color: Colors.grey[300],
-                            child: Center(
-                              child: Text(
-                                widget.avatar.name.isNotEmpty
-                                    ? widget.avatar.name
-                                        .substring(0, 1)
-                                        .toUpperCase()
-                                    : "?",
-                                style: const TextStyle(
-                                  fontSize: 28,
-                                  fontWeight: FontWeight.bold,
-                                ),
+                          return Center(
+                            child: Text(
+                              widget.avatar.name.isNotEmpty
+                                  ? widget.avatar.name
+                                      .substring(0, 1)
+                                      .toUpperCase()
+                                  : "?",
+                              style: const TextStyle(
+                                fontSize: 28,
+                                fontWeight: FontWeight.bold,
                               ),
                             ),
                           );

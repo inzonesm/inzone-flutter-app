@@ -411,26 +411,16 @@ class _CustomAppBarState extends State<CustomAppBar> {
                               child: Container(
                                 width: 48,
                                 height: 48,
-                                decoration: BoxDecoration(
+                                decoration: const BoxDecoration(
                                   shape: BoxShape.circle,
-                                  border: Border.all(
-                                    color:
-                                        Theme.of(context).colorScheme.secondary,
-                                    width: 1.5,
-                                  ),
                                 ),
                                 child: widget.profileImageUrl != null
                                     ? ClipOval(
                                         child: Image.network(
                                           widget.profileImageUrl!,
                                           fit: BoxFit.cover,
-                                          color:
-                                              null, // Remove any color overlay
-                                          colorBlendMode: BlendMode
-                                              .srcOver, // Use default blend mode
                                           errorBuilder:
                                               (context, error, stackTrace) {
-                                            // Replace RandomAvatar with Icon
                                             return const Icon(
                                               Icons.account_circle,
                                               size: 48,

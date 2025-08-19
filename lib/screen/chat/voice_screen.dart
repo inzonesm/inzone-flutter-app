@@ -11,7 +11,7 @@ import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:just_audio/just_audio.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
-import '../../services/voice_service_v2.dart';
+import '../../services/voice_service.dart';
 
 class VoiceScreen extends StatefulWidget {
   final String avatarUrl;
@@ -113,7 +113,7 @@ class _VoiceScreenState extends State<VoiceScreen>
         },
         localeId: 'en_US',
         listenFor: const Duration(minutes: 3),
-        pauseFor: const Duration(milliseconds: 1500),
+        pauseFor: const Duration(milliseconds: 2000),
         cancelOnError: true,
         partialResults: true,
         listenMode: stt.ListenMode.confirmation,

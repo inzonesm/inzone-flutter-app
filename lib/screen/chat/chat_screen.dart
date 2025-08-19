@@ -267,21 +267,11 @@ class _ChatScreenState extends State<ChatScreen> {
                                 child: ClipRRect(
                                   borderRadius: BorderRadius.circular(200.0),
                                   child: CachedNetworkImage(
-                                    imageUrl:
-                                        widget.userData.profilePictureURL!,
-                                    fit: BoxFit.fitWidth,
-                                    width:
-                                        MediaQuery.of(context).size.width - 60,
-                                    color: null, // Remove any color overlay
-                                    colorBlendMode: BlendMode
-                                        .srcOver, // Use default blend mode
-                                    placeholder: (context, url) =>
-                                        const SizedBox(),
-                                    errorWidget: (context, url, error) {
-                                      return const Icon(Icons.account_circle,
-                                          size: 200);
-                                    },
-                                  ),
+                                      imageUrl:
+                                          widget.userData.profilePictureURL!,
+                                      fit: BoxFit.fitWidth,
+                                      width: MediaQuery.of(context).size.width -
+                                          60),
                                 ),
                               ),
                         const SizedBox(height: 20),
