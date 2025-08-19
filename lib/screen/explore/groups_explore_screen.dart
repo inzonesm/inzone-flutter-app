@@ -769,7 +769,6 @@ class _GroupsExploreScreenState extends State<GroupsExploreScreen> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Handle bar
               Center(
                 child: Container(
                   width: 40,
@@ -782,7 +781,6 @@ class _GroupsExploreScreenState extends State<GroupsExploreScreen> {
               ),
               const SizedBox(height: 20),
 
-              // Title
               Text(
                 'Get InCash',
                 style: Theme.of(context).textTheme.headlineSmall?.copyWith(

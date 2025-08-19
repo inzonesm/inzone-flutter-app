@@ -60,24 +60,15 @@ class EnhancedVoiceService {
   final Dio _dio = Dio();
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  // ⚠️ HARDCODED API KEY - 여기에 실제 API 키를 입력하세요!
-  // ElevenLabs API 키: https://elevenlabs.io/api 에서 발급
   static const String ELEVENLABS_API_KEY =
-      "sk_ad6f50123f65e1194a132e66907c72eb8275d378594a6527"; // ElevenLabs API 키
+      "sk_ad6f50123f65e1194a132e66907c72eb8275d378594a6527";
 
-  // API URLs
   static const String _elevenLabsUrl =
       'https://api.elevenlabs.io/v1/text-to-speech';
 
-  // AI Chat API endpoint (reusing existing endpoint)
   static const String _aiChatUrl =
       'https://ai-apis-912424781531.us-east1.run.app/chat/popularCharacter';
 
-  /// Main method: Send text message and get AI voice response
-  /// This method handles everything on the frontend:
-  /// 1. Gets AI text response
-  /// 2. Converts to speech using ElevenLabs
-  /// 3. Saves conversation to Firebase
   Future<({VoiceResponse? response, VoiceError? error})> sendTextForVoice({
     required String userId,
     required String aiCharacterId,
@@ -90,10 +81,8 @@ class EnhancedVoiceService {
       debugPrint('AI Character ID: $aiCharacterId');
       debugPrint('Message: $message');
 
-      // Debug: List available voices (remove this in production)
       await debugListAvailableVoices();
 
-      // Step 1: Get AI character details from Firebase
       final aiCharDoc = await _firestore
           .collection('popularCharacters')
           .doc(aiCharacterId)
@@ -111,11 +100,9 @@ class EnhancedVoiceService {
       }
 
       final aiCharacter = aiCharDoc.data()!;
-      // Voice ID is now directly on the document, not under voice_settings
       final voiceId =
           aiCharacter['voice_id'] as String? ?? 'JBFqnCBsd6RMkjVDRZzb';
 
-      // Step 2: Check user's coin balance
       final userDoc =
           await _firestore.collection('humanUsers').doc(userId).get();
 
@@ -131,9 +118,8 @@ class EnhancedVoiceService {
       }
 
       final userData = userDoc.data()!;
-      final currentBalance =
-          userData['balance'] ?? 0; // Changed from 'incoin' to 'balance'
-      const requiredCoins = 25; // Voice chat cost
+      final currentBalance = userData['balance'] ?? 0;
+      const requiredCoins = 25;
 
       if (currentBalance < requiredCoins) {
         return (
@@ -146,7 +132,6 @@ class EnhancedVoiceService {
         );
       }
 
-      // Step 3: Generate AI text response
       debugPrint('Generating AI response...');
       final aiResponseText = await _generateAIResponse(
         message: message,
@@ -166,12 +151,11 @@ class EnhancedVoiceService {
         );
       }
 
-      // Step 4: Convert AI response to speech using ElevenLabs
       debugPrint('Converting text to speech with voice ID: $voiceId');
       final audioBase64 = await _convertTextToSpeech(
         text: aiResponseText,
         voiceId: voiceId,
-        voiceSettings: {}, // Using default voice settings
+        voiceSettings: {},
       );
 
       if (audioBase64 == null) {

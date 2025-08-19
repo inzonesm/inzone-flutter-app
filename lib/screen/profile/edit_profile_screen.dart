@@ -76,7 +76,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         _isImageLoading = true;
       });
 
-      // 이미지가 선택되면 즉시 저장
       await _saveProfileImage();
     }
   }
@@ -110,16 +109,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   Future<void> _saveProfileImage() async {
     try {
-      // 이미지 업로드
       String? newProfileImageUrl = await _uploadProfileImage();
 
       if (newProfileImageUrl != null) {
-        // 프로필 이미지만 업데이트
         Map<String, dynamic> profileData = {
           'profilePicture': newProfileImageUrl,
         };
 
-        // 데이터베이스에 프로필 업데이트
         await InZoneDatabase.updateUserProfileData(widget.userId, profileData);
 
         if (mounted) {
@@ -128,8 +124,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             backgroundColor: Theme.of(context).canvasColor,
             shadowColor: Colors.transparent,
             leading: const Icon(
-              Icons
-                  .check_circle, // or Icons.error_outline, Icons.warning_amber_rounded, etc.
+              Icons.check_circle,
               color: Colors.greenAccent,
             ),
             message: 'Profile picture updated successfully',

@@ -28,19 +28,14 @@ class _SubscriptionTileState extends State<SubscriptionTile> {
     final theme = Theme.of(context);
     final isDarkMode = theme.brightness == Brightness.dark;
 
-    // 선택됐을 때 배경색
     final selectedBackgroundColor = isDarkMode
-        ? theme.primaryColor // 다크모드면 primaryColor
-        : Color.alphaBlend(Colors.black.withOpacity(0.05),
-            theme.canvasColor); // 라이트모드면 canvasColor 살짝 어둡게
+        ? theme.primaryColor
+        : Color.alphaBlend(Colors.black.withOpacity(0.05), theme.canvasColor);
 
-    // 선택 안됐을 때 텍스트 색
     final unselectedTextColor = theme.textTheme.bodySmall?.color ?? Colors.grey;
 
-    // 선택됐을 때 텍스트 색
-    final selectedTextColor = isDarkMode
-        ? theme.colorScheme.onPrimary // 다크면 primary 대비 텍스트
-        : theme.colorScheme.onSurface; // 라이트면 그냥 surface 대비 텍스트
+    final selectedTextColor =
+        isDarkMode ? theme.colorScheme.onPrimary : theme.colorScheme.onSurface;
 
     return GestureDetector(
       onTap: widget.onLeftButtonClick,

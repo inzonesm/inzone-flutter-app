@@ -1292,18 +1292,13 @@ class _AICharacterSelectionScreenState extends State<AICharacterSelectionScreen>
     );
   }
 
-  // 폼의 높이를 계산하는 함수
   double _calculateFormHeight() {
-    // 기본 높이 (패딩, 버튼, 간격 등)
     double baseHeight = 500;
 
-    // 키보드가 열렸을 때도 동일한 높이 유지
     final keyboardHeight = MediaQuery.of(context).viewInsets.bottom;
     if (keyboardHeight > 0) {
-      // 키보드가 열려도 폼 크기는 그대로 유지
       baseHeight = 500;
     } else {
-      // Description 필드가 여러 줄일 경우 추가 높이
       if (_DescriptionFieldController.text.length > 50) {
         baseHeight += 40;
       }
@@ -1363,7 +1358,6 @@ class _AICharacterSelectionScreenState extends State<AICharacterSelectionScreen>
           Expanded(
             child: SingleChildScrollView(
               physics: const BouncingScrollPhysics(),
-              // 키보드가 나타나도 패딩을 추가하지 않음
               padding: EdgeInsets.zero,
               child: Column(
                 children: [
