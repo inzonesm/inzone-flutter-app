@@ -64,14 +64,6 @@ class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
                     width: 45,
                     height: 45,
                     fit: BoxFit.cover,
-                    color: null, // Remove any color overlay
-                    colorBlendMode: BlendMode.srcOver, // Use default blend mode
-                    placeholder: (context, url) => const SizedBox(),
-                    errorWidget: (context, url, error) {
-                      return const Center(
-                        child: Icon(Icons.account_circle, size: 45),
-                      );
-                    },
                   )
                 : const Center(
                     child: Icon(Icons.account_circle, size: 45),

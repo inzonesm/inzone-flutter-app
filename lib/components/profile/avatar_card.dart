@@ -103,19 +103,14 @@ class _AvatarCardState extends State<AvatarCard> {
                   child: Image.network(
                     widget.avatar.profilePicture,
                     fit: BoxFit.cover,
-                    color: null, // Remove any color overlay
-                    colorBlendMode: BlendMode.srcOver, // Use default blend mode
                     errorBuilder: (context, error, stackTrace) {
-                      return Container(
-                        color: theme.dividerColor,
-                        child: Center(
-                          child: Text(
-                            widget.avatar.name.isNotEmpty
-                                ? widget.avatar.name[0].toUpperCase()
-                                : "?",
-                            style: theme.textTheme.headlineMedium?.copyWith(
-                              fontWeight: FontWeight.bold,
-                            ),
+                      return Center(
+                        child: Text(
+                          widget.avatar.name.isNotEmpty
+                              ? widget.avatar.name[0].toUpperCase()
+                              : "?",
+                          style: theme.textTheme.headlineMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
                           ),
                         ),
                       );

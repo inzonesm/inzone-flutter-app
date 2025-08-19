@@ -73,26 +73,10 @@ class UserFollowCard extends StatelessWidget {
                         width: 50,
                         height: 50,
                         fit: BoxFit.cover,
-                        color: null, // Remove any color overlay
-                        colorBlendMode:
-                            BlendMode.srcOver, // Use default blend mode
                         memCacheWidth: 100, // Limit memory cache size
                         memCacheHeight: 100,
                         maxWidthDiskCache: 200, // Limit disk cache size
                         maxHeightDiskCache: 200,
-                        placeholder: (context, url) => Container(
-                          width: 50,
-                          height: 50,
-                          decoration: BoxDecoration(
-                            color: AppColors.primaryBlue.withOpacity(0.1),
-                            shape: BoxShape.circle,
-                          ),
-                          child: Icon(
-                            Icons.person,
-                            color: AppColors.primaryBlue.withOpacity(0.6),
-                            size: 24,
-                          ),
-                        ),
                         errorWidget: (context, error, stackTrace) => Container(
                           width: 50,
                           height: 50,

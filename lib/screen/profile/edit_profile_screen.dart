@@ -270,10 +270,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                         ? Image.network(
                                             _profileImageUrl,
                                             fit: BoxFit.cover,
-                                            color:
-                                                null, // Remove any color overlay
-                                            colorBlendMode: BlendMode
-                                                .srcOver, // Use default blend mode
                                             errorBuilder:
                                                 (context, error, stackTrace) =>
                                                     Icon(Icons.account_circle,
@@ -315,9 +311,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                     ? Image.network(
                                         _profileImageUrl,
                                         fit: BoxFit.cover,
-                                        color: null, // Remove any color overlay
-                                        colorBlendMode: BlendMode
-                                            .srcOver, // Use default blend mode
                                         loadingBuilder:
                                             (context, child, loadingProgress) {
                                           if (loadingProgress == null)

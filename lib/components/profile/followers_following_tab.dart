@@ -333,9 +333,6 @@ class _FollowersFollowingTabState extends State<FollowersFollowingTab> {
                                       width: 40,
                                       height: 40,
                                       fit: BoxFit.cover,
-                                      color: null, // Remove any color overlay
-                                      colorBlendMode: BlendMode
-                                          .srcOver, // Use default blend mode
                                       errorBuilder:
                                           (context, error, stackTrace) =>
                                               const Icon(Icons.account_circle),
@@ -503,9 +500,6 @@ class _FollowersFollowingTabState extends State<FollowersFollowingTab> {
                           width: 40,
                           height: 40,
                           fit: BoxFit.cover,
-                          color: null, // Remove any color overlay
-                          colorBlendMode:
-                              BlendMode.srcOver, // Use default blend mode
                           errorBuilder: (context, error, stackTrace) =>
                               const Icon(Icons.account_circle),
                         )
