@@ -8,7 +8,7 @@ class ForceUpdateScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return PopScope(
-      canPop: false, // 뒤로가기 비활성화
+      canPop: false,
       child: Scaffold(
         body: Container(
           decoration: BoxDecoration(
@@ -116,7 +116,6 @@ class ForceUpdateScreen extends StatelessWidget {
     );
   }
 
-  // 앱스토어/플레이스토어로 이동
   Future<void> _launchAppStore() async {
     try {
       String url;

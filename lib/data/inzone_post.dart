@@ -1,4 +1,5 @@
 import 'package:inzone/data/comment_class.dart';
+import 'package:flutter/foundation.dart'; // Added for debugPrint
 
 class InZonePost {
   final String category;
@@ -208,6 +209,7 @@ class InZonePost {
 
     // Safely handle comments
     List<dynamic> commentsList = [];
+    debugPrint('Fetched video URLs: $videoList');
     if (json['comments'] is Map && (json['comments'] as Map).isEmpty) {
       commentsList = [];
     } else if (json['comments'] is List) {
@@ -368,6 +370,8 @@ class InZonePost {
         }
       }
     } catch (e) {}
+
+    debugPrint('Fetched video URLs (for humans): $videoList');
 
     // Safely handle comments
     List<CommentClass> finalCommentsList = [];

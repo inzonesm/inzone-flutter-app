@@ -6,6 +6,7 @@ import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 import 'package:inzone/services/appsflyer_service.dart';
+import 'package:youtube_player_flutter/youtube_player_flutter.dart';
 
 // Global mute state manager
 class VideoMuteManager {
@@ -113,6 +114,11 @@ class _VideoWidgetState extends State<VideoWidget> with WidgetsBindingObserver {
   final String _uniqueViewId = UniqueKey().toString();
   bool _isVisible = false;
 
+  bool _isYouTube = false;
+  bool _isShorts = false;
+  YoutubePlayerController? _ytController;
+  VoidCallback? _ytListener;
+
   // Add scrubbing state variables
   bool _isScrubbing = false;
   Duration _scrubbingPosition = Duration.zero;
@@ -202,6 +208,16 @@ class _VideoWidgetState extends State<VideoWidget> with WidgetsBindingObserver {
         _mediaKitPlayer!.setVolume(isMuted ? 0 : 100);
         setState(() {}); // Trigger rebuild to update UI
       }
+
+      if (_ytController != null && mounted) {
+        try {
+          if (isMuted) {
+            _ytController!.mute();
+          } else {
+            _ytController!.unMute();
+          }
+        } catch (_) {}
+      }
     });
 
     // Apply current global mute state
@@ -233,6 +249,11 @@ class _VideoWidgetState extends State<VideoWidget> with WidgetsBindingObserver {
       if (_mediaKitPlayer != null && _mediaKitPlayer!.state.playing) {
         _mediaKitPlayer!.pause();
       }
+      if (_isYouTube) {
+        try {
+          _ytController?.pause();
+        } catch (_) {}
+      }
     }
   }
 
@@ -245,12 +266,61 @@ class _VideoWidgetState extends State<VideoWidget> with WidgetsBindingObserver {
     // Process the URL to handle YouTube links
     String mediaUrl = widget.videoUrl;
 
-    // Check if it's a YouTube URL and extract the video ID
+    // Check if it's a YouTube URL and initialize YouTube player path
     if (_isYoutubeUrl(widget.videoUrl)) {
       final videoId = _getYoutubeVideoId(widget.videoUrl);
       if (videoId != null) {
-        // Convert to direct playable URL that MediaKit can handle
-        mediaUrl = 'https://www.youtube.com/watch?v=$videoId';
+        _isYouTube = true;
+        try {
+          _ytController?.dispose();
+        } catch (_) {}
+        _ytController = YoutubePlayerController(
+          initialVideoId: videoId,
+          flags: YoutubePlayerFlags(
+            autoPlay: true,
+            mute: VideoMuteManager.isMuted,
+            disableDragSeek: false,
+            loop: false,
+            isLive: false,
+            forceHD: false,
+            enableCaption: false,
+            useHybridComposition: true,
+          ),
+        );
+
+        _ytListener = () {
+          try {
+            final d = _ytController!.value.metaData.duration;
+            if (d.inSeconds > 0) {
+              final detectedShorts = d.inSeconds <= 65;
+              if (detectedShorts != _isShorts) {
+                if (mounted) {
+                  setState(() {
+                    _isShorts = detectedShorts;
+                  });
+                }
+                if (widget.onAspectRatioUpdated != null) {
+                  widget.onAspectRatioUpdated!(_isShorts ? (9 / 16) : (16 / 9));
+                }
+              }
+            }
+          } catch (_) {}
+        };
+        _ytController!.addListener(_ytListener!);
+
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted && widget.onAspectRatioUpdated != null) {
+            widget.onAspectRatioUpdated!(_isShorts ? (9 / 16) : (16 / 9));
+          }
+        });
+
+        if (mounted) {
+          setState(() {
+            _isInitialized = true;
+            _isLoading = false;
+          });
+        }
+        return;
       } else {
         setState(() {
           _isPlayable = false;
@@ -261,7 +331,7 @@ class _VideoWidgetState extends State<VideoWidget> with WidgetsBindingObserver {
       }
     }
 
-    // Initialize MediaKit player for all video types
+    // Initialize MediaKit player for non-YouTube video types
     await _initializeMediaKitPlayer(mediaUrl);
   }
 
@@ -308,9 +378,9 @@ class _VideoWidgetState extends State<VideoWidget> with WidgetsBindingObserver {
       final Completer<void> mediaKitCompleter = Completer<void>();
 
       // Setup listener for MediaKit player state changes
-      final playerStateStream = _mediaKitPlayer!.stream.playing;
-      final subscription = playerStateStream.listen((playing) {
-        if (!mediaKitCompleter.isCompleted) {
+      final durationStream = _mediaKitPlayer!.stream.duration;
+      final subscription = durationStream.listen((duration) {
+        if (duration > Duration.zero && !mediaKitCompleter.isCompleted) {
           mediaKitCompleter.complete();
         }
       });
@@ -360,7 +430,7 @@ class _VideoWidgetState extends State<VideoWidget> with WidgetsBindingObserver {
       });
 
       // Start opening the media
-      unawaited(_mediaKitPlayer!.open(Media(videoPath)));
+      unawaited(_mediaKitPlayer!.open(Media(videoPath), play: false));
 
       // Wait for either playback to start or timeout
       await mediaKitCompleter.future.timeout(
@@ -415,6 +485,59 @@ class _VideoWidgetState extends State<VideoWidget> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
+    if (_isYouTube) {
+      if (_isLoading) {
+        return Container(
+          width: MediaQuery.of(context).size.width,
+          height: MediaQuery.of(context).size.height,
+          color: Colors.black,
+          child: const Center(child: CircularProgressIndicator()),
+        );
+      }
+
+      if (!_isInitialized || _ytController == null) {
+        return Container(
+          width: MediaQuery.of(context).size.width,
+          height: MediaQuery.of(context).size.height,
+          color: Colors.grey[300],
+          child: Center(
+            child: Text(
+              _errorMessage,
+              style: const TextStyle(color: Colors.red),
+              textAlign: TextAlign.center,
+            ),
+          ),
+        );
+      }
+
+      final double ytAspect = _isShorts ? (9 / 16) : (16 / 9);
+      final Widget yt = AspectRatio(
+        aspectRatio: ytAspect,
+        child: YoutubePlayer(
+          controller: _ytController!,
+          showVideoProgressIndicator: true,
+        ),
+      );
+
+      return VisibilityDetector(
+        key: Key('video-yt-${widget.videoUrl}'),
+        onVisibilityChanged: (visibilityInfo) {
+          final isVisible = visibilityInfo.visibleFraction > 0.5;
+          if (_isVisible != isVisible) {
+            _isVisible = isVisible;
+            try {
+              if (isVisible) {
+                _ytController?.play();
+              } else {
+                _ytController?.pause();
+              }
+            } catch (_) {}
+          }
+        },
+        child: yt,
+      );
+    }
+
     // Calculate aspect ratio from the player state
     double aspectRatio = 9 / 16; // Default aspect ratio
 
@@ -852,6 +975,9 @@ class _VideoWidgetState extends State<VideoWidget> with WidgetsBindingObserver {
     // Clear references to prevent memory leaks
     _mediaKitPlayer = null;
     _mediaKitVideoController = null;
+    try {
+      _ytController?.dispose();
+    } catch (_) {}
 
     super.dispose();
   }

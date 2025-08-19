@@ -208,15 +208,12 @@ class _InterestSelectionScreenState extends State<InterestSelectionScreen> {
       await AppRouter.authNotifier.refreshAuthState();
 
       if (mounted) {
-        // 로딩 다이얼로그 닫기
         Navigator.of(context).pop();
 
         print("InterestScreen - Navigating to home screen");
-        // Use replaceAll to completely replace the navigation stack and ensure we go to the root app
         context.pushReplacement(Routes.home);
       }
     } catch (e) {
-      // 로딩 다이얼로그 닫기
       if (mounted) {
         context.pop();
       }
@@ -227,9 +224,8 @@ class _InterestSelectionScreenState extends State<InterestSelectionScreen> {
         backgroundColor: Theme.of(context).canvasColor,
         shadowColor: Colors.transparent,
         leading: const Icon(
-          Icons
-              .error_outline, // or Icons.check_circle, Icons.warning_amber_rounded, etc.
-          color: Colors.redAccent, // or Colors.greenAccent, Colors.orange, etc.
+          Icons.error_outline,
+          color: Colors.redAccent,
         ),
         message: "Failed to complete sign up: $e",
       );
@@ -413,7 +409,6 @@ class _InterestSelectionScreenState extends State<InterestSelectionScreen> {
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
-                                // Remove emoji from display name if it exists
                                 categoryName.replaceFirst(
                                     RegExp(r'^[\u{1F000}-\u{1F9FF}]\s*',
                                         unicode: true),

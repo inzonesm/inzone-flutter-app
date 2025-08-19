@@ -501,7 +501,6 @@ class HomeScreenState extends State<HomeScreen> {
     // Get the actual post data using the calculated index
     dynamic actualPost = posts[actualPostIndex];
 
-    // Check if this position should show an ad (every 11th item: 10, 21, 32, etc.)
     if ((index + 1) % 11 == 0) {
       InZonePost adPost = InZonePost(
         category: '',

@@ -71,7 +71,6 @@ By using the Licensed Application, you agree to abide by these terms and conditi
   String? username;
   String? password;
 
-  // 로딩 다이얼로그를 안전하게 닫기 위한 메서드
   void _dismissLoadingDialog() {
     if (mounted && Navigator.of(context).canPop()) {
       context.pop();
@@ -81,7 +80,6 @@ By using the Licensed Application, you agree to abide by these terms and conditi
   // Function to navigate between pages
   void _navigateToPage(int page) async {
     if (_currentPage == 1) {
-      // 스플래시 스크린 대신 로딩 인디케이터 표시
       showDialog(
         context: context,
         barrierDismissible: false,
@@ -144,7 +142,6 @@ By using the Licensed Application, you agree to abide by these terms and conditi
               userInterests: interests!,
             );
 
-            // 로딩 다이얼로그 닫기
             _dismissLoadingDialog();
 
             // Navigate to home
@@ -153,7 +150,6 @@ By using the Licensed Application, you agree to abide by these terms and conditi
             }
           }
         } else {
-          // 로딩 다이얼로그 닫기
           _dismissLoadingDialog();
 
           // Navigate back to introduction screen
@@ -173,7 +169,6 @@ By using the Licensed Application, you agree to abide by these terms and conditi
           );
         }
       } on FirebaseAuthException catch (e) {
-        // 로딩 다이얼로그 닫기
         _dismissLoadingDialog();
         // Show an error message if something went wrong
         ToastService.showToast(
@@ -187,7 +182,6 @@ By using the Licensed Application, you agree to abide by these terms and conditi
           message: "Error: ${e.message}",
         );
       } catch (e) {
-        // 로딩 다이얼로그 닫기
         _dismissLoadingDialog();
 
         // Show a general error message
@@ -249,7 +243,6 @@ By using the Licensed Application, you agree to abide by these terms and conditi
     );
   }
 
-  // Detail Input Page
   Widget _buildDetailInputPage() {
     return SingleChildScrollView(
       child: Container(
@@ -417,8 +410,7 @@ By using the Licensed Application, you agree to abide by these terms and conditi
                                   height: 30.0,
                                   decoration: const BoxDecoration(
                                     shape: BoxShape.circle,
-                                    color: Colors
-                                        .blue, // You can change the color as needed
+                                    color: Colors.blue,
                                     boxShadow: [
                                       BoxShadow(
                                         offset: Offset(0, 2),
@@ -430,7 +422,7 @@ By using the Licensed Application, you agree to abide by these terms and conditi
                                   ),
                                   child: Center(
                                     child: Text(
-                                      '${index + 1}', // Your content or icon goes here
+                                      '${index + 1}',
                                       style: const TextStyle(
                                         color: Colors.white,
                                         fontSize: 14.0,
@@ -545,7 +537,6 @@ By using the Licensed Application, you agree to abide by these terms and conditi
     );
   }
 
-  // Content Selection Page
   Widget _buildContentSelectionPage() {
     void addToList(String topic) {
       interests ??= [];
