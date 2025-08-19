@@ -217,6 +217,8 @@ class _VideoWidgetState extends State<VideoWidget> with WidgetsBindingObserver {
             _ytController!.unMute();
           }
         } catch (_) {}
+        // Ensure the mute icon updates for YouTube path as well
+        if (mounted) setState(() {});
       }
     });
 
@@ -511,11 +513,41 @@ class _VideoWidgetState extends State<VideoWidget> with WidgetsBindingObserver {
       }
 
       final double ytAspect = _isShorts ? (9 / 16) : (16 / 9);
+      final Widget ytCore = YoutubePlayer(
+        controller: _ytController!,
+        showVideoProgressIndicator: true,
+      );
+
       final Widget yt = AspectRatio(
         aspectRatio: ytAspect,
-        child: YoutubePlayer(
-          controller: _ytController!,
-          showVideoProgressIndicator: true,
+        child: Stack(
+          children: [
+            Positioned.fill(child: ytCore),
+            Positioned(
+              bottom: 60,
+              right: 8,
+              child: GestureDetector(
+                onTap: () {
+                  VideoMuteManager.toggleMute();
+                },
+                child: Container(
+                  width: 50,
+                  height: 50,
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.6),
+                    borderRadius: BorderRadius.circular(22),
+                  ),
+                  child: Icon(
+                    VideoMuteManager.isMuted
+                        ? Icons.volume_off
+                        : Icons.volume_up,
+                    color: Colors.white,
+                    size: 20,
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
       );
 

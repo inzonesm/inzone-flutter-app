@@ -51,9 +51,11 @@ class _VoiceScreenState extends State<VoiceScreen>
   void initState() {
     super.initState();
 
+    // Initialize speech-to-text engine
     _speech = stt.SpeechToText();
     _initializeStt();
 
+    // Prepare processing animation used while we wait for AI response TTS
     _processingAnimationController = AnimationController(
       duration: const Duration(milliseconds: 800),
       vsync: this,
@@ -63,6 +65,8 @@ class _VoiceScreenState extends State<VoiceScreen>
           parent: _processingAnimationController, curve: Curves.easeInOut),
     );
 
+    // Delay initial auto-start slightly so the UI can render first
+    // Then auto-start listening if conditions are met
     Future.delayed(const Duration(milliseconds: 500), () {
       setState(() {
         _isVoiceReady = true;
@@ -102,21 +106,28 @@ class _VoiceScreenState extends State<VoiceScreen>
     try {
       debugPrint('Starting speech.listen...');
       await _speech.listen(
+        // Called continuously with partial and final transcriptions
         onResult: (result) {
           debugPrint(
               'Speech result: ${result.recognizedWords}, final: ${result.finalResult}');
           if (!mounted) return;
           setState(() => _recognizedWords = result.recognizedWords);
+          // Stop as soon as the engine marks the result as final
           if (result.finalResult) {
             _stopListening();
           }
         },
         localeId: 'en_US',
+        // Maximum session duration before auto-stopping
         listenFor: const Duration(minutes: 3),
+        // Silence timeout: stop if no speech is detected for this duration
+        // Note: currently 2000ms (2 seconds). Increase to allow longer pauses.
         pauseFor: const Duration(milliseconds: 2000),
         cancelOnError: true,
         partialResults: true,
+        // Confirmation mode is optimized for discrete utterances
         listenMode: stt.ListenMode.confirmation,
+        // Track input sound level to drive UI animation
         onSoundLevelChange: (level) {
           if (!mounted) return;
           final normalizedLevel = (level + 120) / 120;
@@ -137,6 +148,9 @@ class _VoiceScreenState extends State<VoiceScreen>
     }
   }
 
+  /// Stop the current STT session.
+  /// If [shouldProcess] is true and we have transcribed text, we will
+  /// send it to the backend and await the AI TTS response.
   void _stopListening({bool shouldProcess = true}) async {
     if (!isRecording) return;
 
@@ -150,6 +164,7 @@ class _VoiceScreenState extends State<VoiceScreen>
       setState(() {
         isRecording = false;
         if (shouldProcess && hasSpeech) {
+          // Enter processing state while waiting for server + TTS
           _isProcessing = true;
           _processingAnimationController.repeat(reverse: true);
         }
@@ -162,6 +177,7 @@ class _VoiceScreenState extends State<VoiceScreen>
       await _sendTextToBackend();
     } else {
       if (!hasSpeech && !_isMuted && mounted) {
+        // Slight delay before attempting to re-start listening
         Future.delayed(const Duration(milliseconds: 500), () {
           if (mounted && !isRecording && !_isProcessing && !_isMuted) {
             _startListening();
@@ -178,6 +194,7 @@ class _VoiceScreenState extends State<VoiceScreen>
       final userId = FirebaseAuth.instance.currentUser?.uid;
       if (userId == null) return;
 
+      // Orchestrates chat completion and TTS generation
       final result = await _voiceService.sendTextForVoice(
         userId: userId,
         aiCharacterId: widget.avatarId,
@@ -200,6 +217,7 @@ class _VoiceScreenState extends State<VoiceScreen>
           _aiResponseText = r.aiResponseText;
         });
 
+        // Play the AI TTS audio and then optionally re-arm listening
         await _playAIResponse(r.aiResponseAudio);
       } else if (result.error != null) {
         final e = result.error!;
@@ -226,6 +244,8 @@ class _VoiceScreenState extends State<VoiceScreen>
     }
   }
 
+  /// Play AI TTS audio from base64-encoded MPEG data.
+  /// When playback finishes, re-start listening if not muted or busy.
   Future<void> _playAIResponse(String base64Audio) async {
     if (base64Audio.isEmpty) return;
 
@@ -250,6 +270,7 @@ class _VoiceScreenState extends State<VoiceScreen>
       }
 
       if (!_isMuted && mounted) {
+        // After TTS completes, small delay then re-arm listening
         debugPrint('AI response completed, restarting listening...');
         await Future.delayed(const Duration(milliseconds: 100));
         if (mounted &&
@@ -268,6 +289,7 @@ class _VoiceScreenState extends State<VoiceScreen>
       }
 
       if (!_isMuted && mounted) {
+        // If playback failed, try to re-arm listening after a brief delay
         await Future.delayed(const Duration(milliseconds: 300));
         if (mounted && !isRecording && !_isProcessing && !_isMuted) {
           _startListening();
@@ -278,6 +300,7 @@ class _VoiceScreenState extends State<VoiceScreen>
 
   @override
   void dispose() {
+    // Stop STT, audio, and animations; clean up controllers
     _speech.stop();
     _audioPlayer.dispose();
     _processingAnimationController.dispose();
