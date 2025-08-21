@@ -24,6 +24,7 @@ import 'package:app_tracking_transparency/app_tracking_transparency.dart';
 import 'package:inzone/services/reward_ad_service.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:inzone/services/ai_engagement_service.dart';
 
 // Key for storing first launch status in SharedPreferences
 const String FIRST_LAUNCH_KEY = 'is_first_launch';
@@ -221,6 +222,15 @@ void main() async {
   // This runs asynchronously and doesn't block app startup
   InZoneDatabase.warmUpCloudRun();
 
+  // Initialize AI engagement service for background operations
+  try {
+    await AIEngagementService.initialize();
+    print("✅ AI Engagement Service initialized successfully");
+  } catch (e) {
+    print("⚠️ AI Engagement Service initialization failed: $e");
+    // Don't block app startup if AI service fails
+  }
+
   // // TESTING: Uncomment the line below to test all analytics
   // await appsFlyerService.testAllAnalytics();
 
@@ -274,6 +284,9 @@ class _MyAppState extends State<MyApp> {
         print("User is logged in - going to home");
         AppRouter.setInitialRoute(Routes.home);
 
+        // Start AI engagement service for logged-in users
+        _startAIEngagementService();
+
         // Update first launch status if it was the first launch
         if (isFirstLaunch) {
           widget.prefs.setBool(FIRST_LAUNCH_KEY, false);
@@ -289,6 +302,23 @@ class _MyAppState extends State<MyApp> {
         }
       }
     });
+  }
+
+  /// Start AI engagement service for background operations
+  void _startAIEngagementService() {
+    try {
+      AIEngagementService.start();
+      print("🤖 AI engagement background service started");
+    } catch (e) {
+      print("⚠️ Failed to start AI engagement service: $e");
+      // Don't crash the app if AI service fails to start
+    }
+  }
+
+  @override
+  void dispose() {
+    AIEngagementService.dispose();
+    super.dispose();
   }
 
   @override
