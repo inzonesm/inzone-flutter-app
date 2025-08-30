@@ -356,21 +356,39 @@ class _FollowersFollowingTabState extends State<FollowersFollowingTab> {
                                     child: OutlinedButton(
                                       onPressed: () async {
                                         // Handle unfollow action
+                                        bool success = false;
                                         if (userType == 'ai') {
-                                          await InZoneDatabase.unfollowAIUser(
-                                              userId);
+                                          success = await InZoneDatabase
+                                                  .unfollowAIUser(userId) ==
+                                              true;
                                         } else {
-                                          await InZoneDatabase.unfollowUser(
-                                              userId);
+                                          success = await InZoneDatabase
+                                                  .unfollowUser(userId) ==
+                                              true;
                                         }
-                                        // Refresh the list
-                                        setState(() {
-                                          displayUserList["following"]!
-                                              .removeWhere((u) =>
-                                                  u['id'] == userId ||
-                                                  u['uid'] == userId);
-                                          updateMessageShown();
-                                        });
+
+                                        if (success) {
+                                          // Refresh the list
+                                          setState(() {
+                                            displayUserList["following"]!
+                                                .removeWhere((u) =>
+                                                    u['id'] == userId ||
+                                                    u['uid'] == userId);
+                                            updateMessageShown();
+                                          });
+                                        } else {
+                                          ToastService.showToast(
+                                            context,
+                                            backgroundColor:
+                                                Theme.of(context).canvasColor,
+                                            shadowColor: Colors.transparent,
+                                            leading: const Icon(
+                                              FeatherIcons.xCircle,
+                                              color: Colors.redAccent,
+                                            ),
+                                            message: 'Failed to unfollow user',
+                                          );
+                                        }
                                       },
                                       style: OutlinedButton.styleFrom(
                                         foregroundColor: Colors.black,
@@ -522,17 +540,38 @@ class _FollowersFollowingTabState extends State<FollowersFollowingTab> {
                         child: OutlinedButton(
                           onPressed: () async {
                             // Handle unfollow action
+                            bool success = false;
                             if (userType == 'ai') {
-                              await InZoneDatabase.unfollowAIUser(userId);
+                              success = await InZoneDatabase
+                                      .unfollowAIUser(userId) ==
+                                  true;
                             } else {
-                              await InZoneDatabase.unfollowUser(userId);
+                              success = await InZoneDatabase
+                                      .unfollowUser(userId) ==
+                                  true;
                             }
-                            // Refresh the list
-                            setState(() {
-                              displayUserList["following"]!.removeWhere((u) =>
-                                  u['id'] == userId || u['uid'] == userId);
-                              updateMessageShown();
-                            });
+
+                            if (success) {
+                              // Refresh the list
+                              setState(() {
+                                displayUserList["following"]!
+                                    .removeWhere((u) =>
+                                        u['id'] == userId || u['uid'] == userId);
+                                updateMessageShown();
+                              });
+                            } else {
+                              ToastService.showToast(
+                                context,
+                                backgroundColor:
+                                    Theme.of(context).canvasColor,
+                                shadowColor: Colors.transparent,
+                                leading: const Icon(
+                                  FeatherIcons.xCircle,
+                                  color: Colors.redAccent,
+                                ),
+                                message: 'Failed to unfollow user',
+                              );
+                            }
                           },
                           style: OutlinedButton.styleFrom(
                             foregroundColor: Colors.black,
@@ -666,16 +705,28 @@ class _FollowButtonState extends State<FollowButton> {
         if (userProfile != null && userProfile.containsKey('following')) {
           List<dynamic> following = userProfile['following'] ?? [];
 
-          // Check if the other user is in the following list
+          // Check if the other user is in the following list. Accept multiple key names.
           bool isCurrentlyFollowing = false;
           for (var followedUser in following) {
-            if (followedUser is Map<String, dynamic>) {
-              if (followedUser['id'] == widget.otherUserId) {
-                isCurrentlyFollowing = true;
-                break;
+            String? fid;
+            if (followedUser is String) {
+              fid = followedUser;
+            } else if (followedUser is Map<String, dynamic>) {
+              // Common keys we might encounter
+              fid = (followedUser['id'] ?? followedUser['uid'] ??
+                  followedUser['userId'] ?? followedUser['_id'])
+                  ?.toString();
+
+              // If still null, check nested structures
+              if (fid == null) {
+                if (followedUser['user'] is Map &&
+                    followedUser['user']['id'] != null) {
+                  fid = followedUser['user']['id'].toString();
+                }
               }
-            } else if (followedUser is String &&
-                followedUser == widget.otherUserId) {
+            }
+
+            if (fid != null && fid == widget.otherUserId) {
               isCurrentlyFollowing = true;
               break;
             }
@@ -703,16 +754,53 @@ class _FollowButtonState extends State<FollowButton> {
   }
 
   void toggleFollow(bool follow) async {
-    if (follow) {
-      await InZoneDatabase.followUser(widget.otherUserId, widget.otherUserName);
+    // Optimistic update
+    setState(() {
+      isFollowing = follow;
+    });
+
+    try {
+      bool success = false;
+      if (follow) {
+        success = await InZoneDatabase.followUser(
+                widget.otherUserId, widget.otherUserName) ==
+            true;
+      } else {
+        success = await InZoneDatabase.unfollowUser(widget.otherUserId) ==
+            true;
+      }
+
+      if (!success) {
+        // Revert optimistic update
+        setState(() {
+          isFollowing = !follow;
+        });
+        ToastService.showToast(
+          context,
+          backgroundColor: Theme.of(context).canvasColor,
+          shadowColor: Colors.transparent,
+          leading: const Icon(
+            FeatherIcons.xCircle,
+            color: Colors.redAccent,
+          ),
+          message: 'Failed to ${follow ? 'follow' : 'unfollow'} user',
+        );
+      }
+    } catch (e) {
+      // Revert on failure
       setState(() {
-        isFollowing = true;
+        isFollowing = !follow;
       });
-    } else {
-      await InZoneDatabase.unfollowUser(widget.otherUserId);
-      setState(() {
-        isFollowing = false;
-      });
+      ToastService.showToast(
+        context,
+        backgroundColor: Theme.of(context).canvasColor,
+        shadowColor: Colors.transparent,
+        leading: const Icon(
+          FeatherIcons.xCircle,
+          color: Colors.redAccent,
+        ),
+        message: 'Failed to ${follow ? 'follow' : 'unfollow'} user',
+      );
     }
   }
 
@@ -734,33 +822,81 @@ class _FollowButtonState extends State<FollowButton> {
       );
     }
 
-    return TextButton(
-      style: ButtonStyle(
-        backgroundColor: WidgetStateProperty.all<Color>(
-          isFollowing
-              ? Colors.blue
-              : Colors
-                  .transparent, // Filled when following, transparent when not
-        ),
-        shape: WidgetStateProperty.all<RoundedRectangleBorder>(
-          RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(100.0),
-            side: const BorderSide(
-                color: Colors.blue), // Always outlined with blue
+    // When already following, tapping the button should open a small popup
+    // with the option to unfollow. When not following, tapping follows.
+    if (isFollowing) {
+      return PopupMenuButton<String>(
+        onSelected: (value) async {
+          if (value == 'unfollow') {
+            // Optimistic update: immediately reflect unfollow in UI
+            setState(() {
+              isFollowing = false;
+            });
+
+            bool success = false;
+            try {
+              success = await InZoneDatabase.unfollowUser(widget.otherUserId) == true;
+            } catch (e) {
+              success = false;
+            }
+
+            if (!success) {
+              // Revert on failure
+              setState(() {
+                isFollowing = true;
+              });
+              ToastService.showToast(
+                context,
+                backgroundColor: Theme.of(context).canvasColor,
+                shadowColor: Colors.transparent,
+                leading: const Icon(
+                  FeatherIcons.xCircle,
+                  color: Colors.redAccent,
+                ),
+                message: 'Failed to unfollow user',
+              );
+            }
+          }
+        },
+        itemBuilder: (ctx) => [
+          const PopupMenuItem<String>(
+            value: 'unfollow',
+            child: Text('Unfollow'),
+          ),
+        ],
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(
+            color: Colors.blue,
+            borderRadius: BorderRadius.circular(100),
+            border: Border.all(color: Colors.blue),
+          ),
+          child: const Text(
+            'Following',
+            style: TextStyle(color: Colors.white),
           ),
         ),
+      );
+    }
+
+    // Not following -> act as follow button. Use OutlinedButton for consistent
+    // look-and-feel and MaterialStateProperty for ButtonStyle values.
+    return OutlinedButton(
+      style: OutlinedButton.styleFrom(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(100.0),
+        ),
+        side: const BorderSide(color: Colors.blue),
       ),
       onPressed: () {
-        toggleFollow(!isFollowing);
+        toggleFollow(true);
       },
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 10.0),
+      child: const Padding(
+        padding: EdgeInsets.symmetric(horizontal: 10.0),
         child: Text(
-          isFollowing ? "Following" : "Follow", // Change text based on state
+          'Follow', // Not following
           style: TextStyle(
-            color: isFollowing
-                ? Colors.white
-                : Colors.blue, // White text for filled, blue for outlined
+            color: Colors.blue,
           ),
         ),
       ),

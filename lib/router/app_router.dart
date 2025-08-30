@@ -32,6 +32,8 @@ import 'package:inzone/screen/chat/post_chat_screen.dart';
 import 'package:inzone/screen/settings/content_select_screen.dart';
 import 'package:inzone/screen/settings/referral_screen.dart';
 import 'package:inzone/screen/settings/settings_screen.dart';
+import 'package:inzone/screen/notifications/notification_center_screen.dart';
+import 'package:inzone/screen/notifications/notification_settings_screen.dart';
 import 'package:inzone/screen/3d_model/3d_model_prompt_screen.dart';
 import 'package:inzone/screen/3d_model/3d_model_select_screen.dart';
 import 'package:inzone/screen/3d_model/3d_model_intro.dart';
@@ -595,6 +597,18 @@ class AppRouter {
         path: Routes.settings,
         parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) => const SettingsScreen(),
+      ),
+
+      GoRoute(
+        path: Routes.notificationCenter,
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) => const NotificationCenterScreen(),
+      ),
+
+      GoRoute(
+        path: Routes.notificationSettings,
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) => const NotificationSettingsScreen(),
       ),
 
       GoRoute(

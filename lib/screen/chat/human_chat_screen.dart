@@ -6,6 +6,7 @@ import 'package:inzone/components/chat/chat_input.dart';
 import 'package:inzone/components/chat/date_header.dart';
 import 'package:inzone/components/chat/message_bubble.dart';
 import 'package:inzone/services/inzone_database.dart';
+import 'package:inzone/services/notification_event_service.dart';
 import 'package:inzone/theme/light_theme.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter/foundation.dart';
@@ -137,6 +138,87 @@ class _HumanChatScreenState extends State<HumanChatScreen> {
         },
         'lastUpdated': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
+
+      // Trigger DM notification event
+      await NotificationEventService.onDirectMessage(
+        widget.conversationId,
+        _msgController.text.trim(),
+        currentUserId!,
+        widget.otherUserId,
+      );
+
+      // Fallback: ensure a notification doc exists in Firestore for the receiver even if the event endpoint is delayed or fails. Resolve the receiver to a canonical humanUsers uid (doc/uid/username) and write a deduplicated `direct_message` notification.
+      try {
+        final notifRef = FirebaseFirestore.instance.collection('notifications');
+
+        final humanUsersRef = FirebaseFirestore.instance.collection('humanUsers');
+        DocumentSnapshot? receiverDoc;
+        String? resolvedReceiverUid;
+        String resolvedReceiverName = widget.otherUserName;
+
+        try {
+          final byId = await humanUsersRef.doc(widget.otherUserId).get();
+          if (byId.exists) {
+            receiverDoc = byId;
+          } else {
+            final q1 = await humanUsersRef.where('username', isEqualTo: widget.otherUserId).limit(1).get();
+            if (q1.docs.isNotEmpty) {
+              receiverDoc = q1.docs.first;
+            } else {
+              final q2 = await humanUsersRef.where('uid', isEqualTo: widget.otherUserId).limit(1).get();
+              if (q2.docs.isNotEmpty) {
+                receiverDoc = q2.docs.first;
+              } else {
+                final q3 = await humanUsersRef.where('user_document_id', isEqualTo: widget.otherUserId).limit(1).get();
+                if (q3.docs.isNotEmpty) receiverDoc = q3.docs.first;
+              }
+            }
+          }
+
+          if (receiverDoc != null && receiverDoc.exists) {
+            final data = receiverDoc.data() as Map<String, dynamic>;
+            resolvedReceiverUid = data['uid'] ?? receiverDoc.id;
+            resolvedReceiverName = data['name'] ?? data['username'] ?? resolvedReceiverName;
+            debugPrint('Resolved DM receiver "${widget.otherUserId}" -> uid: $resolvedReceiverUid name: $resolvedReceiverName');
+          } else {
+            debugPrint('Could not resolve DM receiver "${widget.otherUserId}" to humanUsers doc; skipping fallback notification');
+          }
+        } catch (e) {
+          debugPrint('Error resolving receiver for DM fallback notification: $e');
+        }
+
+        if (resolvedReceiverUid != null && resolvedReceiverUid != currentUserId) {
+          final query = await notifRef
+              .where('userId', isEqualTo: resolvedReceiverUid)
+              .where('data.chatId', isEqualTo: widget.conversationId)
+              .where('data.senderId', isEqualTo: currentUserId)
+              .limit(1)
+              .get();
+
+          if (query.docs.isEmpty) {
+            final bodyText = _msgController.text.trim();
+            final added = await notifRef.add({
+              'userId': resolvedReceiverUid,
+              'type': 'direct_message',
+              'title': currentUserName,
+              'body': bodyText.length > 100 ? '${bodyText.substring(0, 100)}...' : bodyText,
+              'isRead': false,
+              'createdAt': FieldValue.serverTimestamp(),
+              'data': {
+                'chatId': widget.conversationId,
+                'senderId': currentUserId,
+                'senderName': currentUserName,
+                'messageContent': bodyText,
+              },
+              'deeplink': 'inzone://chat/${widget.conversationId}'
+            });
+
+            debugPrint('Fallback DM notification written: ${added.id} -> user $resolvedReceiverUid');
+          }
+        }
+      } catch (e) {
+        debugPrint('Failed to write fallback DM notification: $e');
+      }
 
       _msgController.clear();
       _scrollToEnd();

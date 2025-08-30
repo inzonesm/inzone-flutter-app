@@ -15,6 +15,7 @@ class CustomAppBar extends StatefulWidget implements PreferredSizeWidget {
   final VoidCallback? onProfileTap;
   final VoidCallback? onPointsTap;
   final VoidCallback? onNotificationTap;
+  final int? notificationCount;
   final bool isHome;
   final bool isGroup;
   final bool isChat;
@@ -35,6 +36,7 @@ class CustomAppBar extends StatefulWidget implements PreferredSizeWidget {
     this.onProfileTap,
     this.onPointsTap,
     this.onNotificationTap,
+    this.notificationCount,
     this.isHome = false,
     this.isGroup = false,
     this.isChat = false,
@@ -285,10 +287,43 @@ class _CustomAppBarState extends State<CustomAppBar> {
                             shape: BoxShape.circle,
                             color: Theme.of(context).cardColor,
                           ),
-                          child: Icon(
-                            Icons.notifications,
-                            color: Theme.of(context).iconTheme.color,
-                            size: 28,
+                          child: Stack(
+                            children: [
+                              Center(
+                                child: Icon(
+                                  Icons.notifications,
+                                  color: Theme.of(context).iconTheme.color,
+                                  size: 28,
+                                ),
+                              ),
+                              if (widget.notificationCount != null && widget.notificationCount! > 0)
+                                Positioned(
+                                  right: 8,
+                                  top: 8,
+                                  child: Container(
+                                    padding: const EdgeInsets.all(2),
+                                    decoration: BoxDecoration(
+                                      color: Colors.red,
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    constraints: const BoxConstraints(
+                                      minWidth: 16,
+                                      minHeight: 16,
+                                    ),
+                                    child: Text(
+                                      widget.notificationCount! > 99 
+                                          ? '99+' 
+                                          : widget.notificationCount.toString(),
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                  ),
+                                ),
+                            ],
                           ),
                         ),
                       ),

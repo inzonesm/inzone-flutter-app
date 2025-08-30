@@ -10,19 +10,15 @@ import 'package:inzone/components/profile/avatar_story_component.dart';
 import 'package:inzone/components/ui/appbar.dart';
 import 'package:inzone/data/inzone_avatar.dart';
 import 'package:inzone/data/inzone_post.dart';
-import 'package:inzone/router/routes.dart';
-import 'package:inzone/screen/common/notificationScreen.dart';
+import 'package:inzone/screen/notifications/notification_center_screen.dart';
+import 'package:inzone/services/notification_badge_service.dart';
 import 'package:inzone/services/inzone_database.dart';
-import 'package:go_router/go_router.dart';
 import 'package:inzone/screen/common/search_explore_screen.dart';
 import 'package:toasty_box/toast_service.dart';
 import 'package:pull_to_refresh_flutter3/pull_to_refresh_flutter3.dart';
 import 'package:inzone/services/appsflyer_service.dart';
 import 'dart:async';
 import 'dart:io';
-import 'package:inzone/components/cards/post_card.dart';
-import 'package:inzone/components/cards/repost_card.dart';
-import 'package:inzone/data/inzone_post.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key, this.controller});
@@ -671,12 +667,25 @@ class HomeScreenState extends State<HomeScreen> {
                 physics: const AlwaysScrollableScrollPhysics(),
                 child: Column(
                   children: [
-                    CustomAppBar(
-                      isHome: true,
-                      isDebug: true,
-                      userPoints: "100",
-                      profileImageUrl: null,
-                      onSearchTap: () {
+                    StreamBuilder<int>(
+                      stream: NotificationBadgeService.getUnreadNotificationCount(),
+                      builder: (context, snapshot) {
+                        final notificationCount = snapshot.data ?? 0;
+                        return CustomAppBar(
+                          isHome: true,
+                          isDebug: false, // Changed to false to show notification button
+                          userPoints: "100",
+                          profileImageUrl: null,
+                          notificationCount: notificationCount, // Real-time unread count
+                          onNotificationTap: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (context) =>
+                                    const NotificationCenterScreen(),
+                              ),
+                            );
+                          },
+                          onSearchTap: () {
                         try {
                           // context.push(Routes.searchExplore);
                           Navigator.of(context).push(
@@ -702,6 +711,8 @@ class HomeScreenState extends State<HomeScreen> {
                       },
                       onProfileTap: () {},
                       onPointsTap: () {},
+                    );
+                      },
                     ),
                     Padding(
                       padding: const EdgeInsets.only(top: 0.0, bottom: 35.0),
@@ -741,19 +752,24 @@ class HomeScreenState extends State<HomeScreen> {
                       floating: true,
                       pinned: false,
                       delegate: CustomAppBarDelegate(
-                        child: CustomAppBar(
-                          isHome: true,
-                          isDebug: true,
-                          userPoints: "100",
-                          profileImageUrl: null,
-                          // onNotificationTap: () {
-                          //   Navigator.of(context).push(
-                          //     MaterialPageRoute(
-                          //       builder: (context) =>
-                          //           const NotificationScreen(),
-                          //     ),
-                          //   );
-                          // },
+                        child: StreamBuilder<int>(
+                          stream: NotificationBadgeService.getUnreadNotificationCount(),
+                          builder: (context, snapshot) {
+                            final notificationCount = snapshot.data ?? 0;
+                            return CustomAppBar(
+                              isHome: true,
+                              isDebug: false, // Changed to false to show notification button
+                              userPoints: "100",
+                              profileImageUrl: null,
+                              notificationCount: notificationCount, // Real-time unread count
+                          onNotificationTap: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (context) =>
+                                    const NotificationCenterScreen(),
+                              ),
+                            );
+                          },
                           onSearchTap: () {
                             try {
                               // context.push(Routes.searchExplore);
@@ -782,6 +798,8 @@ class HomeScreenState extends State<HomeScreen> {
                           },
                           onProfileTap: () {},
                           onPointsTap: () {},
+                        );
+                          },
                         ),
                       ),
                     ),
