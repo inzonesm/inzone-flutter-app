@@ -208,13 +208,15 @@ class GroupChatService {
 
         // Trigger notification event for group message
         await NotificationEventService.onGroupMessage(
-          groupId, 
-          content, 
+          groupId,
+          content,
           currentUser.uid,
         );
 
         // Check for mentions in the message and trigger mention notifications
-        await _checkForMentions(content, groupId, currentUser.uid);
+        // Pass the message id so we can deduplicate mention notifications.
+        final String? messageId = message['id'] as String?;
+        await _checkForMentions(content, groupId, currentUser.uid, messageId: messageId);
       } else {
         print('Document does not exist');
         if (groupId == defaultGroupChatDocId) {
@@ -351,10 +353,11 @@ class GroupChatService {
   }
 
   /// Check for mentions in message content and trigger notifications
-  static Future<void> _checkForMentions(String content, String groupId, String senderId) async {
+  static Future<void> _checkForMentions(String content, String groupId, String senderId, {String? messageId}) async {
     try {
-      // Simple mention detection - look for @username patterns
-      final mentionRegex = RegExp(r'@(\w+)');
+      // Mention detection - support @username (alphanumeric, underscore, dot, dash)
+      // and explicit uid mentions like <@uid> or @<uid>
+      final mentionRegex = RegExp(r'<@([A-Za-z0-9_-]+)>|@([A-Za-z0-9_.\-]+)');
       final mentions = mentionRegex.allMatches(content);
       
       if (mentions.isEmpty) return;
@@ -366,30 +369,134 @@ class GroupChatService {
       final groupData = groupDoc.data() as Map<String, dynamic>;
       final participants = groupData['participants'] as List<dynamic>? ?? [];
       
-      for (final mention in mentions) {
-        final mentionedUsername = mention.group(1);
-        if (mentionedUsername == null) continue;
-        
-        // Find the mentioned user in participants
-        for (final participant in participants) {
-          if (participant is Map<String, dynamic>) {
-            final participantName = participant['name'] as String? ?? '';
-            final participantUid = participant['uid'] as String? ?? '';
-            
-            // Match by username (case-insensitive)
-            if (participantName.toLowerCase() == mentionedUsername.toLowerCase() && 
-                participantUid != senderId) {
-              
-              // Trigger mention notification
-              await NotificationEventService.onGroupMention(
-                groupId,
-                participantUid,
-                content,
-                senderId,
-              );
-              break;
+      for (final match in mentions) {
+        // match.group(1) -> uid-style (<@uid>), group(2) -> @username
+        final mentionedUidLike = match.group(1);
+        final mentionedUsernameLike = match.group(2);
+        String? targetUid;
+        String targetNameSnippet = '';
+
+        // Try to resolve mentioned user either by uid-like mention or by username
+        if (mentionedUidLike != null && mentionedUidLike.isNotEmpty) {
+          // If the mention looks like a UID, try to find participant with that uid
+          for (final participant in participants) {
+            if (participant is Map<String, dynamic>) {
+              final participantUid = participant['uid'] as String? ?? '';
+              if (participantUid == mentionedUidLike && participantUid != senderId) {
+                targetUid = participantUid;
+                targetNameSnippet = participant['name'] as String? ?? participantUid;
+                break;
+              }
             }
           }
+        }
+
+        if (targetUid == null && mentionedUsernameLike != null && mentionedUsernameLike.isNotEmpty) {
+          // Match case-insensitive against participant name or username fields
+          for (final participant in participants) {
+            if (participant is Map<String, dynamic>) {
+              final participantName = participant['name'] as String? ?? '';
+              final participantUsername = (participant['username'] as String?) ?? participantName;
+              final participantUid = participant['uid'] as String? ?? '';
+
+              if ((participantName.toLowerCase() == mentionedUsernameLike.toLowerCase() ||
+                      participantUsername.toLowerCase() == mentionedUsernameLike.toLowerCase()) &&
+                  participantUid != senderId) {
+                targetUid = participantUid;
+                targetNameSnippet = participantName.isNotEmpty ? participantName : participantUsername;
+                break;
+              }
+            }
+          }
+        }
+
+        if (targetUid == null) {
+          // Could not resolve mention to a participant in the group, skip
+          continue;
+        }
+
+        try {
+          // Fire server-side mention pipeline (best-effort)
+          await NotificationEventService.onGroupMention(
+            groupId,
+            targetUid,
+            content,
+            senderId,
+          );
+        } catch (e) {
+          // swallow and continue to fallback
+          print('Error calling onGroupMention endpoint: $e');
+        }
+
+        // Client-side fallback: ensure a notification doc exists so the FE shows
+        // the mention even if the server pipeline fails or is delayed.
+        try {
+          final notifRef = _firestore.collection('notifications');
+
+          // Resolve canonical humanUsers uid if participant might not be a humanUsers doc
+          String? resolvedUid = targetUid;
+          try {
+            final humanUsersRef = _firestore.collection('humanUsers');
+            DocumentSnapshot? resolvedDoc;
+            final byId = await humanUsersRef.doc(targetUid).get();
+            if (byId.exists) {
+              resolvedDoc = byId;
+            } else {
+              final q1 = await humanUsersRef.where('username', isEqualTo: targetUid).limit(1).get();
+              if (q1.docs.isNotEmpty) resolvedDoc = q1.docs.first;
+            }
+
+            if (resolvedDoc != null && resolvedDoc.exists) {
+              final data = resolvedDoc.data() as Map<String, dynamic>;
+              resolvedUid = data['uid'] ?? resolvedDoc.id;
+            }
+          } catch (e) {
+            print('Error resolving humanUsers for mention fallback: $e');
+          }
+
+          if (resolvedUid == null) continue;
+
+          // Deduplicate by msgId when available
+          QuerySnapshot existingQuery;
+          if (messageId != null && messageId.isNotEmpty) {
+            existingQuery = await notifRef
+                .where('userId', isEqualTo: resolvedUid)
+                .where('data.msgId', isEqualTo: messageId)
+                .limit(1)
+                .get();
+          } else {
+            // fallback dedupe by group+sender+snippet
+            final snippet = (content.length > 100) ? content.substring(0, 100) : content;
+            existingQuery = await notifRef
+                .where('userId', isEqualTo: resolvedUid)
+                .where('data.groupId', isEqualTo: groupId)
+                .where('data.senderId', isEqualTo: senderId)
+                .limit(1)
+                .get();
+          }
+
+          if (existingQuery.docs.isEmpty) {
+            final snippet = (content.length > 100) ? '${content.substring(0, 100)}...' : content;
+            final added = await notifRef.add({
+              'userId': resolvedUid,
+              'type': 'mention',
+              'title': 'You were mentioned',
+              'body': '$targetNameSnippet mentioned you: $snippet',
+              'isRead': false,
+              'createdAt': FieldValue.serverTimestamp(),
+              'data': {
+                'groupId': groupId,
+                if (messageId != null) 'msgId': messageId,
+                'senderId': senderId,
+                'snippet': snippet,
+              },
+              'deeplink': 'inzone://group/$groupId${messageId != null ? '?msg=$messageId' : ''}'
+            });
+
+            print('Wrote fallback group mention notification ${added.id} for $resolvedUid');
+          }
+        } catch (e) {
+          print('Error writing fallback mention notification: $e');
         }
       }
     } catch (e) {
