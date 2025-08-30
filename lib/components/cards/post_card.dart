@@ -31,6 +31,7 @@ import 'package:toasty_box/toast_service.dart';
 import 'package:inzone/components/cards/tip_screen.dart';
 import 'package:inzone/components/cards/comments_tile.dart';
 import 'package:inzone/services/appsflyer_service.dart';
+import 'package:inzone/services/notification_event_service.dart';
 
 class PostCard extends StatefulWidget {
   InZonePost post;
@@ -200,6 +201,34 @@ class _PostCardState extends State<PostCard>
     }
   }
 
+  // Build a likedBy entry for the current user using the same logic as profile/follow
+  Future<Map<String, dynamic>> _buildLikeEntryForCurrentUser(String uid) async {
+    String username = '';
+    String type = 'human';
+
+    try {
+      // Try to get normalized profile for current user
+      final profile = await InZoneDatabase.getCurrentUserProfile();
+      if (profile != null) {
+        username = profile['username'] ?? profile['name'] ?? '';
+      }
+    } catch (e) {
+      debugPrint('Error fetching current user profile for like entry: $e');
+    }
+
+    // Fallback to Firebase Auth displayName
+    if (username.isEmpty) {
+      username = FirebaseAuth.instance.currentUser?.displayName ?? '';
+    }
+
+    // Default type is human for logged-in users; keep as 'human' unless other logic needed
+    return {
+      'id': uid,
+      'username': username,
+      'type': type,
+    };
+  }
+
   @override
   void initState() {
     super.initState();
@@ -365,42 +394,275 @@ class _PostCardState extends State<PostCard>
     if (widget.post.id == "unknown" || widget.post.id.isEmpty) {
       return;
     }
+    // Optimistic UI: toggle immediately so animation is instant
+    final bool newLikeState = !isLiked;
+    setState(() {
+      isLiked = newLikeState;
+    });
 
-    // Check current like status
-    bool currentLikeStatus = isLiked;
-
-    if (currentLikeStatus) {
-      await LikedPostsPreferences.removeLikedPost(widget.post.id);
-    } else {
-      await LikedPostsPreferences.addLikedPost(widget.post);
-    }
-
-    // Track like/unlike event in AppsFlyer
-    final userId = AppsFlyerService().getCurrentUserId();
-    if (userId != null) {
-      String category = '';
-      if (widget.post.category.isNotEmpty) {
-        category = widget.post.category;
-      } else if (widget.post.mainCategory.isNotEmpty) {
-        category = widget.post.mainCategory;
+    // Update SharedPreferences immediately (fire-and-forget inside background task)
+    Future<void>(() async {
+      try {
+        if (newLikeState) {
+          await LikedPostsPreferences.addLikedPost(widget.post);
+        } else {
+          await LikedPostsPreferences.removeLikedPost(widget.post.id);
+        }
+      } catch (e) {
+        debugPrint('Error updating local liked prefs: $e');
       }
+    });
 
-      AppsFlyerService().trackPostLike(
-        postId: widget.post.id,
-        userId: userId,
-        isLiked: !currentLikeStatus, // New state after toggle
-        category: category.isNotEmpty ? category : null,
-        authorId: widget.post.userReference.isNotEmpty
-            ? widget.post.userReference
-            : null,
-      );
-    }
+    // Do backend updates in background. If they fail, rollback the optimistic UI and prefs.
+    Future<void>(() async {
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser == null || currentUser.uid.isEmpty) return;
 
-    if (mounted) {
-      setState(() {
-        isLiked = !currentLikeStatus; // Toggle the like state
-      });
-    }
+      final String currentUid = currentUser.uid;
+      final collectionName = widget.post.isAi ? 'aiPosts' : 'humanPosts';
+      final docRef = FirebaseFirestore.instance.collection(collectionName).doc(widget.post.id);
+
+      try {
+        final likeEntry = await _buildLikeEntryForCurrentUser(currentUid);
+
+        if (newLikeState) {
+          // Use a transaction to ensure we only add the like entry when an entry
+          // for this user doesn't already exist (avoid duplicates due to map inequality)
+          bool didAddLike = false;
+          try {
+            didAddLike = await FirebaseFirestore.instance.runTransaction<bool>((tx) async {
+              final snap = await tx.get(docRef);
+              final likeEntryLocal = likeEntry; // capture
+
+              if (!snap.exists) {
+                // Create doc with likedBy array
+                tx.set(docRef, {'likedBy': [likeEntryLocal]}, SetOptions(merge: true));
+                return true;
+              }
+
+              final data = snap.data() as Map<String, dynamic>;
+              final List<dynamic> likedBy = List<dynamic>.from(data['likedBy'] ?? []);
+
+              final alreadyExists = likedBy.any((entry) {
+                try {
+                  if (entry is Map) {
+                    return entry['id'] == currentUid;
+                  }
+                } catch (e) {}
+                return false;
+              });
+
+              if (!alreadyExists) {
+                likedBy.add(likeEntryLocal);
+                tx.update(docRef, {'likedBy': likedBy});
+                return true;
+              }
+
+              return false;
+            });
+          } catch (e) {
+            debugPrint('Error adding like in transaction: $e');
+            // Let outer catch handle rollback/UI
+            rethrow;
+          }
+
+          // Track analytics and send notification (best-effort). Only notify if
+          // the transaction actually added the like entry.
+          final userId = AppsFlyerService().getCurrentUserId();
+          if (userId != null) {
+            String category = '';
+            if (widget.post.category.isNotEmpty) {
+              category = widget.post.category;
+            } else if (widget.post.mainCategory.isNotEmpty) {
+              category = widget.post.mainCategory;
+            }
+
+            AppsFlyerService().trackPostLike(
+              postId: widget.post.id,
+              userId: userId,
+              isLiked: true,
+              category: category.isNotEmpty ? category : null,
+              authorId: widget.post.userReference.isNotEmpty
+                  ? widget.post.userReference
+                  : null,
+            );
+
+            if (didAddLike) {
+              try {
+                // Avoid notifying if there's no author to notify or if the
+                // liker is the author.
+                final String? authorId = widget.post.userReference.isNotEmpty
+                    ? widget.post.userReference
+                    : null;
+                if (authorId != null && authorId != userId) {
+                  // Fire the server-side notification pipeline (best-effort)
+                  try {
+                    await NotificationEventService.onPostEngagement(
+                      postId: widget.post.id,
+                      type: 'like',
+                      userId: userId,
+                      postAuthorId: authorId,
+                    );
+                  } catch (e) {
+                    debugPrint('NotificationEventService failed: $e');
+                  }
+
+                  // Also ensure a notification doc exists in Firestore so the
+                  // backend/FE will show the like even if the event pipeline
+                  // failed or is delayed. Deduplicate by checking for an
+                  // existing engagement notification for this post/liker.
+                  try {
+                    final notifRef = FirebaseFirestore.instance.collection('notifications');
+
+                    // Try to resolve the canonical human user document for the
+                    // author. The post's author reference can be in multiple forms
+                    // (doc id, username, or stored uid), so try several lookups.
+                    final humanUsersRef = FirebaseFirestore.instance.collection('humanUsers');
+                    DocumentSnapshot? authorDoc;
+                    String? resolvedAuthorUid;
+                    String resolvedAuthorUsername = authorId; // default fallback
+
+                    try {
+                      // 1) Try doc(id)
+                      final byId = await humanUsersRef.doc(authorId).get();
+                      if (byId.exists) {
+                        authorDoc = byId;
+                      } else {
+                        // 2) Try username == authorId
+                        final q1 = await humanUsersRef.where('username', isEqualTo: authorId).limit(1).get();
+                        if (q1.docs.isNotEmpty) {
+                          authorDoc = q1.docs.first;
+                        } else {
+                          // 3) Try uid == authorId
+                          final q2 = await humanUsersRef.where('uid', isEqualTo: authorId).limit(1).get();
+                          if (q2.docs.isNotEmpty) {
+                            authorDoc = q2.docs.first;
+                          } else {
+                            // 4) Try legacy user_document_id field
+                            final q3 = await humanUsersRef.where('user_document_id', isEqualTo: authorId).limit(1).get();
+                            if (q3.docs.isNotEmpty) {
+                              authorDoc = q3.docs.first;
+                            }
+                          }
+                        }
+                      }
+
+                      if (authorDoc != null && authorDoc.exists) {
+                        final data = authorDoc.data() as Map<String, dynamic>;
+                        resolvedAuthorUid = data['uid'] ?? authorDoc.id;
+                        resolvedAuthorUsername = data['username'] ?? data['name'] ?? resolvedAuthorUsername;
+                        debugPrint('Resolved author "$authorId" -> uid: $resolvedAuthorUid username: $resolvedAuthorUsername');
+                      } else {
+                        debugPrint('Skipping fallback notification: could not resolve authorId "$authorId" to humanUsers doc');
+                      }
+                    } catch (e) {
+                      debugPrint('Error resolving humanUsers author for fallback notification: $e');
+                    }
+
+                    if (resolvedAuthorUid != null) {
+                      final query = await notifRef
+                          .where('userId', isEqualTo: resolvedAuthorUid)
+                          .where('data.engagerUserId', isEqualTo: currentUid)
+                          .where('data.postId', isEqualTo: widget.post.id)
+                          .where('data.engagementType', isEqualTo: 'like')
+                          .limit(1)
+                          .get();
+
+                      if (query.docs.isEmpty) {
+                        // Prefer the username from the likeEntry if available, then
+                        // FirebaseAuth displayName, then AppsFlyer id.
+                        final likerNameFromEntry = likeEntry['username'] as String?;
+                        final likerName = (likerNameFromEntry != null && likerNameFromEntry.isNotEmpty)
+                            ? likerNameFromEntry
+                            : (FirebaseAuth.instance.currentUser?.displayName ?? userId);
+
+                        final added = await notifRef.add({
+                          'userId': resolvedAuthorUid,
+                          'type': 'engagement',
+                          'title': 'Post Engagement',
+                          'body': '$likerName liked your post',
+                          'isRead': false,
+                          'createdAt': FieldValue.serverTimestamp(),
+                          'data': {
+                            'postId': widget.post.id,
+                            'engagementType': 'like',
+                            'engagerUserId': currentUid,
+                            'content': ''
+                          },
+                          'deeplink': 'inzone://post/${widget.post.id}'
+                        });
+
+                        debugPrint('Fallback like notification written to notifications doc: ${added.id} for user $resolvedAuthorUid (username: $resolvedAuthorUsername)');
+                      }
+                    }
+                  } catch (e) {
+                    debugPrint('Failed to write fallback notification to Firestore: $e');
+                  }
+                }
+              } catch (e) {
+                debugPrint('Error handling post-like notification fallback: $e');
+              }
+            }
+          }
+        } else {
+          // Unlike: read-modify-write remove by id
+          final snap = await docRef.get();
+          if (snap.exists) {
+            final data = snap.data() as Map<String, dynamic>;
+            final List<dynamic> likedBy = List<dynamic>.from(data['likedBy'] ?? []);
+            final updated = likedBy.where((entry) {
+              try {
+                if (entry is Map) {
+                  return entry['id'] != currentUid;
+                }
+              } catch (e) {}
+              return true;
+            }).toList();
+            await docRef.update({'likedBy': updated});
+          }
+
+          // Analytics for unlike
+          final userId = AppsFlyerService().getCurrentUserId();
+          if (userId != null) {
+            String category = '';
+            if (widget.post.category.isNotEmpty) {
+              category = widget.post.category;
+            } else if (widget.post.mainCategory.isNotEmpty) {
+              category = widget.post.mainCategory;
+            }
+
+            AppsFlyerService().trackPostLike(
+              postId: widget.post.id,
+              userId: userId,
+              isLiked: false,
+              category: category.isNotEmpty ? category : null,
+              authorId: widget.post.userReference.isNotEmpty
+                  ? widget.post.userReference
+                  : null,
+            );
+          }
+        }
+      } catch (e) {
+        debugPrint('Error performing backend like/unlike: $e');
+
+        // Rollback optimistic UI and local prefs on failure
+        if (mounted) {
+          setState(() {
+            isLiked = !newLikeState;
+          });
+        }
+
+        try {
+          if (newLikeState) {
+            await LikedPostsPreferences.removeLikedPost(widget.post.id);
+          } else {
+            await LikedPostsPreferences.addLikedPost(widget.post);
+          }
+        } catch (e2) {
+          debugPrint('Error rolling back local prefs after backend failure: $e2');
+        }
+      }
+    });
   }
 
   checkComment() async {
@@ -419,8 +681,7 @@ class _PostCardState extends State<PostCard>
   Widget build(BuildContext context) {
     super.build(context); // Required for AutomaticKeepAliveClientMixin
 
-    final FirebaseAuth auth = FirebaseAuth.instance;
-    final String? currentUserUid = auth.currentUser?.uid;
+  final FirebaseAuth auth = FirebaseAuth.instance;
 
     final bool isCharacterPost = widget.post.characterInfo != null;
     final String mainName = isCharacterPost
@@ -1735,6 +1996,17 @@ class _PostCardState extends State<PostCard>
 
     // Update the document with the new comments list
     await postDocumentReference.update({'comments': currentComments});
+
+    // Trigger notification for post engagement (comment)
+    await NotificationEventService.onPostEngagement(
+      postId: widget.post.id,
+      type: 'comment',
+      userId: FirebaseAuth.instance.currentUser!.uid,
+      content: commentText,
+      postAuthorId: widget.post.userReference.isNotEmpty 
+          ? widget.post.userReference 
+          : null,
+    );
 
     setState(() {
       mySearchController.clear();

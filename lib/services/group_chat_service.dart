@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:inzone/services/inzone_database.dart';
+import 'package:inzone/services/notification_event_service.dart';
 
 class GroupChatService {
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -204,6 +205,16 @@ class GroupChatService {
         });
 
         print('Message sent successfully to group $groupId');
+
+        // Trigger notification event for group message
+        await NotificationEventService.onGroupMessage(
+          groupId, 
+          content, 
+          currentUser.uid,
+        );
+
+        // Check for mentions in the message and trigger mention notifications
+        await _checkForMentions(content, groupId, currentUser.uid);
       } else {
         print('Document does not exist');
         if (groupId == defaultGroupChatDocId) {
@@ -336,6 +347,53 @@ class GroupChatService {
     } catch (e) {
       print('Error creating group: $e');
       return defaultGroupChatDocId;
+    }
+  }
+
+  /// Check for mentions in message content and trigger notifications
+  static Future<void> _checkForMentions(String content, String groupId, String senderId) async {
+    try {
+      // Simple mention detection - look for @username patterns
+      final mentionRegex = RegExp(r'@(\w+)');
+      final mentions = mentionRegex.allMatches(content);
+      
+      if (mentions.isEmpty) return;
+      
+      // Get group participants to validate mentions
+      final groupDoc = await _firestore.collection('groupChats').doc(groupId).get();
+      if (!groupDoc.exists) return;
+      
+      final groupData = groupDoc.data() as Map<String, dynamic>;
+      final participants = groupData['participants'] as List<dynamic>? ?? [];
+      
+      for (final mention in mentions) {
+        final mentionedUsername = mention.group(1);
+        if (mentionedUsername == null) continue;
+        
+        // Find the mentioned user in participants
+        for (final participant in participants) {
+          if (participant is Map<String, dynamic>) {
+            final participantName = participant['name'] as String? ?? '';
+            final participantUid = participant['uid'] as String? ?? '';
+            
+            // Match by username (case-insensitive)
+            if (participantName.toLowerCase() == mentionedUsername.toLowerCase() && 
+                participantUid != senderId) {
+              
+              // Trigger mention notification
+              await NotificationEventService.onGroupMention(
+                groupId,
+                participantUid,
+                content,
+                senderId,
+              );
+              break;
+            }
+          }
+        }
+      }
+    } catch (e) {
+      print('Error checking for mentions: $e');
     }
   }
 }

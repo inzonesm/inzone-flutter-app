@@ -99,10 +99,24 @@ class _FollowersFollowingScreenState extends State<FollowersFollowingScreen> {
 
         for (var follower in followersList) {
           if (follower is Map<String, dynamic>) {
-            // Already in the correct format
+            String id = follower['id'] ?? '';
+            String? username = follower['username']?.toString();
+
+            if ((username == null || username.isEmpty) && id.isNotEmpty) {
+              try {
+                final profile = await InZoneDatabase.getUserProfile(id);
+                if (profile != null) {
+                  username = profile['username']?.toString() ??
+                      profile['Name']?.toString();
+                }
+              } catch (e) {
+                // ignore and fallback to Unknown
+              }
+            }
+
             formattedFollowers.add({
-              'id': follower['id'] ?? '',
-              'username': follower['username'] ?? 'Unknown',
+              'id': id,
+              'username': username ?? 'Unknown',
               'type': follower['type'] ?? 'human'
             });
           } else if (follower is String) {
@@ -115,13 +129,11 @@ class _FollowersFollowingScreenState extends State<FollowersFollowingScreen> {
                   .get();
 
               if (followerDoc.exists) {
-                final followerData =
-                    followerDoc.data() as Map<String, dynamic>?;
+                final followerData = followerDoc.data() as Map<String, dynamic>?;
                 formattedFollowers.add({
                   'id': follower,
                   'username': followerData?['username'] ??
-                      followerData?['Username'] ??
-                      'Unknown',
+                      followerData?['Username'] ?? 'Unknown',
                   'type': 'human'
                 });
               } else {
@@ -132,26 +144,22 @@ class _FollowersFollowingScreenState extends State<FollowersFollowingScreen> {
                     .get();
 
                 if (followerDoc.exists) {
-                  final followerData =
-                      followerDoc.data() as Map<String, dynamic>?;
+                  final followerData = followerDoc.data() as Map<String, dynamic>?;
                   formattedFollowers.add({
                     'id': follower,
                     'username': followerData?['username'] ??
-                        followerData?['Username'] ??
-                        'Unknown',
+                        followerData?['Username'] ?? 'Unknown',
                     'type': 'ai'
                   });
                 } else {
                   // Fallback with just the ID
-                  formattedFollowers.add(
-                      {'id': follower, 'username': 'Unknown', 'type': 'human'});
+                  formattedFollowers.add({'id': follower, 'username': 'Unknown', 'type': 'human'});
                 }
               }
             } catch (e) {
               print('Error fetching follower profile for $follower: $e');
               // Fallback with just the ID
-              formattedFollowers.add(
-                  {'id': follower, 'username': 'Unknown', 'type': 'human'});
+              formattedFollowers.add({'id': follower, 'username': 'Unknown', 'type': 'human'});
             }
           }
         }
@@ -709,19 +717,37 @@ class _FollowersFollowingScreenState extends State<FollowersFollowingScreen> {
                                     isCurrentUser: isCurrentUser,
                                     isFollowersTab: followersSelected,
                                     onUnfollow: () async {
+                                      bool success = false;
                                       if (userType == 'ai') {
-                                        await InZoneDatabase.unfollowAIUser(
-                                            userId);
+                                        success = await InZoneDatabase
+                                                .unfollowAIUser(userId) ==
+                                            true;
                                       } else {
-                                        await InZoneDatabase.unfollowUser(
-                                            userId);
+                                        success = await InZoneDatabase
+                                                .unfollowUser(userId) ==
+                                            true;
                                       }
-                                      setState(() {
-                                        userList["following"]!.removeWhere(
-                                            (u) =>
-                                                u['id'] == userId ||
-                                                u['uid'] == userId);
-                                      });
+
+                                      if (success) {
+                                        setState(() {
+                                          userList["following"]!.removeWhere(
+                                              (u) =>
+                                                  u['id'] == userId ||
+                                                  u['uid'] == userId);
+                                        });
+                                      } else {
+                                        ToastService.showToast(
+                                          context,
+                                          backgroundColor:
+                                              Theme.of(context).cardColor,
+                                          shadowColor: Colors.transparent,
+                                          leading: const Icon(
+                                            FeatherIcons.xCircle,
+                                            color: Colors.redAccent,
+                                          ),
+                                          message: 'Failed to unfollow user',
+                                        );
+                                      }
                                     },
                                     onRemoveFollower: () =>
                                         _showRemoveFollowerBottomSheet(

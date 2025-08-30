@@ -56,6 +56,10 @@ class Routes {
   static const String privacyPolicy = '/settings/privacy-policy';
   static const String termsConditions = '/settings/terms-conditions';
   static const String unityWebGame = '/settings/unity-web-game';
+  
+  // Notification routes
+  static const String notificationCenter = '/notifications/center';
+  static const String notificationSettings = '/notifications/settings';
 
   // Helper methods to generate paths with parameters
   static String groupDetailsPath(String id) => '/group/$id';

@@ -138,46 +138,57 @@ class AIEngagementService {
   
   /// Call the backend API to execute engagement
   static Future<Map<String, dynamic>> _callEngagementAPI() async {
-    try {
-      final url = Uri.parse('$_apiBaseUrl/api/ai/schedule-engagement-auto');
-      
-      final response = await http.post(
-        url,
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-        body: jsonEncode({
-          'limit': _maxCharactersPerRun,
-        }),
-      ).timeout(const Duration(seconds: 60));
-      
-      if (response.statusCode == 200) {
-        return jsonDecode(response.body);
-      } else if (response.statusCode == 429) {
-        // Handle rate limiting or concurrent execution
-        try {
-          final errorBody = jsonDecode(response.body);
-          return errorBody;
-        } catch (e) {
+    const int maxRetries = 3;
+    int attempt = 0;
+    final url = Uri.parse('$_apiBaseUrl/api/ai/schedule-engagement-auto');
+
+    while (attempt < maxRetries) {
+      try {
+        final response = await http
+            .post(
+          url,
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+          },
+          body: jsonEncode({'limit': _maxCharactersPerRun}),
+        )
+            .timeout(const Duration(seconds: 120));
+
+        if (response.statusCode == 200) {
+          return jsonDecode(response.body);
+        } else if (response.statusCode == 429) {
+          try {
+            final errorBody = jsonDecode(response.body);
+            return errorBody;
+          } catch (e) {
+            return {
+              'success': false,
+              'error': 'Rate limit exceeded',
+              'message': 'Too many requests, please try again later'
+            };
+          }
+        } else {
           return {
             'success': false,
-            'error': 'Rate limit exceeded',
-            'message': 'Too many requests, please try again later'
+            'error': 'HTTP ${response.statusCode}: ${response.body}'
           };
         }
-      } else {
-        return {
-          'success': false,
-          'error': 'HTTP ${response.statusCode}: ${response.body}'
-        };
+      } catch (e) {
+        attempt++;
+        debugPrint('Attempt $attempt failed for AI engagement API: $e');
+        if (attempt >= maxRetries) {
+          return {
+            'success': false,
+            'error': e.toString(),
+            'message': 'Failed after $attempt attempts'
+          };
+        }
+        // Exponential backoff before retrying
+        await Future.delayed(Duration(seconds: 2 * attempt));
       }
-    } catch (e) {
-      return {
-        'success': false,
-        'error': e.toString()
-      };
     }
+    return {'success': false, 'error': 'Unknown error'};
   }
   
   /// Get engagement status from backend
@@ -211,55 +222,65 @@ class AIEngagementService {
   
   /// Manually trigger an engagement cycle
   static Future<Map<String, dynamic>> triggerManualEngagement({int? limit}) async {
-    try {
-      debugPrint('🎯 Manually triggering AI engagement');
-      
-      final url = Uri.parse('$_apiBaseUrl/api/ai/schedule-engagement-auto');
-      
-      final response = await http.post(
-        url,
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-        body: jsonEncode({
-          'limit': limit ?? _maxCharactersPerRun,
-        }),
-      ).timeout(const Duration(seconds: 60));
-      
-      Map<String, dynamic> result;
-      
-      if (response.statusCode == 200) {
-        result = jsonDecode(response.body);
-      } else if (response.statusCode == 429) {
-        // Handle rate limiting or concurrent execution
-        try {
+    const int maxRetries = 3;
+    int attempt = 0;
+    final url = Uri.parse('$_apiBaseUrl/api/ai/schedule-engagement-auto');
+
+    debugPrint('🎯 Manually triggering AI engagement');
+
+    while (attempt < maxRetries) {
+      try {
+        final response = await http
+            .post(
+          url,
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+          },
+          body: jsonEncode({'limit': limit ?? _maxCharactersPerRun}),
+        )
+            .timeout(const Duration(seconds: 120));
+
+        Map<String, dynamic> result;
+        if (response.statusCode == 200) {
           result = jsonDecode(response.body);
-        } catch (e) {
+        } else if (response.statusCode == 429) {
+          try {
+            result = jsonDecode(response.body);
+          } catch (e) {
+            result = {
+              'success': false,
+              'error': 'Rate limit exceeded',
+              'message': 'Too many requests, please try again later'
+            };
+          }
+        } else {
           result = {
             'success': false,
-            'error': 'Rate limit exceeded',
-            'message': 'Too many requests, please try again later'
+            'error': 'HTTP ${response.statusCode}: ${response.body}'
           };
         }
-      } else {
-        result = {
-          'success': false,
-          'error': 'HTTP ${response.statusCode}: ${response.body}'
-        };
+
+        if (result['success'] == true) {
+          await _saveLastRunTime();
+        }
+
+        return result;
+      } catch (e) {
+        attempt++;
+        debugPrint('Manual engagement attempt $attempt failed: $e');
+        if (attempt >= maxRetries) {
+          return {
+            'success': false,
+            'error': e.toString(),
+            'message': 'Failed after $attempt attempts'
+          };
+        }
+        await Future.delayed(Duration(seconds: 2 * attempt));
       }
-      
-      if (result['success'] == true) {
-        await _saveLastRunTime();
-      }
-      
-      return result;
-    } catch (e) {
-      return {
-        'success': false,
-        'error': e.toString()
-      };
     }
+
+    return {'success': false, 'error': 'Unknown error'};
   }
   
   /// Enable or disable AI engagement

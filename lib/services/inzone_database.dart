@@ -438,6 +438,15 @@ class InZoneDatabase {
       normalizedProfile['username'] = profile['username'];
     }
 
+    // Preserve follower/following lists if provided by the API so callers
+    // (UI components) can check follow membership without needing extra API calls.
+    if (profile.containsKey('following')) {
+      normalizedProfile['following'] = profile['following'];
+    }
+    if (profile.containsKey('followers')) {
+      normalizedProfile['followers'] = profile['followers'];
+    }
+
     return normalizedProfile;
   }
 
@@ -482,7 +491,7 @@ class InZoneDatabase {
     }
   }
 
-  static Future<void> followUser(
+  static Future<bool> followUser(
       String followedUid, String followedUserName) async {
     final url = Uri.parse(
         'https://inzoneapi-912424781531.us-central1.run.app/user/follow');
@@ -512,11 +521,21 @@ class InZoneDatabase {
     try {
       final response = await http.post(url, headers: headers, body: body);
 
-      if (response.statusCode != 200) {}
-    } catch (e) {}
+      if (response.statusCode == 200) {
+        try {
+          final Map<String, dynamic> responseData = jsonDecode(response.body);
+          return responseData['success'] ?? true;
+        } catch (e) {
+          return true; // assume success if body not JSON
+        }
+      }
+      return false;
+    } catch (e) {
+      return false;
+    }
   }
 
-  static Future<void> unfollowUser(String followedUid) async {
+  static Future<bool> unfollowUser(String followedUid) async {
     final url = Uri.parse(
         'https://inzoneapi-912424781531.us-central1.run.app/user/unfollow');
 
@@ -544,8 +563,18 @@ class InZoneDatabase {
     try {
       final response = await http.post(url, headers: headers, body: body);
 
-      if (response.statusCode != 200) {}
-    } catch (e) {}
+      if (response.statusCode == 200) {
+        try {
+          final Map<String, dynamic> responseData = jsonDecode(response.body);
+          return responseData['success'] ?? true;
+        } catch (e) {
+          return true;
+        }
+      }
+      return false;
+    } catch (e) {
+      return false;
+    }
   }
 
   static Future<List<dynamic>?> getConversations() async {

@@ -260,10 +260,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     });
                   }
 
+                  // Use the registered 'chat' route and pass conversation data via extra
                   context.pushNamed(
-                    'human_chat',
-                    pathParameters: {'conversationId': conversationId},
+                    'chat',
                     extra: {
+                      'conversationId': conversationId,
                       'otherUserId': targetUserId,
                       'otherUserName': name,
                       'otherUserProfilePicture': profileImageUrl,
@@ -408,10 +409,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
       // Process followers
       for (var follower in followers) {
         if (follower is Map<String, dynamic>) {
-          // Ensure we only use the standard keys
+          // If the map doesn't include a usable username, try to fetch it.
+          String id = follower['id'] ?? '';
+          String? username = follower['username']?.toString();
+          if ((username == null || username.isEmpty) && id.isNotEmpty) {
+            try {
+              final profile = await InZoneDatabase.getUserProfile(id);
+              if (profile != null) {
+                username = profile['username']?.toString() ??
+                    profile['Name']?.toString();
+              }
+            } catch (e) {
+              // ignore and fallback to Unknown below
+            }
+          }
+
           Map<String, dynamic> formattedFollower = {
-            'id': follower['id'] ?? '',
-            'username': follower['username'] ?? '',
+            'id': id,
+            'username': username ?? 'Unknown',
             'type': follower['type'] ?? 'human'
           };
           formattedFollowers.add(formattedFollower);
@@ -423,11 +438,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
             if (followerProfile != null) {
               formattedFollowers.add({
                 'id': follower,
-                'username': followerProfile['username'] ?? '',
+                'username': followerProfile['username'] ??
+                    followerProfile['Name'] ?? 'Unknown',
                 'type': 'human'
               });
+            } else {
+              formattedFollowers.add({'id': follower, 'username': 'Unknown', 'type': 'human'});
             }
-          } catch (e) {}
+          } catch (e) {
+            formattedFollowers.add({'id': follower, 'username': 'Unknown', 'type': 'human'});
+          }
         }
       }
 
@@ -641,6 +661,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     try {
       bool success = false;
+
+      // Optimistically update UI first for immediate feedback
+      setState(() {
+        isFollowing = newFollowState;
+      });
+
       if (widget.isAI) {
         // For AI users
         if (newFollowState) {
@@ -676,8 +702,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         // For human users
         if (newFollowState) {
           String currentUserName = await _getCurrentUserName(currentUserId);
-          await InZoneDatabase.followUser(userId, currentUserName);
-          success = true;
+          success = await InZoneDatabase.followUser(userId, currentUserName);
           ToastService.showToast(
             context,
             backgroundColor: Theme.of(context).canvasColor,
@@ -689,8 +714,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             message: 'Following $username',
           );
         } else {
-          await InZoneDatabase.unfollowUser(userId);
-          success = true;
+          success = await InZoneDatabase.unfollowUser(userId);
           ToastService.showToast(
             context,
             backgroundColor: Theme.of(context).canvasColor,
@@ -705,9 +729,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
       }
 
       if (success) {
-        // Refresh profile after successful follow/unfollow to get accurate counts
+        // Refresh profile counts after successful follow/unfollow.
         await fetchUserProfile();
-        await checkFollowStatus(); // Also refresh follow status
+        Future.delayed(const Duration(seconds: 2), () async {
+          if (!mounted) return;
+          await checkFollowStatus();
+        });
       } else {
         ToastService.showToast(
           context,
@@ -989,31 +1016,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  // Helper method to build feature items
-  Widget _buildFeatureItem(IconData icon, String text) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        children: [
-          Icon(
-            icon,
-            size: 18,
-            color: const Color(0xFF2196F3),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              text,
-              style: TextStyle(
-                fontSize: 14,
-                color: Theme.of(context).textTheme.bodyMedium?.color,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  // ...existing code...
 
   @override
   Widget build(BuildContext context) {
