@@ -173,10 +173,28 @@ class _FollowersFollowingScreenState extends State<FollowersFollowingScreen> {
 
         for (var follow in followingList) {
           if (follow is Map<String, dynamic>) {
-            // Already in the correct format
+            // Ensure we show the canonical username for the followed user.
+            String id = follow['id'] ?? follow['uid'] ?? '';
+            String? username = follow['username']?.toString();
+
+            // If we have an id, try to fetch the latest profile (this will
+            // correct cases where the stored username was the follower's name).
+            if (id.isNotEmpty) {
+              try {
+                final profile = await InZoneDatabase.getUserProfile(id);
+                if (profile != null) {
+                  // Prefer normalized username or name from the profile
+                  username = profile['username']?.toString() ??
+                      profile['name']?.toString() ?? username;
+                }
+              } catch (e) {
+                // ignore and fall back to the value already present in the map
+              }
+            }
+
             formattedFollowing.add({
-              'id': follow['id'] ?? '',
-              'username': follow['username'] ?? 'Unknown',
+              'id': id,
+              'username': username ?? 'Unknown',
               'type': follow['type'] ?? 'human'
             });
           } else if (follow is String) {
