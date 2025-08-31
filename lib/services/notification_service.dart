@@ -22,7 +22,7 @@ class NotificationService {
   static const String _channelOffers = 'offers';
 
   // API Base URL - update this to match your backend
-  static const String _apiBaseUrl = 'http://localhost:5000'; // Change to your production URL
+  static const String _apiBaseUrl = 'https://inzoneapi-912424781531.us-central1.run.app'; // Change to your production URL
   
   static final FirebaseMessaging _firebaseMessaging = FirebaseMessaging.instance;
   static final FlutterLocalNotificationsPlugin _localNotifications = 
