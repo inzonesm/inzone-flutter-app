@@ -22,8 +22,9 @@ import 'package:pull_to_refresh_flutter3/pull_to_refresh_flutter3.dart';
 class ProfileScreen extends StatefulWidget {
   final String uid;
   final bool isAI;
+  final GoRouterState? routerState; // Add this to access query parameters
 
-  const ProfileScreen({super.key, required this.uid, this.isAI = false});
+  const ProfileScreen({super.key, required this.uid, this.isAI = false, this.routerState});
 
   @override
   State<ProfileScreen> createState() => _ProfileScreenState();
@@ -1181,12 +1182,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     child: Column(
                       children: [
                         ...List.generate(_posts.length, (index) {
+                          // Check if this is the post that should have comments opened
+                          final targetPostId = widget.routerState?.uri.queryParameters['post'];
+                          final shouldOpenComments = widget.routerState?.uri.queryParameters['openComments'] == 'true';
+                          final isTargetPost = targetPostId != null && _posts[index].id == targetPostId;
+                          
                           return PostCard(
                             post: _posts[index],
                             profileImageUrl: profileImageUrl,
                             showHue: false,
                             onTap: (postId) {},
                             inProfile: true,
+                            autoOpenComments: shouldOpenComments && isTargetPost,
                           );
                         }),
                         const SizedBox(height: 100),
