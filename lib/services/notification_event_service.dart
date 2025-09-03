@@ -118,6 +118,12 @@ class NotificationEventService {
 
   /// Trigger notification for follow events
   static Future<void> onUserFollow(String followerId, String followedUserId) async {
+    // Don't send notification if user is following themselves
+    if (followerId == followedUserId) {
+      print('🚫 Skipping follow notification: User cannot follow themselves');
+      return;
+    }
+    
     try {
       final response = await http.post(
         Uri.parse('$_apiUrl/api/notifications/events/user-follow'),

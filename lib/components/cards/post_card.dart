@@ -41,6 +41,7 @@ class PostCard extends StatefulWidget {
   final bool isAd;
   final bool inProfile;
   final Function()? onAdLoaded;
+  final bool autoOpenComments; // New field to auto-open comments
 
   InZonePost getPost() {
     return post;
@@ -55,6 +56,7 @@ class PostCard extends StatefulWidget {
     this.isAd = false, // Default to false
     this.inProfile = false,
     this.onAdLoaded,
+    this.autoOpenComments = false, // New parameter to auto-open comments
   });
 
   @override
@@ -248,6 +250,13 @@ class _PostCardState extends State<PostCard>
         widget.post.id != "unknown" &&
         widget.post.id.isNotEmpty) {
       PostViewTracker.startViewingPost(widget.post.id);
+    }
+    
+    // Auto-open comments if requested
+    if (widget.autoOpenComments) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        filterSheetModel();
+      });
     }
   }
 

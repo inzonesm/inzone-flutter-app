@@ -3,8 +3,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
 import 'package:go_router/go_router.dart';
-import 'package:inzone/services/notification_event_service.dart';
-import 'package:inzone/theme/app_colors.dart';
+import 'package:inzone/router/routes.dart';
+import 'package:inzone/data/group_data.dart';
+// import 'package:inzone/theme/app_colors.dart'; // unused
 import 'package:flutter_feather_icons/flutter_feather_icons.dart';
 
 class NotificationCenterScreen extends StatefulWidget {
@@ -63,6 +64,15 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
               ),
             ],
           ),
+          if (_isLoading)
+            const Padding(
+              padding: EdgeInsets.only(right: 12.0),
+              child: SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            ),
         ],
       ),
       body: StreamBuilder<QuerySnapshot>(
@@ -212,7 +222,14 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
     final body = data['body'] as String? ?? '';
     final isRead = data['isRead'] as bool? ?? false;
     final createdAt = (data['createdAt'] as Timestamp?)?.toDate();
-    final deeplink = data['deeplink'] as String?;
+
+    // Auto-mark as read when notification is displayed
+    if (!isRead) {
+      // Use a post-frame callback to avoid modifying state during build
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _markAsRead(notification.id);
+      });
+    }
 
     return Dismissible(
       key: Key(notification.id),
@@ -230,7 +247,7 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         child: InkWell(
           borderRadius: BorderRadius.circular(12),
-          onTap: () => _handleNotificationTap(notification.id, deeplink, isRead),
+          onTap: () => _handleNotificationTap(notification),
           onLongPress: () => _showNotificationOptions(notification),
           child: Container(
             padding: const EdgeInsets.all(16),
@@ -366,58 +383,124 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
     }
   }
 
-  void _handleNotificationTap(String notificationId, String? deeplink, bool isRead) {
+  void _handleNotificationTap(QueryDocumentSnapshot notification) {
+    final data = notification.data() as Map<String, dynamic>;
+    final type = data['type'] as String? ?? 'system';
+    final isRead = data['isRead'] as bool? ?? false;
+    final notificationData = data['data'] as Map<String, dynamic>? ?? {};
+    
     // Mark as read if not already
     if (!isRead) {
-      _markAsRead(notificationId);
+      _markAsRead(notification.id);
     }
 
-    // Handle deep link
-    if (deeplink != null && deeplink.isNotEmpty) {
-      NotificationEventService.markNotificationOpened(notificationId, deeplink);
-      _handleDeepLink(deeplink);
-    }
-  }
+    print('🔗 Handling notification tap - Type: $type, Data: $notificationData');
 
-  void _handleDeepLink(String deeplink) {
-    try {
-      final uri = Uri.parse(deeplink);
-      
-      switch (uri.pathSegments.first) {
-        case 'chat':
-          if (uri.pathSegments.length > 1) {
-            final chatId = uri.pathSegments[1];
-            context.push('/chat/$chatId');
+    // Handle navigation based on notification type and data
+    switch (type) {
+      case 'follow':
+        print('🔗 Follow notification - navigating to followers screen');
+        // Get the follower ID from notification data
+        final followerId = notificationData['followerId'] as String?;
+        if (followerId != null) {
+          // Navigate to the follower's profile followers/following screen
+          context.push(Routes.followersFollowingPath(followerId));
+        }
+        break;
+        
+      case 'comment':
+      case 'post_comment':
+        print('🔗 Comment notification - navigating to post with comments opened');
+        final postId = notificationData['postId'] as String?;
+        final commentId = notificationData['commentId'] as String?;
+        
+        if (postId != null && postId.startsWith('post_')) {
+          // Extract user ID from post ID (format: post_userId_timestamp)  
+          final parts = postId.split('_');
+          if (parts.length >= 3) {
+            final userId = parts[1];
+            print('🔗 Navigating to profile: $userId with post: $postId and comments opened');
+            
+            // Build route with query parameters for auto-opening comments
+            String route = Routes.regularProfilePath(userId);
+            route += '?post=$postId&openComments=true';
+            if (commentId != null) {
+              route += '&commentId=$commentId';
+            }
+            
+            context.push(route);
           }
-          break;
-        case 'post':
-          if (uri.pathSegments.length > 1) {
-            // Navigate to home since we don't have a specific post view route
-            context.push('/home');
+        }
+        break;
+        
+      case 'like':
+      case 'repost':
+        print('🔗 Like/Repost notification - navigating to post');
+        final postId = notificationData['postId'] as String?;
+        
+        if (postId != null && postId.startsWith('post_')) {
+          // Extract user ID from post ID
+          final parts = postId.split('_');
+          if (parts.length >= 3) {
+            final userId = parts[1];
+            print('🔗 Navigating to profile: $userId with post: $postId');
+            
+            String route = Routes.regularProfilePath(userId);
+            route += '?post=$postId';
+            
+            context.push(route);
           }
-          break;
-        case 'settings':
-          if (uri.pathSegments.length > 1 && uri.pathSegments[1] == 'notifications') {
-            context.push('/notifications/settings');
-          }
-          break;
-        case 'earn':
-          if (uri.pathSegments.length > 1) {
-            final offerType = uri.pathSegments[1];
-            // Navigate to appropriate earning screen based on type
-            if (offerType == 'watch') {
-              context.push('/settings/unity-web-game');
-            } else if (offerType == 'referral') {
-              context.push('/settings/referral');
-            } else {
-              // Default to referral screen for unknown types
-              context.push('/settings/referral');
+        }
+        break;
+        
+      case 'group_message':
+      case 'direct_message':
+        print('🔗 Message notification - navigating to chat');
+        final chatId = notificationData['chatId'] as String? ?? notificationData['groupId'] as String?;
+        
+        if (chatId != null) {
+          if (chatId.startsWith('group_chat_')) {
+            // Group chat
+            final groupData = GroupData(
+              id: chatId,
+              name: notificationData['groupName'] as String? ?? 'Group Chat',
+              description: '',
+              memberCount: 0,
+              messageCount: 0,
+              avatars: [],
+              isMember: true,
+              showRandomCharacters: true,
+            );
+            context.push(Routes.groupChat, extra: groupData);
+          } else {
+            // Individual chat - extract other user ID
+            final currentUserId = user?.uid ?? '';
+            final userIds = chatId.split('_');
+            String? otherUserId;
+            
+            for (String userId in userIds) {
+              if (userId != currentUserId) {
+                otherUserId = userId;
+                break;
+              }
+            }
+            
+            if (otherUserId != null) {
+              final otherUserName = notificationData['senderName'] as String? ?? 'Chat';
+              context.push(Routes.chat, extra: {
+                'conversationId': chatId,
+                'otherUserId': otherUserId,
+                'otherUserName': otherUserName,
+              });
             }
           }
-          break;
-      }
-    } catch (e) {
-      print('Error handling deep link: $e');
+        }
+        break;
+        
+      default:
+        print('🔗 Unknown notification type: $type - going to home');
+        context.push(Routes.home);
+        break;
     }
   }
 

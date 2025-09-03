@@ -22,7 +22,7 @@ class NotificationService {
   static const String _channelOffers = 'offers';
 
   // API Base URL - update this to match your backend
-  static const String _apiBaseUrl = 'https://inzoneapi-912424781531.us-central1.run.app'; // Change to your production URL
+  static const String _apiBaseUrl = 'http://localhost:5000'; // Change to your production URL
   
   static final FirebaseMessaging _firebaseMessaging = FirebaseMessaging.instance;
   static final FlutterLocalNotificationsPlugin _localNotifications = 
@@ -34,6 +34,50 @@ class NotificationService {
   static Stream<RemoteMessage> get messageStream => _messageController.stream;
   static bool _isInitialized = false;
   static AppLinks? _appLinks;
+
+  // Helper function to get user name from multiple collections
+  static Future<String> _getUsersName(String userId) async {
+    try {
+      // First try humanUsers collection
+      DocumentSnapshot userDoc = await FirebaseFirestore.instance
+          .collection('humanUsers')
+          .doc(userId)
+          .get();
+      
+      if (userDoc.exists && userDoc.data() != null) {
+        var userData = userDoc.data() as Map<String, dynamic>;
+        return userData['name'] ?? userData['Name'] ?? userData['username'] ?? userData['user_name'] ?? userId;
+      }
+      
+      // Then try popularCharacters collection
+      DocumentSnapshot characterDoc = await FirebaseFirestore.instance
+          .collection('popularCharacters')
+          .doc(userId)
+          .get();
+      
+      if (characterDoc.exists && characterDoc.data() != null) {
+        var characterData = characterDoc.data() as Map<String, dynamic>;
+        return characterData['name'] ?? characterData['Name'] ?? characterData['username'] ?? characterData['user_name'] ?? userId;
+      }
+      
+      // Finally try aiUsers collection
+      DocumentSnapshot aiUserDoc = await FirebaseFirestore.instance
+          .collection('aiUsers')
+          .doc(userId)
+          .get();
+      
+      if (aiUserDoc.exists && aiUserDoc.data() != null) {
+        var aiUserData = aiUserDoc.data() as Map<String, dynamic>;
+        return aiUserData['name'] ?? aiUserData['Name'] ?? aiUserData['username'] ?? aiUserData['user_name'] ?? userId;
+      }
+      
+      // Return userId as fallback if not found in any collection
+      return userId;
+    } catch (e) {
+      print('Error fetching user name for $userId: $e');
+      return userId; // Return ID as fallback on error
+    }
+  }
 
   /// Initialize notification service
   static Future<void> initialize() async {
@@ -523,6 +567,9 @@ class NotificationService {
     String? senderName,
   }) async {
     try {
+      // If senderName is not provided, fetch it
+      final actualSenderName = senderName ?? await _getUsersName(senderId);
+      
       final response = await http.post(
         Uri.parse('$_apiBaseUrl/api/notifications/events/group-message'),
         headers: {'Content-Type': 'application/json'},
@@ -530,7 +577,7 @@ class NotificationService {
           'groupId': groupId,
           'content': content,
           'senderId': senderId,
-          'senderName': senderName ?? 'Someone',
+          'senderName': actualSenderName,
           'timestamp': DateTime.now().toIso8601String(),
         }),
       );
@@ -555,6 +602,9 @@ class NotificationService {
     String? msgId,
   }) async {
     try {
+      // If senderName is not provided, fetch it
+      final actualSenderName = senderName ?? await _getUsersName(senderId);
+      
       final response = await http.post(
         Uri.parse('$_apiBaseUrl/api/notifications/events/group-mention'),
         headers: {'Content-Type': 'application/json'},
@@ -563,7 +613,7 @@ class NotificationService {
           'mentionedUserId': mentionedUserId,
           'content': content,
           'senderId': senderId,
-          'senderName': senderName ?? 'Someone',
+          'senderName': actualSenderName,
           'msgId': msgId ?? '',
           'timestamp': DateTime.now().toIso8601String(),
         }),
@@ -588,6 +638,9 @@ class NotificationService {
     String? senderName,
   }) async {
     try {
+      // If senderName is not provided, fetch it
+      final actualSenderName = senderName ?? await _getUsersName(senderId);
+      
       final response = await http.post(
         Uri.parse('$_apiBaseUrl/api/notifications/events/direct-message'),
         headers: {'Content-Type': 'application/json'},
@@ -596,7 +649,7 @@ class NotificationService {
           'content': content,
           'senderId': senderId,
           'receiverId': receiverId,
-          'senderName': senderName ?? 'Someone',
+          'senderName': actualSenderName,
           'timestamp': DateTime.now().toIso8601String(),
         }),
       );

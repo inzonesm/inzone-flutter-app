@@ -526,7 +526,7 @@ class InZoneDatabase {
           final Map<String, dynamic> responseData = jsonDecode(response.body);
           return responseData['success'] ?? true;
         } catch (e) {
-          return true; // assume success if body not JSON
+          return true;
         }
       }
       return false;

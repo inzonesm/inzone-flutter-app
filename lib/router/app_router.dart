@@ -452,7 +452,8 @@ class AppRouter {
         parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) {
           final uid = state.pathParameters['uid'] ?? '';
-          return ProfileScreen(uid: uid);
+          // Pass the entire GoRouterState to access query parameters
+          return ProfileScreen(uid: uid, routerState: state);
         },
       ),
       GoRoute(
