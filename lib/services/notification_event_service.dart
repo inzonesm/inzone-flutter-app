@@ -309,7 +309,8 @@ class NotificationEventService {
   }
 
   /// Mark notification as opened
-  static Future<void> markNotificationOpened(String notificationId, String deeplink) async {
+  // deeplink parameter is deprecated and removed from storage
+  static Future<void> markNotificationOpened(String notificationId, /* String? deeplink */) async {
     try {
       await FirebaseFirestore.instance
           .collection('notificationsQueue')
@@ -319,10 +320,9 @@ class NotificationEventService {
         'openedAt': FieldValue.serverTimestamp(),
       });
       
-      // Track analytics
+      // Track analytics (deprecated deeplink removed)
       AppsFlyerService().logEvent('notif_open', {
         'notification_id': notificationId,
-        'deeplink': deeplink,
         'timestamp': DateTime.now().millisecondsSinceEpoch,
       });
     } catch (e) {
@@ -335,12 +335,11 @@ class NotificationEventService {
               .set({
             'status': 'opened',
             'openedAt': FieldValue.serverTimestamp(),
-            'deeplink': deeplink,
+            // 'deeplink': deeplink, // removed
           }, SetOptions(merge: true));
 
           AppsFlyerService().logEvent('notif_open', {
             'notification_id': notificationId,
-            'deeplink': deeplink,
             'timestamp': DateTime.now().millisecondsSinceEpoch,
           });
 

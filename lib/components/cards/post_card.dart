@@ -598,7 +598,7 @@ class _PostCardState extends State<PostCard>
                             'engagerUserId': currentUid,
                             'content': ''
                           },
-                          'deeplink': 'inzone://post/${widget.post.id}'
+                          // 'deeplink': 'inzone://post/${widget.post.id}', // deeplink disabled
                         });
 
                         debugPrint('Fallback like notification written to notifications doc: ${added.id} for user $resolvedAuthorUid (username: $resolvedAuthorUsername)');

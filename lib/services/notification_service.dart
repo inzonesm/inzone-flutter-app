@@ -96,8 +96,8 @@ class NotificationService {
       // Configure FCM
       await _configureFCM();
       
-      // Setup deep link handling
-      await _setupAppLinks();
+  // deeplink handling disabled
+  // await _setupAppLinks();
       
       // Register FCM token
       await _registerFCMToken();
@@ -299,10 +299,10 @@ class NotificationService {
   /// Handle message opened from background/terminated
   static void _handleMessageOpenedApp(RemoteMessage message) {
     print('🔗 Message opened app: ${message.data}');
-    
-    // Handle deep link
-    _handleDeepLink(message.data);
-    
+
+    // deeplink handling disabled - navigation is handled via structured notification data now
+    // _handleDeepLink(message.data);
+
     // Track analytics
     _trackNotificationOpened(message);
   }
@@ -312,8 +312,10 @@ class NotificationService {
     print('🔔 Local notification tapped: ${response.payload}');
     
     if (response.payload != null) {
-      Map<String, dynamic> data = jsonDecode(response.payload!);
-      _handleDeepLink(data);
+  // deeplink handling is disabled; route using structured `data` fields instead if needed.
+  // Example (if you want to route here):
+  // final payload = jsonDecode(response.payload!);
+  // navigatorKey.currentState?.pushNamed('/chat', arguments: payload['chatId']);
     }
   }
 
@@ -361,136 +363,13 @@ class NotificationService {
     }
   }
 
-  /// Handle deep links from notifications
-  static void _handleDeepLink(Map<String, dynamic> data) {
-    final deeplink = data['deeplink'] as String?;
-    if (deeplink == null) return;
+  // deeplink handling removed: see structured notification fields approach
+  // static void _handleDeepLink(Map<String, dynamic> data) { ... }
 
-    try {
-      final uri = Uri.parse(deeplink);
-      final context = navigatorKey.currentContext;
-      if (context == null) return;
+  // AppLinks/deeplink setup disabled
+  // static Future<void> _setupAppLinks() async { ... }
 
-      switch (uri.pathSegments.first) {
-        case 'chat':
-          if (uri.pathSegments.length > 1) {
-            final chatId = uri.pathSegments[1];
-            context.push('/chat/$chatId');
-          }
-          break;
-        case 'post':
-          if (uri.pathSegments.length > 1) {
-            // Navigate to home since we don't have a specific post view route
-            context.push('/home');
-          }
-          break;
-        case 'settings':
-          if (uri.pathSegments.length > 1 && uri.pathSegments[1] == 'notifications') {
-            context.push('/settings/notifications');
-          }
-          break;
-        case 'earn':
-          if (uri.pathSegments.length > 1) {
-            final offerType = uri.pathSegments[1];
-            // Navigate to appropriate earning screen based on type
-            if (offerType == 'watch') {
-              context.push('/settings/unity-web-game');
-            } else if (offerType == 'referral') {
-              context.push('/settings/referral');
-            } else {
-              // Default to referral screen for unknown types
-              context.push('/settings/referral');
-            }
-          }
-          break;
-      }
-    } catch (e) {
-      print('❌ Error handling deep link: $e');
-    }
-  }
-
-  /// Setup app links for deep link handling
-  static Future<void> _setupAppLinks() async {
-    try {
-      _appLinks = AppLinks();
-      
-      // Handle initial link if app was launched from a link
-      final initialUri = await _appLinks!.getInitialLink();
-      if (initialUri != null) {
-        _handleAppLink(initialUri);
-      }
-      
-      // Listen for incoming links when app is already running
-      _appLinks!.uriLinkStream.listen(
-        (Uri uri) {
-          _handleAppLink(uri);
-        },
-        onError: (err) {
-          print('App link error: $err');
-        },
-      );
-    } catch (e) {
-      print('Error setting up app links: $e');
-    }
-  }
-
-  /// Handle app link navigation
-  static void _handleAppLink(Uri uri) {
-    if (uri.scheme != 'inzone') return;
-    
-    final context = navigatorKey.currentContext;
-    if (context == null) return;
-
-    try {
-      switch (uri.pathSegments.first) {
-        case 'chat':
-          if (uri.pathSegments.length > 1) {
-            final chatId = uri.pathSegments[1];
-            context.push('/chat/$chatId');
-          }
-          break;
-        case 'post':
-          if (uri.pathSegments.length > 1) {
-            // Navigate to home since we don't have a specific post view route
-            context.push('/home');
-          }
-          break;
-        case 'settings':
-          if (uri.pathSegments.length > 1 && uri.pathSegments[1] == 'notifications') {
-            context.push('/notifications/settings');
-          }
-          break;
-        case 'earn':
-          if (uri.pathSegments.length > 1) {
-            final offerType = uri.pathSegments[1];
-            // Navigate to earning screen based on offer type
-            if (offerType == 'watch') {
-              context.push('/settings/unity-web-game'); // Video watching
-            } else if (offerType == 'referral') {
-              context.push('/settings/referral');
-            }
-          }
-          break;
-        case 'notifications':
-          if (uri.pathSegments.length > 1 && uri.pathSegments[1] == 'center') {
-            context.push('/notifications/center');
-          }
-          break;
-      }
-      
-      // Log analytics event
-      try {
-        AppsFlyerService().logEvent('deep_link_opened', {
-          'link': uri.toString(),
-          'source': 'notification',
-        });
-      } catch (e) {
-        print('Analytics error: $e');
-      }
-    } catch (e) {
-      print('Error handling app link: $e');
-    }
-  }
+  // deeplink app link handler removed
 
   /// Update user notification preferences with backend API
   static Future<void> updateNotificationPreferences(Map<String, dynamic> prefs) async {
@@ -782,22 +661,18 @@ class NotificationService {
   static void _trackNotificationDelivered(RemoteMessage message) {
     final type = message.data['type'] ?? 'unknown';
     final category = message.data['category'] ?? 'system';
-    final deeplink = message.data['deeplink'];
-    
+    // deeplink removed from notification tracking; use structured data instead
     AppsFlyerService().logEvent('notif_delivered', {
       'type': type,
       'category': category,
-      'deeplink': deeplink,
       'timestamp': DateTime.now().millisecondsSinceEpoch,
     });
   }
 
   /// Track notification opened
   static void _trackNotificationOpened(RemoteMessage message) {
-    final deeplink = message.data['deeplink'];
-    
+    // deeplink removed from notification tracking; use structured data instead
     AppsFlyerService().logEvent('notif_open', {
-      'deeplink': deeplink,
       'timestamp': DateTime.now().millisecondsSinceEpoch,
     });
   }

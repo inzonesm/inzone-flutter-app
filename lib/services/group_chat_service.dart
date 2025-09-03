@@ -261,8 +261,6 @@ class GroupChatService {
       'name': 'Lionel Messi',
     };
 
-    // Get document ID as the group ID
-    final groupId = docRef.id;
 
     // Barcelona crest image URL
     const imageUrl =
@@ -466,7 +464,6 @@ class GroupChatService {
                 .get();
           } else {
             // fallback dedupe by group+sender+snippet
-            final snippet = (content.length > 100) ? content.substring(0, 100) : content;
             existingQuery = await notifRef
                 .where('userId', isEqualTo: resolvedUid)
                 .where('data.groupId', isEqualTo: groupId)
@@ -490,7 +487,7 @@ class GroupChatService {
                 'senderId': senderId,
                 'snippet': snippet,
               },
-              'deeplink': 'inzone://group/$groupId${messageId != null ? '?msg=$messageId' : ''}'
+              // 'deeplink': 'inzone://group/$groupId${messageId != null ? '?msg=$messageId' : ''}', // deeplink disabled
             });
 
             print('Wrote fallback group mention notification ${added.id} for $resolvedUid');

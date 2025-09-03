@@ -210,7 +210,7 @@ class _HumanChatScreenState extends State<HumanChatScreen> {
                 'senderName': currentUserName,
                 'messageContent': bodyText,
               },
-              'deeplink': 'inzone://chat/${widget.conversationId}'
+              // deeplink removed per notification deeplink deprecation
             });
 
             debugPrint('Fallback DM notification written: ${added.id} -> user $resolvedReceiverUid');
