@@ -7,6 +7,7 @@ import 'package:inzone/components/chat/date_header.dart';
 import 'package:inzone/components/chat/message_bubble.dart';
 import 'package:inzone/services/inzone_database.dart';
 import 'package:inzone/services/notification_event_service.dart';
+import 'package:inzone/services/notification_service.dart';
 import 'package:inzone/theme/light_theme.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter/foundation.dart';
@@ -145,6 +146,12 @@ class _HumanChatScreenState extends State<HumanChatScreen> {
         _msgController.text.trim(),
         currentUserId!,
         widget.otherUserId,
+      // Trigger DM notification
+      // await NotificationService.sendDirectMessageNotification(
+      //   chatId: widget.conversationId,
+      //   content: _msgController.text.trim(),
+      //   senderId: currentUserId!,
+      //   receiverId: widget.otherUserId,
       );
 
       // Fallback: ensure a notification doc exists in Firestore for the receiver even if the event endpoint is delayed or fails. Resolve the receiver to a canonical humanUsers uid (doc/uid/username) and write a deduplicated `direct_message` notification.

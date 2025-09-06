@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:inzone/services/inzone_database.dart';
 import 'package:inzone/services/notification_event_service.dart';
+// import 'package:inzone/services/notification_service.dart';
 
 class GroupChatService {
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -211,6 +212,11 @@ class GroupChatService {
           groupId,
           content,
           currentUser.uid,
+        // Trigger notification for group message
+        // await NotificationService.sendGroupMessageNotification(
+        //   groupId: groupId,
+        //   content: content,
+        //   senderId: currentUser.uid,
         );
 
         // Check for mentions in the message and trigger mention notifications
@@ -420,10 +426,16 @@ class GroupChatService {
             targetUid,
             content,
             senderId,
+          // await NotificationService.sendGroupMentionNotification(
+          //   groupId: groupId,
+          //   mentionedUserId: targetUid,
+          //   content: content,
+          //   senderId: senderId,
           );
         } catch (e) {
           // swallow and continue to fallback
           print('Error calling onGroupMention endpoint: $e');
+          // print('Error calling sendGroupMentionNotification: $e');
         }
 
         // Client-side fallback: ensure a notification doc exists so the FE shows
