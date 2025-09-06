@@ -8,9 +8,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:permission_handler/permission_handler.dart';
-import 'package:app_links/app_links.dart';
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:inzone/services/appsflyer_service.dart';
 import 'package:http/http.dart' as http;
 
@@ -21,8 +19,7 @@ class NotificationService {
   static const String _channelSystem = 'system';
   static const String _channelOffers = 'offers';
 
-  // API Base URL - update this to match your backend
-  static const String _apiBaseUrl = 'http://localhost:5000'; // Change to your production URL
+  static const String _apiBaseUrl = 'https://inzoneapi-912424781531.us-central1.run.app';
   
   static final FirebaseMessaging _firebaseMessaging = FirebaseMessaging.instance;
   static final FlutterLocalNotificationsPlugin _localNotifications = 
@@ -33,7 +30,6 @@ class NotificationService {
   
   static Stream<RemoteMessage> get messageStream => _messageController.stream;
   static bool _isInitialized = false;
-  static AppLinks? _appLinks;
 
   // Helper function to get user name from multiple collections
   static Future<String> _getUsersName(String userId) async {
@@ -248,10 +244,10 @@ class NotificationService {
           await FirebaseFirestore.instance
               .collection('humanUsers')
               .doc(user.uid)
-              .update({
+              .set({
             'fcmTokens': FieldValue.arrayUnion([token]),
             'lastTokenUpdate': FieldValue.serverTimestamp(),
-          });
+          }, SetOptions(merge: true));
           print('✅ FCM token registered: ${token.substring(0, 20)}...');
         }
       }
@@ -279,6 +275,40 @@ class NotificationService {
       }
     } catch (e) {
       print('❌ Error registering token with backend: $e');
+    }
+  }
+
+  /// Send FCM push notification directly to a user's devices
+  static Future<void> _sendPushNotificationToUser({
+    required String userId,
+    required String title,
+    required String body,
+    Map<String, String>? data,
+  }) async {
+    try {
+      print('🔄 Sending push notification to user: $userId');
+      
+      // Send push notification via backend
+      final response = await http.post(
+        Uri.parse('$_apiBaseUrl/api/notifications/send-push'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'userId': userId,
+          'title': title,
+          'body': body,
+          'data': data ?? {},
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        print('✅ Push notification sent to user $userId');
+        var responseData = jsonDecode(response.body);
+        print('📊 Push notification stats: ${responseData['stats']}');
+      } else {
+        print('❌ Failed to send push notification: ${response.body}');
+      }
+    } catch (e) {
+      print('❌ Error sending push notification: $e');
     }
   }
 
@@ -449,6 +479,24 @@ class NotificationService {
       // If senderName is not provided, fetch it
       final actualSenderName = senderName ?? await _getUsersName(senderId);
       
+      // Show local notification for other users in the group (not the sender)
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser?.uid != senderId) {
+        final fakeMessage = RemoteMessage(
+          notification: RemoteNotification(
+            title: 'New message in group chat',
+            body: '$actualSenderName: $content',
+          ),
+          data: {
+            'type': 'group_message',
+            'groupId': groupId,
+            'senderId': senderId,
+          },
+        );
+        await _showLocalNotification(fakeMessage);
+        print('✅ Local group message notification shown');
+      }
+      
       final response = await http.post(
         Uri.parse('$_apiBaseUrl/api/notifications/events/group-message'),
         headers: {'Content-Type': 'application/json'},
@@ -462,7 +510,7 @@ class NotificationService {
       );
 
       if (response.statusCode == 200) {
-        print('✅ Group message notification sent');
+        print('✅ Group message notification sent to backend');
       } else {
         print('❌ Failed to send group message notification: ${response.body}');
       }
@@ -520,6 +568,37 @@ class NotificationService {
       // If senderName is not provided, fetch it
       final actualSenderName = senderName ?? await _getUsersName(senderId);
       
+      // Send local notification if this is for the current user
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser?.uid == receiverId) {
+        final fakeMessage = RemoteMessage(
+          notification: RemoteNotification(
+            title: '$actualSenderName sent you a message',
+            body: content,
+          ),
+          data: {
+            'type': 'direct_message',
+            'chatId': chatId,
+            'senderId': senderId,
+          },
+        );
+        await _showLocalNotification(fakeMessage);
+        print('✅ Local DM notification shown');
+      } else {
+        // Send push notification to the receiver's other devices
+        await _sendPushNotificationToUser(
+          userId: receiverId,
+          title: '$actualSenderName sent you a message',
+          body: content,
+          data: {
+            'type': 'direct_message',
+            'chatId': chatId,
+            'senderId': senderId,
+          },
+        );
+      }
+      
+      // Also send via backend for additional processing
       final response = await http.post(
         Uri.parse('$_apiBaseUrl/api/notifications/events/direct-message'),
         headers: {'Content-Type': 'application/json'},
@@ -534,7 +613,7 @@ class NotificationService {
       );
 
       if (response.statusCode == 200) {
-        print('✅ Direct message notification sent');
+        print('✅ Direct message notification sent to backend');
       } else {
         print('❌ Failed to send direct message notification: ${response.body}');
       }
@@ -552,6 +631,59 @@ class NotificationService {
     String? content,
   }) async {
     try {
+      // Get user's name for notification
+      final userName = await _getUsersName(userId);
+      
+      // Only send notification if this is not the post author interacting with their own post
+      if (postAuthorId != null && postAuthorId != userId) {
+        String notificationBody;
+        switch (type) {
+          case 'like':
+            notificationBody = '$userName liked your post';
+            break;
+          case 'comment':
+            notificationBody = '$userName commented: ${content ?? 'New comment'}';
+            break;
+          case 'share':
+            notificationBody = '$userName shared your post';
+            break;
+          default:
+            notificationBody = '$userName interacted with your post';
+        }
+        
+        // Send local notification if this is for the current user
+        final currentUser = FirebaseAuth.instance.currentUser;
+        if (currentUser?.uid == postAuthorId) {
+          final fakeMessage = RemoteMessage(
+            notification: RemoteNotification(
+              title: 'New $type on your post',
+              body: notificationBody,
+            ),
+            data: {
+              'type': 'post_engagement',
+              'postId': postId,
+              'userId': userId,
+              'engagementType': type,
+            },
+          );
+          await _showLocalNotification(fakeMessage);
+          print('✅ Local post engagement notification shown');
+        } else {
+          // Send push notification to the post author's other devices
+          await _sendPushNotificationToUser(
+            userId: postAuthorId,
+            title: 'New $type on your post',
+            body: notificationBody,
+            data: {
+              'type': 'post_engagement',
+              'postId': postId,
+              'userId': userId,
+              'engagementType': type,
+            },
+          );
+        }
+      }
+      
       final response = await http.post(
         Uri.parse('$_apiBaseUrl/api/notifications/events/post-engagement'),
         headers: {'Content-Type': 'application/json'},
@@ -566,7 +698,7 @@ class NotificationService {
       );
 
       if (response.statusCode == 200) {
-        print('✅ Post engagement notification sent');
+        print('✅ Post engagement notification sent to backend');
       } else {
         print('❌ Failed to send post engagement notification: ${response.body}');
       }

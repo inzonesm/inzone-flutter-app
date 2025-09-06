@@ -8,6 +8,7 @@ import 'package:inzone/screen/chat/all_chats_screen.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:video_player/video_player.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
+import 'package:inzone/services/notification_event_service.dart';
 
 class AuthWork {
   static FirebaseAuth auth = FirebaseAuth.instance;
@@ -489,6 +490,13 @@ class AuthWork {
             'interests': [],
           });
         }
+        
+        // Re-register FCM token after successful Google sign-in
+        try {
+          await NotificationEventService.reRegisterFCMToken();
+        } catch (e) {
+          print('❌ Failed to re-register FCM token after Google sign-in: $e');
+        }
       }
 
       return userCredential;
@@ -527,6 +535,13 @@ class AuthWork {
             'interests': [],
           });
         }
+        
+        // Re-register FCM token after successful Apple sign-in
+        try {
+          await NotificationEventService.reRegisterFCMToken();
+        } catch (e) {
+          print('❌ Failed to re-register FCM token after Apple sign-in: $e');
+        }
       }
       return userCredential;
     } catch (e) {
@@ -551,6 +566,14 @@ class AuthWork {
     try {
       await auth.signInWithEmailAndPassword(email: email, password: password);
       print('✅ Login successful for $email');
+      
+      // Re-register FCM token after successful login
+      try {
+        await NotificationEventService.reRegisterFCMToken();
+      } catch (e) {
+        print('❌ Failed to re-register FCM token after login: $e');
+      }
+      
       return null;
     } on FirebaseAuthException catch (e) {
       print("❌ Login failed: ${e.code}");

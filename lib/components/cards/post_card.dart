@@ -1,8 +1,5 @@
 import 'dart:async';
 import 'dart:io';
-import 'dart:math';
-
-import 'package:bounce/bounce.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -18,7 +15,6 @@ import 'package:inzone/config/custom_icons.dart';
 import 'package:inzone/data/comment_class.dart';
 import 'package:inzone/data/inzone_post.dart';
 import 'package:inzone/services/inzone_database.dart';
-import 'package:inzone/screen/profile/profile_screen.dart';
 import 'package:inzone/theme/app_colors.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:smooth_page_indicator/smooth_page_indicator.dart';
@@ -26,12 +22,11 @@ import 'package:go_router/go_router.dart';
 import 'package:inzone/router/routes.dart';
 import 'dart:io' show Platform;
 import 'package:visibility_detector/visibility_detector.dart';
-
 import 'package:toasty_box/toast_service.dart';
-import 'package:inzone/components/cards/tip_screen.dart';
 import 'package:inzone/components/cards/comments_tile.dart';
 import 'package:inzone/services/appsflyer_service.dart';
 import 'package:inzone/services/notification_event_service.dart';
+import 'package:inzone/services/notification_service.dart';
 
 class PostCard extends StatefulWidget {
   InZonePost post;
@@ -507,6 +502,7 @@ class _PostCardState extends State<PostCard>
                   // Fire the server-side notification pipeline (best-effort)
                   try {
                     await NotificationEventService.onPostEngagement(
+                    // await NotificationService.sendPostEngagementNotification(
                       postId: widget.post.id,
                       type: 'like',
                       userId: userId,
@@ -514,6 +510,7 @@ class _PostCardState extends State<PostCard>
                     );
                   } catch (e) {
                     debugPrint('NotificationEventService failed: $e');
+                    // debugPrint('NotificationService failed: $e');
                   }
 
                   // Also ensure a notification doc exists in Firestore so the
@@ -689,8 +686,6 @@ class _PostCardState extends State<PostCard>
   @override
   Widget build(BuildContext context) {
     super.build(context); // Required for AutomaticKeepAliveClientMixin
-
-  final FirebaseAuth auth = FirebaseAuth.instance;
 
     final bool isCharacterPost = widget.post.characterInfo != null;
     final String mainName = isCharacterPost
@@ -2008,6 +2003,7 @@ class _PostCardState extends State<PostCard>
 
     // Trigger notification for post engagement (comment)
     await NotificationEventService.onPostEngagement(
+    // await NotificationService.sendPostEngagementNotification(
       postId: widget.post.id,
       type: 'comment',
       userId: FirebaseAuth.instance.currentUser!.uid,

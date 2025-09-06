@@ -93,39 +93,59 @@ class AIEngagementService {
     try {
       debugPrint('🚀 Starting AI engagement cycle');
       
-      final result = await _callEngagementAPI();
+      // 1. Run scheduled engagement (likes, comments, DMs)
+      final scheduledResult = await _callEngagementAPI();
       
-      if (result['success'] == true) {
-        final executed = result['total_executed'] ?? result['total_interactions_executed'] ?? 0;
-        final characters = result['total_characters'] ?? 0;
+      // 2. Run DM monitoring for immediate responses (24/7 functionality)
+      final dmResult = await monitorAndRespondDMs();
+      
+      // Combine results
+      bool overallSuccess = false;
+      int totalExecuted = 0;
+      int totalCharacters = 0;
+      int dmResponses = 0;
+      
+      if (scheduledResult['success'] == true) {
+        final executed = (scheduledResult['total_executed'] ?? scheduledResult['total_interactions_executed'] ?? 0) as int;
+        final characters = (scheduledResult['total_characters'] ?? 0) as int;
+        totalExecuted += executed;
+        totalCharacters = characters;
+        overallSuccess = true;
         
-        debugPrint('✅ AI engagement completed: $executed interactions for $characters characters');
-        
+        debugPrint('✅ Scheduled engagement: $executed interactions for $characters characters');
+      }
+      
+      if (dmResult['success'] == true) {
+        dmResponses = (dmResult['responses_sent'] ?? 0) as int;
+        if (dmResponses > 0) {
+          debugPrint('✅ DM monitoring: $dmResponses immediate responses sent');
+          overallSuccess = true;
+        }
+      }
+      
+      if (overallSuccess) {
         // Save last run time
         await _saveLastRunTime();
         
         // Optional: Show notification to user (if in debug mode)
-        if (kDebugMode && executed > 0) {
-          _showEngagementNotification(executed, characters);
+        if (kDebugMode && (totalExecuted > 0 || dmResponses > 0)) {
+          _showEngagementNotification(totalExecuted + dmResponses, totalCharacters);
         }
       } else {
-        final error = result['error'] ?? 'Unknown error';
-        final message = result['message'] ?? '';
+        // Handle errors from both scheduled and DM results
+        final scheduledError = scheduledResult['error'] ?? '';
+        final dmError = dmResult['error'] ?? '';
         
-        // Handle specific error types
-        if (error == 'AI engagement already running' || error == 'Execution already in progress') {
-          debugPrint('⏳ AI engagement already running, will retry later');
-          // Don't treat this as a failure, just skip this cycle
-        } else if (error == 'Rate limit exceeded' || error == 'Recent execution detected') {
-          debugPrint('⏱️ Rate limit hit: $message');
-          // Adjust next run time if provided
-          if (result.containsKey('next_allowed_time')) {
-            // Could implement smart scheduling here
-          }
+        if (scheduledError == 'AI engagement already running' || scheduledError == 'Execution already in progress') {
+          debugPrint('⏳ Scheduled AI engagement already running, will retry later');
+        } else if (scheduledError == 'Rate limit exceeded' || scheduledError == 'Recent execution detected') {
+          debugPrint('⏱️ Rate limit hit: ${scheduledResult['message'] ?? ''}');
         } else {
-          debugPrint('❌ AI engagement failed: $error');
-          if (message.isNotEmpty) {
-            debugPrint('   Details: $message');
+          if (scheduledError.isNotEmpty) {
+            debugPrint('❌ Scheduled engagement failed: $scheduledError');
+          }
+          if (dmError.isNotEmpty) {
+            debugPrint('❌ DM monitoring failed: $dmError');
           }
         }
       }
@@ -191,6 +211,89 @@ class AIEngagementService {
     return {'success': false, 'error': 'Unknown error'};
   }
   
+  /// Trigger immediate AI DM response when user sends message to AI character
+  static Future<Map<String, dynamic>> triggerDMAutoResponse({
+    required String userId,
+    required String aiCharacterId,
+    required String messageText,
+    String? conversationId,
+  }) async {
+    try {
+      final url = Uri.parse('$_apiBaseUrl/api/ai/dm-auto-responder');
+      
+      final response = await http.post(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: jsonEncode({
+          'user_id': userId,
+          'ai_character_id': aiCharacterId,
+          'message_text': messageText,
+          'conversation_id': conversationId,
+        }),
+      ).timeout(const Duration(seconds: 30));
+      
+      if (response.statusCode == 200) {
+        final result = jsonDecode(response.body);
+        debugPrint('✅ AI DM auto-response triggered successfully');
+        return result;
+      } else {
+        final errorBody = response.statusCode == 400 || response.statusCode == 404 
+          ? jsonDecode(response.body) 
+          : {'error': 'HTTP ${response.statusCode}'};
+        debugPrint('❌ DM auto-response failed: ${errorBody['error']}');
+        return {
+          'success': false,
+          'error': errorBody['error'] ?? 'Unknown error'
+        };
+      }
+    } catch (e) {
+      debugPrint('❌ DM auto-response error: $e');
+      return {
+        'success': false,
+        'error': e.toString()
+      };
+    }
+  }
+  
+  /// Monitor and respond to pending DMs (24/7 monitoring)
+  static Future<Map<String, dynamic>> monitorAndRespondDMs() async {
+    try {
+      final url = Uri.parse('$_apiBaseUrl/api/ai/monitor-dms');
+      
+      final response = await http.post(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: jsonEncode({}),
+      ).timeout(const Duration(seconds: 60));
+      
+      if (response.statusCode == 200) {
+        final result = jsonDecode(response.body);
+        final responses = result['responses_sent'] ?? 0;
+        if (responses > 0) {
+          debugPrint('✅ AI DM monitoring: $responses responses sent');
+        }
+        return result;
+      } else {
+        return {
+          'success': false,
+          'error': 'HTTP ${response.statusCode}: ${response.body}'
+        };
+      }
+    } catch (e) {
+      debugPrint('❌ DM monitoring error: $e');
+      return {
+        'success': false,
+        'error': e.toString()
+      };
+    }
+  }
+
   /// Get engagement status from backend
   static Future<Map<String, dynamic>> getEngagementStatus() async {
     try {
@@ -345,7 +448,7 @@ class AIEngagementService {
   
   /// Show engagement notification (debug only)
   static void _showEngagementNotification(int interactions, int characters) {
-    debugPrint('🎉 AI Engagement: $interactions interactions across $characters characters');
+    debugPrint('🎉 AI Engagement Complete: $interactions total interactions across $characters characters');
     // In production, you might want to show a subtle in-app notification
   }
   

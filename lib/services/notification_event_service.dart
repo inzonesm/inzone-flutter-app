@@ -1,13 +1,236 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:inzone/services/appsflyer_service.dart';
 
 class NotificationEventService {
   static const String _apiUrl = 'https://inzoneapi-912424781531.us-central1.run.app';
+  
+  // Local notifications instance for immediate display
+  static final FlutterLocalNotificationsPlugin _localNotifications = 
+      FlutterLocalNotificationsPlugin();
+  
+  // Firebase messaging instance
+  static final FirebaseMessaging _firebaseMessaging = FirebaseMessaging.instance;
+
+  /// Initialize and register FCM token for push notifications
+  static Future<void> initializePushNotifications() async {
+    try {
+      // Request notification permissions first
+      NotificationSettings settings = await _firebaseMessaging.requestPermission(
+        alert: true,
+        announcement: false,
+        badge: true,
+        carPlay: false,
+        criticalAlert: false,
+        provisional: false,
+        sound: true,
+      );
+      print('🔔 Notification permission status: ${settings.authorizationStatus}');
+      
+      if (settings.authorizationStatus == AuthorizationStatus.authorized ||
+          settings.authorizationStatus == AuthorizationStatus.provisional) {
+        
+        // Wait a bit to ensure user authentication is complete
+        await Future.delayed(const Duration(seconds: 2));
+        
+        // Register FCM token when app starts
+        await _registerFCMToken();
+        
+        // Listen for token refresh
+        _firebaseMessaging.onTokenRefresh.listen((newToken) {
+          print('🔄 FCM Token refreshed: ${newToken.substring(0, 20)}...');
+          final user = FirebaseAuth.instance.currentUser;
+          if (user != null) {
+            _registerTokenWithBackend(user.uid, newToken);
+          }
+        });
+        
+        print('✅ Push notifications initialized');
+      } else {
+        print('❌ Notification permissions denied');
+      }
+    } catch (e) {
+      print('❌ Error initializing push notifications: $e');
+    }
+  }
+
+  /// Manual method to re-register FCM token (call after login)
+  static Future<void> reRegisterFCMToken() async {
+    print('🔄 Manually re-registering FCM token...');
+    await _registerFCMToken();
+  }
+
+  /// Debug method to test FCM token validity
+  static Future<void> debugFCMToken() async {
+    try {
+      print('🔍 Debug: Testing FCM token...');
+      String? token = await _firebaseMessaging.getToken();
+      
+      if (token != null) {
+        print('📱 Current FCM token: $token');
+        print('📱 Token length: ${token.length}');
+        print('📱 Token starts with: ${token.substring(0, 20)}...');
+        
+        final user = FirebaseAuth.instance.currentUser;
+        if (user != null) {
+          print('👤 Current user: ${user.uid}');
+          print('👤 User email: ${user.email}');
+          
+          // Test sending a push notification to self
+          await _sendPushNotificationToUser(
+            userId: user.uid,
+            title: 'FCM Test',
+            body: 'This is a test push notification to verify FCM token validity',
+            data: {'type': 'test'},
+          );
+        } else {
+          print('❌ No authenticated user for FCM test');
+        }
+      } else {
+        print('❌ No FCM token available');
+      }
+    } catch (e) {
+      print('❌ FCM debug error: $e');
+    }
+  }
+
+  /// Register FCM token with backend API
+  static Future<void> _registerFCMToken() async {
+    try {
+      print('🔄 Getting FCM token...');
+      String? token = await _firebaseMessaging.getToken();
+      
+      if (token != null) {
+        print('📱 FCM token obtained: ${token.substring(0, 30)}...${token.substring(token.length - 10)}');
+        
+        final user = FirebaseAuth.instance.currentUser;
+        if (user != null) {
+          print('👤 Current user: ${user.uid}');
+          
+          // Register with backend API
+          await _registerTokenWithBackend(user.uid, token);
+          
+          // Also update Firestore for backup
+          await FirebaseFirestore.instance
+              .collection('humanUsers')
+              .doc(user.uid)
+              .set({
+            'fcmTokens': FieldValue.arrayUnion([token]),
+            'lastTokenUpdate': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true));
+          print('✅ FCM token registered in Firestore');
+        } else {
+          print('❌ No authenticated user found');
+        }
+      } else {
+        print('❌ Failed to get FCM token');
+      }
+    } catch (e) {
+      print('❌ Error registering FCM token: $e');
+    }
+  }
+
+  /// Register token with backend API
+  static Future<void> _registerTokenWithBackend(String userId, String token) async {
+    try {
+      print('🌐 Registering token with backend for user: $userId');
+      
+      final response = await http.post(
+        Uri.parse('$_apiUrl/api/notifications/register-token'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'userId': userId,
+          'token': token,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        print('✅ FCM token registered with backend');
+        try {
+          final responseData = jsonDecode(response.body);
+          print('📊 Backend response: $responseData');
+        } catch (e) {
+          print('📊 Backend response: ${response.body}');
+        }
+      } else {
+        print('❌ Failed to register FCM token with backend: ${response.statusCode}');
+        print('❌ Response body: ${response.body}');
+      }
+    } catch (e) {
+      print('❌ Error registering token with backend: $e');
+    }
+  }
+
+  /// Send FCM push notification directly to a user's devices
+  static Future<void> _sendPushNotificationToUser({
+    required String userId,
+    required String title,
+    required String body,
+    Map<String, String>? data,
+  }) async {
+    try {
+      print('🔄 Sending push notification to user: $userId');
+      
+      // Send push notification via backend
+      final response = await http.post(
+        Uri.parse('$_apiUrl/api/notifications/send-push'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'userId': userId,
+          'title': title,
+          'body': body,
+          'data': data ?? {},
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        print('✅ Push notification sent to user $userId');
+        var responseData = jsonDecode(response.body);
+        print('📊 Push notification stats: ${responseData['stats']}');
+      } else {
+        print('❌ Failed to send push notification: ${response.body}');
+      }
+    } catch (e) {
+      print('❌ Error sending push notification: $e');
+    }
+  }
+
+  /// Show local notification for immediate feedback
+  static Future<void> _showLocalNotification({
+    required String title,
+    required String body,
+    Map<String, String>? data,
+  }) async {
+    try {
+      const NotificationDetails platformChannelSpecifics = NotificationDetails(
+        android: AndroidNotificationDetails(
+          'high_importance_channel',
+          'High Importance Notifications',
+          channelDescription: 'Channel for important notifications',
+          importance: Importance.high,
+          priority: Priority.high,
+        ),
+        iOS: DarwinNotificationDetails(),
+      );
+
+      await _localNotifications.show(
+        DateTime.now().millisecondsSinceEpoch.remainder(100000),
+        title,
+        body,
+        platformChannelSpecifics,
+        payload: data != null ? jsonEncode(data) : null,
+      );
+    } catch (e) {
+      print('❌ Error showing local notification: $e');
+    }
+  }
 
   /// Trigger notification when a new message is sent in a group chat
+  /// Enhanced with push notifications
   static Future<void> onGroupMessage(String groupId, String content, String senderId) async {
     try {
       final response = await http.post(
@@ -71,6 +294,19 @@ class NotificationEventService {
 
       if (response.statusCode == 200) {
         print('✅ Direct message notification event sent');
+        
+        // Send push notification to receiver
+        await _sendPushNotificationToUser(
+          userId: receiverId,
+          title: 'New Message',
+          body: content.length > 50 ? '${content.substring(0, 50)}...' : content,
+          data: {
+            'type': 'direct_message',
+            'chatId': chatId,
+            'senderId': senderId,
+            'timestamp': DateTime.now().toIso8601String(),
+          },
+        );
       }
     } catch (e) {
       print('❌ Error sending direct message event: $e');
@@ -102,6 +338,11 @@ class NotificationEventService {
       if (response.statusCode == 200) {
         print('✅ Post engagement notification event sent');
         
+        // Send push notification to post author (if not engaging with own post)
+        if (postAuthorId != null && userId != postAuthorId) {
+          await _sendPostEngagementPushNotification(postId, type, userId, postAuthorId, content);
+        }
+        
         // Track analytics
         AppsFlyerService().logEvent('notification_event_triggered', {
           'event_type': 'post_engagement',
@@ -113,6 +354,64 @@ class NotificationEventService {
       }
     } catch (e) {
       print('❌ Error sending post engagement event: $e');
+    }
+  }
+
+  /// Send push notification for post engagement
+  static Future<void> _sendPostEngagementPushNotification(String postId, String type, String userId, String postAuthorId, String? content) async {
+    try {
+      // Get user name for notification
+      String userName = 'Someone';
+      try {
+        final userDoc = await FirebaseFirestore.instance
+            .collection('humanUsers')
+            .doc(userId)
+            .get();
+        if (userDoc.exists) {
+          final userData = userDoc.data()!;
+          userName = userData['name'] ?? userData['displayName'] ?? 'Someone';
+        }
+      } catch (e) {
+        print('Could not fetch user name: $e');
+      }
+
+      // Generate notification message based on type
+      String title = '';
+      String body = '';
+      
+      switch (type) {
+        case 'like':
+          title = 'New Like';
+          body = '$userName liked your post';
+          break;
+        case 'comment':
+          title = 'New Comment';
+          body = '$userName commented on your post${content != null ? ': ${content.length > 30 ? '${content.substring(0, 30)}...' : content}' : ''}';
+          break;
+        case 'share':
+          title = 'Post Shared';
+          body = '$userName shared your post';
+          break;
+        default:
+          title = 'Post Engagement';
+          body = '$userName interacted with your post';
+      }
+      
+      // Send push notification to post author
+      await _sendPushNotificationToUser(
+        userId: postAuthorId,
+        title: title,
+        body: body,
+        data: {
+          'type': 'post_engagement',
+          'postId': postId,
+          'engagementType': type,
+          'userId': userId,
+          'timestamp': DateTime.now().toIso8601String(),
+        },
+      );
+    } catch (e) {
+      print('❌ Error sending post engagement push notification: $e');
     }
   }
 
@@ -137,9 +436,46 @@ class NotificationEventService {
 
       if (response.statusCode == 200) {
         print('✅ User follow notification event sent');
+        
+        // Send push notification to followed user
+        await _sendFollowPushNotification(followerId, followedUserId);
       }
     } catch (e) {
       print('❌ Error sending user follow event: $e');
+    }
+  }
+
+  /// Send push notification for follow event
+  static Future<void> _sendFollowPushNotification(String followerId, String followedUserId) async {
+    try {
+      // Get follower name for notification
+      String followerName = 'Someone';
+      try {
+        final userDoc = await FirebaseFirestore.instance
+            .collection('humanUsers')
+            .doc(followerId)
+            .get();
+        if (userDoc.exists) {
+          final userData = userDoc.data()!;
+          followerName = userData['name'] ?? userData['displayName'] ?? 'Someone';
+        }
+      } catch (e) {
+        print('Could not fetch follower name: $e');
+      }
+      
+      // Send push notification to the followed user
+      await _sendPushNotificationToUser(
+        userId: followedUserId,
+        title: 'New Follower',
+        body: '$followerName started following you',
+        data: {
+          'type': 'user_follow',
+          'followerId': followerId,
+          'timestamp': DateTime.now().toIso8601String(),
+        },
+      );
+    } catch (e) {
+      print('❌ Error sending follow push notification: $e');
     }
   }
 

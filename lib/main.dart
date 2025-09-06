@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:firebase_remote_config/firebase_remote_config.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -11,6 +12,8 @@ import 'package:inzone/router/app_router.dart';
 import 'package:inzone/router/routes.dart';
 import 'package:inzone/services/appsflyer_service.dart';
 import 'package:inzone/services/inzone_database.dart';
+import 'package:inzone/services/notification_service.dart';
+import 'package:inzone/services/notification_event_service.dart';
 import 'package:purchases_flutter/models/purchases_configuration.dart'
     show PurchasesConfiguration;
 import 'dart:io' show Platform;
@@ -28,6 +31,22 @@ import 'package:inzone/services/ai_engagement_service.dart';
 
 // Key for storing first launch status in SharedPreferences
 const String FIRST_LAUNCH_KEY = 'is_first_launch';
+
+/// Firebase Cloud Messaging background message handler
+/// This must be a top-level function (not inside a class)
+@pragma('vm:entry-point')
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  // Initialize Firebase if needed
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+  
+  print('📱 Background message received: ${message.notification?.title}');
+  print('📱 Background message data: ${message.data}');
+  
+  // Handle the background message here if needed
+  // Note: You cannot update UI from background handler
+}
 
 Future<void> setupRemoteConfig() async {
   final remoteConfig = FirebaseRemoteConfig.instance;
@@ -198,6 +217,25 @@ void main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+
+  // Register FCM background message handler
+  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+
+  // Initialize notification service
+  try {
+    await NotificationService.initialize();
+    print('✅ Notification service initialized');
+  } catch (e) {
+    print('⚠️ Failed to initialize notification service: $e');
+  }
+
+  // Initialize push notifications for event service
+  try {
+    await NotificationEventService.initializePushNotifications();
+    print('✅ Push notifications initialized');
+  } catch (e) {
+    print('⚠️ Failed to initialize push notifications: $e');
+  }
 
   // Setup Firebase Remote Config
   await setupRemoteConfig();
