@@ -231,8 +231,11 @@ class NotificationEventService {
 
   /// Trigger notification when a new message is sent in a group chat
   /// Enhanced with push notifications
-  static Future<void> onGroupMessage(String groupId, String content, String senderId) async {
+  static Future<void> onGroupMessage(String groupId, String content, String senderId, {String? messageId}) async {
     try {
+      // Generate unique message ID if not provided
+      final uniqueMessageId = messageId ?? 'msg_${DateTime.now().millisecondsSinceEpoch}_${senderId.hashCode}_${content.hashCode}';
+      
       final response = await http.post(
         Uri.parse('$_apiUrl/api/notifications/events/group-message'),
         headers: {'Content-Type': 'application/json'},
@@ -241,11 +244,15 @@ class NotificationEventService {
           'content': content,
           'senderId': senderId,
           'timestamp': DateTime.now().toIso8601String(),
+          'messageId': uniqueMessageId, // Add unique message ID for deduplication
         }),
       );
 
       if (response.statusCode == 200) {
         print('✅ Group message notification event sent');
+        
+        // Send push notifications to group participants (except sender)
+        await _sendGroupMessagePushNotifications(groupId, content, senderId);
       } else {
         print('❌ Failed to send group message event: ${response.statusCode}');
       }
@@ -254,9 +261,61 @@ class NotificationEventService {
     }
   }
 
-  /// Trigger notification when a user is mentioned in a group chat
-  static Future<void> onGroupMention(String groupId, String mentionedUserId, String content, String senderId) async {
+  /// Send push notifications to group participants
+  static Future<void> _sendGroupMessagePushNotifications(String groupId, String content, String senderId) async {
     try {
+      // Get group participants from Firestore
+      final groupDoc = await FirebaseFirestore.instance
+          .collection('groupChats')
+          .doc(groupId)
+          .get();
+      
+      if (groupDoc.exists) {
+        final groupData = groupDoc.data()!;
+        final participants = groupData['participants'] as List?;
+        final groupName = groupData['name'] as String? ?? 'Group Chat';
+        
+        if (participants != null) {
+          // Get sender name
+          String senderName = 'Someone';
+          final senderParticipant = participants.firstWhere(
+            (p) => p['uid'] == senderId,
+            orElse: () => null,
+          );
+          if (senderParticipant != null) {
+            senderName = senderParticipant['name'] ?? 'Someone';
+          }
+          
+          // Send push to all participants except sender
+          for (var participant in participants) {
+            final participantId = participant['uid'];
+            if (participantId != senderId) {
+              await _sendPushNotificationToUser(
+                userId: participantId,
+                title: groupName,
+                body: '$senderName: ${content.length > 50 ? '${content.substring(0, 50)}...' : content}',
+                data: {
+                  'type': 'group_message',
+                  'groupId': groupId,
+                  'senderId': senderId,
+                  'timestamp': DateTime.now().toIso8601String(),
+                },
+              );
+            }
+          }
+        }
+      }
+    } catch (e) {
+      print('❌ Error sending group message push notifications: $e');
+    }
+  }
+
+  /// Trigger notification when a user is mentioned in a group chat
+  static Future<void> onGroupMention(String groupId, String mentionedUserId, String content, String senderId, {String? messageId}) async {
+    try {
+      // Generate unique message ID if not provided
+      final uniqueMessageId = messageId ?? 'mention_${DateTime.now().millisecondsSinceEpoch}_${senderId.hashCode}_${mentionedUserId.hashCode}';
+      
       final response = await http.post(
         Uri.parse('$_apiUrl/api/notifications/events/group-mention'),
         headers: {'Content-Type': 'application/json'},
@@ -266,14 +325,64 @@ class NotificationEventService {
           'content': content,
           'senderId': senderId,
           'timestamp': DateTime.now().toIso8601String(),
+          'messageId': uniqueMessageId, // Add unique message ID for deduplication
         }),
       );
 
       if (response.statusCode == 200) {
         print('✅ Group mention notification event sent');
+        
+        // Send push notification to mentioned user
+        await _sendGroupMentionPushNotification(groupId, mentionedUserId, content, senderId);
       }
     } catch (e) {
       print('❌ Error sending group mention event: $e');
+    }
+  }
+
+  /// Send push notification for group mention
+  static Future<void> _sendGroupMentionPushNotification(String groupId, String mentionedUserId, String content, String senderId) async {
+    try {
+      // Get group and sender info
+      final groupDoc = await FirebaseFirestore.instance
+          .collection('groupChats')
+          .doc(groupId)
+          .get();
+      
+      String groupName = 'Group Chat';
+      String senderName = 'Someone';
+      
+      if (groupDoc.exists) {
+        final groupData = groupDoc.data()!;
+        groupName = groupData['name'] as String? ?? 'Group Chat';
+        
+        // Get sender name from participants
+        final participants = groupData['participants'] as List?;
+        if (participants != null) {
+          final senderParticipant = participants.firstWhere(
+            (p) => p['uid'] == senderId,
+            orElse: () => null,
+          );
+          if (senderParticipant != null) {
+            senderName = senderParticipant['name'] ?? 'Someone';
+          }
+        }
+      }
+      
+      // Send push notification to mentioned user
+      await _sendPushNotificationToUser(
+        userId: mentionedUserId,
+        title: '$senderName mentioned you in $groupName',
+        body: content.length > 50 ? '${content.substring(0, 50)}...' : content,
+        data: {
+          'type': 'group_mention',
+          'groupId': groupId,
+          'senderId': senderId,
+          'timestamp': DateTime.now().toIso8601String(),
+        },
+      );
+    } catch (e) {
+      print('❌ Error sending group mention push notification: $e');
     }
   }
 
