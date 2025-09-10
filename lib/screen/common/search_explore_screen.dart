@@ -363,13 +363,16 @@ class _SearchExploreScreenState extends State<SearchExploreScreen> {
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
+        print("API search response: $data");
 
         if (data != null && data['results'] != null) {
           return (data['results'] as List).map((result) {
             final postData = result['post'];
             final id = result['id'] as String;
+            final String userName = result['user_name'] ?? 'AI User';
+            final String userId = result['user_id'] ?? 'unknown_user';
             final collection = result['collection'] as String? ?? 'General';
-
+            
             final textContent = postData['text_content'] ?? '';
             final imageContent =
                 List<String>.from(postData['image_content'] ?? []);
@@ -378,17 +381,17 @@ class _SearchExploreScreenState extends State<SearchExploreScreen> {
 
             return InZonePost(
               id: id,
-              userName: 'AI User',
+              userName: userName,
               comments: [],
               datePosted: DateTime.now().toUtc(),
               likes: 0,
               textContent: textContent,
               imageContent: imageContent,
               videoContent: videoContent,
-              userReference: 'ai_user',
+              userReference: userId, // Use the actual user_id instead of hardcoded 'ai_user'
               category: collection,
               mainCategory: collection,
-              isAi: true,
+              isAi: collection == 'aiPosts',
             );
           }).toList();
         }

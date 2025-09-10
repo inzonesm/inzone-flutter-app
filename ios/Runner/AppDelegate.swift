@@ -75,9 +75,9 @@ extension AppDelegate: MessagingDelegate {
 }
 
 // MARK: - UNUserNotificationCenterDelegate  
-extension AppDelegate: UNUserNotificationCenterDelegate {
+extension AppDelegate {
   // Handle foreground notifications
-  func userNotificationCenter(_ center: UNUserNotificationCenter,
+  override func userNotificationCenter(_ center: UNUserNotificationCenter,
                             willPresent notification: UNNotification,
                             withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
     // Show notification even when app is in foreground
@@ -85,7 +85,7 @@ extension AppDelegate: UNUserNotificationCenterDelegate {
   }
   
   // Handle notification taps
-  func userNotificationCenter(_ center: UNUserNotificationCenter,
+  override func userNotificationCenter(_ center: UNUserNotificationCenter,
                             didReceive response: UNNotificationResponse,
                             withCompletionHandler completionHandler: @escaping () -> Void) {
     let userInfo = response.notification.request.content.userInfo
