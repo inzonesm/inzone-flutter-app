@@ -233,6 +233,11 @@ class NotificationService {
   /// Register FCM token with backend API
   static Future<void> _registerFCMToken() async {
     try {
+      // On iOS, wait for APNS token to be available before getting FCM token
+      if (Platform.isIOS) {
+        await _waitForAPNSToken();
+      }
+      
       String? token = await _firebaseMessaging.getToken();
       if (token != null) {
         final user = FirebaseAuth.instance.currentUser;
@@ -253,6 +258,40 @@ class NotificationService {
       }
     } catch (e) {
       print('❌ Error registering FCM token: $e');
+    }
+  }
+
+  /// Wait for APNS token to be available on iOS
+  static Future<void> _waitForAPNSToken() async {
+    try {
+      print('🍎 Waiting for APNS token...');
+      
+      // Try to get APNS token with retries
+      int maxRetries = 10;
+      int retryCount = 0;
+      
+      while (retryCount < maxRetries) {
+        try {
+          String? apnsToken = await _firebaseMessaging.getAPNSToken();
+          if (apnsToken != null) {
+            print('✅ APNS token available: ${apnsToken.substring(0, 20)}...');
+            return;
+          }
+        } catch (e) {
+          print('⚠️ APNS token not yet available (attempt ${retryCount + 1}/$maxRetries): $e');
+        }
+        
+        retryCount++;
+        
+        // Wait before retrying, with exponential backoff
+        int delaySeconds = retryCount * 2;
+        print('⏳ Waiting ${delaySeconds}s before retry...');
+        await Future.delayed(Duration(seconds: delaySeconds));
+      }
+      
+      print('⚠️ APNS token not available after $maxRetries attempts, proceeding anyway...');
+    } catch (e) {
+      print('❌ Error waiting for APNS token: $e');
     }
   }
 

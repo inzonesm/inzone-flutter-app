@@ -4,6 +4,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'dart:io';
 import 'package:inzone/services/appsflyer_service.dart';
 
 class NotificationEventService {
@@ -37,6 +38,11 @@ class NotificationEventService {
         // Wait a bit to ensure user authentication is complete
         await Future.delayed(const Duration(seconds: 2));
         
+        // On iOS, wait a bit more for APNS to be properly initialized
+        if (Platform.isIOS) {
+          await Future.delayed(const Duration(seconds: 3));
+        }
+        
         // Register FCM token when app starts
         await _registerFCMToken();
         
@@ -61,6 +67,10 @@ class NotificationEventService {
   /// Manual method to re-register FCM token (call after login)
   static Future<void> reRegisterFCMToken() async {
     print('🔄 Manually re-registering FCM token...');
+    
+    // Add a small delay to ensure authentication is complete
+    await Future.delayed(const Duration(seconds: 1));
+    
     await _registerFCMToken();
   }
 
@@ -102,6 +112,12 @@ class NotificationEventService {
   static Future<void> _registerFCMToken() async {
     try {
       print('🔄 Getting FCM token...');
+      
+      // On iOS, wait for APNS token to be available before getting FCM token
+      if (Platform.isIOS) {
+        await _waitForAPNSToken();
+      }
+      
       String? token = await _firebaseMessaging.getToken();
       
       if (token != null) {
@@ -131,6 +147,40 @@ class NotificationEventService {
       }
     } catch (e) {
       print('❌ Error registering FCM token: $e');
+    }
+  }
+
+  /// Wait for APNS token to be available on iOS
+  static Future<void> _waitForAPNSToken() async {
+    try {
+      print('🍎 Waiting for APNS token...');
+      
+      // Try to get APNS token with retries
+      int maxRetries = 10;
+      int retryCount = 0;
+      
+      while (retryCount < maxRetries) {
+        try {
+          String? apnsToken = await _firebaseMessaging.getAPNSToken();
+          if (apnsToken != null) {
+            print('✅ APNS token available: ${apnsToken.substring(0, 20)}...');
+            return;
+          }
+        } catch (e) {
+          print('⚠️ APNS token not yet available (attempt ${retryCount + 1}/$maxRetries): $e');
+        }
+        
+        retryCount++;
+        
+        // Wait before retrying, with exponential backoff
+        int delaySeconds = retryCount * 2;
+        print('⏳ Waiting ${delaySeconds}s before retry...');
+        await Future.delayed(Duration(seconds: delaySeconds));
+      }
+      
+      print('⚠️ APNS token not available after $maxRetries attempts, proceeding anyway...');
+    } catch (e) {
+      print('❌ Error waiting for APNS token: $e');
     }
   }
 
