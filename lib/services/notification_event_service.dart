@@ -6,6 +6,9 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'dart:io';
 import 'package:inzone/services/appsflyer_service.dart';
+import 'package:inzone/router/app_router.dart';
+import 'package:inzone/router/routes.dart';
+import 'package:inzone/data/group_data.dart';
 
 class NotificationEventService {
   static const String _apiUrl = 'https://inzoneapi-912424781531.us-central1.run.app';
@@ -16,6 +19,78 @@ class NotificationEventService {
   
   // Firebase messaging instance
   static final FirebaseMessaging _firebaseMessaging = FirebaseMessaging.instance;
+
+  /// Helper method to validate and resolve user ID
+  /// If the provided ID looks like a display name, try to find the actual user ID
+  static Future<String?> _resolveUserId(String userId) async {
+    try {
+      // If it looks like a valid Firebase UID (alphanumeric, no spaces, no special chars except possibly hyphens/underscores)
+      if (RegExp(r'^[a-zA-Z0-9_-]+$').hasMatch(userId) && !userId.contains(' ')) {
+        // Check if the document exists in humanUsers
+        final userDoc = await FirebaseFirestore.instance
+            .collection('humanUsers')
+            .doc(userId)
+            .get();
+        
+        if (userDoc.exists) {
+          return userId; // Valid user ID found
+        }
+      }
+      
+      // If direct lookup failed or ID looks like a display name, search by name/displayName
+      print('🔍 Searching for user ID by display name: $userId');
+      
+      // Search in humanUsers by name or displayName
+      final queryByName = await FirebaseFirestore.instance
+          .collection('humanUsers')
+          .where('name', isEqualTo: userId)
+          .limit(1)
+          .get();
+      
+      if (queryByName.docs.isNotEmpty) {
+        final actualUserId = queryByName.docs.first.id;
+        print('✅ Found user ID by name: $actualUserId for display name: $userId');
+        return actualUserId;
+      }
+      
+      final queryByDisplayName = await FirebaseFirestore.instance
+          .collection('humanUsers')
+          .where('displayName', isEqualTo: userId)
+          .limit(1)
+          .get();
+      
+      if (queryByDisplayName.docs.isNotEmpty) {
+        final actualUserId = queryByDisplayName.docs.first.id;
+        print('✅ Found user ID by displayName: $actualUserId for display name: $userId');
+        return actualUserId;
+      }
+      
+      // Try case-insensitive search
+      final allUsers = await FirebaseFirestore.instance
+          .collection('humanUsers')
+          .get();
+      
+      for (final doc in allUsers.docs) {
+        final userData = doc.data();
+        final name = userData['name']?.toString().toLowerCase();
+        final displayName = userData['displayName']?.toString().toLowerCase();
+        final searchTerm = userId.toLowerCase();
+        
+        if (name == searchTerm || displayName == searchTerm) {
+          final actualUserId = doc.id;
+          print('✅ Found user ID by case-insensitive search: $actualUserId for: $userId');
+          return actualUserId;
+        }
+      }
+      
+      print('❌ Could not resolve user ID for: $userId');
+      return null;
+      
+    } catch (e) {
+      print('❌ Error resolving user ID for $userId: $e');
+      return null;
+    }
+  }
 
   /// Initialize and register FCM token for push notifications
   static Future<void> initializePushNotifications() async {
@@ -225,12 +300,25 @@ class NotificationEventService {
     try {
       print('🔄 Sending push notification to user: $userId');
       
+      // Validate and resolve user ID if needed
+      final resolvedUserId = await _resolveUserId(userId);
+      if (resolvedUserId == null) {
+        print('❌ Could not resolve user ID: $userId - skipping push notification');
+        return;
+      }
+      
+      // Use resolved user ID if it's different from the original
+      final actualUserId = resolvedUserId;
+      if (actualUserId != userId) {
+        print('🔄 Using resolved user ID: $actualUserId instead of: $userId');
+      }
+      
       // Send push notification via backend
       final response = await http.post(
         Uri.parse('$_apiUrl/api/notifications/send-push'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
-          'userId': userId,
+          'userId': actualUserId,
           'title': title,
           'body': body,
           'data': data ?? {},
@@ -238,7 +326,7 @@ class NotificationEventService {
       );
 
       if (response.statusCode == 200) {
-        print('✅ Push notification sent to user $userId');
+        print('✅ Push notification sent to user $actualUserId');
         var responseData = jsonDecode(response.body);
         print('📊 Push notification stats: ${responseData['stats']}');
       } else {
@@ -342,13 +430,15 @@ class NotificationEventService {
             if (participantId != senderId) {
               await _sendPushNotificationToUser(
                 userId: participantId,
-                title: groupName,
-                body: '$senderName: ${content.length > 50 ? '${content.substring(0, 50)}...' : content}',
+                title: '$senderName sent a message in $groupName',
+                body: content.length > 50 ? '${content.substring(0, 50)}...' : content,
                 data: {
                   'type': 'group_message',
                   'groupId': groupId,
                   'senderId': senderId,
                   'timestamp': DateTime.now().toIso8601String(),
+                  'action': 'navigate_to_group_chat',
+                  'route': '/group-chat/$groupId',
                 },
               );
             }
@@ -429,6 +519,8 @@ class NotificationEventService {
           'groupId': groupId,
           'senderId': senderId,
           'timestamp': DateTime.now().toIso8601String(),
+          'action': 'navigate_to_group_chat',
+          'route': '/group-chat/$groupId',
         },
       );
     } catch (e) {
@@ -454,21 +546,48 @@ class NotificationEventService {
       if (response.statusCode == 200) {
         print('✅ Direct message notification event sent');
         
-        // Send push notification to receiver
-        await _sendPushNotificationToUser(
-          userId: receiverId,
-          title: 'New Message',
-          body: content.length > 50 ? '${content.substring(0, 50)}...' : content,
-          data: {
-            'type': 'direct_message',
-            'chatId': chatId,
-            'senderId': senderId,
-            'timestamp': DateTime.now().toIso8601String(),
-          },
-        );
+        // Send push notification to receiver with sender name
+        await _sendDirectMessagePushNotification(chatId, content, senderId, receiverId);
       }
     } catch (e) {
       print('❌ Error sending direct message event: $e');
+    }
+  }
+
+  /// Send push notification for direct message
+  static Future<void> _sendDirectMessagePushNotification(String chatId, String content, String senderId, String receiverId) async {
+    try {
+      // Get sender name for notification
+      String senderName = 'Someone';
+      try {
+        final userDoc = await FirebaseFirestore.instance
+            .collection('humanUsers')
+            .doc(senderId)
+            .get();
+        if (userDoc.exists) {
+          final userData = userDoc.data()!;
+          senderName = userData['name'] ?? userData['displayName'] ?? 'Someone';
+        }
+      } catch (e) {
+        print('Could not fetch sender name: $e');
+      }
+      
+      // Send push notification to receiver with sender name
+      await _sendPushNotificationToUser(
+        userId: receiverId,
+        title: '$senderName sent you a message',
+        body: content.length > 50 ? '${content.substring(0, 50)}...' : content,
+        data: {
+          'type': 'direct_message',
+          'chatId': chatId,
+          'senderId': senderId,
+          'timestamp': DateTime.now().toIso8601String(),
+          'action': 'navigate_to_chat',
+          'route': '/chat/$chatId',
+        },
+      );
+    } catch (e) {
+      print('❌ Error sending direct message push notification: $e');
     }
   }
 
@@ -567,6 +686,8 @@ class NotificationEventService {
           'engagementType': type,
           'userId': userId,
           'timestamp': DateTime.now().toIso8601String(),
+          'action': 'navigate_to_post',
+          'route': '/post/$postId',
         },
       );
     } catch (e) {
@@ -576,6 +697,10 @@ class NotificationEventService {
 
   /// Trigger notification for follow events
   static Future<void> onUserFollow(String followerId, String followedUserId) async {
+    print('📋 DEBUG: onUserFollow called with:');
+    print('   - followerId: "$followerId"');
+    print('   - followedUserId: "$followedUserId"');
+    
     // Don't send notification if user is following themselves
     if (followerId == followedUserId) {
       print('🚫 Skipping follow notification: User cannot follow themselves');
@@ -598,6 +723,8 @@ class NotificationEventService {
         
         // Send push notification to followed user
         await _sendFollowPushNotification(followerId, followedUserId);
+      } else {
+        print('❌ Failed to send follow event: ${response.statusCode} - ${response.body}');
       }
     } catch (e) {
       print('❌ Error sending user follow event: $e');
@@ -607,6 +734,10 @@ class NotificationEventService {
   /// Send push notification for follow event
   static Future<void> _sendFollowPushNotification(String followerId, String followedUserId) async {
     try {
+      print('📋 DEBUG: _sendFollowPushNotification called with:');
+      print('   - followerId: "$followerId"');
+      print('   - followedUserId: "$followedUserId"');
+      
       // Get follower name for notification
       String followerName = 'Someone';
       try {
@@ -617,10 +748,15 @@ class NotificationEventService {
         if (userDoc.exists) {
           final userData = userDoc.data()!;
           followerName = userData['name'] ?? userData['displayName'] ?? 'Someone';
+          print('📋 DEBUG: Found follower name: "$followerName"');
+        } else {
+          print('📋 DEBUG: Follower document not found for ID: "$followerId"');
         }
       } catch (e) {
         print('Could not fetch follower name: $e');
       }
+      
+      print('📋 DEBUG: About to call _sendPushNotificationToUser with userId: "$followedUserId"');
       
       // Send push notification to the followed user
       await _sendPushNotificationToUser(
@@ -631,6 +767,8 @@ class NotificationEventService {
           'type': 'user_follow',
           'followerId': followerId,
           'timestamp': DateTime.now().toIso8601String(),
+          'action': 'navigate_to_profile',
+          'route': '/profile/$followerId',
         },
       );
     } catch (e) {
@@ -866,6 +1004,155 @@ class NotificationEventService {
       });
     } catch (e) {
       print('❌ Error marking notification as dismissed: $e');
+    }
+  }
+
+  /// Handle push notification tap routing
+  /// This method should be called when a user taps on a push notification
+  static Future<void> handlePushNotificationTap(Map<String, dynamic> data) async {
+    try {
+      final type = data['type'] as String? ?? 'system';
+      print('🔗 Handling push notification tap - Type: $type, Data: $data');
+
+      final user = FirebaseAuth.instance.currentUser;
+
+      // Handle navigation based on notification type and data
+      // This follows the exact same logic as notification_center_screen.dart
+      switch (type) {
+        case 'follow':
+        case 'user_follow':
+          print('🔗 Follow notification - navigating to followers screen');
+          // Get the follower ID from notification data
+          final followerId = data['followerId'] as String?;
+          if (followerId != null) {
+            // Navigate to the follower's profile followers/following screen
+            AppRouter.router.push(Routes.followersFollowingPath(followerId));
+          }
+          break;
+          
+        case 'comment':
+        case 'post_comment':
+          print('🔗 Comment notification - navigating to post with comments opened');
+          final postId = data['postId'] as String?;
+          final commentId = data['commentId'] as String?;
+          
+          if (postId != null && postId.startsWith('post_')) {
+            // Extract user ID from post ID (format: post_userId_timestamp)  
+            final parts = postId.split('_');
+            if (parts.length >= 3) {
+              final userId = parts[1];
+              print('🔗 Navigating to profile: $userId with post: $postId and comments opened');
+              
+              // Build route with query parameters for auto-opening comments
+              String route = Routes.regularProfilePath(userId);
+              route += '?post=$postId&openComments=true';
+              if (commentId != null) {
+                route += '&commentId=$commentId';
+              }
+              
+              AppRouter.router.push(route);
+            }
+          }
+          break;
+          
+        case 'like':
+        case 'repost':
+        case 'post_engagement':
+          print('🔗 Like/Repost/Post engagement notification - navigating to post');
+          final postId = data['postId'] as String?;
+          
+          if (postId != null && postId.startsWith('post_')) {
+            // Extract user ID from post ID
+            final parts = postId.split('_');
+            if (parts.length >= 3) {
+              final userId = parts[1];
+              print('🔗 Navigating to profile: $userId with post: $postId');
+              
+              String route = Routes.regularProfilePath(userId);
+              route += '?post=$postId';
+              
+              AppRouter.router.push(route);
+            }
+          }
+          break;
+          
+        case 'group_message':
+        case 'group_mention':
+        case 'direct_message':
+          print('🔗 Message notification - navigating to chat');
+          final chatId = data['chatId'] as String? ?? data['groupId'] as String?;
+          
+          if (chatId != null) {
+            if (chatId.startsWith('group_chat_')) {
+              // Group chat
+              final groupData = GroupData(
+                id: chatId,
+                name: data['groupName'] as String? ?? 'Group Chat',
+                description: '',
+                memberCount: 0,
+                messageCount: 0,
+                avatars: [],
+                isMember: true,
+                showRandomCharacters: true,
+              );
+              AppRouter.router.push(Routes.groupChat, extra: groupData);
+            } else {
+              // Individual chat - extract other user ID
+              final currentUserId = user?.uid ?? '';
+              final userIds = chatId.split('_');
+              String? otherUserId;
+              
+              for (String userId in userIds) {
+                if (userId != currentUserId) {
+                  otherUserId = userId;
+                  break;
+                }
+              }
+              
+              if (otherUserId != null) {
+                // Try to get the other user's name, first from notification data, then from Firestore
+                String otherUserName = data['senderName'] as String? ?? 'Chat';
+                
+                // If we don't have a proper name from notification data, fetch from Firestore
+                if (otherUserName == 'Chat' || otherUserName.isEmpty) {
+                  try {
+                    final userDoc = await FirebaseFirestore.instance
+                        .collection('humanUsers')
+                        .doc(otherUserId)
+                        .get();
+                    if (userDoc.exists) {
+                      final userData = userDoc.data()!;
+                      otherUserName = userData['name'] ?? userData['displayName'] ?? userData['username'] ?? 'Chat';
+                      print('🔗 Fetched user name from Firestore: $otherUserName');
+                    }
+                  } catch (e) {
+                    print('❌ Error fetching other user name: $e');
+                  }
+                }
+                
+                AppRouter.router.push(Routes.chat, extra: {
+                  'conversationId': chatId,
+                  'otherUserId': otherUserId,
+                  'otherUserName': otherUserName,
+                });
+              }
+            }
+          }
+          break;
+          
+        default:
+          print('🔗 Unknown notification type: $type - going to home');
+          AppRouter.router.push(Routes.home);
+          break;
+      }
+    } catch (e) {
+      print('❌ Error handling push notification tap: $e');
+      // Fallback to home
+      try {
+        AppRouter.router.push(Routes.home);
+      } catch (fallbackError) {
+        print('❌ Failed to navigate to home: $fallbackError');
+      }
     }
   }
 }

@@ -875,16 +875,21 @@ def follow():
             # Create notification for the user being followed (only for human users)
             if following_type == "human":
                 try:
+                    # Get the actual follower name from the database if not provided
+                    actual_follower_name = follower_username
+                    if not actual_follower_name or actual_follower_name == 'None':
+                        actual_follower_name = get_user_name(follower_id)
+                    
                     notification_data = {
                         'userId': following_id,
                         'type': 'follow',
                         'title': 'New Follower',
-                        'body': f'{follower_username} started following you',
+                        'body': f'{actual_follower_name} started following you',
                         'isRead': False,
                         'createdAt': firestore.SERVER_TIMESTAMP,
                         'data': {
                             'followerId': follower_id,
-                            'followerUsername': follower_username,
+                            'followerUsername': actual_follower_name,
                             'followerType': follower_type
                         },
                         # deeplink removed per repository-wide deprecation of in-app deeplinks
@@ -892,6 +897,46 @@ def follow():
                     
                     db.collection('notifications').add(notification_data)
                     logger.info(f"Follow notification created for user {following_id}")
+                    
+                    # Also send push notification
+                    try:
+                        # Get followed user's FCM tokens
+                        user_doc = db.collection('humanUsers').document(following_id).get()
+                        if user_doc.exists:
+                            user_data = user_doc.to_dict()
+                            user_tokens = user_data.get('fcmTokens', [])
+                            
+                            if user_tokens:
+                                # Send FCM notifications to all user's devices
+                                for token in user_tokens:
+                                    try:
+                                        message = messaging.Message(
+                                            notification=messaging.Notification(
+                                                title='New Follower',
+                                                body=f'{actual_follower_name} started following you'
+                                            ),
+                                            data={
+                                                'type': 'user_follow',
+                                                'followerId': follower_id,
+                                                'followerUsername': actual_follower_name,
+                                                'action': 'navigate_to_profile',
+                                                'route': f'/profile/{follower_id}',
+                                            },
+                                            token=token
+                                        )
+                                        
+                                        response = messaging.send(message)
+                                        logger.info(f"Follow push notification sent to token {token[:20]}...")
+                                        
+                                    except Exception as token_error:
+                                        logger.error(f"Failed to send follow push notification to token {token[:20]}...: {token_error}")
+                            else:
+                                logger.info(f"No FCM tokens found for followed user {following_id}")
+                        else:
+                            logger.warning(f"Followed user {following_id} not found in humanUsers collection")
+                            
+                    except Exception as push_error:
+                        logger.error(f"Error sending follow push notification: {push_error}")
                     
                 except Exception as e:
                     logger.error(f"Error creating follow notification: {e}")
@@ -5101,6 +5146,84 @@ def handle_post_engagement_notification():
         
     except Exception as e:
         logger.error(f"Error handling engagement notification: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route('/api/notifications/events/user-follow', methods=['POST'])
+def handle_user_follow_notification():
+    """Handle user follow notification event"""
+    try:
+        data = request.get_json()
+        logger.info(f"=== USER FOLLOW NOTIFICATION EVENT ===")
+        logger.info(f"Request data: {data}")
+        
+        # Validate required fields
+        required_fields = ['followerId', 'followedUserId', 'timestamp']
+        if not all(field in data for field in required_fields):
+            logger.error(f"Missing required fields. Data: {data}")
+            return jsonify({"success": False, "error": "Missing required fields"}), 400
+        
+        follower_id = data['followerId']
+        followed_user_id = data['followedUserId']
+        
+        logger.info(f"Processing follow notification: {follower_id} -> {followed_user_id}")
+        
+        # Get follower name
+        follower_name = get_user_name(follower_id)
+        logger.info(f"Follower name resolved: {follower_name}")
+        
+        # Get followed user's FCM tokens
+        try:
+            user_doc = db.collection('humanUsers').document(followed_user_id).get()
+            if not user_doc.exists:
+                logger.warning(f"Followed user {followed_user_id} not found in humanUsers collection")
+                return jsonify({"success": False, "error": f"User {followed_user_id} not found"}), 404
+            
+            user_data = user_doc.to_dict()
+            user_tokens = user_data.get('fcmTokens', [])
+            
+            if not user_tokens:
+                logger.info(f"No FCM tokens found for user {followed_user_id}")
+                return jsonify({"success": True, "message": "No tokens to send notification to"}), 200
+            
+            # Send FCM notifications to all user's devices
+            successful_sends = 0
+            failed_sends = 0
+            
+            for token in user_tokens:
+                try:
+                    message = messaging.Message(
+                        notification=messaging.Notification(
+                            title='New Follower',
+                            body=f'{follower_name} started following you'
+                        ),
+                        data={
+                            'type': 'user_follow',
+                            'followerId': follower_id,
+                            'timestamp': data['timestamp'],
+                            'action': 'navigate_to_profile',
+                            'route': f'/profile/{follower_id}',
+                        },
+                        token=token
+                    )
+                    
+                    response = messaging.send(message)
+                    logger.info(f"Follow notification sent to token {token[:20]}... Response: {response}")
+                    successful_sends += 1
+                    
+                except Exception as token_error:
+                    logger.error(f"Failed to send notification to token {token[:20]}...: {token_error}")
+                    failed_sends += 1
+            
+            logger.info(f"Follow notification stats - Successful: {successful_sends}, Failed: {failed_sends}")
+            
+        except Exception as e:
+            logger.error(f"Error sending follow push notification: {e}")
+            return jsonify({"success": False, "error": f"Failed to send push notification: {str(e)}"}), 500
+        
+        return jsonify({"success": True, "message": "Follow notification processed", "stats": {"successful": successful_sends, "failed": failed_sends}}), 200
+        
+    except Exception as e:
+        logger.error(f"Error handling follow notification: {e}")
         return jsonify({"success": False, "error": str(e)}), 500
 
 @app.route('/api/notifications/events/rare-offer', methods=['POST'])

@@ -221,14 +221,161 @@ class AIScheduler:
     def check_interaction_cooldown(self, ai_id: str, target_user_id: str, interaction_type: EngagementType) -> bool:
         """Check if interaction is allowed based on cooldown rules"""
         try:
-            # For now, allow all interactions to avoid complex indexing issues
-            # In production, you'd want to create proper indexes for these queries
-            # TODO: Create indexes for aiInteractions collection queries
+            now = datetime.now(timezone.utc)
+            
+            # Get recent interactions for this AI with this user
+            interactions_ref = self.db.collection('aiInteractions')\
+                                     .where('ai_id', '==', ai_id)\
+                                     .where('target_user_id', '==', target_user_id)
+            
+            # Check for recent interactions
+            for interaction_doc in interactions_ref.stream():
+                interaction_data = interaction_doc.to_dict()
+                interaction_timestamp = interaction_data.get('timestamp')
+                interaction_type_stored = interaction_data.get('interaction_type')
+                
+                if not interaction_timestamp:
+                    continue
+                
+                # Handle different timestamp types
+                if isinstance(interaction_timestamp, str):
+                    try:
+                        interaction_timestamp = datetime.fromisoformat(interaction_timestamp.replace('Z', '+00:00'))
+                    except:
+                        continue
+                
+                # Make timezone aware if needed
+                if hasattr(interaction_timestamp, 'tzinfo') and interaction_timestamp.tzinfo is None:
+                    interaction_timestamp = interaction_timestamp.replace(tzinfo=timezone.utc)
+                
+                # Calculate time since last interaction
+                time_diff = now - interaction_timestamp
+                hours_since = time_diff.total_seconds() / 3600
+                
+                # Apply cooldown rules based on interaction type
+                if interaction_type == EngagementType.DM:
+                    # DM cooldown: 24 hours minimum between DMs from same AI to same user
+                    if interaction_type_stored == 'dm' and hours_since < 24:
+                        logger.debug(f"DM cooldown active: {ai_id} -> {target_user_id}, last DM {hours_since:.1f} hours ago")
+                        return False
+                    
+                    # Also check if user has received too many DMs from ANY AI recently
+                    recent_dm_count = self.count_recent_dms_to_user(target_user_id, hours=4)
+                    if recent_dm_count >= 2:  # Max 2 DMs from any AI in 4 hours
+                        logger.debug(f"User {target_user_id} has received {recent_dm_count} DMs in last 4 hours - cooling down")
+                        return False
+                
+                elif interaction_type == EngagementType.COMMENT:
+                    # Comment cooldown: 12 hours minimum between comments from same AI to same user's posts
+                    if interaction_type_stored == 'comment' and hours_since < 12:
+                        logger.debug(f"Comment cooldown active: {ai_id} -> {target_user_id}, last comment {hours_since:.1f} hours ago")
+                        return False
+            
             return True
             
         except Exception as e:
             logger.error(f"Error checking cooldown for {ai_id} -> {target_user_id}: {e}")
             return True  # Default to allowing interaction if check fails
+    
+    def count_recent_dms_to_user(self, user_id: str, hours: int = 4) -> int:
+        """Count how many DMs a user has received from ANY AI in the last X hours"""
+        try:
+            cutoff_time = datetime.now(timezone.utc) - timedelta(hours=hours)
+            
+            # Get all recent DM interactions targeting this user
+            interactions_ref = self.db.collection('aiInteractions')\
+                                     .where('target_user_id', '==', user_id)\
+                                     .where('interaction_type', '==', 'dm')
+            
+            recent_count = 0
+            for interaction_doc in interactions_ref.stream():
+                interaction_data = interaction_doc.to_dict()
+                interaction_timestamp = interaction_data.get('timestamp')
+                
+                if not interaction_timestamp:
+                    continue
+                
+                # Handle different timestamp types
+                if isinstance(interaction_timestamp, str):
+                    try:
+                        interaction_timestamp = datetime.fromisoformat(interaction_timestamp.replace('Z', '+00:00'))
+                    except:
+                        continue
+                
+                # Make timezone aware if needed
+                if hasattr(interaction_timestamp, 'tzinfo') and interaction_timestamp.tzinfo is None:
+                    interaction_timestamp = interaction_timestamp.replace(tzinfo=timezone.utc)
+                
+                if interaction_timestamp >= cutoff_time:
+                    recent_count += 1
+            
+            return recent_count
+            
+        except Exception as e:
+            logger.error(f"Error counting recent DMs for user {user_id}: {e}")
+            return 0
+    
+    def analyze_dm_distribution(self, hours: int = 24) -> Dict:
+        """Analyze recent DM distribution to help debug clustering issues"""
+        try:
+            cutoff_time = datetime.now(timezone.utc) - timedelta(hours=hours)
+            
+            # Get all recent DM interactions
+            interactions_ref = self.db.collection('aiInteractions')\
+                                     .where('interaction_type', '==', 'dm')
+            
+            user_dm_counts = {}
+            ai_dm_counts = {}
+            total_dms = 0
+            
+            for interaction_doc in interactions_ref.stream():
+                interaction_data = interaction_doc.to_dict()
+                interaction_timestamp = interaction_data.get('timestamp')
+                
+                if not interaction_timestamp:
+                    continue
+                
+                # Handle different timestamp types
+                if isinstance(interaction_timestamp, str):
+                    try:
+                        interaction_timestamp = datetime.fromisoformat(interaction_timestamp.replace('Z', '+00:00'))
+                    except:
+                        continue
+                
+                # Make timezone aware if needed
+                if hasattr(interaction_timestamp, 'tzinfo') and interaction_timestamp.tzinfo is None:
+                    interaction_timestamp = interaction_timestamp.replace(tzinfo=timezone.utc)
+                
+                if interaction_timestamp >= cutoff_time:
+                    total_dms += 1
+                    
+                    # Count per target user
+                    target_user_id = interaction_data.get('target_user_id')
+                    if target_user_id:
+                        user_dm_counts[target_user_id] = user_dm_counts.get(target_user_id, 0) + 1
+                    
+                    # Count per AI
+                    ai_id = interaction_data.get('ai_id')
+                    if ai_id:
+                        ai_dm_counts[ai_id] = ai_dm_counts.get(ai_id, 0) + 1
+            
+            # Find users receiving multiple DMs
+            heavy_targets = {user_id: count for user_id, count in user_dm_counts.items() if count > 1}
+            
+            return {
+                'total_dms_last_24h': total_dms,
+                'unique_users_targeted': len(user_dm_counts),
+                'unique_ais_sending': len(ai_dm_counts),
+                'users_receiving_multiple_dms': heavy_targets,
+                'most_targeted_user': max(user_dm_counts.items(), key=lambda x: x[1]) if user_dm_counts else None,
+                'avg_dms_per_user': total_dms / len(user_dm_counts) if user_dm_counts else 0,
+                'user_dm_distribution': user_dm_counts,
+                'ai_dm_distribution': ai_dm_counts
+            }
+            
+        except Exception as e:
+            logger.error(f"Error analyzing DM distribution: {e}")
+            return {'error': str(e)}
     
     def get_daily_engagement_counts(self, ai_id: str) -> Dict[str, int]:
         """Get current daily engagement counts for an AI"""
@@ -290,12 +437,13 @@ class AIScheduler:
             return []
     
     def get_eligible_users_for_dm(self, ai_id: str, limit: int = 50) -> List[Dict]:
-        """Get eligible users for DM interactions - no engagement score filtering"""
+        """Get eligible users for DM interactions with proper distribution"""
         try:
-            # Get active human users
-            users_ref = self.db.collection('humanUsers').limit(limit * 2)  # Get more to filter
-            eligible_targets = []
+            # Get active human users - get more to ensure variety
+            users_ref = self.db.collection('humanUsers').limit(limit * 5)  # Get 5x more for better selection
+            all_users = []
             
+            # First, collect all potential users
             for user_doc in users_ref.stream():
                 user_id = user_doc.id
                 user_data = user_doc.to_dict()
@@ -304,19 +452,35 @@ class AIScheduler:
                 if user_id == ai_id:
                     continue
                 
-                # Check cooldowns (this returns True currently, so it's not blocking)
-                if not self.check_interaction_cooldown(ai_id, user_id, EngagementType.DM):
-                    continue
-                
-                # Just check if user has basic data - no engagement score bullshit
+                # Basic validation - user has name or username
                 if user_data.get('name') or user_data.get('username'):
-                    eligible_targets.append({
+                    all_users.append({
                         'user_id': user_id,
                         'user_data': user_data,
-                        'engagement_score': 1.0,  # Default score, doesn't matter
                         'target_type': 'user'
                     })
             
+            # Randomize the user list to ensure variety
+            import random
+            random.shuffle(all_users)
+            
+            # Now filter based on cooldowns
+            eligible_targets = []
+            for user in all_users:
+                # Check cooldowns (now actually implemented)
+                if not self.check_interaction_cooldown(ai_id, user['user_id'], EngagementType.DM):
+                    continue
+                
+                eligible_targets.append(user)
+                
+                # Stop when we have enough eligible targets
+                if len(eligible_targets) >= limit:
+                    break
+            
+            # Add randomization to final selection
+            random.shuffle(eligible_targets)
+            
+            logger.info(f"Selected {len(eligible_targets)} eligible DM targets for AI {ai_id} from {len(all_users)} total users")
             return eligible_targets[:limit]
             
         except Exception as e:
@@ -425,15 +589,15 @@ class AIScheduler:
             return False
     
     def log_interaction(self, ai_id: str, target_user_id: str, interaction_type: EngagementType, 
-                       details: Dict) -> None:
+                       details: Dict = None) -> None:
         """Log AI interaction for tracking and cooldown management"""
         try:
             interaction_data = {
                 'ai_id': ai_id,
-                'target_user_id': target_user_id,
+                'target_user_id': target_user_id,  # Standardized field name
                 'interaction_type': interaction_type.value,
-                'timestamp': datetime.now(timezone.utc),
-                'details': details,
+                'timestamp': firestore.SERVER_TIMESTAMP,  # Use server timestamp for consistency
+                'details': details or {},
                 'user_replied': False  # Will be updated when user responds
             }
             
@@ -502,19 +666,24 @@ class AIScheduler:
                             'target_post_id': target['post_id'],
                             'post_collection': target['collection'],
                             'interaction_type': interaction_type.value,
-                            'engagement_score': target['engagement_score'],
+                            'engagement_score': target.get('engagement_score', 0.5),
                             'time_window': self.get_time_window().value
                         })
                     else:
                         # For users (DMs)
+                        target_user_name = target['user_data'].get('name', target['user_data'].get('username', 'Unknown'))
                         scheduled_interactions.append({
                             'character_id': character_id,
                             'character_name': char_name,
                             'target_user_id': target['user_id'],
+                            'target_user_name': target_user_name,  # Add user name for logging
                             'interaction_type': interaction_type.value,
-                            'engagement_score': target['engagement_score'],
+                            'engagement_score': target.get('engagement_score', 1.0),
                             'time_window': self.get_time_window().value
                         })
+                        
+                        # Log the DM target selection for debugging
+                        logger.info(f"Scheduled DM: {char_name} -> {target_user_name} ({target['user_id']})")
             
             return {
                 'success': True,
@@ -863,11 +1032,12 @@ class AIScheduler:
                 post_comments_ref.set({'comments': current_comments})
             
             # Create new comment with proper timestamp format
+            current_time = datetime.now(timezone.utc)
             new_comment = {
                 'author': char_data.get('name', character_id),
                 'text': comment_text,
                 'userId': character_id,
-                'timestamp': firestore.SERVER_TIMESTAMP,  # Firestore timestamp
+                'timestamp': current_time,  # Use current UTC time instead of SERVER_TIMESTAMP
                 'likedBy': [],
                 'isAIGenerated': True
             }
