@@ -11,6 +11,8 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter/material.dart';
 import 'package:inzone/services/appsflyer_service.dart';
 import 'package:http/http.dart' as http;
+import 'package:inzone/router/app_router.dart';
+import 'package:inzone/services/notification_event_service.dart';
 
 class NotificationService {
   static const String _channelDmHigh = 'dm_high';
@@ -369,11 +371,29 @@ class NotificationService {
   static void _handleMessageOpenedApp(RemoteMessage message) {
     print('🔗 Message opened app: ${message.data}');
 
-    // deeplink handling disabled - navigation is handled via structured notification data now
-    // _handleDeepLink(message.data);
+    // Handle routing based on notification data
+    _handleNotificationRouting(message.data);
 
     // Track analytics
     _trackNotificationOpened(message);
+  }
+
+  /// Handle notification routing
+  static Future<void> _handleNotificationRouting(Map<String, dynamic> data) async {
+    try {
+      print('🔗 Handling notification routing with data: $data');
+      
+      // Use the proper routing logic from NotificationEventService
+      await NotificationEventService.handlePushNotificationTap(data);
+    } catch (e) {
+      print('❌ Error handling notification routing: $e');
+      // Fallback to home
+      try {
+        AppRouter.router.push('/');
+      } catch (fallbackError) {
+        print('❌ Failed to navigate to home: $fallbackError');
+      }
+    }
   }
 
   /// Handle local notification tap
@@ -381,10 +401,12 @@ class NotificationService {
     print('🔔 Local notification tapped: ${response.payload}');
     
     if (response.payload != null) {
-  // deeplink handling is disabled; route using structured `data` fields instead if needed.
-  // Example (if you want to route here):
-  // final payload = jsonDecode(response.payload!);
-  // navigatorKey.currentState?.pushNamed('/chat', arguments: payload['chatId']);
+      try {
+        final payload = jsonDecode(response.payload!);
+        _handleNotificationRouting(payload);
+      } catch (e) {
+        print('❌ Error parsing local notification payload: $e');
+      }
     }
   }
 
