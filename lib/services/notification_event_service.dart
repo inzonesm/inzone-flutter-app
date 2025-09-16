@@ -9,6 +9,7 @@ import 'package:inzone/services/appsflyer_service.dart';
 import 'package:inzone/router/app_router.dart';
 import 'package:inzone/router/routes.dart';
 import 'package:inzone/data/group_data.dart';
+import 'package:inzone/services/notification_badge_service.dart';
 
 class NotificationEventService {
   static const String _apiUrl = 'https://inzoneapi-912424781531.us-central1.run.app';
@@ -1015,6 +1016,21 @@ class NotificationEventService {
       print('🔗 Handling push notification tap - Type: $type, Data: $data');
 
       final user = FirebaseAuth.instance.currentUser;
+      
+      // Import the badge service to ensure notifications get marked as read
+      // and badge counts are updated properly on iOS
+      try {
+        final notificationId = data['notificationId'] as String?;
+        if (notificationId != null) {
+          // Mark this specific notification as read
+          await markNotificationOpened(notificationId);
+          
+          // Update badge count
+          await NotificationBadgeService.syncBadgeCount();
+        }
+      } catch (e) {
+        print('⚠️ Error updating notification read state: $e');
+      }
 
       // Handle navigation based on notification type and data
       // This follows the exact same logic as notification_center_screen.dart
@@ -1023,10 +1039,13 @@ class NotificationEventService {
         case 'user_follow':
           print('🔗 Follow notification - navigating to followers screen');
           // Get the follower ID from notification data
-          final followerId = data['followerId'] as String?;
+          final followerId = data['followerId'] as String? ?? data['userId'] as String?;
           if (followerId != null) {
             // Navigate to the follower's profile followers/following screen
             AppRouter.router.push(Routes.followersFollowingPath(followerId));
+          } else {
+            // Fallback to home
+            AppRouter.router.push(Routes.home);
           }
           break;
           
@@ -1051,11 +1070,19 @@ class NotificationEventService {
               }
               
               AppRouter.router.push(route);
+            } else {
+              // Fallback to home if post ID format is unexpected
+              print('⚠️ Unexpected post ID format: $postId');
+              AppRouter.router.push(Routes.home);
             }
+          } else {
+            print('⚠️ No postId or invalid format in comment notification');
+            AppRouter.router.push(Routes.home);
           }
           break;
           
         case 'like':
+        case 'post_like':
         case 'repost':
         case 'post_engagement':
           print('🔗 Like/Repost/Post engagement notification - navigating to post');
@@ -1072,71 +1099,104 @@ class NotificationEventService {
               route += '?post=$postId';
               
               AppRouter.router.push(route);
+            } else {
+              // Fallback to home if post ID format is unexpected
+              print('⚠️ Unexpected post ID format: $postId');
+              AppRouter.router.push(Routes.home);
             }
+          } else {
+            print('⚠️ No postId or invalid format in engagement notification');
+            AppRouter.router.push(Routes.home);
           }
           break;
           
         case 'group_message':
         case 'group_mention':
-        case 'direct_message':
-          print('🔗 Message notification - navigating to chat');
+          print('🔗 Group message/mention notification - navigating to group chat');
           final chatId = data['chatId'] as String? ?? data['groupId'] as String?;
           
+          if (chatId != null && chatId.startsWith('group_chat_')) {
+            // Group chat
+            final groupData = GroupData(
+              id: chatId,
+              name: data['groupName'] as String? ?? 'Group Chat',
+              description: '',
+              memberCount: 0,
+              messageCount: 0,
+              avatars: [],
+              isMember: true,
+              showRandomCharacters: true,
+            );
+            AppRouter.router.push(Routes.groupChat, extra: groupData);
+          } else {
+            print('⚠️ Invalid group chat ID: $chatId');
+            AppRouter.router.push(Routes.home);
+          }
+          break;
+          
+        case 'direct_message':
+          print('🔗 Direct message notification - navigating to chat');
+          final chatId = data['chatId'] as String?;
+          
           if (chatId != null) {
-            if (chatId.startsWith('group_chat_')) {
-              // Group chat
-              final groupData = GroupData(
-                id: chatId,
-                name: data['groupName'] as String? ?? 'Group Chat',
-                description: '',
-                memberCount: 0,
-                messageCount: 0,
-                avatars: [],
-                isMember: true,
-                showRandomCharacters: true,
-              );
-              AppRouter.router.push(Routes.groupChat, extra: groupData);
-            } else {
-              // Individual chat - extract other user ID
-              final currentUserId = user?.uid ?? '';
-              final userIds = chatId.split('_');
-              String? otherUserId;
-              
-              for (String userId in userIds) {
-                if (userId != currentUserId) {
-                  otherUserId = userId;
-                  break;
-                }
+            // Individual chat - extract other user ID
+            final currentUserId = user?.uid ?? '';
+            final userIds = chatId.split('_');
+            String? otherUserId;
+            
+            for (String userId in userIds) {
+              if (userId != currentUserId) {
+                otherUserId = userId;
+                break;
               }
+            }
+            
+            if (otherUserId != null) {
+              // Try to get the other user's name, first from notification data, then from Firestore
+              String otherUserName = data['senderName'] as String? ?? data['aiCharacterName'] as String? ?? 'Chat';
               
-              if (otherUserId != null) {
-                // Try to get the other user's name, first from notification data, then from Firestore
-                String otherUserName = data['senderName'] as String? ?? 'Chat';
-                
-                // If we don't have a proper name from notification data, fetch from Firestore
-                if (otherUserName == 'Chat' || otherUserName.isEmpty) {
-                  try {
-                    final userDoc = await FirebaseFirestore.instance
+              // If we don't have a proper name from notification data, fetch from Firestore
+              if (otherUserName == 'Chat' || otherUserName.isEmpty) {
+                try {
+                  // Try popular characters first (for AI characters)
+                  var userDoc = await FirebaseFirestore.instance
+                      .collection('popularCharacters')
+                      .doc(otherUserId)
+                      .get();
+                  
+                  if (userDoc.exists) {
+                    final userData = userDoc.data()!;
+                    otherUserName = userData['name'] ?? userData['displayName'] ?? userData['username'] ?? 'AI Character';
+                    print('🔗 Fetched AI character name from Firestore: $otherUserName');
+                  } else {
+                    // Try human users
+                    userDoc = await FirebaseFirestore.instance
                         .collection('humanUsers')
                         .doc(otherUserId)
                         .get();
                     if (userDoc.exists) {
                       final userData = userDoc.data()!;
-                      otherUserName = userData['name'] ?? userData['displayName'] ?? userData['username'] ?? 'Chat';
+                      otherUserName = userData['name'] ?? userData['displayName'] ?? userData['username'] ?? 'User';
                       print('🔗 Fetched user name from Firestore: $otherUserName');
                     }
-                  } catch (e) {
-                    print('❌ Error fetching other user name: $e');
                   }
+                } catch (e) {
+                  print('❌ Error fetching other user name: $e');
                 }
-                
-                AppRouter.router.push(Routes.chat, extra: {
-                  'conversationId': chatId,
-                  'otherUserId': otherUserId,
-                  'otherUserName': otherUserName,
-                });
               }
+              
+              AppRouter.router.push(Routes.chat, extra: {
+                'conversationId': chatId,
+                'otherUserId': otherUserId,
+                'otherUserName': otherUserName,
+              });
+            } else {
+              print('⚠️ Could not determine other user ID from chat ID: $chatId');
+              AppRouter.router.push(Routes.home);
             }
+          } else {
+            print('⚠️ No chatId in direct message notification');
+            AppRouter.router.push(Routes.home);
           }
           break;
           
@@ -1145,6 +1205,14 @@ class NotificationEventService {
           AppRouter.router.push(Routes.home);
           break;
       }
+      
+      // After successful navigation, ensure badge is updated
+      try {
+        await NotificationBadgeService.syncBadgeCount();
+      } catch (e) {
+        print('⚠️ Error syncing badge count after navigation: $e');
+      }
+      
     } catch (e) {
       print('❌ Error handling push notification tap: $e');
       // Fallback to home
