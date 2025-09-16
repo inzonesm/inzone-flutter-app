@@ -212,6 +212,7 @@ class AIEngagementService {
   }
   
   /// Trigger immediate AI DM response when user sends message to AI character
+  /// This method provides near-instantaneous responses for real-time conversations
   static Future<Map<String, dynamic>> triggerDMAutoResponse({
     required String userId,
     required String aiCharacterId,
@@ -219,31 +220,46 @@ class AIEngagementService {
     String? conversationId,
   }) async {
     try {
+      debugPrint('🚀 Triggering IMMEDIATE AI DM response for user: $userId, AI: $aiCharacterId');
+      
       final url = Uri.parse('$_apiBaseUrl/api/ai/dm-auto-responder');
       
+      // Use shorter timeout for real-time feel, with retry logic
       final response = await http.post(
         url,
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
+          'X-Priority': 'immediate', // Custom header to signal urgency
         },
         body: jsonEncode({
           'user_id': userId,
           'ai_character_id': aiCharacterId,
           'message_text': messageText,
           'conversation_id': conversationId,
+          'priority': 'immediate', // Flag for immediate processing
+          'trigger_time': DateTime.now().toIso8601String(),
         }),
-      ).timeout(const Duration(seconds: 30));
+      ).timeout(const Duration(seconds: 15)); // Reduced timeout for faster fail/retry
       
       if (response.statusCode == 200) {
         final result = jsonDecode(response.body);
-        debugPrint('✅ AI DM auto-response triggered successfully');
+        debugPrint('✅ AI DM auto-response triggered successfully in real-time');
+        
+        // Also trigger a background monitoring call to catch any missed responses
+        _triggerBackgroundMonitoring();
+        
         return result;
       } else {
         final errorBody = response.statusCode == 400 || response.statusCode == 404 
           ? jsonDecode(response.body) 
           : {'error': 'HTTP ${response.statusCode}'};
         debugPrint('❌ DM auto-response failed: ${errorBody['error']}');
+        
+        // If immediate response fails, trigger background monitoring as fallback
+        debugPrint('🔄 Triggering backup monitoring for missed response...');
+        _triggerBackgroundMonitoring();
+        
         return {
           'success': false,
           'error': errorBody['error'] ?? 'Unknown error'
@@ -251,11 +267,28 @@ class AIEngagementService {
       }
     } catch (e) {
       debugPrint('❌ DM auto-response error: $e');
+      
+      // On any error, ensure monitoring catches it
+      debugPrint('🔄 Error occurred, triggering backup monitoring...');
+      _triggerBackgroundMonitoring();
+      
       return {
         'success': false,
         'error': e.toString()
       };
     }
+  }
+
+  /// Trigger background monitoring as fallback for missed responses
+  static void _triggerBackgroundMonitoring() {
+    // Use a brief delay before triggering monitoring to allow message to be processed
+    Future.delayed(const Duration(seconds: 2), () async {
+      try {
+        await monitorAndRespondDMs();
+      } catch (e) {
+        debugPrint('Background monitoring error: $e');
+      }
+    });
   }
   
   /// Monitor and respond to pending DMs (24/7 monitoring)

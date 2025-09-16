@@ -948,6 +948,30 @@ class AIScheduler:
                 logger.info(f"Character {character_id} already liked post {post_id}")
                 return False
             
+            # Get post data to find the post author for notification
+            post_ref = self.db.collection(collection).document(post_id)
+            post_doc = post_ref.get()
+            
+            if not post_doc.exists:
+                logger.error(f"Post {post_id} not found")
+                return False
+            
+            post_data = post_doc.to_dict()
+            post_author_id = post_data.get('user_document_id') or post_data.get('user_id')
+            
+            if not post_author_id:
+                logger.error(f"Could not find post author for post {post_id}")
+                return False
+            
+            # Get character data for notification
+            char_ref = self.db.collection('popularCharacters').document(character_id)
+            char_doc = char_ref.get()
+            
+            char_name = character_id  # fallback
+            if char_doc.exists:
+                char_data = char_doc.to_dict()
+                char_name = char_data.get('name', character_id)
+            
             # Add like with proper timestamp format
             like_data = {
                 "user_id": character_id,
@@ -959,21 +983,69 @@ class AIScheduler:
             self.db.collection('postLikes').add(like_data)
             
             # Increment likes count on the post
-            post_ref = self.db.collection(collection).document(post_id)
             post_ref.update({"likes": firestore.Increment(1)})
+            
+            # Create notification for the post author
+            try:
+                # Send post engagement notification using the existing API endpoint
+                import requests
+                
+                notification_data = {
+                    'postId': post_id,
+                    'type': 'like',
+                    'userId': character_id,
+                    'postAuthorId': post_author_id,
+                    'timestamp': datetime.now().isoformat(),
+                    'aiGenerated': True,
+                    'aiCharacterName': char_name
+                }
+                
+                # Use the existing post engagement notification endpoint
+                requests.post(
+                    'https://inzoneapi-912424781531.us-central1.run.app/api/notifications/events/post-engagement',
+                    json=notification_data,
+                    timeout=5  # Short timeout to avoid blocking
+                )
+                
+                logger.info(f"Sent like notification for {post_author_id} from AI {char_name}")
+                
+            except Exception as e:
+                logger.error(f"Error sending like notification: {e}")
+                
+                # Fallback: create notification directly in database
+                try:
+                    notification_data = {
+                        'title': f"{char_name} liked your post",
+                        'body': "Your post got a new like!",
+                        'type': 'post_like',
+                        'userId': post_author_id,
+                        'isRead': False,
+                        'createdAt': firestore.SERVER_TIMESTAMP,
+                        'data': {
+                            'postId': post_id,
+                            'engagementType': 'like',
+                            'aiCharacterId': character_id,
+                            'aiCharacterName': char_name
+                        }
+                    }
+                    
+                    self.db.collection('notifications').add(notification_data)
+                    logger.info(f"Created fallback like notification for {post_author_id} from {char_name}")
+                    
+                except Exception as fallback_error:
+                    logger.error(f"Error creating fallback like notification: {fallback_error}")
             
             # Log the interaction
             self.log_interaction(character_id, post_id, EngagementType.LIKE, {
                 'post_id': post_id,
-                'collection': collection
+                'collection': collection,
+                'post_author_id': post_author_id
             })
             
-            logger.info(f"Character {character_id} liked post {post_id}")
+            logger.info(f"Character {char_name} liked post {post_id} by {post_author_id}")
             return True
             
         except Exception as e:
-            logger.error(f"Error executing like interaction: {e}")
-            return False
             logger.error(f"Error executing like interaction: {e}")
             return False
     
@@ -1052,6 +1124,63 @@ class AIScheduler:
                 'comment': comment_text,
                 'collection': collection
             })
+            
+            # Create notification for the post author
+            try:
+                post_author_id = post_data.get('user_document_id') or post_data.get('user_id')
+                
+                if post_author_id and post_author_id != character_id:
+                    # Send post engagement notification using the existing API endpoint
+                    import requests
+                    
+                    notification_data = {
+                        'postId': post_id,
+                        'type': 'comment',
+                        'userId': character_id,
+                        'postAuthorId': post_author_id,
+                        'timestamp': datetime.now().isoformat(),
+                        'content': comment_text,
+                        'aiGenerated': True,
+                        'aiCharacterName': char_data.get('name', character_id)
+                    }
+                    
+                    # Use the existing post engagement notification endpoint
+                    requests.post(
+                        'https://inzoneapi-912424781531.us-central1.run.app/api/notifications/events/post-engagement',
+                        json=notification_data,
+                        timeout=5  # Short timeout to avoid blocking
+                    )
+                    
+                    logger.info(f"Sent comment notification for {post_author_id} from AI {char_data.get('name', character_id)}")
+                    
+            except Exception as e:
+                logger.error(f"Error sending comment notification: {e}")
+                
+                # Fallback: create notification directly in database
+                try:
+                    post_author_id = post_data.get('user_document_id') or post_data.get('user_id')
+                    if post_author_id and post_author_id != character_id:
+                        notification_data = {
+                            'title': f"{char_data.get('name', character_id)} commented on your post",
+                            'body': comment_text,
+                            'type': 'post_comment',
+                            'userId': post_author_id,
+                            'isRead': False,
+                            'createdAt': firestore.SERVER_TIMESTAMP,
+                            'data': {
+                                'postId': post_id,
+                                'engagementType': 'comment',
+                                'aiCharacterId': character_id,
+                                'aiCharacterName': char_data.get('name', character_id),
+                                'commentText': comment_text
+                            }
+                        }
+                        
+                        self.db.collection('notifications').add(notification_data)
+                        logger.info(f"Created fallback comment notification for {post_author_id} from {char_data.get('name', character_id)}")
+                        
+                except Exception as fallback_error:
+                    logger.error(f"Error creating fallback comment notification: {fallback_error}")
             
             logger.info(f"Character {char_data.get('name', character_id)} commented on post {post_id}: {comment_text}")
             return True
@@ -1143,7 +1272,33 @@ class AIScheduler:
                 'message': dm_content
             })
             
-            logger.info(f"Character {character_id} sent DM to {target_user_id}: {dm_content}")
+            # Create notification for the DM recipient
+            try:
+                # Use the existing direct message notification handling from the app
+                # Since we don't have a specific API endpoint for DM notifications, create directly
+                notification_data = {
+                    'title': char_data.get('name', character_id),
+                    'body': dm_content,
+                    'type': 'direct_message',
+                    'userId': target_user_id,
+                    'isRead': False,
+                    'createdAt': firestore.SERVER_TIMESTAMP,
+                    'data': {
+                        'chatId': conversation_id,
+                        'messageContent': dm_content,
+                        'senderId': character_id,
+                        'senderName': char_data.get('name', character_id),
+                        'aiGenerated': True
+                    }
+                }
+                
+                self.db.collection('notifications').add(notification_data)
+                logger.info(f"Created DM notification for {target_user_id} from AI {char_data.get('name', character_id)}")
+                
+            except Exception as e:
+                logger.error(f"Error creating DM notification: {e}")
+            
+            logger.info(f"Character {char_data.get('name', character_id)} sent DM to {target_user_id}: {dm_content}")
             return True
             
         except Exception as e:

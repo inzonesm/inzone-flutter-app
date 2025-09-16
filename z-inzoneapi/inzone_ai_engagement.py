@@ -532,9 +532,23 @@ ONE natural comment:"""
             
             comment = response.choices[0].message.content.strip()
             
-            # Clean up the comment
+            # Clean up the comment - remove AI artifacts and prefixes
             if comment.startswith('"') and comment.endswith('"'):
                 comment = comment[1:-1]
+            
+            # Remove "You:" prefix that sometimes appears in AI responses
+            if comment.startswith("You: "):
+                comment = comment[5:].strip()
+            elif comment.startswith("You:"):
+                comment = comment[4:].strip()
+            
+            # Remove other common AI prefixes
+            ai_name = ai_user.get('name', 'AI User')
+            prefixes_to_remove = ["AI: ", "AI:", "Comment: ", "Response: ", f"{ai_name}: ", f"{ai_name}:"]
+            for prefix in prefixes_to_remove:
+                if comment.startswith(prefix):
+                    comment = comment[len(prefix):].strip()
+                    break
             
             # Ensure it's not too long
             if len(comment.split()) > 35:
@@ -947,10 +961,23 @@ Be conversational and authentic:
             
             message = response.choices[0].message.content.strip()
             
-            # Clean up
+            # Clean up the message - remove common AI artifacts and prefixes
             if message.startswith('"') and message.endswith('"'):
                 message = message[1:-1]
-                
+            
+            # Remove "You:" prefix that sometimes appears in AI responses
+            if message.startswith("You:"):
+                message = message[5:].strip()
+            elif message.startswith("You:"):
+                message = message[4:].strip()
+            
+            # Remove other common prefixes
+            prefixes_to_remove = ["AI: ", "AI:", "Response: ", "Response:", f"{ai_name}: ", f"{ai_name}:"]
+            for prefix in prefixes_to_remove:
+                if message.startswith(prefix):
+                    message = message[len(prefix):].strip()
+                    break
+            
             return message
             
         except Exception as e:

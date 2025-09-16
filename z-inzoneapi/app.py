@@ -699,9 +699,122 @@ def update_username():
         if existing_user and existing_user[0].id != user_id:
             return jsonify({"success": False, "error": "Username already exists"}), 400
 
-        # Update the document in Firestore
-        db.collection('humanUsers').document(user_id).update({"username": username})
-        return jsonify({"success": True}), 200
+        # Get the old username for reference
+        user_doc = db.collection('humanUsers').document(user_id).get()
+        old_username = None
+        if user_doc.exists:
+            old_username = user_doc.to_dict().get('username')
+
+        # Use batch writes for atomic updates across multiple collections
+        batch = db.batch()
+        
+        # Update the main user document
+        user_ref = db.collection('humanUsers').document(user_id)
+        batch.update(user_ref, {"username": username})
+        
+        # Update username in humanPosts collection
+        posts_query = db.collection('humanPosts').where('user_document_id', '==', user_id)
+        posts = posts_query.stream()
+        
+        updated_posts = 0
+        for post in posts:
+            post_ref = db.collection('humanPosts').document(post.id)
+            # Update both username and user_name fields if they exist
+            post_data = post.to_dict()
+            update_data = {}
+            
+            if 'username' in post_data:
+                update_data['username'] = username
+            if 'user_name' in post_data and post_data.get('user_name') == old_username:
+                update_data['user_name'] = username
+                
+            if update_data:
+                batch.update(post_ref, update_data)
+                updated_posts += 1
+        
+        # Update username in postComments collection (in the nested comments array)
+        # Note: This is more complex due to the nested structure, so we'll handle it separately
+        
+        # Update username in conversations collection (participantNames)
+        conversations_query = db.collection('conversations')
+        conversations = conversations_query.stream()
+        
+        updated_conversations = 0
+        for conversation in conversations:
+            conv_data = conversation.to_dict()
+            participants = conv_data.get('participants', [])
+            participant_names = conv_data.get('participantNames', {})
+            
+            if user_id in participants and user_id in participant_names:
+                conv_ref = db.collection('conversations').document(conversation.id)
+                batch.update(conv_ref, {f'participantNames.{user_id}': username})
+                updated_conversations += 1
+        
+        # Update username in any notification collections that might reference the user
+        notifications_query = db.collection('notifications').where('userId', '==', user_id)
+        notifications = notifications_query.stream()
+        
+        updated_notifications = 0
+        for notification in notifications:
+            notif_data = notification.to_dict()
+            data_field = notif_data.get('data', {})
+            
+            # Update any username references in notification data
+            update_needed = False
+            if data_field.get('senderName') == old_username:
+                data_field['senderName'] = username
+                update_needed = True
+            if data_field.get('username') == old_username:
+                data_field['username'] = username
+                update_needed = True
+            
+            if update_needed:
+                notif_ref = db.collection('notifications').document(notification.id)
+                batch.update(notif_ref, {'data': data_field})
+                updated_notifications += 1
+        
+        # Commit all updates
+        batch.commit()
+        
+        # Handle postComments separately due to nested structure
+        updated_comments = 0
+        try:
+            post_comments_query = db.collection('postComments')
+            post_comments = post_comments_query.stream()
+            
+            for post_comment_doc in post_comments:
+                post_comment_data = post_comment_doc.to_dict()
+                comments = post_comment_data.get('comments', [])
+                
+                updated_this_post = False
+                for comment in comments:
+                    if comment.get('userId') == user_id and comment.get('author') == old_username:
+                        comment['author'] = username
+                        updated_this_post = True
+                        updated_comments += 1
+                
+                if updated_this_post:
+                    # Update the entire comments array
+                    db.collection('postComments').document(post_comment_doc.id).update({'comments': comments})
+                    
+        except Exception as comment_error:
+            logger.error(f"Error updating comments: {comment_error}")
+            # Don't fail the entire operation for comments
+        
+        logger.info(f"Username updated from '{old_username}' to '{username}' for user {user_id}")
+        logger.info(f"Updated {updated_posts} posts, {updated_conversations} conversations, {updated_notifications} notifications, {updated_comments} comments")
+        
+        return jsonify({
+            "success": True, 
+            "message": f"Username updated successfully across all collections",
+            "stats": {
+                "posts_updated": updated_posts,
+                "conversations_updated": updated_conversations, 
+                "notifications_updated": updated_notifications,
+                "comments_updated": updated_comments
+            }
+        }), 200
+        
     except Exception as ex:
         logger.error("Error updating username: %s", ex)
         return jsonify({"success": False, "error": str(ex)}), 500
