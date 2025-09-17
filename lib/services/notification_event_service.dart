@@ -1008,6 +1008,139 @@ class NotificationEventService {
     }
   }
 
+  /// Find and mark notification as read in the notifications collection based on push notification data
+  static Future<void> _markNotificationAsReadFromPushData(String userId, String type, Map<String, dynamic> data) async {
+    try {
+      print('🔍 Searching for notification to mark as read - Type: $type, UserId: $userId');
+      
+      // Query notifications collection for matching notification
+      // We'll search by userId and type first, then try to match specific data fields
+      final notificationsQuery = await FirebaseFirestore.instance
+          .collection('notifications')
+          .where('userId', isEqualTo: userId)
+          .where('type', isEqualTo: type)
+          .orderBy('createdAt', descending: true)
+          .limit(10) // Limit to recent notifications to avoid large queries
+          .get();
+      
+      if (notificationsQuery.docs.isEmpty) {
+        print('⚠️ No notifications found for user $userId with type $type');
+        return;
+      }
+      
+      // Find the specific notification by matching data fields
+      QueryDocumentSnapshot? matchingNotification;
+      
+      for (final doc in notificationsQuery.docs) {
+        final notificationData = doc.data();
+        final storedData = notificationData['data'] as Map<String, dynamic>? ?? {};
+        
+        // Check if notification is already read
+        final isRead = notificationData['isRead'] as bool? ?? false;
+        if (isRead) {
+          print('📖 Notification ${doc.id} already marked as read, skipping');
+          continue;
+        }
+        
+        // Match specific fields based on notification type
+        bool isMatch = false;
+        
+        switch (type) {
+          case 'follow':
+          case 'user_follow':
+            final pushFollowerId = data['followerId'] as String?;
+            final storedFollowerId = storedData['followerId'] as String?;
+            isMatch = (pushFollowerId != null && pushFollowerId == storedFollowerId);
+            break;
+            
+          case 'comment':
+          case 'post_comment':
+            final pushPostId = data['postId'] as String?;
+            final storedPostId = storedData['postId'] as String?;
+            isMatch = (pushPostId != null && pushPostId == storedPostId);
+            break;
+            
+          case 'like':
+          case 'post_like':
+          case 'repost':
+          case 'post_engagement':
+            final pushPostId = data['postId'] as String?;
+            final storedPostId = storedData['postId'] as String?;
+            isMatch = (pushPostId != null && pushPostId == storedPostId);
+            break;
+            
+          case 'group_message':
+          case 'group_mention':
+            final pushGroupId = data['groupId'] as String? ?? data['chatId'] as String?;
+            final storedGroupId = storedData['groupId'] as String? ?? storedData['chatId'] as String?;
+            isMatch = (pushGroupId != null && pushGroupId == storedGroupId);
+            break;
+            
+          case 'direct_message':
+            final pushChatId = data['chatId'] as String?;
+            final storedChatId = storedData['chatId'] as String?;
+            isMatch = (pushChatId != null && pushChatId == storedChatId);
+            break;
+            
+          default:
+            // For other types, try to match timestamp if available, or just take the most recent
+            final pushTimestamp = data['timestamp'] as String?;
+            final storedTimestamp = storedData['timestamp'] as String?;
+            if (pushTimestamp != null && storedTimestamp != null) {
+              isMatch = pushTimestamp == storedTimestamp;
+            } else {
+              // Fallback: mark the most recent unread notification of this type
+              isMatch = true;
+            }
+            break;
+        }
+        
+        if (isMatch) {
+          matchingNotification = doc;
+          print('✅ Found matching notification: ${doc.id} for type: $type');
+          break;
+        }
+      }
+      
+      // If we found a matching notification, mark it as read
+      if (matchingNotification != null) {
+        await FirebaseFirestore.instance
+            .collection('notifications')
+            .doc(matchingNotification.id)
+            .update({
+          'isRead': true,
+          'readAt': FieldValue.serverTimestamp(),
+        });
+        
+        print('✅ Marked notification ${matchingNotification.id} as read');
+        
+        // Update badge count after marking as read
+        try {
+          await NotificationBadgeService.syncBadgeCount();
+        } catch (e) {
+          print('⚠️ Error syncing badge count: $e');
+        }
+      } else {
+        print('⚠️ Could not find specific matching notification for type: $type');
+        // As a fallback, just sync the badge count to ensure it's accurate
+        try {
+          await NotificationBadgeService.syncBadgeCount();
+        } catch (e) {
+          print('⚠️ Error syncing badge count: $e');
+        }
+      }
+      
+    } catch (e) {
+      print('❌ Error marking notification as read from push data: $e');
+      // Always try to sync badge count even if marking as read failed
+      try {
+        await NotificationBadgeService.syncBadgeCount();
+      } catch (syncError) {
+        print('⚠️ Error syncing badge count after error: $syncError');
+      }
+    }
+  }
+
   /// Handle push notification tap routing
   /// This method should be called when a user taps on a push notification
   static Future<void> handlePushNotificationTap(Map<String, dynamic> data) async {
@@ -1016,20 +1149,16 @@ class NotificationEventService {
       print('🔗 Handling push notification tap - Type: $type, Data: $data');
 
       final user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        print('❌ No authenticated user found');
+        return;
+      }
       
-      // Import the badge service to ensure notifications get marked as read
-      // and badge counts are updated properly on iOS
+      // Mark the corresponding notification in the notifications collection as read
       try {
-        final notificationId = data['notificationId'] as String?;
-        if (notificationId != null) {
-          // Mark this specific notification as read
-          await markNotificationOpened(notificationId);
-          
-          // Update badge count
-          await NotificationBadgeService.syncBadgeCount();
-        }
+        await _markNotificationAsReadFromPushData(user.uid, type, data);
       } catch (e) {
-        print('⚠️ Error updating notification read state: $e');
+        print('⚠️ Error marking notification as read: $e');
       }
 
       // Handle navigation based on notification type and data
@@ -1140,7 +1269,7 @@ class NotificationEventService {
           
           if (chatId != null) {
             // Individual chat - extract other user ID
-            final currentUserId = user?.uid ?? '';
+            final currentUserId = user.uid;
             final userIds = chatId.split('_');
             String? otherUserId;
             
