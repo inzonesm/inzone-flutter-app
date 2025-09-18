@@ -369,7 +369,7 @@ class NotificationService {
 
   /// Handle message opened from background/terminated
   static void _handleMessageOpenedApp(RemoteMessage message) {
-    print('🔗 Message opened app: ${message.data}');
+    print('Message opened app: ${message.data}');
 
     // Handle routing based on notification data
     _handleNotificationRouting(message.data);
