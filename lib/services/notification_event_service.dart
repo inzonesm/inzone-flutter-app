@@ -1119,6 +1119,21 @@ class NotificationEventService {
         print('📝 About to call _markNotificationAsReadByData for user: ${user.uid}');
         await _markNotificationAsReadByData(user.uid, type, data);
         print('✅ _markNotificationAsReadByData completed');
+        
+        // Clear iOS badge immediately using multiple approaches
+        if (Platform.isIOS) {
+          try {
+            print('📱 Force clearing iOS badge...');
+            await NotificationBadgeService.forceIOSBadgeClear();
+            print('✅ iOS badge force cleared');
+          } catch (e) {
+            print('⚠️ Error force clearing iOS badge: $e');
+          }
+        }
+        
+        // Immediately update iOS badge after marking notification as read
+        print('📱 Immediately updating iOS badge...');
+        await NotificationBadgeService.syncBadgeCount();
       } else {
         print('❌ User is null, cannot mark notification as read');
       }
@@ -1135,7 +1150,7 @@ class NotificationEventService {
         //   await NotificationBadgeService.syncBadgeCount();
         // }
         
-        print('🔄 Syncing badge count...');
+        print('🔄 Syncing badge count again for safety...');
         // Update badge count after marking notification as read
         await NotificationBadgeService.syncBadgeCount();
         print('✅ Badge count sync completed');
