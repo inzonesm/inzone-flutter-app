@@ -5219,15 +5219,30 @@ def handle_post_engagement_notification():
             if engagement_prefs.get('enabled', True):
                 # Create notification document
                 engagement_types = {
-                    'like': 'liked your post',
-                    'comment': 'commented on your post',
-                    'share': 'shared your post'
+                    'like': 'liked',
+                    'comment': 'commented on',
+                    'share': 'shared'
                 }
+                
+                # Create proper notification type and title based on engagement type
+                engagement_type = data['type']
+                if engagement_type == 'like':
+                    notification_type = 'post_like'
+                    notification_title = f"{get_user_name(data['userId'])} liked your post"
+                elif engagement_type == 'comment':
+                    notification_type = 'post_comment' 
+                    notification_title = f"{get_user_name(data['userId'])} commented on your post"
+                elif engagement_type == 'share':
+                    notification_type = 'post_share'
+                    notification_title = f"{get_user_name(data['userId'])} shared your post"
+                else:
+                    notification_type = 'post_engagement'
+                    notification_title = f"{get_user_name(data['userId'])} engaged with your post"
                 
                 notification_doc = {
                     'userId': post_author_id,
-                    'type': 'engagement',
-                    'title': 'Post Engagement',
+                    'type': notification_type,
+                    'title': notification_title,
                     'body': f"{get_user_name(data['userId'])} {engagement_types.get(data['type'], 'engaged with')} your post",
                     'isRead': False,
                     'createdAt': firestore.SERVER_TIMESTAMP,
