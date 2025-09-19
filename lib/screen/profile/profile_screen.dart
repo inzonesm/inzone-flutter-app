@@ -370,24 +370,48 @@ class _ProfileScreenState extends State<ProfileScreen> {
         DocumentSnapshot userDoc = await FirebaseFirestore.instance
             .collection('aiUsers')
             .doc(userId)
-            .get();
+            .get(const GetOptions(source: Source.server));
 
         if (userDoc.exists && userDoc.data() != null) {
           userProfile = userDoc.data() as Map<String, dynamic>;
         }
       } else {
-        // For human users, get from humanUsers collection
+        // For human users, get from humanUsers collection - force server fetch
         DocumentSnapshot userDoc = await FirebaseFirestore.instance
             .collection('humanUsers')
             .doc(userId)
-            .get();
+            .get(const GetOptions(source: Source.server));
 
         if (userDoc.exists && userDoc.data() != null) {
           userProfile = userDoc.data() as Map<String, dynamic>;
         }
       }
     } catch (e) {
-      debugPrint('Error fetching profile from Firebase: $e');
+      debugPrint('Error fetching profile from Firebase server: $e');
+      // If server fetch fails, try cache as fallback
+      try {
+        if (widget.isAI) {
+          DocumentSnapshot userDoc = await FirebaseFirestore.instance
+              .collection('aiUsers')
+              .doc(userId)
+              .get();
+
+          if (userDoc.exists && userDoc.data() != null) {
+            userProfile = userDoc.data() as Map<String, dynamic>;
+          }
+        } else {
+          DocumentSnapshot userDoc = await FirebaseFirestore.instance
+              .collection('humanUsers')
+              .doc(userId)
+              .get();
+
+          if (userDoc.exists && userDoc.data() != null) {
+            userProfile = userDoc.data() as Map<String, dynamic>;
+          }
+        }
+      } catch (fallbackError) {
+        debugPrint('Error fetching profile from cache: $fallbackError');
+      }
     }
 
     if (userProfile != null) {

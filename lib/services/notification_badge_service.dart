@@ -32,45 +32,111 @@ class NotificationBadgeService {
         });
   }
 
+  /// Force clear iOS badge using multiple methods
+  static Future<void> forceIOSBadgeClear() async {
+    if (!Platform.isIOS) return;
+    
+    try {
+      print('🔄 Force clearing iOS badge...');
+      
+      // Method 1: Request permissions and clear badge
+      await _localNotifications.resolvePlatformSpecificImplementation<IOSFlutterLocalNotificationsPlugin>()
+        ?.requestPermissions(badge: true);
+      
+      // Method 2: Show temporary notification with badge 0
+      await _localNotifications.show(
+        999998, // Use a unique ID
+        '', '', 
+        const NotificationDetails(
+          iOS: DarwinNotificationDetails(badgeNumber: 0),
+        ),
+      );
+      
+      // Method 3: Cancel the temporary notification
+      await _localNotifications.cancel(999998);
+      
+      // Method 4: Clear all notifications which should also clear badge
+      await _localNotifications.cancelAll();
+      
+      print('✅ iOS badge force cleared using multiple methods');
+    } catch (e) {
+      print('❌ Error force clearing iOS badge: $e');
+    }
+  }
+
   /// Update iOS app badge count
   static Future<void> _updateIOSBadgeCount(int count) async {
     if (Platform.isIOS) {
       try {
-        // Use Flutter Local Notifications to update iOS badge
-        final DarwinNotificationDetails iosDetails = DarwinNotificationDetails(
-          badgeNumber: count,
-          presentBadge: true,
+        // Method 1: Use flutter_local_notifications plugin to set badge directly
+        await _localNotifications.resolvePlatformSpecificImplementation<
+            IOSFlutterLocalNotificationsPlugin>()?.requestPermissions(
+          alert: false,
+          badge: true,
+          sound: false,
         );
         
-        // Show a silent notification to update badge (iOS requirement)
+        // Set the badge number directly without showing a notification
+        final DarwinNotificationDetails iosDetails = DarwinNotificationDetails(
+          badgeNumber: count,
+          presentAlert: false,
+          presentBadge: true,
+          presentSound: false,
+        );
+        
         final NotificationDetails notificationDetails = NotificationDetails(
           iOS: iosDetails,
         );
         
-        // Cancel any existing badge update notifications to avoid duplicates
-        await _localNotifications.cancel(999999);
+        // Cancel any existing badge notifications to avoid conflicts
+        await _localNotifications.cancelAll();
         
-        if (count > 0) {
-          // Show invisible notification to update badge
+        if (count >= 0) {
+          // Show a completely silent notification that only updates the badge
           await _localNotifications.show(
             999999, // Special ID for badge updates
-            null, // No title
-            null, // No body
+            '', // Empty title (required but won't be shown)
+            '', // Empty body (required but won't be shown)
             notificationDetails,
+            payload: 'badge_update', // Special payload to identify badge updates
           );
-        } else {
-          // Clear badge when count is 0
-          await _localNotifications.show(
-            999999,
-            null,
-            null,
-            notificationDetails,
-          );
+          
+          // Immediately cancel the notification so it doesn't appear in notification center
+          await Future.delayed(const Duration(milliseconds: 100));
+          await _localNotifications.cancel(999999);
         }
         
         print('✅ iOS badge count updated to: $count');
       } catch (e) {
         print('❌ Error updating iOS badge count: $e');
+        
+        // Fallback: Try alternative approach
+        try {
+          await _localNotifications.resolvePlatformSpecificImplementation<
+              IOSFlutterLocalNotificationsPlugin>()?.requestPermissions(
+            badge: true,
+          );
+          
+          // Alternative method - show and immediately dismiss
+          await _localNotifications.show(
+            999998,
+            null,
+            null,
+            NotificationDetails(
+              iOS: DarwinNotificationDetails(
+                badgeNumber: count,
+                presentBadge: true,
+                presentAlert: false,
+                presentSound: false,
+              ),
+            ),
+          );
+          
+          await _localNotifications.cancel(999998);
+          print('✅ iOS badge count updated using fallback method: $count');
+        } catch (fallbackError) {
+          print('❌ Fallback iOS badge update also failed: $fallbackError');
+        }
       }
     }
   }

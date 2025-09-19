@@ -247,16 +247,30 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     Map<String, dynamic>? userProfile;
 
     try {
+      // Force server fetch to avoid cache issues
       DocumentSnapshot userDoc = await FirebaseFirestore.instance
           .collection('humanUsers')
           .doc(currentUserId!)
-          .get();
+          .get(const GetOptions(source: Source.server));
 
       if (userDoc.exists && userDoc.data() != null) {
         userProfile = userDoc.data() as Map<String, dynamic>;
       }
     } catch (e) {
       debugPrint('Error fetching profile from Firebase: $e');
+      // If server fetch fails, try cache as fallback
+      try {
+        DocumentSnapshot userDoc = await FirebaseFirestore.instance
+            .collection('humanUsers')
+            .doc(currentUserId!)
+            .get();
+
+        if (userDoc.exists && userDoc.data() != null) {
+          userProfile = userDoc.data() as Map<String, dynamic>;
+        }
+      } catch (fallbackError) {
+        debugPrint('Error fetching profile from cache: $fallbackError');
+      }
     }
 
     if (userProfile != null) {
