@@ -107,6 +107,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         });
       } else {
         await docRef.set({
+          'uid': currentUser.uid,
           'profilePicture': profileImageUrl ?? "",
           'name': _nameController.text.trim(),
           'username': _nameController.text.trim().toLowerCase(),

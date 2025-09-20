@@ -173,8 +173,9 @@ class _SignInLoginScreenState extends State<SignInLoginScreen> {
         final docRef =
             FirebaseFirestore.instance.collection('humanUsers').doc(user?.uid);
         await docRef.set({
+          'uid': user?.uid,
           'email': _emailController.text.trim(),
-          'createdAt': null,
+          'createdAt': FieldValue.serverTimestamp(),
         });
 
         if (mounted) {
