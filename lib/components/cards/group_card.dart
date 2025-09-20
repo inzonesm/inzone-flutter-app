@@ -1,16 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_feather_icons/flutter_feather_icons.dart';
-import 'dart:math';
 import 'package:image_stack/image_stack.dart';
 import 'package:go_router/go_router.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:io';
 import 'package:inzone/data/group_data.dart';
 import 'package:inzone/data/group_chat_data.dart';
-import 'package:inzone/screen/chat/group_chat_screen.dart';
-import 'package:bounce/bounce.dart';
+// import 'package:bounce/bounce.dart';
 import 'package:inzone/router/routes.dart';
-import 'package:inzone/services/inzone_database.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
 class GroupCard extends StatefulWidget {
@@ -226,13 +223,16 @@ class _GroupCardState extends State<GroupCard> {
 
   @override
   Widget build(BuildContext context) {
-    return Bounce(
+    return AnimatedScale(
+      scale: 1.0,
+      duration: const Duration(milliseconds: 100),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 4),
         child: Material(
           color: Colors.transparent,
           borderRadius: BorderRadius.circular(24),
           child: InkWell(
+            enableFeedback: false,
             onTap: () {
               try {
                 // Try using Go Router first

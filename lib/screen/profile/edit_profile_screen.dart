@@ -1,12 +1,10 @@
 import 'dart:io';
 import 'package:colorful_safe_area/colorful_safe_area.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:inzone/components/ui/appbar.dart';
 import 'package:inzone/screen/profile/edit_field_screen.dart';
 import 'package:inzone/services/inzone_database.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
@@ -41,6 +39,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   File? _imageFile;
   final ImagePicker _picker = ImagePicker();
   final FirebaseStorage _storage = FirebaseStorage.instance;
+  bool _hasChanges = false; // Track if any changes were made
 
   @override
   void initState() {
@@ -133,6 +132,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           setState(() {
             _profileImageUrl = newProfileImageUrl;
             _imageFile = null;
+            _hasChanges = true; // Mark that changes were made
+            debugPrint('Profile image updated, _hasChanges set to true');
           });
         }
       }
@@ -188,7 +189,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         fieldTypeStr = 'bio';
         break;
       case FieldType.name:
-      default:
         fieldTypeStr = 'name';
         break;
     }
@@ -212,6 +212,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           _profileImageUrl = userData['profilePicture'] ??
               userData['ProfilePicture'] ??
               _profileImageUrl;
+          _hasChanges = true; // Mark that changes were made
+          debugPrint('Field updated, _hasChanges set to true');
         });
       }
     }
@@ -219,8 +221,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   Widget _buildProfilePicture() {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    final textColor =
-        isDarkMode ? AppColors.darkTextColor : AppColors.lightTextColor;
     const accentColor = AppColors.primaryBlue;
     final borderColor =
         isDarkMode ? Colors.grey.shade700 : Colors.grey.shade300;
@@ -419,8 +419,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         isDarkMode ? AppColors.darkTextColor : AppColors.lightTextColor;
     final surfaceColor =
         isDarkMode ? AppColors.darkSurfaceColor : AppColors.lightSurfaceColor;
-    final dividerColor =
-        isDarkMode ? AppColors.darkDividerColor : AppColors.lightDividerColor;
 
     return GestureDetector(
       onTap: () => _editField(type),
@@ -487,60 +485,65 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     final backgroundColor =
         isDarkMode ? AppColors.darkBackground : AppColors.lightBackground;
-    final surfaceColor =
-        isDarkMode ? AppColors.darkSurfaceColor : AppColors.lightSurfaceColor;
-    final textColor =
-        isDarkMode ? AppColors.darkTextColor : AppColors.lightTextColor;
-    const accentColor = AppColors.primaryBlue;
-    final dividerColor =
-        isDarkMode ? AppColors.darkDividerColor : AppColors.lightDividerColor;
 
-    return ColorfulSafeArea(
-      topColor: backgroundColor,
-      left: false,
-      right: false,
-      top: true,
-      bottom: false,
-      child: Scaffold(
-        backgroundColor: backgroundColor,
-        appBar: CustomAppBar(
-          isHome: true,
-          isSettings: true,
-          isImage: false,
-          title: "Edit Profile",
-          profileImageUrl: null,
-          onSearchTap: null,
-          onProfileTap: () {},
-        ),
-        body: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              _buildProfilePicture(),
-              Padding(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  children: [
-                    _buildProfileItem(
-                      label: "Name",
-                      value: _name,
-                      type: FieldType.name,
-                    ),
-                    _buildProfileItem(
-                      label: "Username",
-                      value: _username,
-                      type: FieldType.username,
-                    ),
-                    _buildProfileItem(
-                      label: "Bio",
-                      value: _bio,
-                      type: FieldType.bio,
-                      maxLines: 2,
-                    ),
-                  ],
+    return PopScope(
+      canPop: false,
+      onPopInvoked: (didPop) {
+        if (!didPop) {
+          debugPrint('EditProfileScreen popping with _hasChanges: $_hasChanges');
+          Navigator.of(context).pop(_hasChanges);
+        }
+      },
+      child: ColorfulSafeArea(
+        topColor: backgroundColor,
+        left: false,
+        right: false,
+        top: true,
+        bottom: false,
+        child: Scaffold(
+          backgroundColor: backgroundColor,
+          appBar: CustomAppBar(
+            isHome: true,
+            isSettings: true,
+            isImage: false,
+            title: "Edit Profile",
+            profileImageUrl: null,
+            onSearchTap: null,
+            onBackTap: () {
+              debugPrint('EditProfileScreen back button tapped, _hasChanges: $_hasChanges');
+              Navigator.of(context).pop(_hasChanges);
+            },
+          ),
+          body: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                _buildProfilePicture(),
+                Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    children: [
+                      _buildProfileItem(
+                        label: "Name",
+                        value: _name,
+                        type: FieldType.name,
+                      ),
+                      _buildProfileItem(
+                        label: "Username",
+                        value: _username,
+                        type: FieldType.username,
+                      ),
+                      _buildProfileItem(
+                        label: "Bio",
+                        value: _bio,
+                        type: FieldType.bio,
+                        maxLines: 2,
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

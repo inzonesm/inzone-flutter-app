@@ -21,11 +21,9 @@ import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:purchases_flutter/purchases_flutter.dart'
     show LogLevel, Purchases;
 import 'package:flutter_native_splash/flutter_native_splash.dart';
-import 'package:inzone/router/routes.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:app_tracking_transparency/app_tracking_transparency.dart';
 import 'package:inzone/services/reward_ad_service.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:inzone/services/ai_engagement_service.dart';
 
@@ -300,6 +298,16 @@ class _MyAppState extends State<MyApp> {
   void initState() {
     super.initState();
 
+    // Set up auth state change listener for pending notifications
+    FirebaseAuth.instance.authStateChanges().listen((User? user) {
+      if (user != null && mounted) {
+        // User just signed in, handle any pending push notification
+        Future.delayed(const Duration(milliseconds: 500), () async {
+          await NotificationEventService.handlePendingInitialMessage();
+        });
+      }
+    });
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       FlutterNativeSplash.remove();
 
@@ -324,6 +332,11 @@ class _MyAppState extends State<MyApp> {
 
         // Start AI engagement service for logged-in users
         _startAIEngagementService();
+
+        // Handle any pending push notification
+        Future.delayed(const Duration(milliseconds: 1000), () async {
+          await NotificationEventService.handlePendingInitialMessage();
+        });
 
         // Update first launch status if it was the first launch
         if (isFirstLaunch) {

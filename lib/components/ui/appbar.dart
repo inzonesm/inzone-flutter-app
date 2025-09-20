@@ -15,6 +15,7 @@ class CustomAppBar extends StatefulWidget implements PreferredSizeWidget {
   final VoidCallback? onProfileTap;
   final VoidCallback? onPointsTap;
   final VoidCallback? onNotificationTap;
+  final VoidCallback? onBackTap; // Add custom back button callback
   final int? notificationCount;
   final bool isHome;
   final bool isGroup;
@@ -36,6 +37,7 @@ class CustomAppBar extends StatefulWidget implements PreferredSizeWidget {
     this.onProfileTap,
     this.onPointsTap,
     this.onNotificationTap,
+    this.onBackTap, // Add the callback parameter
     this.notificationCount,
     this.isHome = false,
     this.isGroup = false,
@@ -105,7 +107,11 @@ class _CustomAppBarState extends State<CustomAppBar> {
                       padding: const EdgeInsets.only(left: 3.0),
                       child: GestureDetector(
                         onTap: () {
-                          Navigator.of(context).pop();
+                          if (widget.onBackTap != null) {
+                            widget.onBackTap!();
+                          } else {
+                            Navigator.of(context).pop();
+                          }
                         },
                         child: CircleAvatar(
                           radius: 20,
