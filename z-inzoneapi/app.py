@@ -4523,7 +4523,7 @@ def add_participant():
     if not all([groupchat_id, user_id, username]):
         return jsonify({"error": "Missing required fields"}), 400
     
-    groupchat_ref = db.collection('groupchats').document(groupchat_id)
+    groupchat_ref = db.collection('groupChats').document(groupchat_id)
     groupchat = groupchat_ref.get()
     
     if not groupchat.exists:
@@ -4550,7 +4550,7 @@ def delete_participant():
     if not all([groupchat_id, user_id, username]):
         return jsonify({"error": "Missing required fields"}), 400
     
-    groupchat_ref = db.collection('groupchats').document(groupchat_id)
+    groupchat_ref = db.collection('groupChats').document(groupchat_id)
     groupchat = gsroupchat_ref.get()
     
     if not groupchat.exists:
@@ -4589,7 +4589,7 @@ def create_group_chat():
         'groupchat_doc_id': data.get("GroupchatDocId")
     }
     
-    doc_ref = db.collection('groupchats').document(data.get("GroupchatDocId")).set(post_data)    
+    doc_ref = db.collection('groupChats').document(data.get("GroupchatDocId")).set(post_data)    
     return jsonify({
         "message": "Group chat created successfully",
         "groupchat_id": doc_ref[1].id
@@ -4604,7 +4604,7 @@ def add_ai_character():
     if not all([groupchat_id, ai_username]):
         return jsonify({"error": "Missing required fields"}), 400
     
-    groupchat_ref = db.collection('groupchats').document(groupchat_id)
+    groupchat_ref = db.collection('groupChats').document(groupchat_id)
     groupchat = groupchat_ref.get()
     
     if not groupchat.exists:
@@ -4625,7 +4625,7 @@ def delete_ai_character():
     if not all([groupchat_id, ai_username]):
         return jsonify({"error": "Missing required fields"}), 400
     
-    groupchat_ref = db.collection('groupchats').document(groupchat_id)
+    groupchat_ref = db.collection('groupChats').document(groupchat_id)
     groupchat = groupchat_ref.get()
     
     if not groupchat.exists:
@@ -7905,6 +7905,74 @@ def verify_post_likes_migration():
 #     except Exception as e:
 #         logger.error(f"Error testing timestamp format: {e}")
 #         return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/admin/fix-missing-uid', methods=['POST'])
+def fix_missing_uid():
+    """Fix humanUsers documents that are missing the 'uid' field"""
+    try:
+        logger.info("Starting UID fix process...")
+        
+        # Get all documents from humanUsers collection
+        users_ref = db.collection('humanUsers')
+        docs = users_ref.stream()
+        
+        updated_count = 0
+        total_count = 0
+        errors = []
+        
+        for doc in docs:
+            total_count += 1
+            doc_data = doc.to_dict()
+            doc_id = doc.id
+            
+            # Check if the document is missing the 'uid' field entirely
+            if 'uid' not in doc_data:
+                logger.info(f"Found user without UID field: {doc_id}")
+                
+                # Update the document to set uid = document_id
+                try:
+                    users_ref.document(doc_id).update({
+                        'uid': doc_id
+                    })
+                    updated_count += 1
+                    logger.info(f"Updated user {doc_id} - set uid to {doc_id}")
+                    
+                except Exception as e:
+                    error_msg = f"Failed to update user {doc_id}: {e}"
+                    logger.error(error_msg)
+                    errors.append(error_msg)
+        
+        # Verify the fix
+        verification_docs = users_ref.stream()
+        missing_uid_count = 0
+        verification_total = 0
+        
+        for doc in verification_docs:
+            verification_total += 1
+            doc_data = doc.to_dict()
+            if 'uid' not in doc_data:
+                missing_uid_count += 1
+        
+        logger.info(f"UID fix process completed:")
+        logger.info(f"Total users processed: {total_count}")
+        logger.info(f"Users updated: {updated_count}")
+        logger.info(f"Users still missing UID after fix: {missing_uid_count}")
+        
+        return jsonify({
+            "success": True,
+            "message": "UID fix process completed",
+            "data": {
+                "total_processed": total_count,
+                "updated": updated_count,
+                "already_had_uid": total_count - updated_count,
+                "still_missing_uid": missing_uid_count,
+                "errors": errors
+            }
+        }), 200
+        
+    except Exception as ex:
+        logger.error("Error during UID fix process: %s", ex)
+        return jsonify({"success": False, "error": str(ex)}), 500
 
 if __name__ == '__main__':
     os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "/app/key.json"
