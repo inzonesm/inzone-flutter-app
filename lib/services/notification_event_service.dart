@@ -206,6 +206,9 @@ class NotificationEventService {
       if (settings.authorizationStatus == AuthorizationStatus.authorized ||
           settings.authorizationStatus == AuthorizationStatus.provisional) {
         
+        // Configure FCM message handlers
+        await _configureFCM();
+        
         // Wait a bit to ensure user authentication is complete
         await Future.delayed(const Duration(seconds: 2));
         
@@ -232,6 +235,49 @@ class NotificationEventService {
       }
     } catch (e) {
       print('❌ Error initializing push notifications: $e');
+    }
+  }
+
+  /// Configure Firebase Cloud Messaging handlers
+  static Future<void> _configureFCM() async {
+    // Handle foreground messages (show local notification)
+    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+      print('📱 Foreground message received: ${message.notification?.title}');
+      // You can show local notification here if needed
+    });
+    
+    // Handle background message taps (app was in background)
+    FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
+      print('📱 Background message tapped: ${message.data}');
+      handlePushNotificationTap(message.data);
+    });
+    
+    // Handle terminated app message taps (app was completely closed)
+    RemoteMessage? initialMessage = await _firebaseMessaging.getInitialMessage();
+    if (initialMessage != null) {
+      print('📱 Terminated app message received: ${initialMessage.data}');
+      // Delay handling to ensure app is fully initialized
+      Future.delayed(const Duration(milliseconds: 1000), () {
+        final user = FirebaseAuth.instance.currentUser;
+        if (user != null) {
+          handlePushNotificationTap(initialMessage.data);
+        } else {
+          // Store for later if user not logged in yet
+          _pendingInitialMessage = initialMessage;
+        }
+      });
+    }
+  }
+
+  // Store initial message if user isn't logged in yet
+  static RemoteMessage? _pendingInitialMessage;
+
+  /// Handle pending initial message after user logs in
+  static Future<void> handlePendingInitialMessage() async {
+    if (_pendingInitialMessage != null) {
+      print('📱 Handling pending initial message after login: ${_pendingInitialMessage!.data}');
+      handlePushNotificationTap(_pendingInitialMessage!.data);
+      _pendingInitialMessage = null;
     }
   }
 

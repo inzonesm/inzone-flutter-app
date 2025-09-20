@@ -533,6 +533,7 @@ class _ChatUserCardState extends State<ChatUserCard> {
     }
 
     return InkWell(
+      enableFeedback: false,
       onTap: () {
         if (widget.userData.isHuman) {
           if (widget.userData.isGroupChat) {

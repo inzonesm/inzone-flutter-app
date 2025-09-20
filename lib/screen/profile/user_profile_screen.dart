@@ -206,7 +206,9 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                   'initialBio': bio,
                 },
               ).then((updated) {
+                debugPrint('EditProfile returned: $updated');
                 if (updated == true) {
+                  debugPrint('Refreshing profile after edit...');
                   fetchUserProfile();
                   fetchUserPosts();
                 }
@@ -342,6 +344,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
           followersCount = profile["followers_count"] ?? followers.length;
           followingCount = profile["following_count"] ?? following.length;
         });
+        debugPrint('Profile updated: name=$name, username=$username, bio=$bio');
       }
     } else {
       setState(() {
