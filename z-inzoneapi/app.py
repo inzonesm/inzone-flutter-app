@@ -800,9 +800,85 @@ def update_username():
         except Exception as comment_error:
             logger.error(f"Error updating comments: {comment_error}")
             # Don't fail the entire operation for comments
+
+        # Update username in other users' followers and following arrays
+        updated_followers_arrays = 0
+        updated_following_arrays = 0
+        
+        try:
+            # Get all human users to check their followers/following arrays
+            all_users_query = db.collection('humanUsers')
+            all_users = all_users_query.stream()
+            
+            for other_user_doc in all_users:
+                if other_user_doc.id == user_id:
+                    continue  # Skip the user whose username we're updating
+                
+                other_user_data = other_user_doc.to_dict()
+                other_user_ref = db.collection('humanUsers').document(other_user_doc.id)
+                user_updated = False
+                
+                # Check and update followers array
+                followers = other_user_data.get('followers', [])
+                updated_followers = []
+                followers_changed = False
+                
+                for follower in followers:
+                    if isinstance(follower, dict):
+                        # New format: {"id": user_id, "username": username, "type": "human"}
+                        if follower.get('id') == user_id:
+                            follower['username'] = username
+                            followers_changed = True
+                        updated_followers.append(follower)
+                    elif isinstance(follower, str) and follower == user_id:
+                        # Legacy format: just user ID - convert to new format with updated username
+                        updated_followers.append({
+                            "id": user_id,
+                            "username": username,
+                            "type": "human"
+                        })
+                        followers_changed = True
+                    else:
+                        updated_followers.append(follower)
+                
+                if followers_changed:
+                    other_user_ref.update({'followers': updated_followers})
+                    updated_followers_arrays += 1
+                    user_updated = True
+                
+                # Check and update following array
+                following = other_user_data.get('following', [])
+                updated_following = []
+                following_changed = False
+                
+                for followed in following:
+                    if isinstance(followed, dict):
+                        # New format: {"id": user_id, "username": username, "type": "human"}
+                        if followed.get('id') == user_id:
+                            followed['username'] = username
+                            following_changed = True
+                        updated_following.append(followed)
+                    elif isinstance(followed, str) and followed == user_id:
+                        # Legacy format: just user ID - convert to new format with updated username
+                        updated_following.append({
+                            "id": user_id,
+                            "username": username,
+                            "type": "human"
+                        })
+                        following_changed = True
+                    else:
+                        updated_following.append(followed)
+                
+                if following_changed:
+                    other_user_ref.update({'following': updated_following})
+                    updated_following_arrays += 1
+                    user_updated = True
+                
+        except Exception as followers_following_error:
+            logger.error(f"Error updating followers/following arrays: {followers_following_error}")
         
         logger.info(f"Username updated from '{old_username}' to '{username}' for user {user_id}")
-        logger.info(f"Updated {updated_posts} posts, {updated_conversations} conversations, {updated_notifications} notifications, {updated_comments} comments")
+        logger.info(f"Updated {updated_posts} posts, {updated_conversations} conversations, {updated_notifications} notifications, {updated_comments} comments, {updated_followers_arrays} followers arrays, {updated_following_arrays} following arrays")
         
         return jsonify({
             "success": True, 
@@ -811,7 +887,9 @@ def update_username():
                 "posts_updated": updated_posts,
                 "conversations_updated": updated_conversations, 
                 "notifications_updated": updated_notifications,
-                "comments_updated": updated_comments
+                "comments_updated": updated_comments,
+                "followers_arrays_updated": updated_followers_arrays,
+                "following_arrays_updated": updated_following_arrays
             }
         }), 200
         

@@ -24,7 +24,7 @@ final GlobalKey<_AllChatsScreenState> allChatsScreenKey =
     GlobalKey<_AllChatsScreenState>();
 
 class AllChatsScreen extends StatefulWidget {
-  const AllChatsScreen({Key? key}) : super(key: key);
+  const AllChatsScreen({super.key});
 
   @override
   State<AllChatsScreen> createState() => _AllChatsScreenState();
