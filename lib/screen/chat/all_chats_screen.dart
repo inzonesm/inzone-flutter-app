@@ -2,9 +2,13 @@ import 'dart:async';
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:inzone/components/chat/chat_app_bar.dart';
+import 'package:inzone/root_app.dart';
 import 'package:inzone/router/routes.dart';
+import 'package:inzone/screen/chat/group_chat_screen.dart';
 import 'package:inzone/services/inzone_database.dart';
 import 'package:toasty_box/toast_service.dart';
 import 'package:colorful_safe_area/colorful_safe_area.dart';
@@ -28,11 +32,6 @@ class AllChatsScreen extends StatefulWidget {
 
   @override
   State<AllChatsScreen> createState() => _AllChatsScreenState();
-
-  // Static method to refresh conversations from anywhere in the app
-  static void refreshConversationsGlobally() {
-    allChatsScreenKey.currentState?.refreshConversations();
-  }
 }
 
 class _AllChatsScreenState extends State<AllChatsScreen>
@@ -45,11 +44,10 @@ class _AllChatsScreenState extends State<AllChatsScreen>
   int pageOpened = 0;
   late TabController _tabController;
   int _currentTabIndex = 0;
-  StreamSubscription<QuerySnapshot>? _conversationsSubscription;
 
   @override
   void initState() {
-    super.initState();    
+    super.initState();
     _isLoading = true;
     _startTime = DateTime.now().toUtc();
     _tabController = TabController(length: 2, vsync: this);
@@ -67,7 +65,6 @@ class _AllChatsScreenState extends State<AllChatsScreen>
 
   @override
   void dispose() {
-    _conversationsSubscription?.cancel();
     _tabController.removeListener(_handleTabChange);
     _tabController.dispose();
     DateTime endTime = DateTime.now().toUtc();
@@ -80,7 +77,7 @@ class _AllChatsScreenState extends State<AllChatsScreen>
   Future<void> _loadCurrentUser() async {
     currentUserId = await InZoneDatabase.getCurrentUserUid();
     if (currentUserId != null) {
-      _setupConversationsListener();
+      _fetchConversations();
     } else {
       setState(() => _isLoading = false);
     }
@@ -88,69 +85,40 @@ class _AllChatsScreenState extends State<AllChatsScreen>
 
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  void _setupConversationsListener() {
+  Future<void> _fetchConversations() async {
+    _chatUsers.clear();
+    _groupChats.clear();
+    setState(() => _isLoading = true);
+
     if (currentUserId == null) {
       setState(() => _isLoading = false);
       return;
     }
 
-    setState(() => _isLoading = true);
-
-    // Cancel any existing subscription
-    _conversationsSubscription?.cancel();
-
-    // Set up real-time listener for conversations
-    _conversationsSubscription = _firestore
-        .collection('conversations')
-        .where('participants', arrayContains: currentUserId)
-        .snapshots()
-        .listen(
-      (snapshot) {
-        _processConversationsSnapshot(snapshot);
-      },
-      onError: (error) {
-        print('Error listening to conversations: $error');
-        if (mounted) {
-          setState(() => _isLoading = false);
-          ToastService.showToast(
-            context,
-            backgroundColor: Theme.of(context).canvasColor,
-            shadowColor: Colors.transparent,
-            leading: const Icon(
-              Icons.error,
-              color: Colors.redAccent,
-            ),
-            message: 'Error loading conversations: $error',
-          );
-        }
-      },
-    );
-  }
-
-  // Method to manually refresh conversations if needed
-  void refreshConversations() {
-    if (currentUserId != null) {
-      // The real-time listener will automatically handle updates
-      // This method is kept for compatibility but doesn't need to do anything
-      print('Conversations are automatically updated via real-time listener');
-    }
-  }
-
-  Future<void> _processConversationsSnapshot(QuerySnapshot snapshot) async {
-    _chatUsers.clear();
-    _groupChats.clear();
-
     List<ChatUser> allChats = [];
     List<ChatUser> groupChats = [];
 
     try {
-      // Process all conversations from the real-time snapshot (both human and AI)
-      for (var doc in snapshot.docs) {
+      // Fetch AI user conversations
+      List<dynamic>? aiData = await InZoneDatabase.getConversations();
+      if (aiData != null) {
+        for (var conversation in aiData) {
+          ChatUser? aiUser = ChatUser.fromJson(conversation);
+          if (aiUser != null) allChats.add(aiUser);
+        }
+      }
+
+      // Fetch human conversations
+      QuerySnapshot conversationsSnapshot = await _firestore
+          .collection('conversations')
+          .where('participants', arrayContains: currentUserId)
+          .get();
+
+      for (var doc in conversationsSnapshot.docs) {
         var data = doc.data() as Map<String, dynamic>;
 
         // Check if this is a group chat
         bool isGroupChat = data['isGroupChat'] ?? false;
-        bool isAIConversation = data['isAIConversation'] ?? false;
 
         if (isGroupChat) {
           // Handle group chat - fetch the actual group data to get the correct name
@@ -194,7 +162,6 @@ class _AllChatsScreenState extends State<AllChatsScreen>
             ));
           }
         } else {
-          // Handle individual conversations (both human and AI)
           List<dynamic> participants = data['participants'] ?? [];
           String? otherUserId = participants
               .firstWhere((id) => id != currentUserId, orElse: () => null);
@@ -203,84 +170,36 @@ class _AllChatsScreenState extends State<AllChatsScreen>
             Map<String, dynamic> participantNames =
                 data['participantNames'] ?? {};
             String otherUserName = participantNames[otherUserId] ?? 'User';
-            String? profilePictureURL;
 
-            if (isAIConversation) {
-              // This is an AI conversation - fetch AI user data
+            if (otherUserName == 'User') {
               try {
-                // Try popularCharacters collection first
-                DocumentSnapshot aiDoc = await _firestore
-                    .collection('popularCharacters')
+                DocumentSnapshot userDoc = await _firestore
+                    .collection('humanUsers')
                     .doc(otherUserId)
                     .get();
-                
-                if (aiDoc.exists && aiDoc.data() != null) {
-                  var aiData = aiDoc.data() as Map<String, dynamic>;
-                  otherUserName = aiData['name'] ?? otherUserName;
-                  profilePictureURL = aiData['profile_picture_url'];
-                } else {
-                  // Try aiUsers collection
-                  DocumentSnapshot aiUserDoc = await _firestore
-                      .collection('aiUsers')
-                      .doc(otherUserId)
-                      .get();
-                  
-                  if (aiUserDoc.exists && aiUserDoc.data() != null) {
-                    var aiUserData = aiUserDoc.data() as Map<String, dynamic>;
-                    otherUserName = aiUserData['name'] ?? otherUserName;
-                    profilePictureURL = aiUserData['profilePicture'];
-                  }
+
+                if (userDoc.exists && userDoc.data() != null) {
+                  var userData = userDoc.data() as Map<String, dynamic>;
+                  otherUserName =
+                      userData['name'] ?? userData['Name'] ?? 'User';
                 }
               } catch (e) {
-                print('Error getting AI user data: $e');
-                // Use participantNames as fallback
-                otherUserName = participantNames[otherUserId] ?? 'AI User';
+                print('Error getting user name: $e');
               }
-
-              allChats.add(ChatUser(
-                name: otherUserName,
-                email: otherUserId,
-                chatId: doc.id,
-                profilePictureURL: profilePictureURL,
-                lastMessage: data['lastMessage'],
-                lastMessageTime: data['lastMessageTime'],
-                isHuman: false, // AI conversation
-                isGroupChat: false,
-              ));
-            } else {
-              // This is a human conversation
-              if (otherUserName == 'User') {
-                try {
-                  DocumentSnapshot userDoc = await _firestore
-                      .collection('humanUsers')
-                      .doc(otherUserId)
-                      .get();
-
-                  if (userDoc.exists && userDoc.data() != null) {
-                    var userData = userDoc.data() as Map<String, dynamic>;
-                    otherUserName =
-                        userData['name'] ?? userData['Name'] ?? 'User';
-                  }
-                } catch (e) {
-                  print('Error getting user name: $e');
-                }
-              }
-
-              allChats.add(ChatUser(
-                name: otherUserName,
-                email: otherUserId,
-                chatId: doc.id,
-                lastMessage: data['lastMessage'],
-                lastMessageTime: data['lastMessageTime'],
-                isHuman: true,
-                isGroupChat: false,
-              ));
             }
+
+            allChats.add(ChatUser(
+              name: otherUserName,
+              email: otherUserId,
+              chatId: doc.id,
+              lastMessage: data['lastMessage'],
+              lastMessageTime: data['lastMessageTime'],
+              isHuman: true,
+              isGroupChat: false,
+            ));
           }
         }
       }
-
-      // Sort conversations by last message time
       allChats.sort((a, b) {
         if (a.lastMessageTime == null) return 1;
         if (b.lastMessageTime == null) return -1;
@@ -296,23 +215,25 @@ class _AllChatsScreenState extends State<AllChatsScreen>
         }
       }
 
+      setState(() {
+        _groupChats = groupChats;
+        _isLoading = false;
+      });
+    } catch (e) {
+      print('Error fetching conversations: $e');
       if (mounted) {
         setState(() {
-          _groupChats = groupChats;
           _isLoading = false;
         });
       }
-    } catch (e) {
-      print('Error processing conversations: $e');
       if (mounted) {
-        setState(() => _isLoading = false);
         ToastService.showToast(
           context,
           backgroundColor: Theme.of(context).canvasColor,
           shadowColor: Colors.transparent,
           leading: const Icon(
-            Icons.error,
-            color: Colors.redAccent,
+            Icons.error, // or Icons.check_circle, Icons.warning, etc.
+            color: Colors.redAccent, // or Colors.greenAccent, Colors.orange
           ),
           message: 'Error loading conversations: $e',
         );
@@ -439,6 +360,20 @@ class _AllChatsScreenState extends State<AllChatsScreen>
                   },
                 ),
     );
+  }
+
+  // Helper method to get the current user's name
+  Future<String> _getUserName() async {
+    try {
+      Map<String, dynamic>? userProfile =
+          await InZoneDatabase.getCurrentUserProfile();
+      if (userProfile != null) {
+        return userProfile["Name"] ?? userProfile["name"] ?? "User";
+      }
+    } catch (e) {
+      print('Error getting user name: $e');
+    }
+    return "User";
   }
 
   // Method to set active tab from outside
@@ -654,8 +589,11 @@ class _ChatUserCardState extends State<ChatUserCard> {
                 // Try using Go Router first with fallback to direct navigation
                 try {
                   context.push(Routes.groupChat, extra: groupData).then((_) {
-                    // The real-time listener will automatically update the list
-                    // No need to manually refresh
+                    // Refresh the conversation list when returning from chat
+                    if (mounted) {
+                      (context.findAncestorStateOfType<_AllChatsScreenState>())
+                          ?._fetchConversations();
+                    }
                   });
                 } catch (e) {}
               } else {
@@ -665,8 +603,10 @@ class _ChatUserCardState extends State<ChatUserCard> {
                   'otherUserName': widget.userData.name ?? 'Group Chat',
                   'otherUserId': '',
                 }).then((_) {
-                  // The real-time listener will automatically update the list
-                  // No need to manually refresh
+                  if (mounted) {
+                    (context.findAncestorStateOfType<_AllChatsScreenState>())
+                        ?._fetchConversations();
+                  }
                 });
               }
             });
@@ -677,8 +617,11 @@ class _ChatUserCardState extends State<ChatUserCard> {
               'otherUserName': widget.userData.name ?? 'User',
               'otherUserId': widget.userData.email ?? '',
             }).then((_) {
-              // The real-time listener will automatically update the list
-              // No need to manually refresh
+              // Refresh the conversation list when returning from chat
+              if (mounted) {
+                (context.findAncestorStateOfType<_AllChatsScreenState>())
+                    ?._fetchConversations();
+              }
             });
           }
         } else {
