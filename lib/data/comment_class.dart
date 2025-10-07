@@ -36,6 +36,9 @@ class CommentClass extends Comment {
   final String id;
   final String postId;
   final String userId;
+  final String? parentCommentId; // For threading - null for root comments
+  final int replyCount; // Count of direct replies
+  final bool isReply; // Helper to identify if this is a reply
   List<String>? likedBy;
   List<String>? dislikedBy;
   final List<ReplyClass> replies;
@@ -49,6 +52,9 @@ class CommentClass extends Comment {
     required this.postId,
     required this.userId,
     required this.replies,
+    this.parentCommentId,
+    this.replyCount = 0,
+    this.isReply = false,
     this.likedBy,
     this.dislikedBy,
     this.profilePictureUrl,
@@ -90,12 +96,15 @@ class CommentClass extends Comment {
 
   factory CommentClass.fromJson(Map<String, dynamic> json) {
     return CommentClass(
-      author: json['name'],
-      text: json['text'],
+      author: json['name'] ?? json['author'] ?? '',
+      text: json['text'] ?? '',
       timestamp: json['timestamp'].toString(),
-      id: json['uid'] ?? '',
+      id: json['uid'] ?? json['id'] ?? '',
       postId: json['postId'] ?? '',
       userId: json['userId'] ?? '',
+      parentCommentId: json['parentCommentId'],
+      replyCount: json['replyCount'] ?? 0,
+      isReply: json['parentCommentId'] != null,
       replies: json['replies'] != null
           ? List<ReplyClass>.from(
               json['replies'].map((reply) => ReplyClass.fromJson(reply)))
@@ -112,14 +121,19 @@ class CommentClass extends Comment {
   Map<String, dynamic> toJson() {
     return {
       'name': author,
+      'author': author,
       'text': text,
       'timestamp': timestamp,
       'uid': id,
+      'id': id,
       'postId': postId,
       'userId': userId,
+      'parentCommentId': parentCommentId,
+      'replyCount': replyCount,
       'replies': replies.map((reply) => reply.toJson()).toList(),
       'likedBy': likedBy,
       'dislikedBy': dislikedBy,
+      'profilePicture': profilePictureUrl,
     };
   }
 }

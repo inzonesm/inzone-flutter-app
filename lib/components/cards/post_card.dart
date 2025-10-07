@@ -26,7 +26,6 @@ import 'package:toasty_box/toast_service.dart';
 import 'package:inzone/components/cards/comments_tile.dart';
 import 'package:inzone/services/appsflyer_service.dart';
 import 'package:inzone/services/notification_event_service.dart';
-import 'package:inzone/services/notification_service.dart';
 
 class PostCard extends StatefulWidget {
   InZonePost post;
@@ -1844,99 +1843,164 @@ class _PostCardState extends State<PostCard>
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   String type = '';
 
+  // Reply state that persists through rebuilds
   String? selectedCommentId;
+  String? selectedCommentAuthor;
+  bool showReplyComposer = false;
+  
+  // More persistent reply state
+  final Map<String, dynamic> _replyState = {
+    'commentId': null,
+    'author': null,
+    'isReplying': false,
+  };
+  
+  // Track which comments have their replies expanded
+  final Set<String> _expandedReplies = <String>{};
+  
+  // Use ValueNotifiers for reactive state
+  final ValueNotifier<bool> _replyComposerNotifier = ValueNotifier<bool>(false);
+  final ValueNotifier<String?> _selectedCommentNotifier = ValueNotifier<String?>(null);
+  final ValueNotifier<Set<String>> _expandedRepliesNotifier = ValueNotifier<Set<String>>({});
 
   Widget chatInput(String? commentId, String? name) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 15.0, vertical: 30),
-      child: Row(
-        children: [
-          Expanded(
-            child: Scrollbar(
-              controller: _scrollController,
-              child: Container(
-                constraints: const BoxConstraints(maxHeight: 100),
-                child: TextFormField(
-                  scrollController: _scrollController,
-                  cursorColor: Theme.of(context).colorScheme.primary,
-                  style: TextStyle(
-                    color: Theme.of(context).textTheme.bodyMedium?.color,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // Reply indicator chip
+        if (type == 'Reply' && selectedCommentAuthor != null)
+          Container(
+            margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(16),
                   ),
-                  controller:
-                      type == 'Reply' ? _replyController : mySearchController,
-                  onTap: () {},
-                  maxLines: null,
-                  keyboardType: TextInputType.multiline,
-                  // cursorHeight: 17,
-                  decoration: InputDecoration(
-                    suffixIconColor: Theme.of(context)
-                        .colorScheme
-                        .onSurface
-                        .withOpacity(0.4),
-                    contentPadding:
-                        const EdgeInsets.only(top: 10, left: 16, right: 16),
-                    border: InputBorder.none,
-                    hintText: type == 'Reply' ? 'Add Reply' : 'Add Comment',
-                    hintStyle: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w400,
-                      color: Theme.of(context).hintColor,
-                    ),
-                    filled: true,
-                    fillColor: Theme.of(context)
-                        .colorScheme
-                        .surfaceContainerHighest
-                        .withOpacity(0.3),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(20),
-                      borderSide: BorderSide(
-                        color: Theme.of(context).dividerColor,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.reply,
+                        size: 16,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Replying to @$selectedCommentAuthor',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                InkWell(
+                  onTap: _cancelReply,
+                  borderRadius: BorderRadius.circular(16),
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    child: Icon(
+                      Icons.close,
+                      size: 16,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(20),
-                      borderSide: BorderSide(
-                        color: Theme.of(context).colorScheme.primary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+        // Input field
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 15.0, vertical: 30),
+          child: Row(
+            children: [
+              Expanded(
+                child: Scrollbar(
+                  controller: _scrollController,
+                  child: Container(
+                    constraints: const BoxConstraints(maxHeight: 100),
+                    child: TextFormField(
+                      scrollController: _scrollController,
+                      cursorColor: Theme.of(context).colorScheme.primary,
+                      style: TextStyle(
+                        color: Theme.of(context).textTheme.bodyMedium?.color,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
+                      controller:
+                          type == 'Reply' ? _replyController : mySearchController,
+                      onTap: () {},
+                      maxLines: null,
+                      keyboardType: TextInputType.multiline,
+                      // cursorHeight: 17,
+                      decoration: InputDecoration(
+                        suffixIconColor: Theme.of(context)
+                            .colorScheme
+                            .onSurface
+                            .withOpacity(0.4),
+                        contentPadding:
+                            const EdgeInsets.only(top: 10, left: 16, right: 16),
+                        border: InputBorder.none,
+                        hintText: type == 'Reply' ? 'Add Reply' : 'Add Comment',
+                        hintStyle: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w400,
+                          color: Theme.of(context).hintColor,
+                        ),
+                        filled: true,
+                        fillColor: Theme.of(context)
+                            .colorScheme
+                            .surfaceContainerHighest
+                            .withOpacity(0.3),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(20),
+                          borderSide: BorderSide(
+                            color: Theme.of(context).dividerColor,
+                          ),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(20),
+                          borderSide: BorderSide(
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
+                        ),
                       ),
                     ),
                   ),
                 ),
               ),
-            ),
-          ),
-          MaterialButton(
-            minWidth: 43,
-            height: 43,
-            color: Theme.of(context).colorScheme.primary,
-            shape: const CircleBorder(),
-            onPressed: () {
-              if (type == 'Reply') {
-                if (selectedCommentId != null) {
-                  // _addReply(
-                  //     selectedCommentId!); // Pass stored commentId to _addReply function
-                  _replyController.clear();
-                  setState(() {
-                    type = '';
-                    selectedCommentId =
-                        null; // Clear selected comment ID after replying
-                  });
-                }
-              } else {
-                _addComment();
-              }
-            },
-            child: const Center(
-              child: Icon(
-                Icons.send,
-                color: Colors.white,
-                size: 18,
+              const SizedBox(width: 10),
+              MaterialButton(
+                minWidth: 43,
+                height: 43,
+                color: Theme.of(context).colorScheme.primary,
+                shape: const CircleBorder(),
+                onPressed: () {
+                  if (type == 'Reply') {
+                    _addReply();
+                  } else {
+                    _addComment();
+                  }
+                },
+                child: const Center(
+                  child: Icon(
+                    Icons.send,
+                    color: Colors.white,
+                    size: 18,
+                  ),
+                ),
               ),
-            ),
+            ],
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -1987,12 +2051,20 @@ class _PostCardState extends State<PostCard>
     }
 
     // New comment to add
+    final commentId = DateTime.now().millisecondsSinceEpoch.toString() + 
+                     (1000 + (999 * (DateTime.now().microsecond / 1000000)).round()).toString();
+    
     Map<String, dynamic> newComment = {
+      'id': commentId,
       'author': FirebaseAuth.instance.currentUser!.displayName,
       'text': commentText,
       'userId': FirebaseAuth.instance.currentUser!.uid,
       'timestamp': DateTime.now().toUtc().millisecondsSinceEpoch.toString(),
       'likedBy': [], // Initialize likedBy as an empty list
+      'dislikedBy': [],
+      'replyCount': 0,
+      'parentCommentId': null,
+      'isReply': false,
     };
 
     // Add the new comment to the existing comments list
@@ -2016,6 +2088,139 @@ class _PostCardState extends State<PostCard>
     setState(() {
       mySearchController.clear();
     });
+  }
+
+  // Toggle replies visibility for a comment
+  void _toggleReplies(String commentId) {
+    setState(() {
+      if (_expandedReplies.contains(commentId)) {
+        _expandedReplies.remove(commentId);
+      } else {
+        _expandedReplies.add(commentId);
+      }
+    });
+    
+    // Update the notifier to trigger reactive rebuilds
+    _expandedRepliesNotifier.value = Set.from(_expandedReplies);
+    
+    print('Toggled replies for $commentId, expanded: ${_expandedReplies.contains(commentId)}');
+  }
+
+  // Start reply to a comment
+  void _startReply(String commentId, String commentAuthor) {
+    print('=== START REPLY ===');
+    print('commentId: $commentId, commentAuthor: $commentAuthor');
+    
+    // Set both ways to ensure persistence
+    setState(() {
+      selectedCommentId = commentId;
+      selectedCommentAuthor = commentAuthor;
+      showReplyComposer = true;
+      type = 'Reply';
+    });
+    
+    // Update notifiers to trigger reactive rebuilds
+    _selectedCommentNotifier.value = commentId;
+    _replyComposerNotifier.value = true;
+    
+    _replyState['commentId'] = commentId;
+    _replyState['author'] = commentAuthor;
+    _replyState['isReplying'] = true;
+    
+    print('After setState - selectedCommentId: $selectedCommentId');
+    print('_replyState: $_replyState');
+    print('showReplyComposer: $showReplyComposer');
+  }
+
+  // Cancel reply
+  void _cancelReply() {
+    print('=== CANCEL REPLY ===');
+    setState(() {
+      selectedCommentId = null;
+      selectedCommentAuthor = null;
+      showReplyComposer = false;
+      type = '';
+    });
+    
+    _replyState['commentId'] = null;
+    _replyState['author'] = null;
+    _replyState['isReplying'] = false;
+    
+    // Update notifiers
+    _replyComposerNotifier.value = false;
+    _selectedCommentNotifier.value = null;
+    
+    _replyController.clear();
+    print('Reply cancelled, showReplyComposer: $showReplyComposer');
+  }
+
+  // Add reply to a comment
+  void _addReply() async {
+    print('=== _addReply called ===');
+    print('selectedCommentId: $selectedCommentId');
+    print('selectedCommentAuthor: $selectedCommentAuthor');
+    print('_replyState: $_replyState');
+    
+    String replyText = _replyController.text.trim();
+    print('replyText: "$replyText"');
+    
+    // Try to get comment ID from either source
+    String? commentIdToUse = selectedCommentId ?? _replyState['commentId'];
+    
+    if (commentIdToUse == null || commentIdToUse.isEmpty) {
+      print('ERROR: No valid commentId found');
+      return;
+    }
+    
+    if (replyText.isEmpty) {
+      print('ERROR: Reply text is empty');
+      return;
+    }
+
+    print('Proceeding with commentId: $commentIdToUse');
+
+    try {
+      // Reference to the document where comments are stored
+      DocumentReference postDocumentReference =
+          _firestore.collection('postComments').doc(widget.post.id.toString());
+
+      // Get the document snapshot
+      DocumentSnapshot postSnapshot = await postDocumentReference.get();
+      
+      if (!postSnapshot.exists) return;
+
+      List<dynamic> currentComments = postSnapshot['comments'] ?? [];
+      
+      // Create new reply with proper ID
+      final replyId = DateTime.now().millisecondsSinceEpoch.toString();
+      
+      Map<String, dynamic> newReply = {
+        'id': replyId,
+        'author': FirebaseAuth.instance.currentUser!.displayName ?? 'Anonymous',
+        'text': replyText,
+        'userId': FirebaseAuth.instance.currentUser!.uid,
+        'postId': widget.post.id.toString(),
+        'parentCommentId': commentIdToUse,
+        'timestamp': DateTime.now().toUtc().millisecondsSinceEpoch.toString(),
+        'likedBy': [],
+        'dislikedBy': [],
+        'replyCount': 0,
+        'isReply': true,
+      };
+
+      // Add the reply to comments list
+      currentComments.add(newReply);
+
+      // Update the document
+      await postDocumentReference.update({'comments': currentComments});
+
+      // Clear and hide reply composer
+      _cancelReply();
+      
+      print('Reply added successfully');
+    } catch (e) {
+      print('Error adding reply: $e');
+    }
   }
 
   // void _addReply(String commentId) async {
@@ -2141,6 +2346,7 @@ class _PostCardState extends State<PostCard>
   bool showReplies = false; // Flag to track whether to show replies or not
 
   filterSheetModel() {
+    debugPrint('filterSheetModel called - resetting selectedCommentId to null');
     setState(() {
       _replyController.clear();
       selectedCommentId = null;
@@ -2200,8 +2406,9 @@ class _PostCardState extends State<PostCard>
                                 snapshot.data!.data() as Map<String, dynamic>?;
                             data ??= {};
                             final commentsList = data['comments'] ?? [];
-                            final comments =
+                            final allComments =
                                 commentsList.map<CommentClass>((comment) {
+                              final commentIndex = commentsList.indexOf(comment);
                               print("FULL COMMENT DATA: $comment");
                               print(
                                   "COMMENT AUTHOR DATA: ${comment['author']}");
@@ -2209,11 +2416,14 @@ class _PostCardState extends State<PostCard>
                                 author:
                                     comment['author'] ?? comment['name'] ?? '',
                                 text: comment['text'] ?? '',
-                                replies: [], // Assuming you will handle replies separately
+                                replies: [], // Will be populated from separate reply processing
                                 timestamp: comment['timestamp'] ?? "",
-                                id: '', // Make sure each comment has a unique ID
+                                id: comment['id'] ?? comment['timestamp'] ?? commentIndex.toString(),
                                 postId: widget.post.id.toString(),
                                 userId: comment['userId'] ?? '',
+                                parentCommentId: comment['parentCommentId'],
+                                replyCount: comment['replyCount'] ?? 0,
+                                isReply: comment['isReply'] ?? (comment['parentCommentId'] != null),
                                 likedBy: comment['likedBy'] != null
                                     ? List<String>.from(comment['likedBy'])
                                     : [],
@@ -2224,7 +2434,33 @@ class _PostCardState extends State<PostCard>
                               );
                             }).toList();
 
-                            if (comments.isEmpty) {
+                            // Separate parent comments and replies
+                            final parentComments = allComments.where((CommentClass c) => !c.isReply).toList();
+                            final repliesMap = <String, List<CommentClass>>{};
+                            
+                            // Group replies by parent comment ID
+                            for (final reply in allComments.where((CommentClass c) => c.isReply)) {
+                              final parentId = reply.parentCommentId;
+                              if (parentId != null) {
+                                if (!repliesMap.containsKey(parentId)) {
+                                  repliesMap[parentId] = [];
+                                }
+                                repliesMap[parentId]!.add(reply);
+                              }
+                            }
+
+                            // Sort parent comments by timestamp (newest first)
+                            parentComments.sort((a, b) {
+                              try {
+                                final aTime = int.parse(a.timestamp);
+                                final bTime = int.parse(b.timestamp);
+                                return bTime.compareTo(aTime);
+                              } catch (e) {
+                                return 0;
+                              }
+                            });
+
+                            if (parentComments.isEmpty) {
                               return Center(
                                 child: Text(
                                   'No Comments Available',
@@ -2233,17 +2469,56 @@ class _PostCardState extends State<PostCard>
                                 ),
                               );
                             }
-                            return ListView.builder(
-                              padding:
-                                  const EdgeInsets.fromLTRB(20, 5, 20, 100),
-                              itemCount: comments.length,
-                              itemBuilder: (BuildContext context, int index) {
-                                final comment = comments[index];
+                            
+                            // Wrap ListView in ValueListenableBuilder to make it reactive to expanded replies
+                            return ValueListenableBuilder<Set<String>>(
+                              valueListenable: _expandedRepliesNotifier,
+                              builder: (context, expandedSet, child) {
+                                // Rebuild comments list based on current expanded state
+                                final List<CommentClass> reactiveComments = [];
+                                final Map<String, String> parentCommentAuthors = {}; // Map comment ID to author
+                                
+                                // First pass: collect parent comment authors
+                                for (final parent in parentComments) {
+                                  parentCommentAuthors[parent.id] = parent.author;
+                                }
+                                
+                                for (final parent in parentComments) {
+                                  reactiveComments.add(parent);
+                                  
+                                  // Only add replies if this parent comment is expanded
+                                  if (expandedSet.contains(parent.id)) {
+                                    final replies = repliesMap[parent.id] ?? [];
+                                    replies.sort((a, b) {
+                                      try {
+                                        final aTime = int.parse(a.timestamp);
+                                        final bTime = int.parse(b.timestamp);
+                                        return aTime.compareTo(bTime); // Oldest first for replies (chronological)
+                                      } catch (e) {
+                                        return 0;
+                                      }
+                                    });
+                                    reactiveComments.addAll(replies);
+                                  }
+                                }
+                                
+                                return ListView.builder(
+                                  padding:
+                                      const EdgeInsets.fromLTRB(20, 5, 20, 100),
+                                  itemCount: reactiveComments.length,
+                                  itemBuilder: (BuildContext context, int index) {
+                                    final comment = reactiveComments[index];
+                                    final replyCount = repliesMap[comment.id]?.length ?? 0; // Calculate reply count outside
                                 return AnimatedContainer(
                                   duration: const Duration(seconds: 1),
                                   child: Padding(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 0.0, vertical: 10),
+                                    padding: EdgeInsets.symmetric(
+                                        horizontal: 0.0, 
+                                        vertical: comment.isReply 
+                                            ? 0.0 // No padding for replies
+                                            : (replyCount > 0 && expandedSet.contains(comment.id))
+                                                ? 2.0 // Reduced padding for parent comments with expanded replies
+                                                : 10.0), // Normal padding for parent comments without replies
                                     child: FutureBuilder<DocumentSnapshot>(
                                       future: comment.userId.isNotEmpty
                                           ? FirebaseFirestore.instance
@@ -2271,31 +2546,63 @@ class _PostCardState extends State<PostCard>
                                                   '';
                                         }
 
-                                        return CommentsTile(
-                                          commentText: comment.text,
-                                          profilePictureUrl: profilePicUrl,
-                                          author: username,
-                                          timestamp: comment.timestamp,
-                                          likedBy: comment.likedBy ?? [],
-                                          dislikedBy: comment.dislikedBy ?? [],
-                                          currentUserId: FirebaseAuth
-                                                  .instance.currentUser?.uid ??
-                                              '',
-                                          onLike: () {
-                                            // Implement database update for likes
-                                            _updateCommentLikes(
-                                                comment, index, comments);
-                                          },
-                                          onDislike: () {
-                                            // Implement database update for dislikes
-                                            _updateCommentDislikes(
-                                                comment, index, comments);
+                                        // Get actual reply count from repliesMap
+                                        final actualReplyCount = repliesMap[comment.id]?.length ?? 0;
+                                        
+                                        return ValueListenableBuilder<Set<String>>(
+                                          valueListenable: _expandedRepliesNotifier,
+                                          builder: (context, expandedSet, child) {
+                                            final isCurrentlyExpanded = expandedSet.contains(comment.id);
+                                            return Container(
+                                              child: CommentsTile(
+                                                key: ValueKey('comment-${comment.id}-$isCurrentlyExpanded-$actualReplyCount'),
+                                                commentText: comment.text,
+                                                profilePictureUrl: profilePicUrl,
+                                                author: username,
+                                                timestamp: comment.timestamp,
+                                                commentId: comment.id.isNotEmpty ? comment.id : index.toString(),
+                                                parentCommentId: comment.parentCommentId,
+                                                parentCommentAuthor: comment.isReply && comment.parentCommentId != null 
+                                                    ? parentCommentAuthors[comment.parentCommentId] 
+                                                    : null,
+                                                postCreatorId: widget.post.isAi 
+                                                    ? widget.post.userName // For AI posts, use userName
+                                                    : widget.post.userReference, // For human posts, use userReference
+                                                commentAuthorId: comment.userId, // Pass the comment author's user ID
+                                                replyCount: actualReplyCount,
+                                                isReply: comment.isReply,
+                                                showReplies: isCurrentlyExpanded,
+                                                likedBy: comment.likedBy ?? [],
+                                                dislikedBy: comment.dislikedBy ?? [],
+                                                currentUserId: FirebaseAuth
+                                                        .instance.currentUser?.uid ??
+                                                    '',
+                                                onLike: () {
+                                                  // Implement database update for likes
+                                                  _updateCommentLikes(
+                                                      comment, index, reactiveComments);
+                                                },
+                                                onDislike: () {
+                                                  // Implement database update for dislikes
+                                                  _updateCommentDislikes(
+                                                      comment, index, reactiveComments);
+                                                },
+                                                onReply: () {
+                                                  _startReply(comment.id.isNotEmpty ? comment.id : index.toString(), username);
+                                                },
+                                                onToggleReplies: actualReplyCount > 0 ? () {
+                                                  _toggleReplies(comment.id);
+                                                } : null,
+                                              ),
+                                            );
                                           },
                                         );
                                       },
                                     ),
                                   ),
                                 );
+                              },
+                            );
                               },
                             );
                           } else if (snapshot.hasError) {
@@ -2313,6 +2620,69 @@ class _PostCardState extends State<PostCard>
                         },
                       ),
                     ),
+                    
+                    // Debug state indicator - Reactive with ValueListenableBuilder
+                    /*ValueListenableBuilder<bool>(
+                      valueListenable: _replyComposerNotifier,
+                      builder: (context, isReplying, child) {
+                        return Container(
+                          padding: const EdgeInsets.all(4),
+                          color: isReplying ? Colors.green : Colors.red,
+                          child: Text(
+                            'showReplyComposer: $isReplying | selectedCommentId: $selectedCommentId',
+                            style: const TextStyle(color: Colors.white, fontSize: 10),
+                          ),
+                        );
+                      },
+                    ),*/
+                    
+                    // Reply Input - Reactive with ValueListenableBuilder
+                    ValueListenableBuilder<bool>(
+                      valueListenable: _replyComposerNotifier,
+                      builder: (context, isReplying, child) {
+                        return isReplying
+                            ? Container(
+                                padding: const EdgeInsets.all(12),
+                                color: Colors.grey[50],
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text('Replying to ${selectedCommentAuthor ?? "comment"}', 
+                                         style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                                    const SizedBox(height: 8),
+                                    Row(
+                                      children: [
+                                        Expanded(
+                                          child: TextField(
+                                            controller: _replyController,
+                                            autofocus: true,
+                                            decoration: const InputDecoration(
+                                              hintText: 'Write reply...',
+                                              border: OutlineInputBorder(),
+                                              contentPadding: EdgeInsets.all(8),
+                                              isDense: true,
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        ElevatedButton(
+                                          onPressed: _addReply,
+                                          child: const Text('Send'),
+                                        ),
+                                        const SizedBox(width: 4),
+                                        TextButton(
+                                          onPressed: _cancelReply,
+                                          child: const Text('Cancel'),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              )
+                            : const SizedBox.shrink();
+                      },
+                    ),
+                    
                     chatInput(
                         comment?.id.toString(), comment?.author.toString())
                   ],
@@ -2588,8 +2958,6 @@ class _DynamicPageViewState extends State<_DynamicPageView> {
                             );
                           },
                           onDoubleTap: () {
-                            final PostCard postCard = context
-                                .findAncestorWidgetOfExactType<PostCard>()!;
                             final _PostCardState? postCardState = context
                                 .findAncestorStateOfType<_PostCardState>();
                             if (postCardState != null) {
@@ -2998,8 +3366,6 @@ class _FullScreenImageViewer extends StatefulWidget {
 
 class _FullScreenImageViewerState extends State<_FullScreenImageViewer> {
   bool _isLoading = true;
-  double? _imageWidth;
-  double? _imageHeight;
   bool _isFullscreen = false;
 
   @override
@@ -3025,10 +3391,8 @@ class _FullScreenImageViewerState extends State<_FullScreenImageViewer> {
     imageStream.addListener(listener);
 
     try {
-      final imageInfo = await completer.future;
+      await completer.future;
       setState(() {
-        _imageWidth = imageInfo.image.width.toDouble();
-        _imageHeight = imageInfo.image.height.toDouble();
         _isLoading = false;
       });
     } catch (e) {

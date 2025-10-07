@@ -1,16 +1,28 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:inzone/data/comment_class.dart';
 
 class CommentsTile extends StatefulWidget {
   final String commentText;
   final String profilePictureUrl;
   final String author;
   final String timestamp;
+  final String commentId;
+  final String? parentCommentId;
+  final String? parentCommentAuthor; // Author of the parent comment being replied to
+  final String? postCreatorId; // ID of the post creator to identify if current user is creator
+  final String? commentAuthorId; // ID of the comment author to check if they are the post creator
+  final int replyCount;
+  final bool isReply;
   final List<String> likedBy;
   final List<String> dislikedBy;
   final String currentUserId;
   final VoidCallback? onLike;
   final VoidCallback? onDislike;
+  final VoidCallback? onReply;
+  final VoidCallback? onToggleReplies;
+  final List<CommentClass>? replies;
+  final bool showReplies;
 
   const CommentsTile({
     super.key,
@@ -18,11 +30,22 @@ class CommentsTile extends StatefulWidget {
     required this.profilePictureUrl,
     required this.author,
     required this.timestamp,
+    required this.commentId,
+    this.parentCommentId,
+    this.parentCommentAuthor,
+    this.postCreatorId,
+    this.commentAuthorId,
+    this.replyCount = 0,
+    this.isReply = false,
     required this.likedBy,
     required this.dislikedBy,
     required this.currentUserId,
     this.onLike,
     this.onDislike,
+    this.onReply,
+    this.onToggleReplies,
+    this.replies,
+    this.showReplies = false,
   });
 
   @override
@@ -32,12 +55,14 @@ class CommentsTile extends StatefulWidget {
 class _CommentsTileState extends State<CommentsTile> {
   late bool isLiked;
   late bool isDisliked;
+  bool showRepliesExpanded = false;
 
   @override
   void initState() {
     super.initState();
     isLiked = widget.likedBy.contains(widget.currentUserId);
     isDisliked = widget.dislikedBy.contains(widget.currentUserId);
+    showRepliesExpanded = widget.showReplies;
   }
 
   @override
@@ -111,135 +136,282 @@ class _CommentsTileState extends State<CommentsTile> {
 
   @override
   Widget build(BuildContext context) {
+    // Check if the comment author is the post creator
+    // For AI posts, compare display names; for human posts, compare user IDs
+    final bool isCommentAuthorCreator = widget.postCreatorId != null && 
+                                       (widget.commentAuthorId == widget.postCreatorId ||
+                                        widget.author == widget.postCreatorId);
+    
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: Row(
+      margin: EdgeInsets.only(
+        // Spacing between the comments and their replies
+        bottom: widget.isReply ? 8.0 : (widget.replyCount > 0 && widget.showReplies ? 3.6 : 12.0),
+        left: widget.isReply ? 40.0 : 0.0, // Indent replies
+      ),
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Profile Picture
-          ClipRRect(
-            borderRadius: BorderRadius.circular(20),
-            child: widget.profilePictureUrl.isNotEmpty
-                ? CachedNetworkImage(
-                    imageUrl: widget.profilePictureUrl,
-                    width: 40,
-                    height: 40,
-                    fit: BoxFit.cover,
-                    placeholder: (context, url) => const SizedBox(),
-                    errorWidget: (context, url, error) =>
-                        const Icon(Icons.account_circle, size: 40),
-                  )
-                : const Icon(Icons.account_circle, size: 40),
-          ),
-          const SizedBox(width: 10),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Profile Picture
+              ClipRRect(
+                borderRadius: BorderRadius.circular(20),
+                child: widget.profilePictureUrl.isNotEmpty
+                    ? CachedNetworkImage(
+                        imageUrl: widget.profilePictureUrl,
+                        width: widget.isReply ? 32 : 40, // Smaller for replies
+                        height: widget.isReply ? 32 : 40,
+                        fit: BoxFit.cover,
+                        placeholder: (context, url) => const SizedBox(),
+                        errorWidget: (context, url, error) =>
+                            Icon(Icons.account_circle, size: widget.isReply ? 32 : 40),
+                      )
+                    : Icon(Icons.account_circle, size: widget.isReply ? 32 : 40),
+              ),
+              const SizedBox(width: 10),
 
-          // Comment Content
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Author and Timestamp
-                Row(
+              // Comment Content
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      widget.author,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            fontWeight: FontWeight.bold,
-                            color:
-                                Theme.of(context).textTheme.titleMedium?.color,
+                    // Reply indicator for nested comments
+                    if (widget.isReply && widget.parentCommentId != null)
+                      Container(
+                        margin: const EdgeInsets.only(bottom: 4),
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: isCommentAuthorCreator
+                              ? Colors.red.withOpacity(0.1)
+                              : Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.7),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              isCommentAuthorCreator
+                                  ? Icons.circle
+                                  : Icons.reply,
+                              size: isCommentAuthorCreator ? 8 : 12,
+                              color: isCommentAuthorCreator
+                                  ? Colors.red
+                                  : Theme.of(context).colorScheme.onSurfaceVariant,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              isCommentAuthorCreator
+                                  ? 'Creator'
+                                  : 'Replying to ${widget.parentCommentAuthor != null ? "${widget.parentCommentAuthor}" : "comment"}',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: isCommentAuthorCreator
+                                    ? Colors.red
+                                    : Theme.of(context).colorScheme.onSurfaceVariant,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                    // Author and Timestamp
+                    Row(
+                      children: [
+                        Text(
+                          widget.author,
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                fontWeight: FontWeight.bold,
+                                color: Theme.of(context).textTheme.titleMedium?.color,
+                              ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          formatTimestamp(widget.timestamp),
+                          style: TextStyle(
+                            color: Theme.of(context)
+                                .textTheme
+                                .bodySmall
+                                ?.color
+                                ?.withOpacity(0.7),
+                            fontSize: 12,
                           ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(height: 4),
+
+                    // Comment Text
                     Text(
-                      formatTimestamp(widget.timestamp),
+                      widget.commentText,
                       style: TextStyle(
-                        color: Theme.of(context)
-                            .textTheme
-                            .bodySmall
-                            ?.color
-                            ?.withOpacity(0.7),
-                        fontSize: 12,
+                        color: Theme.of(context).textTheme.bodyMedium?.color,
+                        fontWeight: FontWeight.normal,
                       ),
                     ),
+
+                    // Action Row (Like, Dislike, Reply)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8.0),
+                      child: Row(
+                        children: [
+                          // Like button
+                          InkWell(
+                            onTap: toggleLike,
+                            child: Row(
+                              children: [
+                                Icon(
+                                  isLiked
+                                      ? Icons.thumb_up
+                                      : Icons.thumb_up_outlined,
+                                  size: 16,
+                                  color: isLiked
+                                      ? Theme.of(context).colorScheme.primary
+                                      : Theme.of(context).iconTheme.color,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  widget.likedBy.length.toString(),
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Theme.of(context)
+                                        .textTheme
+                                        .bodySmall
+                                        ?.color,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+
+                          // Dislike button
+                          InkWell(
+                            onTap: toggleDislike,
+                            child: Row(
+                              children: [
+                                Icon(
+                                  isDisliked
+                                      ? Icons.thumb_down
+                                      : Icons.thumb_down_outlined,
+                                  size: 16,
+                                  color: isDisliked
+                                      ? Theme.of(context).colorScheme.error
+                                      : Theme.of(context).iconTheme.color,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  widget.dislikedBy.length.toString(),
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Theme.of(context)
+                                        .textTheme
+                                        .bodySmall
+                                        ?.color,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+
+                          // Reply button (only for non-reply comments to maintain 1-level threading)
+                          if (!widget.isReply && widget.onReply != null)
+                            InkWell(
+                              onTap: widget.onReply,
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    Icons.reply,
+                                    size: 16,
+                                    color: Theme.of(context).iconTheme.color,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    'Reply',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Theme.of(context)
+                                          .textTheme
+                                          .bodySmall
+                                          ?.color,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+
+                    // View Replies button for parent comments
+                    if (!widget.isReply && widget.replyCount > 0 && widget.onToggleReplies != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8.0),
+                        child: InkWell(
+                          onTap: widget.onToggleReplies,
+                          child: Row(
+                            children: [
+                              Icon(
+                                widget.showReplies
+                                    ? Icons.keyboard_arrow_up
+                                    : Icons.keyboard_arrow_down,
+                                size: 16,
+                                color: Theme.of(context).colorScheme.primary,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                widget.showReplies
+                                    ? 'Hide ${widget.replyCount} ${widget.replyCount == 1 ? 'reply' : 'replies'}'
+                                    : 'View ${widget.replyCount} ${widget.replyCount == 1 ? 'reply' : 'replies'}',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Theme.of(context).colorScheme.primary,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
                   ],
                 ),
-                const SizedBox(height: 4),
+              )
+            ],
+          ),
 
-                // Comment Text
-                Text(
-                  widget.commentText,
-                  style: TextStyle(
-                    color: Theme.of(context).textTheme.bodyMedium?.color,
-                    fontWeight: FontWeight.normal,
-                  ),
-                ),
-
-                // Like/Dislike Actions
-                Padding(
-                  padding: const EdgeInsets.only(top: 8.0),
-                  child: Row(
-                    children: [
-                      InkWell(
-                        onTap: toggleLike,
-                        child: Row(
-                          children: [
-                            Icon(
-                              isLiked
-                                  ? Icons.thumb_up
-                                  : Icons.thumb_up_outlined,
-                              size: 16,
-                              color: isLiked
-                                  ? Theme.of(context).colorScheme.primary
-                                  : Theme.of(context).iconTheme.color,
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              widget.likedBy.length.toString(),
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Theme.of(context)
-                                    .textTheme
-                                    .bodySmall
-                                    ?.color,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      InkWell(
-                        onTap: toggleDislike,
-                        child: Row(
-                          children: [
-                            Icon(
-                              isDisliked
-                                  ? Icons.thumb_down
-                                  : Icons.thumb_down_outlined,
-                              size: 16,
-                              color: isDisliked
-                                  ? Theme.of(context).colorScheme.error
-                                  : Theme.of(context).iconTheme.color,
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              widget.dislikedBy.length.toString(),
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Theme.of(context)
-                                    .textTheme
-                                    .bodySmall
-                                    ?.color,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+          // Show replies if expanded and there are replies
+          if (!widget.isReply && showRepliesExpanded && widget.replies != null && widget.replies!.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 4.0), // Reduced from 8.0 to 4.0
+              child: Column(
+                children: widget.replies!
+                    .map((reply) => CommentsTile(
+                          commentText: reply.text,
+                          profilePictureUrl: reply.profilePictureUrl ?? '',
+                          author: reply.author,
+                          timestamp: reply.timestamp,
+                          commentId: reply.id,
+                          parentCommentId: reply.parentCommentId,
+                          parentCommentAuthor: widget.author, // Pass parent author
+                          postCreatorId: widget.postCreatorId, // Pass post creator ID
+                          commentAuthorId: reply.userId, // Pass comment author ID
+                          isReply: true,
+                          likedBy: reply.likedBy ?? [],
+                          dislikedBy: reply.dislikedBy ?? [],
+                          currentUserId: widget.currentUserId,
+                          onLike: () {
+                            // Handle reply like
+                          },
+                          onDislike: () {
+                            // Handle reply dislike
+                          },
+                        ))
+                    .toList(),
+              ),
             ),
-          )
         ],
       ),
     );
