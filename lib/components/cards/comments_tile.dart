@@ -176,70 +176,91 @@ class _CommentsTileState extends State<CommentsTile> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Reply indicator for nested comments
+                    // Reply indicator for nested comments: show replier name and, if creator, the Author tag; include timestamp on same line for replies
                     if (widget.isReply && widget.parentCommentId != null)
-                      Container(
-                        margin: const EdgeInsets.only(bottom: 4),
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: isCommentAuthorCreator
-                              ? Colors.red.withOpacity(0.1)
-                              : Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.7),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              isCommentAuthorCreator
-                                  ? Icons.circle
-                                  : Icons.reply,
-                              size: isCommentAuthorCreator ? 8 : 12,
-                              color: isCommentAuthorCreator
-                                  ? Colors.red
-                                  : Theme.of(context).colorScheme.onSurfaceVariant,
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              isCommentAuthorCreator
-                                  ? 'Creator'
-                                  : 'Replying to ${widget.parentCommentAuthor != null ? "${widget.parentCommentAuthor}" : "comment"}',
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: isCommentAuthorCreator
-                                    ? Colors.red
-                                    : Theme.of(context).colorScheme.onSurfaceVariant,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-
-                    // Author and Timestamp
-                    Row(
-                      children: [
-                        Text(
-                          widget.author,
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // Replier's name first (no icon or reply text before it)
+                          Text(
+                            widget.author,
+                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
                                 fontWeight: FontWeight.bold,
                                 color: Theme.of(context).textTheme.titleMedium?.color,
                               ),
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          formatTimestamp(widget.timestamp),
-                          style: TextStyle(
-                            color: Theme.of(context)
-                                .textTheme
-                                .bodySmall
-                                ?.color
-                                ?.withOpacity(0.7),
-                            fontSize: 12,
                           ),
-                        ),
-                      ],
-                    ),
+                          // Only show the Author tag (with bullet) when the replier is the post creator.
+                          if (isCommentAuthorCreator) ...[
+                            const SizedBox(width: 4),
+                            Container(
+                              margin: const EdgeInsets.only(bottom: 4),
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: Colors.red.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: const Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.circle,
+                                    size: 8,
+                                    color: Colors.red,
+                                  ),
+                                  SizedBox(width: 4),
+                                  Text(
+                                    'Author',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: Colors.red,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                          // timestamp for replies on same line to avoid an extra empty row
+                          const SizedBox(width: 8),
+                          Text(
+                            formatTimestamp(widget.timestamp),
+                            style: TextStyle(
+                              color: Theme.of(context)
+                                  .textTheme
+                                  .bodySmall
+                                  ?.color
+                                  ?.withOpacity(0.7),
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+
+                    // Author and Timestamp (parent comments only)
+                    if (!widget.isReply)
+                      Row(
+                        children: [
+                          Text(
+                            widget.author,
+                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  color: Theme.of(context).textTheme.titleMedium?.color,
+                                ),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            formatTimestamp(widget.timestamp),
+                            style: TextStyle(
+                              color: Theme.of(context)
+                                  .textTheme
+                                  .bodySmall
+                                  ?.color
+                                  ?.withOpacity(0.7),
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
                     const SizedBox(height: 4),
 
                     // Comment Text

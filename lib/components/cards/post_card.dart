@@ -352,6 +352,7 @@ class _PostCardState extends State<PostCard>
       );
     }
 
+    _textFieldFocusNode.dispose(); // Dispose focus node
     super.dispose();
   }
 
@@ -1840,6 +1841,7 @@ class _PostCardState extends State<PostCard>
   final TextEditingController _replyController = TextEditingController();
   TextEditingController mySearchController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
+  final FocusNode _textFieldFocusNode = FocusNode(); // Add focus node for auto-focus
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   String type = '';
 
@@ -1864,143 +1866,166 @@ class _PostCardState extends State<PostCard>
   final ValueNotifier<Set<String>> _expandedRepliesNotifier = ValueNotifier<Set<String>>({});
 
   Widget chatInput(String? commentId, String? name) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        // Reply indicator chip
-        if (type == 'Reply' && selectedCommentAuthor != null)
-          Container(
-            margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.reply,
-                        size: 16,
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+    // Use ValueListenableBuilder to ensure reactive updates
+    return ValueListenableBuilder<String?>(
+      valueListenable: _selectedCommentNotifier,
+      builder: (context, selectedComment, child) {
+        final isInReplyMode = type == 'Reply' && selectedCommentAuthor != null;
+        
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Reply indicator chip
+            if (isInReplyMode)
+              Container(
+                margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                        borderRadius: BorderRadius.circular(16),
                       ),
-                      const SizedBox(width: 6),
-                      Text(
-                        'Replying to @$selectedCommentAuthor',
-                        style: TextStyle(
-                          fontSize: 13,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.reply,
+                            size: 16,
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            'Replying to @$selectedCommentAuthor',
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: Theme.of(context).colorScheme.onSurfaceVariant,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    InkWell(
+                      onTap: () {
+                        print('Cancel button tapped');
+                        _cancelReply();
+                      },
+                      borderRadius: BorderRadius.circular(16),
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        child: Icon(
+                          Icons.close,
+                          size: 16,
                           color: Theme.of(context).colorScheme.onSurfaceVariant,
-                          fontWeight: FontWeight.w500,
                         ),
                       ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 8),
-                InkWell(
-                  onTap: _cancelReply,
-                  borderRadius: BorderRadius.circular(16),
-                  child: Container(
-                    padding: const EdgeInsets.all(4),
-                    child: Icon(
-                      Icons.close,
-                      size: 16,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
-                  ),
+                  ],
                 ),
-              ],
-            ),
-          ),
+              ),
 
-        // Input field
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 15.0, vertical: 30),
-          child: Row(
-            children: [
-              Expanded(
-                child: Scrollbar(
-                  controller: _scrollController,
-                  child: Container(
-                    constraints: const BoxConstraints(maxHeight: 100),
-                    child: TextFormField(
-                      scrollController: _scrollController,
-                      cursorColor: Theme.of(context).colorScheme.primary,
-                      style: TextStyle(
-                        color: Theme.of(context).textTheme.bodyMedium?.color,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                      ),
-                      controller:
-                          type == 'Reply' ? _replyController : mySearchController,
-                      onTap: () {},
-                      maxLines: null,
-                      keyboardType: TextInputType.multiline,
-                      // cursorHeight: 17,
-                      decoration: InputDecoration(
-                        suffixIconColor: Theme.of(context)
-                            .colorScheme
-                            .onSurface
-                            .withOpacity(0.4),
-                        contentPadding:
-                            const EdgeInsets.only(top: 10, left: 16, right: 16),
-                        border: InputBorder.none,
-                        hintText: type == 'Reply' ? 'Add Reply' : 'Add Comment',
-                        hintStyle: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w400,
-                          color: Theme.of(context).hintColor,
-                        ),
-                        filled: true,
-                        fillColor: Theme.of(context)
-                            .colorScheme
-                            .surfaceContainerHighest
-                            .withOpacity(0.3),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(20),
-                          borderSide: BorderSide(
-                            color: Theme.of(context).dividerColor,
+            // Input field
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 15.0, vertical: 30),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Scrollbar(
+                      controller: _scrollController,
+                      child: Container(
+                        constraints: const BoxConstraints(maxHeight: 100),
+                        child: TextFormField(
+                          scrollController: _scrollController,
+                          focusNode: _textFieldFocusNode,
+                          cursorColor: Theme.of(context).colorScheme.primary,
+                          style: TextStyle(
+                            color: Theme.of(context).textTheme.bodyMedium?.color,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
                           ),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(20),
-                          borderSide: BorderSide(
-                            color: Theme.of(context).colorScheme.primary,
+                          controller:
+                              type == 'Reply' ? _replyController : mySearchController,
+                          onTap: () {
+                            print('TextFormField tapped - current type: $type');
+                            // Always ensure focus when tapped
+                            if (!_textFieldFocusNode.hasFocus) {
+                              _textFieldFocusNode.requestFocus();
+                              print('Focus requested on tap');
+                            }
+                          },
+                          onChanged: (value) {
+                            // Optional: handle text changes if needed
+                          },
+                          maxLines: null,
+                          keyboardType: TextInputType.multiline,
+                          // cursorHeight: 17,
+                          decoration: InputDecoration(
+                            suffixIconColor: Theme.of(context)
+                                .colorScheme
+                                .onSurface
+                                .withOpacity(0.4),
+                            contentPadding:
+                                const EdgeInsets.only(top: 10, left: 16, right: 16),
+                            border: InputBorder.none,
+                            hintText: type == 'Reply' ? 'Add Reply' : 'Add Comment',
+                            hintStyle: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w400,
+                              color: Theme.of(context).hintColor,
+                            ),
+                            filled: true,
+                            fillColor: Theme.of(context)
+                                .colorScheme
+                                .surfaceContainerHighest
+                                .withOpacity(0.3),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(20),
+                              borderSide: BorderSide(
+                                color: Theme.of(context).dividerColor,
+                              ),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(20),
+                              borderSide: BorderSide(
+                                color: Theme.of(context).colorScheme.primary,
+                              ),
+                            ),
                           ),
                         ),
                       ),
                     ),
                   ),
-                ),
-              ),
-              const SizedBox(width: 10),
-              MaterialButton(
-                minWidth: 43,
-                height: 43,
-                color: Theme.of(context).colorScheme.primary,
-                shape: const CircleBorder(),
-                onPressed: () {
-                  if (type == 'Reply') {
-                    _addReply();
-                  } else {
-                    _addComment();
-                  }
-                },
-                child: const Center(
-                  child: Icon(
-                    Icons.send,
-                    color: Colors.white,
-                    size: 18,
+                  const SizedBox(width: 10),
+                  MaterialButton(
+                    minWidth: 43,
+                    height: 43,
+                    color: Theme.of(context).colorScheme.primary,
+                    shape: const CircleBorder(),
+                    onPressed: () {
+                      print('Send button pressed - type: $type');
+                      if (type == 'Reply') {
+                        _addReply();
+                      } else {
+                        _addComment();
+                      }
+                    },
+                    child: const Center(
+                      child: Icon(
+                        Icons.send,
+                        color: Colors.white,
+                        size: 18,
+                      ),
+                    ),
                   ),
-                ),
+                ],
               ),
-            ],
-          ),
-        ),
-      ],
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -2106,12 +2131,19 @@ class _PostCardState extends State<PostCard>
     print('Toggled replies for $commentId, expanded: ${_expandedReplies.contains(commentId)}');
   }
 
-  // Start reply to a comment
+  // Start reply to a comment - robust and consistent reply switching
   void _startReply(String commentId, String commentAuthor) {
     print('=== START REPLY ===');
     print('commentId: $commentId, commentAuthor: $commentAuthor');
+    print('Current selectedCommentId: $selectedCommentId');
     
-    // Set both ways to ensure persistence
+    // Clear any existing reply text when switching targets
+    if (selectedCommentId != null && selectedCommentId != commentId) {
+      _replyController.clear();
+      print('Cleared reply text due to target switch');
+    }
+    
+    // Update all state variables consistently
     setState(() {
       selectedCommentId = commentId;
       selectedCommentAuthor = commentAuthor;
@@ -2119,22 +2151,53 @@ class _PostCardState extends State<PostCard>
       type = 'Reply';
     });
     
-    // Update notifiers to trigger reactive rebuilds
+    // Update reactive notifiers
     _selectedCommentNotifier.value = commentId;
     _replyComposerNotifier.value = true;
     
+    // Update persistent state
     _replyState['commentId'] = commentId;
     _replyState['author'] = commentAuthor;
     _replyState['isReplying'] = true;
     
-    print('After setState - selectedCommentId: $selectedCommentId');
-    print('_replyState: $_replyState');
-    print('showReplyComposer: $showReplyComposer');
+    // Force focus on the text field - more aggressive approach
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        // First try immediate focus
+        _textFieldFocusNode.requestFocus();
+        
+        // Then try with delay as backup
+        Future.delayed(const Duration(milliseconds: 50), () {
+          if (mounted && !_textFieldFocusNode.hasFocus) {
+            _textFieldFocusNode.requestFocus();
+          }
+        });
+        
+        // Final attempt with longer delay
+        Future.delayed(const Duration(milliseconds: 200), () {
+          if (mounted && !_textFieldFocusNode.hasFocus) {
+            _textFieldFocusNode.requestFocus();
+          }
+        });
+      }
+    });
+    
+    print('Reply target switched successfully - selectedCommentId: $selectedCommentId, type: $type');
   }
 
-  // Cancel reply
+  // Cancel reply - comprehensive cleanup
   void _cancelReply() {
     print('=== CANCEL REPLY ===');
+    
+    // Force unfocus immediately
+    if (_textFieldFocusNode.hasFocus) {
+      _textFieldFocusNode.unfocus();
+    }
+    
+    // Clear the reply text
+    _replyController.clear();
+    
+    // Reset all state variables consistently
     setState(() {
       selectedCommentId = null;
       selectedCommentAuthor = null;
@@ -2142,16 +2205,16 @@ class _PostCardState extends State<PostCard>
       type = '';
     });
     
+    // Update reactive notifiers
+    _replyComposerNotifier.value = false;
+    _selectedCommentNotifier.value = null;
+    
+    // Clear persistent state
     _replyState['commentId'] = null;
     _replyState['author'] = null;
     _replyState['isReplying'] = false;
     
-    // Update notifiers
-    _replyComposerNotifier.value = false;
-    _selectedCommentNotifier.value = null;
-    
-    _replyController.clear();
-    print('Reply cancelled, showReplyComposer: $showReplyComposer');
+    print('Reply cancelled - all state cleared');
   }
 
   // Add reply to a comment
@@ -2346,12 +2409,13 @@ class _PostCardState extends State<PostCard>
   bool showReplies = false; // Flag to track whether to show replies or not
 
   filterSheetModel() {
-    debugPrint('filterSheetModel called - resetting selectedCommentId to null');
-    setState(() {
-      _replyController.clear();
-      selectedCommentId = null;
-      type = '';
-    });
+    debugPrint('filterSheetModel called - resetting all reply state');
+    
+    // Clear all reply state when opening comment section
+    _cancelReply();
+    
+    // Also clear the comment text field
+    mySearchController.clear();
 
     showModalBottomSheet(
       isScrollControlled: true,
@@ -2588,6 +2652,7 @@ class _PostCardState extends State<PostCard>
                                                       comment, index, reactiveComments);
                                                 },
                                                 onReply: () {
+                                                  print('Reply button tapped for comment: ${comment.id}, author: $username');
                                                   _startReply(comment.id.isNotEmpty ? comment.id : index.toString(), username);
                                                 },
                                                 onToggleReplies: actualReplyCount > 0 ? () {
@@ -2637,51 +2702,51 @@ class _PostCardState extends State<PostCard>
                     ),*/
                     
                     // Reply Input - Reactive with ValueListenableBuilder
-                    ValueListenableBuilder<bool>(
-                      valueListenable: _replyComposerNotifier,
-                      builder: (context, isReplying, child) {
-                        return isReplying
-                            ? Container(
-                                padding: const EdgeInsets.all(12),
-                                color: Colors.grey[50],
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text('Replying to ${selectedCommentAuthor ?? "comment"}', 
-                                         style: const TextStyle(fontSize: 12, color: Colors.grey)),
-                                    const SizedBox(height: 8),
-                                    Row(
-                                      children: [
-                                        Expanded(
-                                          child: TextField(
-                                            controller: _replyController,
-                                            autofocus: true,
-                                            decoration: const InputDecoration(
-                                              hintText: 'Write reply...',
-                                              border: OutlineInputBorder(),
-                                              contentPadding: EdgeInsets.all(8),
-                                              isDense: true,
-                                            ),
-                                          ),
-                                        ),
-                                        const SizedBox(width: 8),
-                                        ElevatedButton(
-                                          onPressed: _addReply,
-                                          child: const Text('Send'),
-                                        ),
-                                        const SizedBox(width: 4),
-                                        TextButton(
-                                          onPressed: _cancelReply,
-                                          child: const Text('Cancel'),
-                                        ),
-                                      ],
-                                    ),
-                                  ],
-                                ),
-                              )
-                            : const SizedBox.shrink();
-                      },
-                    ),
+                    // ValueListenableBuilder<bool>(
+                    //   valueListenable: _replyComposerNotifier,
+                    //   builder: (context, isReplying, child) {
+                    //     return isReplying
+                    //         ? Container(
+                    //             padding: const EdgeInsets.all(12),
+                    //             color: Colors.grey[50],
+                    //             child: Column(
+                    //               crossAxisAlignment: CrossAxisAlignment.start,
+                    //               children: [
+                    //                 Text('Replying to ${selectedCommentAuthor ?? "comment"}', 
+                    //                      style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                    //                 const SizedBox(height: 8),
+                    //                 Row(
+                    //                   children: [
+                    //                     Expanded(
+                    //                       child: TextField(
+                    //                         controller: _replyController,
+                    //                         autofocus: true,
+                    //                         decoration: const InputDecoration(
+                    //                           hintText: 'Write reply...',
+                    //                           border: OutlineInputBorder(),
+                    //                           contentPadding: EdgeInsets.all(8),
+                    //                           isDense: true,
+                    //                         ),
+                    //                       ),
+                    //                     ),
+                    //                     const SizedBox(width: 8),
+                    //                     ElevatedButton(
+                    //                       onPressed: _addReply,
+                    //                       child: const Text('Send'),
+                    //                     ),
+                    //                     const SizedBox(width: 4),
+                    //                     TextButton(
+                    //                       onPressed: _cancelReply,
+                    //                       child: const Text('Cancel'),
+                    //                     ),
+                    //                   ],
+                    //                 ),
+                    //               ],
+                    //             ),
+                    //           )
+                    //         : const SizedBox.shrink();
+                    //   },
+                    // ),
                     
                     chatInput(
                         comment?.id.toString(), comment?.author.toString())
