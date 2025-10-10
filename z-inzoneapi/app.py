@@ -2768,6 +2768,8 @@ def get_feed():
         return jsonify({"success": False, "error": str(ex)}), 500
 
 # @app.route('/feed/posts-flow', methods=['GET'])
+# retrieval and ranking (LLM) two stage pipeline for social media recommendation systems
+# Use openai to convert all posts into some encodable text form to work with Gorse.io
 # def posts_flow():
 #     try:
 #         user_id = request.args.get('user_id')
@@ -3446,6 +3448,208 @@ def write_comment():
         return jsonify({"commentId": doc_ref[1].id}), 200
     except Exception as ex:
         logger.error("Error writing comment: %s", ex)
+        return jsonify({"success": False, "error": str(ex)}), 500
+
+@app.route('/api/comments/add-threaded-comment', methods=['POST'])
+def add_threaded_comment():
+    """Add a comment or reply with proper threading support"""
+    try:
+        data = request.get_json()
+        post_id = data.get("postId")
+        user_id = data.get("userId")
+        content = data.get("content")
+        parent_comment_id = data.get("parentCommentId")  # null for top-level comments
+        
+        if not post_id or not user_id or not content:
+            return jsonify({"success": False, "error": "Missing required fields"}), 400
+        
+        # Generate unique comment ID
+        import time
+        import random
+        comment_id = f"{int(time.time() * 1000)}{random.randint(1000, 9999)}"
+        
+        # Create comment data with threading support
+        comment_data = {
+            "id": comment_id,
+            "author": get_user_name(user_id),
+            "text": content,
+            "userId": user_id,
+            "postId": post_id,
+            "parentCommentId": parent_comment_id,
+            "timestamp": str(int(time.time() * 1000)),
+            "createdAt": firestore.SERVER_TIMESTAMP,
+            "likedBy": [],
+            "dislikedBy": [],
+            "replyCount": 0,
+            "isReply": parent_comment_id is not None
+        }
+
+        # Reference to the post's comment document
+        post_comment_ref = db.collection('postComments').document(post_id)
+        
+        # Use transaction for atomic updates
+        @firestore.transactional
+        def update_comments(transaction):
+            # Get current comments
+            post_doc = transaction.get(post_comment_ref)
+            current_comments = []
+            
+            if post_doc.exists:
+                current_comments = post_doc.to_dict().get('comments', [])
+            
+            # Add the new comment
+            current_comments.append(comment_data)
+            
+            # If this is a reply, increment parent's reply count
+            if parent_comment_id:
+                for comment in current_comments:
+                    if comment.get('id') == parent_comment_id:
+                        comment['replyCount'] = comment.get('replyCount', 0) + 1
+                        break
+            
+            # Update the document
+            transaction.set(post_comment_ref, {'comments': current_comments}, merge=True)
+            
+            return current_comments
+        
+        # Execute transaction
+        transaction = db.transaction()
+        updated_comments = update_comments(transaction)
+        
+        # Send notifications
+        try:
+            # Find the post owner to send notification
+            collections = ['humanPosts', 'reposts', 'aiPosts']
+            post_author_id = None
+            
+            for collection in collections:
+                try:
+                    post_doc = db.collection(collection).document(post_id).get()
+                    if post_doc.exists:
+                        post_data = post_doc.to_dict()
+                        post_author_id = post_data.get('user_document_id')
+                        break
+                except Exception as e:
+                    continue
+            
+            # Notify post author (if not commenting on own post)
+            if post_author_id and post_author_id != user_id:
+                notification_type = 'comment_reply' if parent_comment_id else 'comment'
+                notification_data = {
+                    'userId': post_author_id,
+                    'type': notification_type,
+                    'title': f'New {"Reply" if parent_comment_id else "Comment"}',
+                    'body': f'{get_user_name(user_id)} {"replied to" if parent_comment_id else "commented on"} your post',
+                    'isRead': False,
+                    'createdAt': firestore.SERVER_TIMESTAMP,
+                    'data': {
+                        'postId': post_id,
+                        'commentId': comment_id,
+                        'parentCommentId': parent_comment_id,
+                        'commenterId': user_id,
+                        'commenterUsername': get_user_name(user_id),
+                        'content': content
+                    }
+                }
+                db.collection('notifications').add(notification_data)
+            
+            # If this is a reply, also notify the parent comment author
+            if parent_comment_id:
+                parent_comment = next((c for c in updated_comments if c.get('id') == parent_comment_id), None)
+                if parent_comment:
+                    parent_author_id = parent_comment.get('userId')
+                    if parent_author_id and parent_author_id != user_id and parent_author_id != post_author_id:
+                        reply_notification_data = {
+                            'userId': parent_author_id,
+                            'type': 'comment_reply',
+                            'title': 'Reply to Your Comment',
+                            'body': f'{get_user_name(user_id)} replied to your comment',
+                            'isRead': False,
+                            'createdAt': firestore.SERVER_TIMESTAMP,
+                            'data': {
+                                'postId': post_id,
+                                'commentId': comment_id,
+                                'parentCommentId': parent_comment_id,
+                                'replierId': user_id,
+                                'replierUsername': get_user_name(user_id),
+                                'content': content
+                            }
+                        }
+                        db.collection('notifications').add(reply_notification_data)
+                        
+        except Exception as e:
+            logger.error(f"Error sending notifications: {e}")
+        
+        return jsonify({
+            "success": True,
+            "commentId": comment_id,
+            "isReply": parent_comment_id is not None
+        }), 200
+        
+    except Exception as ex:
+        logger.error("Error adding threaded comment: %s", ex)
+        return jsonify({"success": False, "error": str(ex)}), 500
+
+@app.route('/api/comments/get-threaded-comments', methods=['POST'])
+def get_threaded_comments():
+    """Get comments for a post with proper threading"""
+    try:
+        data = request.get_json()
+        post_id = data.get("postId")
+        
+        if not post_id:
+            return jsonify({"success": False, "error": "Missing postId"}), 400
+        
+        # Get comments from Firestore
+        post_comment_doc = db.collection('postComments').document(post_id).get()
+        
+        if not post_comment_doc.exists:
+            return jsonify({"success": True, "comments": []}), 200
+        
+        comments_data = post_comment_doc.to_dict().get('comments', [])
+        
+        # Separate parent comments and replies
+        parent_comments = []
+        replies_by_parent = {}
+        
+        for comment in comments_data:
+            if comment.get('parentCommentId'):
+                # This is a reply
+                parent_id = comment['parentCommentId']
+                if parent_id not in replies_by_parent:
+                    replies_by_parent[parent_id] = []
+                replies_by_parent[parent_id].append(comment)
+            else:
+                # This is a parent comment
+                parent_comments.append(comment)
+        
+        # Sort parent comments by timestamp (newest first)
+        parent_comments.sort(key=lambda x: int(x.get('timestamp', 0)), reverse=True)
+        
+        # Sort replies within each parent (newest first)
+        for replies in replies_by_parent.values():
+            replies.sort(key=lambda x: int(x.get('timestamp', 0)), reverse=True)
+        
+        # Build the final threaded structure
+        threaded_comments = []
+        for parent in parent_comments:
+            parent_id = parent.get('id')
+            replies = replies_by_parent.get(parent_id, [])
+            
+            # Update reply count
+            parent['replyCount'] = len(replies)
+            
+            threaded_comments.append(parent)
+            # Add replies after parent
+            threaded_comments.extend(replies)
+        
+        return jsonify({
+            "success": True,
+            "comments": threaded_comments
+        }), 200
+        
+    except Exception as ex:
+        logger.error("Error getting threaded comments: %s", ex)
         return jsonify({"success": False, "error": str(ex)}), 500
 
 @app.route('/feed/get-user-posts', methods=['POST'])
@@ -7264,6 +7468,35 @@ def schedule_engagement_auto():
             executed_interactions = []
             total_executed = 0
             errors = []
+            
+            # 🤖 CRITICAL FIX: Run DM monitoring FIRST to catch immediate responses
+            try:
+                print('🔄 Running DM monitoring to catch pending responses...')
+                dm_monitor_result = ai_scheduler.monitor_and_respond_to_dms()
+                
+                if dm_monitor_result['success']:
+                    dm_responses = dm_monitor_result.get('responses_sent', 0)
+                    total_executed += dm_responses
+                    
+                    # Add DM responses to executed interactions
+                    for response_detail in dm_monitor_result.get('response_details', []):
+                        executed_interactions.append({
+                            'type': 'dm_response',
+                            'character': response_detail.get('ai_character', 'Unknown'),
+                            'target_user': response_detail.get('human_user', 'Unknown'),
+                            'conversation_id': response_detail.get('conversation_id', ''),
+                            'immediate_response': True
+                        })
+                    
+                    print(f'✅ DM monitoring sent {dm_responses} immediate responses')
+                else:
+                    print(f'⚠️ DM monitoring had issues: {dm_monitor_result.get("error", "Unknown")}')
+            except Exception as dm_error:
+                print(f'❌ DM monitoring error: {dm_error}')
+                errors.append({
+                    'type': 'dm_monitoring',
+                    'error': str(dm_error)
+                })
             
             # Execute each character's scheduled interactions
             for character_data in schedule_result.get('characters', []):
