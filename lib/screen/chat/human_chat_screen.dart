@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:inzone/components/chat/chat_app_bar.dart';
 import 'package:inzone/components/chat/chat_input.dart';
 import 'package:inzone/components/chat/date_header.dart';
@@ -8,6 +9,7 @@ import 'package:inzone/components/chat/message_bubble.dart';
 import 'package:inzone/services/inzone_database.dart';
 import 'package:inzone/services/notification_event_service.dart';
 import 'package:inzone/services/notification_service.dart';
+import 'package:inzone/services/ai_engagement_service.dart';
 import 'package:inzone/theme/light_theme.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter/foundation.dart';
@@ -146,13 +148,18 @@ class _HumanChatScreenState extends State<HumanChatScreen> {
         _msgController.text.trim(),
         currentUserId!,
         widget.otherUserId,
+      );
+
+      // 🤖 AI ENGAGEMENT FIX: Check if receiver is an AI character and trigger immediate response
+      await _checkAndTriggerAIResponse(_msgController.text.trim());
+
       // Trigger DM notification
       // await NotificationService.sendDirectMessageNotification(
       //   chatId: widget.conversationId,
       //   content: _msgController.text.trim(),
       //   senderId: currentUserId!,
       //   receiverId: widget.otherUserId,
-      );
+      // );
 
       // Fallback: ensure a notification doc exists in Firestore for the receiver even if the event endpoint is delayed or fails. Resolve the receiver to a canonical humanUsers uid (doc/uid/username) and write a deduplicated `direct_message` notification.
       try {
@@ -476,6 +483,42 @@ class _HumanChatScreenState extends State<HumanChatScreen> {
       return 'Yesterday';
     } else {
       return DateFormat('MMMM d, yyyy').format(dateTime.toLocal());
+    }
+  }
+
+  /// 🤖 AI ENGAGEMENT FIX: Check if receiver is an AI character and trigger immediate response
+  Future<void> _checkAndTriggerAIResponse(String messageText) async {
+    try {
+      // Check if the other user is an AI character by looking in popularCharacters collection
+      final aiCharacterDoc = await FirebaseFirestore.instance
+          .collection('popularCharacters')
+          .doc(widget.otherUserId)
+          .get();
+
+      if (aiCharacterDoc.exists) {
+        print('🤖 Detected message to AI character: ${widget.otherUserName}');
+        print('🚀 Triggering immediate AI response...');
+        
+        // Trigger immediate AI response
+        final result = await AIEngagementService.triggerDMAutoResponse(
+          userId: currentUserId!,
+          aiCharacterId: widget.otherUserId,
+          messageText: messageText,
+          conversationId: widget.conversationId,
+        );
+
+        if (result['success'] == true) {
+          print('✅ AI auto-response triggered successfully');
+        } else {
+          print('❌ AI auto-response failed: ${result['error']}');
+          // Don't show error to user - this is a background process
+        }
+      } else {
+        print('👤 Message to human user - no AI response needed');
+      }
+    } catch (e) {
+      print('❌ Error checking for AI character: $e');
+      // Don't show error to user - this is a background process
     }
   }
 }
