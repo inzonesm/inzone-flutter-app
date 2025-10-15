@@ -88,14 +88,23 @@ class _PostChatScreenState extends State<PostChatScreen> {
               onPressed: () async {
                 if (postContent != null && postContent!.isNotEmpty) {
                   try {
-                    // First analyze sentiment
+                    // Enhanced sentiment analysis
                     final analysis =
-                        await InZoneDatabase.analyzeSentiment(postContent!);
+                        await InZoneDatabase.analyzeSentiment(
+                          postContent!,
+                          imageUrls: [], // No images in chat sharing
+                          videoUrls: [], // No videos in chat sharing
+                        );
 
                     // Update state before proceeding with post creation
                     int sentiment = analysis["sentiment"] as int;
+                    bool isBlocked = analysis["blocked"] ?? false;
+                    
                     setState(() {
-                      if (sentiment == -1) {
+                      if (sentiment == -2 || isBlocked) {
+                        moveValue = low;
+                        doesNotWork = true;
+                      } else if (sentiment == -1) {
                         moveValue = low;
                         doesNotWork = true;
                       } else if (sentiment == 0) {
@@ -107,17 +116,30 @@ class _PostChatScreenState extends State<PostChatScreen> {
                       }
                     });
 
-                    // Show error message and return if content is inappropriate
+                    // Show error message and return if content is blocked or inappropriate
+                    if (sentiment == -2 || isBlocked) {
+                      String blockReason = analysis["block_reason"] ?? "Content violates our guidelines";
+                      ToastService.showToast(
+                        context,
+                        backgroundColor: theme.canvasColor,
+                        shadowColor: Colors.transparent,
+                        leading: const Icon(
+                          Icons.error,
+                          color: Colors.redAccent,
+                        ),
+                        message: "Post blocked: $blockReason",
+                      );
+                      return;
+                    }
+
                     if (sentiment == -1) {
                       ToastService.showToast(
                         context,
                         backgroundColor: theme.canvasColor,
                         shadowColor: Colors.transparent,
                         leading: const Icon(
-                          Icons
-                              .error, // or Icons.check_circle, Icons.cancel, etc.
-                          color: Colors
-                              .redAccent, // or Colors.greenAccent, Colors.orange, etc.
+                          Icons.error,
+                          color: Colors.redAccent,
                         ),
                         message:
                             'Your post contains inappropriate content. Please revise and try again.',
