@@ -1436,24 +1436,33 @@ class AIScheduler:
                                  message_history: List[Dict], ai_character: Dict) -> bool:
         """Send immediate DM response using the proper AI service"""
         try:
+            logger.info(f"🚀 Starting immediate DM response: {ai_id} -> {human_id}")
+            
             # Import the proper AI service
             from inzone_ai_engagement import InZoneAIEngagementService
             from openai import OpenAI
             import os
             
             # Initialize the proper AI service
-            openai_client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+            openai_api_key = os.environ.get("OPENAI_API_KEY")
+            if not openai_api_key:
+                logger.error("❌ OpenAI API key not found in environment")
+                return False
+            
+            openai_client = OpenAI(api_key=openai_api_key)
             ai_service = InZoneAIEngagementService(self.db, openai_client)
+            logger.info("✅ AI service initialized")
             
             # Get human user data
             human_user_ref = self.db.collection('humanUsers').document(human_id)
             human_user_doc = human_user_ref.get()
             
             if not human_user_doc.exists:
-                logger.error(f"Human user {human_id} not found")
+                logger.error(f"❌ Human user {human_id} not found")
                 return False
             
             human_user_data = human_user_doc.to_dict()
+            logger.info(f"✅ Human user data loaded: {human_user_data.get('name', 'Unknown')}")
             
             # Build conversation context with proper message analysis
             ai_message_count = 0
@@ -1487,12 +1496,22 @@ class AIScheduler:
                 'is_response': True  # This is a response, not initial DM
             }
             
+            logger.info(f"📝 Conversation context built: {len(message_history)} messages, {ai_message_count} from AI, {human_message_count} from human")
+            
             # Generate contextual response using the proper AI service
-            response_message = ai_service.generate_ai_dm_message(
-                ai_character, 
-                human_user_data, 
-                conversation_context
-            )
+            try:
+                response_message = ai_service.generate_ai_dm_message(
+                    ai_character, 
+                    human_user_data, 
+                    conversation_context
+                )
+                logger.info(f"✅ AI response generated: {response_message[:50]}...")
+            except Exception as e:
+                logger.error(f"❌ Error generating AI response: {e}")
+                logger.error(f"   AI Character: {ai_character.get('name', 'Unknown')}")
+                logger.error(f"   Human User: {human_user_data.get('name', 'Unknown')}")
+                logger.error(f"   Context: {conversation_context}")
+                return False
             
             # Send the response
             conversation_ref = self.db.collection('conversations').document(conversation_id)
@@ -1508,14 +1527,24 @@ class AIScheduler:
                 'isResponse': True  # Mark as a response to user message
             }
             
-            conversation_ref.collection('messages').add(new_message)
+            try:
+                conversation_ref.collection('messages').add(new_message)
+                logger.info("✅ Message added to conversation")
+            except Exception as e:
+                logger.error(f"❌ Error adding message to conversation: {e}")
+                return False
             
             # Update conversation metadata with proper Firestore timestamps
-            conversation_ref.update({
-                'lastMessage': response_message,
-                'lastMessageTime': firestore.SERVER_TIMESTAMP,
-                'lastUpdated': firestore.SERVER_TIMESTAMP,
-            })
+            try:
+                conversation_ref.update({
+                    'lastMessage': response_message,
+                    'lastMessageTime': firestore.SERVER_TIMESTAMP,
+                    'lastUpdated': firestore.SERVER_TIMESTAMP,
+                })
+                logger.info("✅ Conversation metadata updated")
+            except Exception as e:
+                logger.error(f"❌ Error updating conversation metadata: {e}")
+                return False
             
             # Log the interaction
             self.log_interaction(ai_id, human_id, EngagementType.DM, {
@@ -1544,6 +1573,35 @@ class AIScheduler:
                 
                 self.db.collection('notifications').add(notification_data)
                 logger.info(f"Created notification for {human_id} about DM from {ai_character.get('name', ai_id)}")
+                
+                # Send push notification to human user
+                try:
+                    import requests
+                    push_response = requests.post(
+                        'https://inzoneapi-912424781531.us-central1.run.app/api/notifications/send-push',
+                        json={
+                            'userId': human_id,
+                            'title': ai_character.get('name', ai_id),
+                            'body': response_message[:100] + '...' if len(response_message) > 100 else response_message,
+                            'data': {
+                                'type': 'direct_message',
+                                'chatId': conversation_id,
+                                'senderId': ai_id,
+                                'senderName': ai_character.get('name', ai_id),
+                                'action': 'navigate_to_chat',
+                                'route': f'/chat/{conversation_id}'
+                            }
+                        },
+                        timeout=10
+                    )
+                    
+                    if push_response.status_code == 200:
+                        logger.info(f"✅ Push notification sent to {human_id} from AI {ai_character.get('name', ai_id)}")
+                    else:
+                        logger.warning(f"❌ Push notification failed: {push_response.status_code} - {push_response.text}")
+                        
+                except Exception as push_e:
+                    logger.error(f"Error sending push notification: {push_e}")
                 
             except Exception as e:
                 logger.error(f"Error creating notification: {e}")

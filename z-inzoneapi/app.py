@@ -82,6 +82,8 @@ from notification_service import notification_service
 from ai_nudge_scheduler import AINudgeScheduler
 from rare_offer_service import rare_offer_service
 
+from media_analysis_service import MediaAnalysisService
+
 # Initialize enhanced AI engagement service
 inzone_ai_service = InZoneAIEngagementService(db, client)
 
@@ -482,38 +484,177 @@ def generate_3d_avatar():
 # API Controller
 # ---------------------------
 
+media_analysis_service = MediaAnalysisService(client)
+
 @app.route('/api/sentiment-analysis', methods=['POST'])
 def analyze_sentiment():
     try:
         # Extract JSON content from the request
         content = request.get_json()
-        if not content or 'text' not in content:
-            return jsonify({"success": False, "error": "Missing 'text' in request body", "code": "INVALID_REQUEST"}), 400
-        # Prepare the prompt for sentiment analysis
-        prompt = f'Analyze the sentiment of the following text and provide scores in the exact JSON format: {content['text']}. do not add anything else to the response, not even ```json. just give me a json starting and ending in curly braces. repeat all the fields exactly like "PositiveScore", "NegativeScore", "NeutralScore", "OverallSentiment", "Categories", "Keywords".'
-        # Call OpenAI API for sentiment analysis
-        completion = client.chat.completions.create(
-            model="gpt-4o",
-            messages=[
-                {"role": "system", "content": "You are a sentiment analysis model."},
-                {"role": "user", "content": prompt}
-            ]
-        )
-        # Extract the assistant's response
-        chat_response = completion.choices[0].message.content
-        # Parse the response into JSON format
-        try:
-            sentiment = json.loads(chat_response)
-        except json.JSONDecodeError:
-            logger.error("Invalid JSON response from OpenAI: %s", chat_response)
-            return jsonify({"success": False, "error": "Invalid response format from OpenAI", "code": "SENTIMENT_FORMAT_ERROR"}), 500
-        # Validate the response format
-        required_keys = {"PositiveScore", "NegativeScore", "NeutralScore", "OverallSentiment", "Categories", "Keywords"}
-        if not all(key in sentiment for key in required_keys):
-            logger.error("Missing keys in OpenAI response: %s", sentiment)
-            return jsonify({"success": False, "error": "Invalid response format from OpenAI", "code": "SENTIMENT_FORMAT_ERROR"}), 500
-        # Return the sentiment analysis result
-        return jsonify({"success": True, "data": sentiment}), 200
+        if not content:
+            return jsonify({"success": False, "error": "Missing request body", "code": "INVALID_REQUEST"}), 400
+        
+        # Extract text, images, and videos from request
+        text_content = content.get('text', '')
+        image_urls = content.get('image_urls', [])
+        video_urls = content.get('video_urls', [])
+        
+        if not text_content and not image_urls and not video_urls:
+            return jsonify({"success": False, "error": "Missing content to analyze", "code": "INVALID_REQUEST"}), 400
+        
+        # Initialize analysis results
+        text_analysis = None
+        urban_dict_analysis = None
+        image_analysis = None
+        video_analysis = None
+        overall_inappropriate = False
+        
+        # Analyze text content
+        if text_content:
+            # Enhanced text analysis prompt
+            enhanced_prompt = f'''Analyze the sentiment of the following text with enhanced scrutiny for harmful content. 
+            Consider context, implied meanings, and potential for harassment or harm.
+            
+            Text: "{text_content}"
+            
+            Provide analysis in this exact JSON format (no additional text, no markdown, just JSON):
+            {{
+                "PositiveScore": <float 0-1>,
+                "NegativeScore": <float 0-1>,
+                "NeutralScore": <float 0-1>,
+                "OverallSentiment": "<positive/negative/neutral>",
+                "Categories": ["<category1>", "<category2>"],
+                "Keywords": ["<keyword1>", "<keyword2>"],
+                "HarmfulContent": {{
+                    "detected": <boolean>,
+                    "type": "<harassment/hate_speech/violence/none>",
+                    "severity": "<low/medium/high/none>",
+                    "reasoning": "<brief explanation>"
+                }},
+                "ContextualRisk": {{
+                    "impliedThreat": <boolean>,
+                    "targetedHarassment": <boolean>,
+                    "misinformation": <boolean>
+                }}
+            }}'''
+            
+            # Call OpenAI API for enhanced sentiment analysis
+            completion = client.chat.completions.create(
+                model="gpt-4o",
+                messages=[
+                    {"role": "system", "content": "You are an advanced content moderation and sentiment analysis AI. Analyze text for both sentiment and potential harmful content with high accuracy."},
+                    {"role": "user", "content": enhanced_prompt}
+                ]
+            )
+            
+            # Extract and parse the response
+            chat_response = completion.choices[0].message.content.strip()
+            
+            # Remove markdown code blocks if present (more robust handling)
+            import re
+            # Remove ```json...``` or ```...``` patterns
+            markdown_pattern = r'^```(?:json)?\s*\n?(.*?)\n?```$'
+            match = re.match(markdown_pattern, chat_response, re.DOTALL)
+            if match:
+                chat_response = match.group(1).strip()
+            
+            try:
+                text_analysis = json.loads(chat_response)
+            except json.JSONDecodeError as e:
+                logger.error("Invalid JSON response from OpenAI: %s", chat_response)
+                logger.error("JSON decode error: %s", str(e))
+                return jsonify({"success": False, "error": "Invalid response format from OpenAI", "code": "SENTIMENT_FORMAT_ERROR"}), 500
+            
+            urban_dict_analysis = {"flagged_terms": [], "explanations": [], "has_negative_slang": False}
+            
+            # Determine if content is inappropriate based on text analysis ONLY
+            harmful_content = text_analysis.get("HarmfulContent", {})
+            if harmful_content.get("detected", False):
+                overall_inappropriate = True
+        
+        # Analyze images
+        if image_urls:
+            image_analysis = media_analysis_service.analyze_image_content(image_urls)
+            if image_analysis.get("has_inappropriate_content", False):
+                overall_inappropriate = True
+        
+        # Analyze videos
+        if video_urls:
+            video_analysis = media_analysis_service.analyze_video_content(video_urls)
+            if video_analysis.get("has_inappropriate_content", False):
+                overall_inappropriate = True
+        
+        # Validate text analysis format if present
+        if text_analysis:
+            required_keys = {"PositiveScore", "NegativeScore", "NeutralScore", "OverallSentiment", "Categories", "Keywords"}
+            if not all(key in text_analysis for key in required_keys):
+                logger.error("Missing keys in OpenAI response: %s", text_analysis)
+                return jsonify({"success": False, "error": "Invalid response format from OpenAI", "code": "SENTIMENT_FORMAT_ERROR"}), 500
+        
+        # Combine text and image sentiment for overall sentiment
+        combined_sentiment = None
+        if text_analysis and image_analysis:
+            # Get text sentiment scores
+            text_pos = text_analysis.get("PositiveScore", 0)
+            text_neg = text_analysis.get("NegativeScore", 0) 
+            text_neu = text_analysis.get("NeutralScore", 0)
+            
+            # Get image sentiment if available
+            image_sentiment_adjustments = {"positive": 0, "negative": 0, "neutral": 0}
+            if image_analysis.get("analysis"):
+                for img_result in image_analysis["analysis"]:
+                    img_sentiment = img_result.get("sentiment", "neutral")
+                    img_score = img_result.get("sentiment_score", 0.5)
+                    if img_sentiment in image_sentiment_adjustments:
+                        image_sentiment_adjustments[img_sentiment] += img_score
+            
+            # Combine scores (give images 30% weight, text 70% weight)
+            final_pos = (text_pos * 0.7) + (image_sentiment_adjustments["positive"] * 0.3)
+            final_neg = (text_neg * 0.7) + (image_sentiment_adjustments["negative"] * 0.3)  
+            final_neu = (text_neu * 0.7) + (image_sentiment_adjustments["neutral"] * 0.3)
+            
+            # Determine overall sentiment
+            if final_pos > final_neg and final_pos > final_neu:
+                combined_sentiment = "positive"
+            elif final_neg > final_pos and final_neg > final_neu:
+                combined_sentiment = "negative"
+            else:
+                combined_sentiment = "neutral"
+            
+            # Update text_analysis with combined scores for frontend
+            text_analysis["PositiveScore"] = final_pos
+            text_analysis["NegativeScore"] = final_neg
+            text_analysis["NeutralScore"] = final_neu
+            text_analysis["OverallSentiment"] = combined_sentiment
+        
+        # Prepare comprehensive response
+        response_data = {
+            "text_analysis": text_analysis,
+            "urban_dictionary_check": urban_dict_analysis,
+            "image_analysis": image_analysis,
+            "video_analysis": video_analysis,
+            "overall_assessment": {
+                "inappropriate_content_detected": overall_inappropriate,
+                "recommendation": "block" if overall_inappropriate else "allow",
+                "confidence_score": 0.95 if overall_inappropriate else 0.85
+            }
+        }
+        
+        # For backward compatibility, include the original format
+        if text_analysis:
+            response_data.update(text_analysis)
+        
+        # Add debugging output
+        logger.info("=== SENTIMENT ANALYSIS RESULT ===")
+        logger.info(f"Overall Sentiment: {text_analysis.get('OverallSentiment', 'N/A') if text_analysis else 'N/A'}")
+        logger.info(f"Has inappropriate content: {overall_inappropriate}")
+        if image_analysis and image_analysis.get('analysis'):
+            logger.info(f"Image Analysis: {image_analysis['analysis']}")
+        logger.info(f"Overall recommendation: {response_data['overall_assessment']['recommendation']}")
+        logger.info("=== END ANALYSIS ===")
+        
+        return jsonify({"success": True, "data": response_data}), 200
+        
     except Exception as ex:
         logger.error("Error analyzing sentiment: %s", ex)
         return jsonify({"success": False, "error": "Failed to analyze sentiment", "code": "SENTIMENT_ERROR"}), 500
@@ -1865,12 +2006,14 @@ def get_balance():
 def purchase_incash():
     try:
         data = request.get_json()
+        app.logger.info(f"Purchase request received: {data}")
         user_id = data.get("UserDocumentId")
         package_id = data.get("PackageId")
         platform = data.get("Platform")  # "ios" or "android"
         receipt_data = data.get("ReceiptData")
 
         if not all([user_id, package_id, platform, receipt_data]):
+            app.logger.error(f"Missing required fields - user_id: {user_id}, package_id: {package_id}, platform: {platform}, receipt_data: {'***' if receipt_data else None}")
             return jsonify({"success": False, "error": "Missing required fields"}), 400
 
         packages = {
@@ -5768,12 +5911,12 @@ def send_push_notification():
         
         logger.info(f"Sending push notification to user {user_id}: {title}")
         
-        # Get user's FCM tokens from humanUsers collection only
+        # Get user's FCM tokens - check humanUsers first, then popularCharacters for validation
         user_tokens = []
         try:
             logger.info(f"Fetching user document for user_id: {user_id}")
             user_doc = db.collection('humanUsers').document(user_id).get()
-            logger.info(f"User document exists: {user_doc.exists}")
+            logger.info(f"User document exists in humanUsers: {user_doc.exists}")
             
             if user_doc.exists:
                 user_data = user_doc.to_dict()
@@ -5781,8 +5924,14 @@ def send_push_notification():
                 logger.info(f"Found user in humanUsers collection with {len(user_tokens)} FCM tokens")
                 logger.info(f"FCM tokens: {[token[:20] + '...' for token in user_tokens]}")
             else:
-                logger.warning(f"User {user_id} not found in humanUsers collection")
-                return jsonify({"success": False, "error": f"User {user_id} not found in humanUsers collection"}), 404
+                # Check if this is an AI character (should not receive push notifications)
+                ai_doc = db.collection('popularCharacters').document(user_id).get()
+                if ai_doc.exists:
+                    logger.warning(f"Attempted to send push notification to AI character {user_id} - AI characters cannot receive push notifications")
+                    return jsonify({"success": False, "error": f"Cannot send push notifications to AI characters (ID: {user_id})"}), 400
+                else:
+                    logger.warning(f"User {user_id} not found in humanUsers or popularCharacters collections")
+                    return jsonify({"success": False, "error": f"User {user_id} not found"}), 404
         except Exception as e:
             logger.error(f"Error fetching user tokens: {e}")
             logger.error(f"Exception type: {type(e)}")
@@ -7838,6 +7987,23 @@ def dm_auto_responder():
         
         # Get conversation history
         conv_ref = db.collection('conversations').document(conversation_id)
+        conv_doc = conv_ref.get()
+        
+        # Ensure conversation exists
+        if not conv_doc.exists:
+            logger.info(f"Creating new conversation: {conversation_id}")
+            conv_ref.set({
+                'participants': [user_id, ai_character_id],
+                'participantNames': {
+                    user_id: human_data.get('name', user_id),
+                    ai_character_id: ai_character.get('name', ai_character_id)
+                },
+                'lastMessage': message_text,
+                'lastMessageTime': firestore.SERVER_TIMESTAMP,
+                'lastUpdated': firestore.SERVER_TIMESTAMP,
+                'isAIConversation': True
+            })
+        
         messages_ref = conv_ref.collection('messages')
         recent_messages = messages_ref.order_by('timestamp', direction=firestore.Query.DESCENDING).limit(5).stream()
         message_history = [msg.to_dict() for msg in recent_messages]
@@ -7845,6 +8011,9 @@ def dm_auto_responder():
         # Generate and send AI response
         from ai_scheduler import AIScheduler
         ai_scheduler = AIScheduler(db)
+        
+        logger.info(f"🚀 DM Auto-Responder: {ai_character.get('name', ai_character_id)} responding to {human_data.get('name', user_id)}")
+        logger.info(f"Message history length: {len(message_history)}")
         
         success = ai_scheduler.send_immediate_dm_response(
             ai_character_id,
