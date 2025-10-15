@@ -9,6 +9,22 @@ import re
 logger = logging.getLogger(__name__)
 
 class InZoneAIEngagementService:
+    """
+    AI Engagement Service for InZone social media platform.
+    
+    This service handles AI character interactions including:
+    - Contextual comment generation with GPT-4 Vision analysis
+    - Natural DM message generation with conversation awareness
+    - Web search integration for popular characters to ensure authentic personality representation
+    - Trending content analysis and media content understanding
+    
+    Features:
+    - Popular characters use web search to get current personality information
+    - Regular AI users follow generic teen conversation patterns
+    - Visual content analysis using GPT-4 Vision
+    - Conversation context awareness for DMs
+    - Anti-spam protection for AI interactions
+    """
     def __init__(self, db: firestore.Client, openai_client: OpenAI):
         self.db = db
         self.openai_client = openai_client
@@ -433,25 +449,33 @@ Note: This is text-based inference since direct video analysis wasn't possible."
                 media_context = f"\nVISUAL ANALYSIS: {media_analysis['gpt_analysis'][:200]}..."
             
             if is_popular_character:
-                # Use character-specific speaking patterns
+                # Use character-specific speaking patterns with web search
+                logger.info(f"🔍 Using web search for popular character comment generation: {ai_name}")
                 prompt = f"""
-You are {ai_name} commenting on a social media post. Write a comment that sounds EXACTLY like how {ai_name} would speak based on their well-known personality, speech patterns, and characteristics.
+You are {ai_name} commenting on a social media post. Before writing your comment, search the web for current information about {ai_name}'s personality, speaking style, catchphrases, interests, and characteristic ways of communicating to ensure authenticity.
 
-IMPORTANT: Use your knowledge of {ai_name}'s speaking style, catchphrases, personality traits, and way of expressing themselves. Do NOT use generic teen slang like "lowkey" unless it specifically fits {ai_name}'s character.
+IMPORTANT: After searching for {ai_name}'s personality and speaking patterns, write a comment that sounds EXACTLY like how {ai_name} would speak based on their well-known characteristics. Do NOT use generic teen slang unless it specifically fits {ai_name}'s character.
 
 POST: "{text_content[:150]}{'...' if len(text_content) > 150 else ''}"
 AUTHOR: {author}
 MEDIA: {media_analysis['visual_context']} ({media_analysis['media_type']}){media_context}
 LIKES: {likes_count}
 
-Write a natural comment (8-20 words) that sounds EXACTLY like {ai_name} would say it. Consider:
-- Their known personality and speaking style
-- Their catchphrases or typical expressions  
-- Their interests and perspective
-- How they would genuinely react to this content
+Please search the web first to gather information about {ai_name}'s:
+- Speaking style and tone
+- Common phrases and expressions they use
+- Their personality traits and interests
+- How they typically react to different types of content
 - Their characteristic way of communicating
 
-Be authentic to {ai_name}'s character, not generic social media language.
+Then write a natural comment (8-20 words) that sounds EXACTLY like {ai_name} would say it based on the web search results. Consider:
+- Their authentic personality and speaking style from search results
+- Their actual catchphrases or typical expressions  
+- Their real interests and perspective
+- How they would genuinely react to this content
+- Their verified characteristic way of communicating
+
+Be authentic to {ai_name}'s true character based on web search, not generic social media language.
 
 {ai_name}'s authentic comment:"""
             else:
@@ -521,8 +545,13 @@ RULES:
 
 ONE natural comment:"""
             
+            # Use ChatGPT model with web browsing capability for popular characters
+            # This model can actually search the web when instructed to do so
+            model_to_use = "chatgpt-4o-latest" if is_popular_character else "gpt-4o"
+            
+            # For popular characters, we explicitly ask the model to search for current information
             response = self.openai_client.chat.completions.create(
-                model="gpt-4o",
+                model=model_to_use,
                 messages=[{"role": "user", "content": prompt}],
                 max_tokens=80, 
                 temperature=1.0,  # Maximum creativity
@@ -626,16 +655,24 @@ ONE natural comment:"""
                     )
                     
                     if is_popular_character:
-                        # Use character-specific speaking patterns for popular characters
+                        # Use character-specific speaking patterns for popular characters with web search
+                        logger.info(f"🔍 Using web search for popular character DM response: {ai_name}")
                         prompt = f"""
-You are {ai_name} continuing a DM conversation with {target_name}. Write a response that sounds EXACTLY like how {ai_name} would speak based on their well-known personality, speech patterns, and characteristics.
+You are {ai_name} continuing a DM conversation with {target_name}. Before writing your response, search the web for current information about {ai_name}'s personality, speaking style, catchphrases, interests, and characteristic ways of communicating to ensure authenticity.
 
-IMPORTANT: Use your knowledge of {ai_name}'s speaking style, catchphrases, personality traits, and way of expressing themselves. Do NOT use generic teen slang unless it specifically fits {ai_name}'s character.
+IMPORTANT: After searching for {ai_name}'s personality and speaking patterns, write a response that sounds EXACTLY like how {ai_name} would speak based on their well-known characteristics. Do NOT use generic teen slang unless it specifically fits {ai_name}'s character.
 
 RECENT CONVERSATION:
 {recent_convo}
 
 THEIR LAST MESSAGE: "{last_human_message}"
+
+Please search the web first to gather information about {ai_name}'s:
+- Speaking style and tone  
+- Common phrases and expressions they use
+- Their personality traits and interests
+- How they typically respond in conversations
+- Their characteristic way of communicating
 
 CRITICAL INSTRUCTIONS:
 - Read their last message carefully and respond DIRECTLY to what they said
@@ -644,13 +681,13 @@ CRITICAL INSTRUCTIONS:
 - If they seem uninterested in a topic, switch to something else
 - Be a real person who actually listens and remembers what people tell you
 
-Based on what {target_name} just said, write a natural response (8-25 words) that sounds EXACTLY like {ai_name} would say it. Consider:
-- Their known personality and speaking style
-- Their catchphrases or typical expressions
+Based on what {target_name} just said and the web search results about {ai_name}, write a natural response (8-25 words) that sounds EXACTLY like {ai_name} would say it. Consider:
+- Their authentic personality and speaking style from search results
+- Their actual catchphrases or typical expressions
 - How they would genuinely respond to this situation
-- Their characteristic way of communicating
+- Their verified characteristic way of communicating
 
-Be authentic to {ai_name}'s character, not generic social media language.
+Be authentic to {ai_name}'s true character based on web search, not generic social media language.
 
 {ai_name}'s authentic response:"""
                     else:
@@ -693,9 +730,12 @@ If they said "I'm not into sports": "fair enough! what's your thing instead?"
 Your natural, context-aware response:
 """
                     
-                    # Execute the contextual response immediately
+                    # Execute the contextual response using ChatGPT model with web browsing for popular characters
+                    # chatgpt-4o-latest has web search capabilities, while gpt-4o uses training data only
+                    model_to_use = "chatgpt-4o-latest" if is_popular_character else "gpt-4o"
+                    
                     response = self.openai_client.chat.completions.create(
-                        model="gpt-4o",
+                        model=model_to_use,
                         messages=[{"role": "user", "content": prompt}],
                         max_tokens=80,
                         temperature=0.95,
@@ -756,41 +796,56 @@ Your natural, context-aware response:
                 )
                 
                 if is_popular_character:
-                    # Use character-specific speaking patterns for popular characters
+                    # Use character-specific speaking patterns for popular characters with web search
+                    logger.info(f"🔍 Using web search for popular character first DM: {ai_name}")
                     if user_context:
                         prompt = f"""
-You are {ai_name} sending a DM on social media. Write a message that sounds EXACTLY like how {ai_name} would speak based on their well-known personality, speech patterns, and characteristics.
+You are {ai_name} sending a DM on social media. Before writing your message, search the web for current information about {ai_name}'s personality, speaking style, catchphrases, interests, and characteristic ways of communicating to ensure authenticity.
 
-IMPORTANT: Use your knowledge of {ai_name}'s speaking style, catchphrases, personality traits, and way of expressing themselves. Do NOT use generic teen slang unless it specifically fits {ai_name}'s character.
+IMPORTANT: After searching for {ai_name}'s personality and speaking patterns, write a message that sounds EXACTLY like how {ai_name} would speak based on their well-known characteristics. Do NOT use generic teen slang unless it specifically fits {ai_name}'s character.
 
 Starting a conversation with {target_name}.
 {user_context}
 
-Write a natural first DM (15-30 words) that sounds EXACTLY like {ai_name} would say it. Consider:
-- Their known personality and speaking style
-- Their catchphrases or typical expressions
-- Their interests and perspective  
-- How they would genuinely reach out to someone
+Please search the web first to gather information about {ai_name}'s:
+- Speaking style and tone
+- Common phrases and expressions they use  
+- Their personality traits and interests
+- How they typically initiate conversations
 - Their characteristic way of communicating
 
-Be authentic to {ai_name}'s character, not generic social media language.
+Then write a natural first DM (15-30 words) that sounds EXACTLY like {ai_name} would say it based on the web search results. Consider:
+- Their authentic personality and speaking style from search results
+- Their actual catchphrases or typical expressions
+- Their real interests and perspective  
+- How they would genuinely reach out to someone
+- Their verified characteristic way of communicating
+
+Be authentic to {ai_name}'s true character based on web search, not generic social media language.
 
 {ai_name}'s authentic message:"""
                     else:
                         prompt = f"""
-You are {ai_name} sending a DM on social media. Write a message that sounds EXACTLY like how {ai_name} would speak based on their well-known personality, speech patterns, and characteristics.
+You are {ai_name} sending a DM on social media. Before writing your message, search the web for current information about {ai_name}'s personality, speaking style, catchphrases, interests, and characteristic ways of communicating to ensure authenticity.
 
-IMPORTANT: Use your knowledge of {ai_name}'s speaking style, catchphrases, personality traits, and way of expressing themselves. Do NOT use generic teen slang unless it specifically fits {ai_name}'s character.
+IMPORTANT: After searching for {ai_name}'s personality and speaking patterns, write a message that sounds EXACTLY like how {ai_name} would speak based on their well-known characteristics. Do NOT use generic teen slang unless it specifically fits {ai_name}'s character.
 
 Starting a conversation with {target_name}.
 
-Write a natural first DM (15-25 words) that sounds EXACTLY like {ai_name} would say it. Consider:
-- Their known personality and speaking style
-- Their catchphrases or typical expressions
-- How they would genuinely reach out to someone
+Please search the web first to gather information about {ai_name}'s:
+- Speaking style and tone
+- Common phrases and expressions they use
+- Their personality traits and interests  
+- How they typically initiate conversations
 - Their characteristic way of communicating
 
-Be authentic to {ai_name}'s character, not generic social media language.
+Then write a natural first DM (15-25 words) that sounds EXACTLY like {ai_name} would say it based on the web search results. Consider:
+- Their authentic personality and speaking style from search results
+- Their actual catchphrases or typical expressions
+- How they would genuinely reach out to someone
+- Their verified characteristic way of communicating
+
+Be authentic to {ai_name}'s true character based on web search, not generic social media language.
 
 {ai_name}'s authentic message:"""
                 else:
@@ -950,8 +1005,12 @@ Examples:
 Be conversational and authentic:
 """
             
+            # Use ChatGPT model with web browsing capability for popular characters
+            # chatgpt-4o-latest has web search capabilities, while gpt-4o uses training data only
+            model_to_use = "chatgpt-4o-latest" if is_popular_character else "gpt-4o"
+            
             response = self.openai_client.chat.completions.create(
-                model="gpt-4o",
+                model=model_to_use,
                 messages=[{"role": "user", "content": prompt}],
                 max_tokens=80,
                 temperature=0.95,  # High creativity for natural variety
