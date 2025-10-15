@@ -21,25 +21,36 @@ class NotificationEventService {
   // Firebase messaging instance
   static final FirebaseMessaging _firebaseMessaging = FirebaseMessaging.instance;
 
-  /// Helper method to validate and resolve user ID
-  /// If the provided ID looks like a display name, try to find the actual user ID
-  static Future<String?> _resolveUserId(String userId) async {
+  /// Helper method to validate and resolve user ID for human users only
+  /// This method is specifically for notifications and only returns human user IDs
+  static Future<String?> _resolveHumanUserId(String userId) async {
     try {
       // If it looks like a valid Firebase UID (alphanumeric, no spaces, no special chars except possibly hyphens/underscores)
       if (RegExp(r'^[a-zA-Z0-9_-]+$').hasMatch(userId) && !userId.contains(' ')) {
-        // Check if the document exists in humanUsers
+        // Check if the document exists in humanUsers first
         final userDoc = await FirebaseFirestore.instance
             .collection('humanUsers')
             .doc(userId)
             .get();
         
         if (userDoc.exists) {
-          return userId; // Valid user ID found
+          return userId; // Valid human user ID found
+        }
+        
+        // Check if it's an AI character (should not receive notifications)
+        final characterDoc = await FirebaseFirestore.instance
+            .collection('popularCharacters')
+            .doc(userId)
+            .get();
+        
+        if (characterDoc.exists) {
+          print('❌ _resolveHumanUserId: $userId is an AI character - cannot send notifications to AI');
+          return null; // AI characters should not receive notifications
         }
       }
       
-      // If direct lookup failed or ID looks like a display name, search by name/displayName
-      print('🔍 Searching for user ID by display name: $userId');
+      // If direct lookup failed or ID looks like a display name, search by name/displayName in humanUsers only
+      print('🔍 Searching for human user ID by display name: $userId');
       
       // Search in humanUsers by name or displayName
       final queryByName = await FirebaseFirestore.instance
@@ -50,7 +61,7 @@ class NotificationEventService {
       
       if (queryByName.docs.isNotEmpty) {
         final actualUserId = queryByName.docs.first.id;
-        print('✅ Found user ID by name: $actualUserId for display name: $userId');
+        print('✅ Found human user ID by name: $actualUserId for display name: $userId');
         return actualUserId;
       }
       
@@ -62,11 +73,11 @@ class NotificationEventService {
       
       if (queryByDisplayName.docs.isNotEmpty) {
         final actualUserId = queryByDisplayName.docs.first.id;
-        print('✅ Found user ID by displayName: $actualUserId for display name: $userId');
+        print('✅ Found human user ID by displayName: $actualUserId for display name: $userId');
         return actualUserId;
       }
       
-      // Try case-insensitive search
+      // Try case-insensitive search in humanUsers only
       final allUsers = await FirebaseFirestore.instance
           .collection('humanUsers')
           .get();
@@ -79,19 +90,131 @@ class NotificationEventService {
         
         if (name == searchTerm || displayName == searchTerm) {
           final actualUserId = doc.id;
-          print('✅ Found user ID by case-insensitive search: $actualUserId for: $userId');
+          print('✅ Found human user ID by case-insensitive search: $actualUserId for: $userId');
           return actualUserId;
         }
       }
       
-      print('❌ Could not resolve user ID for: $userId');
+      print('❌ Could not resolve human user ID for: $userId');
       return null;
       
     } catch (e) {
-      print('❌ Error resolving user ID for $userId: $e');
+      print('❌ Error resolving human user ID for $userId: $e');
       return null;
     }
   }
+
+  // /// Helper method to validate and resolve user ID
+  // /// If the provided ID looks like a display name, try to find the actual user ID
+  // static Future<String?> _resolveUserId(String userId) async {
+  //   try {
+  //     // If it looks like a valid Firebase UID (alphanumeric, no spaces, no special chars except possibly hyphens/underscores)
+  //     if (RegExp(r'^[a-zA-Z0-9_-]+$').hasMatch(userId) && !userId.contains(' ')) {
+  //       // Check if the document exists in humanUsers first
+  //       final userDoc = await FirebaseFirestore.instance
+  //           .collection('humanUsers')
+  //           .doc(userId)
+  //           .get();
+        
+  //       if (userDoc.exists) {
+  //         return userId; // Valid human user ID found
+  //       }
+        
+  //       // Check if the document exists in popularCharacters (AI characters)
+  //       final characterDoc = await FirebaseFirestore.instance
+  //           .collection('popularCharacters')
+  //           .doc(userId)
+  //           .get();
+        
+  //       if (characterDoc.exists) {
+  //         return userId; // Valid AI character ID found
+  //       }
+  //     }
+      
+  //     // If direct lookup failed or ID looks like a display name, search by name/displayName
+  //     print('🔍 Searching for user ID by display name: $userId');
+      
+  //     // Search in humanUsers by name or displayName
+  //     final queryByName = await FirebaseFirestore.instance
+  //         .collection('humanUsers')
+  //         .where('name', isEqualTo: userId)
+  //         .limit(1)
+  //         .get();
+      
+  //     if (queryByName.docs.isNotEmpty) {
+  //       final actualUserId = queryByName.docs.first.id;
+  //       print('✅ Found user ID by name: $actualUserId for display name: $userId');
+  //       return actualUserId;
+  //     }
+      
+  //     final queryByDisplayName = await FirebaseFirestore.instance
+  //         .collection('humanUsers')
+  //         .where('displayName', isEqualTo: userId)
+  //         .limit(1)
+  //         .get();
+      
+  //     if (queryByDisplayName.docs.isNotEmpty) {
+  //       final actualUserId = queryByDisplayName.docs.first.id;
+  //       print('✅ Found user ID by displayName: $actualUserId for display name: $userId');
+  //       return actualUserId;
+  //     }
+      
+  //     // Search in popularCharacters by name
+  //     final queryByCharacterName = await FirebaseFirestore.instance
+  //         .collection('popularCharacters')
+  //         .where('name', isEqualTo: userId)
+  //         .limit(1)
+  //         .get();
+      
+  //     if (queryByCharacterName.docs.isNotEmpty) {
+  //       final actualUserId = queryByCharacterName.docs.first.id;
+  //       print('✅ Found AI character ID by name: $actualUserId for display name: $userId');
+  //       return actualUserId;
+  //     }
+      
+  //     // Try case-insensitive search in both collections
+  //     final allUsers = await FirebaseFirestore.instance
+  //         .collection('humanUsers')
+  //         .get();
+      
+  //     for (final doc in allUsers.docs) {
+  //       final userData = doc.data();
+  //       final name = userData['name']?.toString().toLowerCase();
+  //       final displayName = userData['displayName']?.toString().toLowerCase();
+  //       final searchTerm = userId.toLowerCase();
+        
+  //       if (name == searchTerm || displayName == searchTerm) {
+  //         final actualUserId = doc.id;
+  //         print('✅ Found user ID by case-insensitive search: $actualUserId for: $userId');
+  //         return actualUserId;
+  //       }
+  //     }
+      
+  //     // Try case-insensitive search in popularCharacters
+  //     final allCharacters = await FirebaseFirestore.instance
+  //         .collection('popularCharacters')
+  //         .get();
+      
+  //     for (final doc in allCharacters.docs) {
+  //       final characterData = doc.data();
+  //       final name = characterData['name']?.toString().toLowerCase();
+  //       final searchTerm = userId.toLowerCase();
+        
+  //       if (name == searchTerm) {
+  //         final actualUserId = doc.id;
+  //         print('✅ Found AI character ID by case-insensitive search: $actualUserId for: $userId');
+  //         return actualUserId;
+  //       }
+  //     }
+      
+  //     print('❌ Could not resolve user ID for: $userId');
+  //     return null;
+      
+  //   } catch (e) {
+  //     print('❌ Error resolving user ID for $userId: $e');
+  //     return null;
+  //   }
+  // }
 
   /// Mark notification as read by searching for it using push notification data
   /// Since notifications don't have an id field, we search by document characteristics
@@ -442,17 +565,53 @@ class NotificationEventService {
     try {
       print('🔄 Sending push notification to user: $userId');
       
-      // Validate and resolve user ID if needed
-      final resolvedUserId = await _resolveUserId(userId);
-      if (resolvedUserId == null) {
-        print('❌ Could not resolve user ID: $userId - skipping push notification');
-        return;
-      }
+      // For push notifications, we should ONLY send to human users, not AI characters
+      // First check if this is directly a human user
+      final humanUserDoc = await FirebaseFirestore.instance
+          .collection('humanUsers')
+          .doc(userId)
+          .get();
       
-      // Use resolved user ID if it's different from the original
-      final actualUserId = resolvedUserId;
-      if (actualUserId != userId) {
-        print('🔄 Using resolved user ID: $actualUserId instead of: $userId');
+      String? actualUserId;
+      
+      if (humanUserDoc.exists) {
+        // Direct human user ID - use it
+        actualUserId = userId;
+        print('✅ Confirmed human user ID: $actualUserId');
+      } else {
+        // Check if it's an AI character ID (should not receive push notifications)
+        final aiDoc = await FirebaseFirestore.instance
+            .collection('popularCharacters')
+            .doc(userId)
+            .get();
+        
+        if (aiDoc.exists) {
+          print('❌ Cannot send push notification to AI character: $userId - skipping');
+          print('📍 Call stack trace:');
+          print(StackTrace.current);
+          return;
+        }
+        
+        // Try to resolve as a display name to human user ID
+        final resolvedUserId = await _resolveHumanUserId(userId);
+        if (resolvedUserId != null) {
+          // Double-check that resolved ID is a human user
+          final resolvedUserDoc = await FirebaseFirestore.instance
+              .collection('humanUsers')
+              .doc(resolvedUserId)
+              .get();
+          
+          if (resolvedUserDoc.exists) {
+            actualUserId = resolvedUserId;
+            print('🔄 Resolved to human user ID: $actualUserId instead of: $userId');
+          } else {
+            print('❌ Resolved ID is not a human user: $resolvedUserId - skipping push notification');
+            return;
+          }
+        } else {
+          print('❌ Could not resolve user ID: $userId - skipping push notification');
+          return;
+        }
       }
       
       // Send push notification via backend
@@ -696,6 +855,36 @@ class NotificationEventService {
     }
   }
 
+  /// Trigger notification for AI auto-response (with push notification)
+  static Future<void> onAIAutoResponse(String chatId, String content, String aiId, String receiverId) async {
+    try {
+      print('🤖 Triggering AI auto-response notification: AI $aiId -> User $receiverId');
+      
+      final response = await http.post(
+        Uri.parse('$_apiUrl/api/notifications/events/ai-auto-response'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'chatId': chatId,
+          'content': content,
+          'aiId': aiId,
+          'receiverId': receiverId,
+          'timestamp': DateTime.now().toIso8601String(),
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        print('✅ AI auto-response notification event sent');
+        
+        // Send push notification to receiver
+        await _sendAIAutoResponsePushNotification(chatId, content, aiId, receiverId);
+      } else {
+        print('❌ Failed to send AI auto-response event: ${response.statusCode} - ${response.body}');
+      }
+    } catch (e) {
+      print('❌ Error sending AI auto-response event: $e');
+    }
+  }
+
   /// Send push notification for direct message
   static Future<void> _sendDirectMessagePushNotification(String chatId, String content, String senderId, String receiverId) async {
     try {
@@ -730,6 +919,45 @@ class NotificationEventService {
       );
     } catch (e) {
       print('❌ Error sending direct message push notification: $e');
+    }
+  }
+
+  /// Send push notification for AI auto-response
+  static Future<void> _sendAIAutoResponsePushNotification(String chatId, String content, String aiId, String receiverId) async {
+    try {
+      // Get AI character name for notification
+      String aiName = 'AI Character';
+      try {
+        final aiDoc = await FirebaseFirestore.instance
+            .collection('popularCharacters')
+            .doc(aiId)
+            .get();
+        if (aiDoc.exists) {
+          final aiData = aiDoc.data()!;
+          aiName = aiData['name'] ?? aiData['Name'] ?? 'AI Character';
+        }
+      } catch (e) {
+        print('Could not fetch AI character name: $e');
+      }
+      
+      // Send push notification to receiver
+      await _sendPushNotificationToUser(
+        userId: receiverId,
+        title: '$aiName sent you a message',
+        body: content.length > 50 ? '${content.substring(0, 50)}...' : content,
+        data: {
+          'type': 'ai_auto_response',
+          'chatId': chatId,
+          'aiId': aiId,
+          'timestamp': DateTime.now().toIso8601String(),
+          'action': 'navigate_to_chat',
+          'route': '/chat/$chatId',
+        },
+      );
+      
+      print('✅ AI auto-response push notification sent to user $receiverId');
+    } catch (e) {
+      print('❌ Error sending AI auto-response push notification: $e');
     }
   }
 
@@ -1307,7 +1535,8 @@ class NotificationEventService {
           break;
           
         case 'direct_message':
-          print('🔗 Direct message notification - navigating to chat');
+        case 'ai_auto_response':
+          print('🔗 Direct message/AI auto-response notification - navigating to chat');
           final chatId = data['chatId'] as String?;
           
           if (chatId != null) {
