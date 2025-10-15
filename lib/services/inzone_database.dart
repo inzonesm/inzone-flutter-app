@@ -611,11 +611,31 @@ class InZoneDatabase {
     return null;
   }
 
-  // Analyze sentiment of text content
-  static Future<Map<String, dynamic>> analyzeSentiment(String content) async {
+  // Enhanced sentiment analysis with media support
+  static Future<Map<String, dynamic>> analyzeSentiment(
+    String content, {
+    List<String>? imageUrls,
+    List<String>? videoUrls,
+  }) async {
     try {
-      var sentimentResponse = await sendSentimentRequest(content);
+      var sentimentResponse = await sendSentimentRequest(
+        content,
+        imageUrls: imageUrls,
+        videoUrls: videoUrls,
+      );
+      
       if (sentimentResponse != null) {
+        // Check if content is blocked
+        bool isBlocked = sentimentResponse["blocked"] ?? false;
+        if (isBlocked) {
+          return {
+            "sentiment": -2, // Special code for blocked content
+            "category": "Blocked",
+            "blocked": true,
+            "block_reason": sentimentResponse["block_reason"] ?? "Content violates guidelines",
+          };
+        }
+        
         int sentiment = sentimentResponse["sentiment"] as int;
         String rawCategory = sentimentResponse["category"] as String;
 
@@ -635,12 +655,84 @@ class InZoneDatabase {
         return {
           "sentiment": sentiment,
           "category": category,
+          "blocked": false,
         };
       }
-      return {"sentiment": -1, "category": "Entertainment"};
+      return {
+        "sentiment": -1, 
+        "category": "Entertainment",
+        "blocked": false,
+      };
     } catch (e) {
-      return {"sentiment": -1, "category": "Entertainment"};
+      return {
+        "sentiment": -1, 
+        "category": "Entertainment",
+        "blocked": false,
+      };
     }
+  }
+
+  // Backward compatibility method for text-only sentiment analysis
+  static Future<Map<String, dynamic>> analyzeSentimentTextOnly(String content) async {
+    return analyzeSentiment(content);
+  }
+
+  // Real-time sentiment analysis with debouncing for UI feedback
+  static Timer? _sentimentTimer;
+  static String _lastAnalyzedContent = "";
+  static Map<String, dynamic>? _lastSentimentResult;
+  
+  static Future<Map<String, dynamic>> analyzeSentimentRealTime(
+    String content, {
+    List<String>? imageUrls,
+    List<String>? videoUrls,
+    Function(Map<String, dynamic>)? onResult,
+    Duration debounceDelay = const Duration(milliseconds: 800),
+  }) async {
+    // Cancel previous timer if exists
+    _sentimentTimer?.cancel();
+    
+    // If content is the same as last analyzed, return cached result
+    if (content == _lastAnalyzedContent && 
+        _lastSentimentResult != null &&
+        (imageUrls?.isEmpty ?? true) && 
+        (videoUrls?.isEmpty ?? true)) {
+      if (onResult != null) {
+        onResult(_lastSentimentResult!);
+      }
+      return _lastSentimentResult!;
+    }
+    
+    // Set up debounced analysis
+    Completer<Map<String, dynamic>> completer = Completer();
+    
+    _sentimentTimer = Timer(debounceDelay, () async {
+      try {
+        final result = await analyzeSentiment(
+          content,
+          imageUrls: imageUrls,
+          videoUrls: videoUrls,
+        );
+        
+        // Cache the result
+        _lastAnalyzedContent = content;
+        _lastSentimentResult = result;
+        
+        if (onResult != null) {
+          onResult(result);
+        }
+        
+        if (!completer.isCompleted) {
+          completer.complete(result);
+        }
+      } catch (e) {
+        if (!completer.isCompleted) {
+          completer.completeError(e);
+        }
+      }
+    });
+    
+    return completer.future;
   }
 
   // Create a human post
@@ -652,8 +744,22 @@ class InZoneDatabase {
     String? characterImage,
   }) async {
     try {
-      // First analyze sentiment
-      var analysis = await analyzeSentiment(content);
+      // Enhanced sentiment analysis with media
+      var analysis = await analyzeSentiment(
+        content,
+        imageUrls: imageRefs,
+        videoUrls: videoRefs,
+      );
+
+      // Check if content is blocked
+      if (analysis["blocked"] == true) {
+        return {
+          "success": false,
+          "sentiment": analysis["sentiment"],
+          "error": "Content blocked: ${analysis["block_reason"]}",
+          "blocked": true,
+        };
+      }
 
       // Generate a unique post ID
       String postId =
@@ -738,8 +844,22 @@ class InZoneDatabase {
     required List<String> videoRefs,
   }) async {
     try {
-      // First analyze sentiment
-      var analysis = await analyzeSentiment(content);
+      // Enhanced sentiment analysis with media
+      var analysis = await analyzeSentiment(
+        content,
+        imageUrls: imageRefs,
+        videoUrls: videoRefs,
+      );
+
+      // Check if content is blocked
+      if (analysis["blocked"] == true) {
+        return {
+          "success": false,
+          "sentiment": analysis["sentiment"],
+          "error": "Content blocked: ${analysis["block_reason"]}",
+          "blocked": true,
+        };
+      }
 
       String url =
           'https://inzoneapi-912424781531.us-central1.run.app/feed/create-ai-post';
@@ -797,8 +917,22 @@ class InZoneDatabase {
     required List<String> videoRefs,
   }) async {
     try {
-      // First analyze sentiment
-      var analysis = await analyzeSentiment(content);
+      // Enhanced sentiment analysis with media
+      var analysis = await analyzeSentiment(
+        content,
+        imageUrls: imageRefs,
+        videoUrls: videoRefs,
+      );
+
+      // Check if content is blocked
+      if (analysis["blocked"] == true) {
+        return {
+          "success": false,
+          "sentiment": analysis["sentiment"],
+          "error": "Content blocked: ${analysis["block_reason"]}",
+          "blocked": true,
+        };
+      }
 
       String url =
           'https://inzoneapi-912424781531.us-central1.run.app/feed/create-repost';
@@ -849,17 +983,35 @@ class InZoneDatabase {
     }
   }
 
-  static Future<Map<String, dynamic>?> sendSentimentRequest(String body) async {
+  // Enhanced sentiment analysis with media support
+  static Future<Map<String, dynamic>?> sendSentimentRequest(
+    String textBody, {
+    List<String>? imageUrls,
+    List<String>? videoUrls,
+  }) async {
     const String url =
         'https://inzoneapi-912424781531.us-central1.run.app/api/sentiment-analysis';
 
     try {
+      // Prepare request body with text and media URLs
+      Map<String, dynamic> requestBody = {
+        "text": textBody,
+      };
+      
+      if (imageUrls != null && imageUrls.isNotEmpty) {
+        requestBody["image_urls"] = imageUrls;
+      }
+      
+      if (videoUrls != null && videoUrls.isNotEmpty) {
+        requestBody["video_urls"] = videoUrls;
+      }
+
       final http.Response response = await http.post(
         Uri.parse(url),
         headers: <String, String>{
           'Content-Type': 'application/json',
         },
-        body: json.encode({"text": body}),
+        body: json.encode(requestBody),
       );
 
       if (response.statusCode == 200) {
@@ -873,46 +1025,115 @@ class InZoneDatabase {
           // Extract the sentiment data
           Map<String, dynamic> sentimentData = responseData['data'];
 
-          // Validate required keys
-          final requiredKeys = [
-            "PositiveScore",
-            "NegativeScore",
-            "NeutralScore",
-            "OverallSentiment",
-            "Categories",
-            "Keywords"
-          ];
-          if (requiredKeys.every((key) => sentimentData.containsKey(key))) {
-            // Get the OverallSentiment value as string
-            String overallSentiment =
-                sentimentData['OverallSentiment'].toString();
-            // Debug print
-
-            // Convert string sentiment to our three categories
-            int sentimentCategory;
-            switch (overallSentiment.trim().toLowerCase()) {
-              case 'positive':
-                sentimentCategory = 1;
-                break;
-              case 'negative':
-                sentimentCategory = -1;
-                break;
-              case 'neutral':
-                sentimentCategory = 0;
-                break;
-              default:
-                sentimentCategory = 0; // Default to neutral for unknown values
+          // Check for inappropriate content
+          bool hasInappropriateContent = false;
+          String blockReason = "";
+          
+          // Check overall assessment
+          if (sentimentData.containsKey('overall_assessment')) {
+            Map<String, dynamic> overallAssessment = sentimentData['overall_assessment'];
+            hasInappropriateContent = overallAssessment['inappropriate_content_detected'] ?? false;
+            
+            if (hasInappropriateContent) {
+              List<String> reasons = [];
+              
+              // Collect reasons from different analysis types
+              if (sentimentData.containsKey('urban_dictionary_check')) {
+                Map<String, dynamic> urbanCheck = sentimentData['urban_dictionary_check'];
+                if (urbanCheck['has_negative_slang'] == true) {
+                  List<dynamic> flaggedTerms = urbanCheck['flagged_terms'] ?? [];
+                  if (flaggedTerms.isNotEmpty) {
+                    reasons.add("Contains inappropriate slang: ${flaggedTerms.join(', ')}");
+                  }
+                }
+              }
+              
+              if (sentimentData.containsKey('text_analysis')) {
+                Map<String, dynamic> textAnalysis = sentimentData['text_analysis'];
+                if (textAnalysis.containsKey('HarmfulContent')) {
+                  Map<String, dynamic> harmfulContent = textAnalysis['HarmfulContent'];
+                  if (harmfulContent['detected'] == true) {
+                    reasons.add("Harmful content detected: ${harmfulContent['reasoning'] ?? 'Inappropriate content'}");
+                  }
+                }
+              }
+              
+              if (sentimentData.containsKey('image_analysis')) {
+                Map<String, dynamic> imageAnalysis = sentimentData['image_analysis'];
+                if (imageAnalysis['has_inappropriate_content'] == true) {
+                  reasons.add("Inappropriate image content detected");
+                }
+              }
+              
+              if (sentimentData.containsKey('video_analysis')) {
+                Map<String, dynamic> videoAnalysis = sentimentData['video_analysis'];
+                if (videoAnalysis['has_inappropriate_content'] == true) {
+                  reasons.add("Inappropriate video content detected");
+                }
+              }
+              
+              blockReason = reasons.isNotEmpty ? reasons.join('; ') : "Content violates community guidelines";
             }
-
-            return {
-              "sentiment": sentimentCategory,
-              "category": sentimentData['Categories'].isNotEmpty
-                  ? sentimentData['Categories'][0]
-                  : "Entertainment"
-            };
-          } else {
-            return null;
           }
+
+          // For backward compatibility, also check individual text analysis
+          if (!hasInappropriateContent && sentimentData.containsKey('text_analysis')) {
+            Map<String, dynamic> textAnalysis = sentimentData['text_analysis'];
+            
+            // Validate required keys for text analysis
+            final requiredKeys = [
+              "PositiveScore",
+              "NegativeScore",
+              "NeutralScore",
+              "OverallSentiment",
+              "Categories",
+              "Keywords"
+            ];
+            
+            if (requiredKeys.every((key) => textAnalysis.containsKey(key))) {
+              // Get the OverallSentiment value as string
+              String overallSentiment = textAnalysis['OverallSentiment'].toString();
+
+              // Convert string sentiment to our three categories
+              int sentimentCategory;
+              switch (overallSentiment.trim().toLowerCase()) {
+                case 'positive':
+                  sentimentCategory = 1;
+                  break;
+                case 'negative':
+                  sentimentCategory = -1;
+                  break;
+                case 'neutral':
+                  sentimentCategory = 0;
+                  break;
+                default:
+                  sentimentCategory = 0; // Default to neutral for unknown values
+              }
+
+              return {
+                "sentiment": hasInappropriateContent ? -2 : sentimentCategory, // -2 indicates blocked content
+                "category": textAnalysis['Categories'].isNotEmpty
+                    ? textAnalysis['Categories'][0]
+                    : "Entertainment",
+                "blocked": hasInappropriateContent,
+                "block_reason": blockReason,
+                "detailed_analysis": sentimentData, // Include full analysis for debugging
+              };
+            }
+          }
+          
+          // If no proper text analysis but content is blocked
+          if (hasInappropriateContent) {
+            return {
+              "sentiment": -2, // -2 indicates blocked content
+              "category": "Inappropriate",
+              "blocked": true,
+              "block_reason": blockReason,
+              "detailed_analysis": sentimentData,
+            };
+          }
+          
+          return null; // Invalid response format
         } else if (responseData.containsKey('error')) {
           return null;
         }
@@ -921,6 +1142,7 @@ class InZoneDatabase {
         return null;
       }
     } catch (e) {
+      print('Sentiment analysis error: $e');
       return null;
     }
   }

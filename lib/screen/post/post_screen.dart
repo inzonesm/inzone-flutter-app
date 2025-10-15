@@ -75,6 +75,10 @@ class _PostScreenState extends State<PostScreen> {
   List<String> videoUrls = [];
   List<String> thumbnailUrls = [];
 
+  // Real-time sentiment analysis state
+  bool isAnalyzingRealTime = false;
+  String? currentBlockReason;
+
   double maxWidth = 0.0;
   double maxMovable = 0.928;
   List<String> choices = [
@@ -93,6 +97,103 @@ class _PostScreenState extends State<PostScreen> {
   Future<void> _loadPreferences() async {
     await SharedPreferencesHelperClass.getStringList();
     setState(() {});
+  }
+
+  // Real-time sentiment analysis
+  void _analyzeContentRealTime() {
+    if (postContent.trim().isEmpty) {
+      setState(() {
+        moveValue = medium;
+        doesNotWork = false;
+        currentBlockReason = null;
+        isAnalyzingRealTime = false;
+      });
+      return;
+    }
+
+    setState(() {
+      isAnalyzingRealTime = true;
+    });
+
+    InZoneDatabase.analyzeSentimentRealTime(
+      postContent,
+      imageUrls: imageUrls,
+      videoUrls: videoUrls,
+      onResult: (result) {
+        if (mounted) {
+          setState(() {
+            isAnalyzingRealTime = false;
+            int sentiment = result["sentiment"] as int;
+            bool isBlocked = result["blocked"] ?? false;
+            currentBlockReason = result["block_reason"];
+
+            if (sentiment == -2 || isBlocked) {
+              // Content is blocked
+              moveValue = low;
+              doesNotWork = true;
+            } else if (sentiment == -1) {
+              moveValue = low;
+              doesNotWork = true;
+            } else if (sentiment == 0) {
+              moveValue = medium;
+              doesNotWork = false;
+            } else if (sentiment == 1) {
+              moveValue = high;
+              doesNotWork = false;
+            }
+          });
+        }
+      },
+      debounceDelay: const Duration(milliseconds: 500),
+    ).catchError((error) {
+      if (mounted) {
+        setState(() {
+          isAnalyzingRealTime = false;
+          // Default to neutral on error
+          moveValue = medium;
+          doesNotWork = false;
+        });
+      }
+      return <String, dynamic>{}; // Return empty map for error case
+    });
+  }
+
+  void _onTextChanged(String text) {
+    setState(() {
+      postContent = text;
+    });
+    _analyzeContentRealTime();
+  }
+
+  String _getContentStatusMessage() {
+    if (postContent.trim().isEmpty) {
+      return "Start typing to analyze your content...";
+    }
+    
+    if (isAnalyzingRealTime) {
+      return "Analyzing content...";
+    }
+    
+    if (doesNotWork) {
+      if (currentBlockReason != null && currentBlockReason!.isNotEmpty) {
+        return "Content blocked: $currentBlockReason";
+      }
+      return "Content violates guidelines - please rephrase";
+    }
+    
+    return "Your post meets InZone community standards";
+  }
+  
+  Color _getContentStatusColor() {
+    if (postContent.trim().isEmpty || isAnalyzingRealTime) {
+      return Theme.of(context).hintColor;
+    }
+    
+    if (doesNotWork) {
+      return Theme.of(context).colorScheme.error;
+    }
+    
+    return Theme.of(context).primaryColor;
   }
 
   // AI Generation methods
@@ -474,17 +575,27 @@ class _PostScreenState extends State<PostScreen> {
                                     });
 
                                     try {
+                                      // Enhanced sentiment analysis with media
                                       var analysis =
                                           await InZoneDatabase.analyzeSentiment(
-                                              postContent);
+                                        postContent,
+                                        imageUrls: imageUrls,
+                                        videoUrls: videoUrls,
+                                      );
 
                                       print(
                                           "Sentiment analysis result: $analysis");
 
                                       int sentiment =
                                           analysis["sentiment"] as int;
+                                      bool isBlocked = analysis["blocked"] ?? false;
+                                      
                                       setState(() {
-                                        if (sentiment == -1) {
+                                        if (sentiment == -2 || isBlocked) {
+                                          // Content is blocked
+                                          moveValue = low;
+                                          doesNotWork = true;
+                                        } else if (sentiment == -1) {
                                           moveValue = low;
                                           doesNotWork = true;
                                         } else if (sentiment == 0) {
@@ -495,6 +606,26 @@ class _PostScreenState extends State<PostScreen> {
                                           doesNotWork = false;
                                         }
                                       });
+
+                                      if (sentiment == -2 || isBlocked) {
+                                        setState(() {
+                                          isPosting = false;
+                                        });
+
+                                        String blockReason = analysis["block_reason"] ?? "Content violates our guidelines";
+                                        ToastService.showToast(
+                                          context,
+                                          backgroundColor:
+                                              Theme.of(context).canvasColor,
+                                          shadowColor: Colors.transparent,
+                                          leading: const Icon(
+                                            FeatherIcons.xCircle,
+                                            color: Colors.redAccent,
+                                          ),
+                                          message: "Post blocked: $blockReason",
+                                        );
+                                        return;
+                                      }
 
                                       if (sentiment == -1) {
                                         setState(() {
@@ -551,13 +682,13 @@ class _PostScreenState extends State<PostScreen> {
                                         String errorMessage =
                                             "Failed to create post. Please try again.";
 
-                                        // Check for specific error messages from the backend
-                                        if (result["error"] != null) {
-                                          errorMessage =
-                                              result["error"].toString();
+                                        // Check if content was blocked
+                                        if (result["blocked"] == true) {
+                                          errorMessage = result["error"] ?? "Content was blocked due to policy violations.";
+                                        } else if (result["error"] != null) {
+                                          errorMessage = result["error"].toString();
                                         } else if (result["message"] != null) {
-                                          errorMessage =
-                                              result["message"].toString();
+                                          errorMessage = result["message"].toString();
                                         }
 
                                         print(
@@ -693,17 +824,35 @@ class _PostScreenState extends State<PostScreen> {
                       top: 6.0,
                     ),
                     child: Center(
-                      child: Text(
-                        doesNotWork
-                            ? "Please rephrase. Your message violates our guideline."
-                            : "Your post works well with InZone guidelines",
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                            color: doesNotWork
-                                ? Theme.of(context).colorScheme.error
-                                : Theme.of(context).primaryColor,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          if (isAnalyzingRealTime)
+                            Padding(
+                              padding: const EdgeInsets.only(right: 8.0),
+                              child: SizedBox(
+                                width: 12,
+                                height: 12,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                    Theme.of(context).primaryColor,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          Flexible(
+                            child: Text(
+                              _getContentStatusMessage(),
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                color: _getContentStatusColor(),
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
@@ -744,8 +893,8 @@ class _PostScreenState extends State<PostScreen> {
                                   color: Theme.of(context).canvasColor),
                               borderRadius: BorderRadius.circular(30),
                               color: Theme.of(context).dialogBackgroundColor),
-                          duration: const Duration(milliseconds: 800),
-                          curve: Curves.fastEaseInToSlowEaseOut,
+                          duration: Duration(milliseconds: isAnalyzingRealTime ? 200 : 600),
+                          curve: Curves.easeInOut,
                           // transform:  (Matrix4.identity() + Matrix4.rotationZ(math.pi / 4))
                         ),
                       ],
@@ -1142,9 +1291,7 @@ class _PostScreenState extends State<PostScreen> {
                                 contentPadding: EdgeInsets.zero,
                               ),
                               onChanged: (value) {
-                                setState(() {
-                                  postContent = value;
-                                });
+                                _onTextChanged(value);
                               },
                               onEditingComplete: () {
                                 setState(() {
@@ -1389,6 +1536,8 @@ class _PostScreenState extends State<PostScreen> {
                                   imageUrls.add(value);
                                   isUploading = false;
                                 });
+                                // Trigger real-time sentiment analysis
+                                _analyzeContentRealTime();
                               });
                             }
                           },
@@ -1418,6 +1567,8 @@ class _PostScreenState extends State<PostScreen> {
                                   thumbnailUrls.add(value["thumbnailUrl"]!);
                                   isUploading = false;
                                 });
+                                // Trigger real-time sentiment analysis
+                                _analyzeContentRealTime();
                               });
                             }
                           },
@@ -1445,6 +1596,8 @@ class _PostScreenState extends State<PostScreen> {
                                   imageUrls.add(value);
                                   isUploading = false;
                                 });
+                                // Trigger real-time sentiment analysis
+                                _analyzeContentRealTime();
                               });
                             }
                           },
