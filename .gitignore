@@ -136,6 +136,10 @@ test/coverage/
 .lcov
 .test_coverage/
 
+# Backend test scripts (z-inzoneapi)
+z-inzoneapi/test_*.py
+z-inzoneapi/sync_to_gorse.py
+
 # Shorebird related (since you have shorebird.yaml)
 .shorebird/
 
