@@ -22,6 +22,7 @@ from functools import lru_cache
 from datetime import datetime, timezone
 from queue import Queue
 from ai_engagement_scheduler import AIEngagementScheduler, EngagementAnalytics
+from typing import List, Optional
 # from admin_dashboard import get_admin_dashboard_html
 # from ai_engagement_service import AIEngagementService
 import io
@@ -89,6 +90,200 @@ inzone_ai_service = InZoneAIEngagementService(db, client)
 
 # Initialize AI engagement scheduler
 ai_engagement_scheduler = AIEngagementScheduler(inzone_ai_service)
+
+# ---------------------------
+# Gorse Recommendation System Client
+# ---------------------------
+
+class GorseClient:
+    """Client for Gorse Recommendation System"""
+    
+    def __init__(self, api_url: str, api_key: str):
+        self.api_url = api_url.rstrip('/')
+        self.api_key = api_key
+        self.headers = {
+            'Content-Type': 'application/json'
+        }
+        if self.api_key:
+            self.headers['X-API-Key'] = self.api_key
+        
+        # Enable if URL is set and not localhost
+        self.enabled = bool(api_url and api_url != 'http://localhost:8087')
+        if self.enabled:
+            print(f"✓ Gorse client initialized: {self.api_url}")
+            if not api_key:
+                print("  ⚠ No API key set (may not be required)")
+        else:
+            print("⚠ Gorse client disabled (no valid URL or using localhost)")
+    
+    def get_recommendations(self, user_id: str, limit: int = 20, offset: int = 0) -> List[str]:
+        """Get personalized post recommendations for a user"""
+        if not self.enabled:
+            return []
+        
+        try:
+            response = requests.get(
+                f'{self.api_url}/api/recommend/{user_id}',
+                headers=self.headers,
+                params={'n': limit, 'offset': offset},
+                timeout=5
+            )
+            if response.status_code == 200:
+                data = response.json()
+                # Gorse returns a list of strings (item IDs directly)
+                if isinstance(data, list):
+                    if data and isinstance(data[0], str):
+                        return data  # List of post IDs
+                    elif data and isinstance(data[0], dict):
+                        return [item.get('Id', item.get('ItemId', '')) for item in data]
+                return []
+            else:
+                print(f"Gorse API error: {response.status_code}")
+                return []
+        except Exception as e:
+            print(f"Error getting recommendations: {e}")
+            return []
+    
+    def record_interaction(self, user_id: str, post_id: str, feedback_type: str):
+        """Record user interaction (read, like, comment, share)"""
+        if not self.enabled:
+            return
+        
+        try:
+            # Gorse expects an array of feedback items
+            feedback_list = [{
+                'FeedbackType': feedback_type,
+                'UserId': user_id,
+                'ItemId': post_id,
+                'Timestamp': datetime.now(timezone.utc).isoformat()
+            }]
+            requests.put(
+                f'{self.api_url}/api/feedback',
+                headers=self.headers,
+                json=feedback_list,
+                timeout=5
+            )
+        except Exception as e:
+            print(f"Error recording interaction: {e}")
+    
+    def get_similar_posts(self, post_id: str, limit: int = 5) -> List[str]:
+        """Get similar posts based on a post ID"""
+        if not self.enabled:
+            return []
+        
+        try:
+            response = requests.get(
+                f'{self.api_url}/api/item/{post_id}/neighbors',
+                headers=self.headers,
+                params={'n': limit},
+                timeout=5
+            )
+            if response.status_code == 200:
+                data = response.json()
+                # Handle list of strings or list of dicts
+                if isinstance(data, list):
+                    if data and isinstance(data[0], str):
+                        return data
+                    elif data and isinstance(data[0], dict):
+                        return [item.get('Id', item.get('ItemId', '')) for item in data]
+                return []
+            return []
+        except Exception as e:
+            print(f"Error getting similar posts: {e}")
+            return []
+    
+    def get_popular_posts(self, limit: int = 10) -> List[str]:
+        """Get trending/popular posts"""
+        if not self.enabled:
+            return []
+        
+        try:
+            response = requests.get(
+                f'{self.api_url}/api/popular',
+                headers=self.headers,
+                params={'n': limit},
+                timeout=5
+            )
+            if response.status_code == 200:
+                data = response.json()
+                # Handle list of strings or list of dicts
+                if isinstance(data, list):
+                    if data and isinstance(data[0], str):
+                        return data
+                    elif data and isinstance(data[0], dict):
+                        return [item.get('Id', item.get('ItemId', '')) for item in data]
+                return []
+            return []
+        except Exception as e:
+            print(f"Error getting popular posts: {e}")
+            return []
+    
+    def insert_user(self, user_id: str, labels: List[str] = None):
+        """Insert or update a user in Gorse"""
+        if not self.enabled:
+            return False
+        
+        try:
+            user_data = {
+                'UserId': user_id,
+                'Labels': labels or []
+            }
+            response = requests.patch(
+                f'{self.api_url}/api/user/{user_id}',
+                headers=self.headers,
+                json=user_data,
+                timeout=5
+            )
+            return response.status_code in [200, 201]
+        except Exception as e:
+            print(f"Error inserting user to Gorse: {e}")
+            return False
+    
+    def insert_item(self, item_id: str, labels: List[str] = None, comment: str = None, timestamp: str = None):
+        """Insert or update an item (post) in Gorse"""
+        if not self.enabled:
+            return False
+        
+        try:
+            item_data = {
+                'ItemId': item_id,
+                'Labels': labels or [],
+                'Comment': comment or '',
+                'Timestamp': timestamp or datetime.now(timezone.utc).isoformat()
+            }
+            # Use POST to insert new items
+            response = requests.post(
+                f'{self.api_url}/api/item',
+                headers=self.headers,
+                json=item_data,
+                timeout=5
+            )
+            return response.status_code in [200, 201]
+        except Exception as e:
+            print(f"Error inserting item to Gorse: {e}")
+            return False
+    
+    def delete_item(self, item_id: str):
+        """Delete an item (post) from Gorse"""
+        if not self.enabled:
+            return False
+        
+        try:
+            response = requests.delete(
+                f'{self.api_url}/api/item/{item_id}',
+                headers=self.headers,
+                timeout=5
+            )
+            return response.status_code in [200, 204]
+        except Exception as e:
+            print(f"Error deleting item from Gorse: {e}")
+            return False
+
+
+# Initialize Gorse client
+GORSE_API_URL = os.getenv('GORSE_API_URL', 'http://localhost:8087')
+GORSE_API_KEY = os.getenv('GORSE_API_KEY', '')
+gorse_client = GorseClient(GORSE_API_URL, GORSE_API_KEY)
 
 # ---------------------------
 # Helper Functions
@@ -789,6 +984,14 @@ def create_profile():
         }
 
         doc_ref = db.collection('humanUsers').document(data.get("UID")).set(user_data)
+        
+        # Update Gorse with new user
+        try:
+            user_interests = data.get("UserInterests", [])
+            gorse_client.insert_user(data.get("UID"), labels=user_interests)
+            print(f"✓ Synced user {data.get('UID')} to Gorse")
+        except Exception as e:
+            print(f"⚠ Failed to sync user to Gorse: {e}")
      
         response = {
             "success": True,
@@ -1594,6 +1797,14 @@ def like_post():
             except Exception:
                 logger.error(f"Error updating likedBy for post {post_id}: {e}")
 
+        # Record interaction in Gorse
+        if did_add_like:
+            try:
+                gorse_client.record_interaction(user_id, post_id, 'like')
+                print(f"✓ Recorded like interaction in Gorse: user={user_id}, post={post_id}")
+            except Exception as e:
+                print(f"⚠ Failed to record like in Gorse: {e}")
+        
         # Trigger engagement notification if post author is different and like was actually added
         if did_add_like and post_author_id and post_author_id != user_id:
             try:
@@ -2635,6 +2846,25 @@ def create_human_post():
         }
 
         db.collection('humanPosts').document(data.get("Id")).set(post_data)
+        
+        # Update Gorse with new post
+        try:
+            labels = categories.copy() if categories else []
+            if image_content:
+                labels.append('image')
+            if video_content:
+                labels.append('video')
+            labels.append('humanPosts')
+            
+            gorse_client.insert_item(
+                item_id=data.get("Id"),
+                labels=labels,
+                comment=post_text[:200] if post_text else '',
+                timestamp=datetime.now(timezone.utc).isoformat()
+            )
+            print(f"✓ Synced post {data.get('Id')} to Gorse")
+        except Exception as e:
+            print(f"⚠ Failed to sync post to Gorse: {e}")
 
         return jsonify({"postId": data.get("Id")}), 200
     except Exception as ex:
@@ -2683,6 +2913,25 @@ def create_ai_post():
         doc_ref.set(post_data)
 
         ai_user_ref.update({"posts": firestore.ArrayUnion([post_id])})
+        
+        # Update Gorse with new AI post
+        try:
+            labels = categories.copy() if categories else []
+            if image_content:
+                labels.append('image')
+            if video_content:
+                labels.append('video')
+            labels.append('aiPosts')
+            
+            gorse_client.insert_item(
+                item_id=post_id,
+                labels=labels,
+                comment=post_text[:200] if post_text else '',
+                timestamp=datetime.now(timezone.utc).isoformat()
+            )
+            print(f"✓ Synced AI post {post_id} to Gorse")
+        except Exception as e:
+            print(f"⚠ Failed to sync AI post to Gorse: {e}")
 
         return jsonify({"postId": post_id}), 200
     except Exception as ex:
@@ -2756,6 +3005,25 @@ def repost_post():
         }
 
         db.collection("reposts").document(repost_id).set(repost_data)
+        
+        # Update Gorse with new repost
+        try:
+            labels = categories.copy() if categories else []
+            if image_content:
+                labels.append('image')
+            if video_content:
+                labels.append('video')
+            labels.append('reposts')
+            
+            gorse_client.insert_item(
+                item_id=repost_id,
+                labels=labels,
+                comment=post_text[:200] if post_text else '',
+                timestamp=datetime.now(timezone.utc).isoformat()
+            )
+            print(f"✓ Synced repost {repost_id} to Gorse")
+        except Exception as e:
+            print(f"⚠ Failed to sync repost to Gorse: {e}")
         
         # Create notification for original post author (don't notify yourself)
         original_author_id = original_data.get('user_document_id')
@@ -3100,6 +3368,150 @@ def get_feed():
 #     except Exception as ex:
 #         print(f"Error generating posts flow: {ex}")
 #         return jsonify({"success": False, "error": str(ex)}), 500
+
+# ---------------------------
+# Gorse Recommendation Tracking Endpoints
+# ---------------------------
+
+@app.route('/feed/track-view', methods=['POST'])
+def track_post_view():
+    """Track when a user views a post"""
+    try:
+        data = request.json
+        user_id = data.get('user_id')
+        post_id = data.get('post_id')
+        
+        if not user_id or not post_id:
+            return jsonify({'error': 'user_id and post_id required'}), 400
+        
+        # Record in Gorse
+        gorse_client.record_interaction(user_id, post_id, 'read')
+        
+        return jsonify({'success': True}), 200
+    except Exception as e:
+        print(f"Error tracking view: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/feed/track-like', methods=['POST'])
+def track_post_like():
+    """Track when a user likes a post"""
+    try:
+        data = request.json
+        user_id = data.get('user_id')
+        post_id = data.get('post_id')
+        
+        if not user_id or not post_id:
+            return jsonify({'error': 'user_id and post_id required'}), 400
+        
+        # Record in Gorse
+        gorse_client.record_interaction(user_id, post_id, 'like')
+        
+        return jsonify({'success': True}), 200
+    except Exception as e:
+        print(f"Error tracking like: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/feed/track-comment', methods=['POST'])
+def track_post_comment():
+    """Track when a user comments on a post"""
+    try:
+        data = request.json
+        user_id = data.get('user_id')
+        post_id = data.get('post_id')
+        
+        if not user_id or not post_id:
+            return jsonify({'error': 'user_id and post_id required'}), 400
+        
+        # Record in Gorse
+        gorse_client.record_interaction(user_id, post_id, 'comment')
+        
+        return jsonify({'success': True}), 200
+    except Exception as e:
+        print(f"Error tracking comment: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/feed/track-share', methods=['POST'])
+def track_post_share():
+    """Track when a user shares a post"""
+    try:
+        data = request.json
+        user_id = data.get('user_id')
+        post_id = data.get('post_id')
+        
+        if not user_id or not post_id:
+            return jsonify({'error': 'user_id and post_id required'}), 400
+        
+        # Record in Gorse
+        gorse_client.record_interaction(user_id, post_id, 'share')
+        
+        return jsonify({'success': True}), 200
+    except Exception as e:
+        print(f"Error tracking share: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/feed/similar-posts/<post_id>', methods=['GET'])
+def get_similar_posts_endpoint(post_id):
+    """Get similar posts for 'You may also like' section"""
+    try:
+        limit = int(request.args.get('limit', 5))
+        
+        # Get similar posts from Gorse
+        similar_post_ids = gorse_client.get_similar_posts(post_id, limit=limit)
+        
+        # Fetch actual post data
+        posts = []
+        for pid in similar_post_ids:
+            post_data = get_post_from_firestore_by_id(pid)
+            if post_data:
+                posts.append(post_data)
+        
+        return jsonify({'posts': posts}), 200
+    except Exception as e:
+        print(f"Error getting similar posts: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+def get_post_from_firestore_by_id(post_id):
+    """Helper function to fetch a post from Firestore by ID"""
+    try:
+        # Try humanPosts first
+        post_doc = db.collection('humanPosts').document(post_id).get()
+        if post_doc.exists:
+            return post_doc.to_dict()
+        
+        # Try aiPosts
+        post_doc = db.collection('aiPosts').document(post_id).get()
+        if post_doc.exists:
+            return post_doc.to_dict()
+        
+        # Try reposts
+        post_doc = db.collection('reposts').document(post_id).get()
+        if post_doc.exists:
+            return post_doc.to_dict()
+        
+        return None
+    except Exception as e:
+        print(f"Error fetching post {post_id}: {e}")
+        return None
+
+
+def get_posts_by_ids(post_ids: List[str]) -> List[dict]:
+    """Fetch multiple posts from Firestore by their IDs"""
+    posts = []
+    for post_id in post_ids:
+        post_data = get_post_from_firestore_by_id(post_id)
+        if post_data:
+            posts.append(post_data)
+    return posts
+
+# ---------------------------
+# Feed Endpoints
+# ---------------------------
+
 @app.route('/feed/posts-flow', methods=['GET'])
 def posts_flow():
     try:
@@ -3108,6 +3520,40 @@ def posts_flow():
         posts_per_page = 30
 
         print(f"Processing posts flow for user {user_id}, page {page}")
+
+        # Try to get recommendations from Gorse first
+        if gorse_client.enabled:
+            try:
+                offset = (page - 1) * posts_per_page
+                recommended_ids = gorse_client.get_recommendations(
+                    user_id=user_id,
+                    limit=posts_per_page,
+                    offset=offset
+                )
+                
+                if recommended_ids:
+                    print(f"Got {len(recommended_ids)} recommendations from Gorse")
+                    posts = get_posts_by_ids(recommended_ids)
+                    
+                    if posts:
+                        print(f"Successfully fetched {len(posts)} posts from Firestore")
+                        # Add source indicator
+                        for post in posts:
+                            post['recommendation_source'] = 'gorse'
+                        
+                        return jsonify({
+                            'posts': posts,
+                            'page': page,
+                            'has_more': len(posts) == posts_per_page,
+                            'source': 'gorse'
+                        }), 200
+                else:
+                    print("No recommendations from Gorse, falling back to legacy algorithm")
+            except Exception as e:
+                print(f"Error getting Gorse recommendations: {e}")
+                print("Falling back to legacy algorithm")
+        else:
+            print("Gorse is disabled, using legacy algorithm")
 
         user_doc = db.collection('humanUsers').document(user_id).get()
         user_categories = set()
