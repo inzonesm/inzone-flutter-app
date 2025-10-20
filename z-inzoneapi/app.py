@@ -122,10 +122,16 @@ class GorseClient:
             return []
         
         try:
+            # 🎯 REMOVED write-back-type to prevent automatic marking
+            # We'll manually mark posts as 'read' only after user actually views them
             response = requests.get(
                 f'{self.api_url}/api/recommend/{user_id}',
                 headers=self.headers,
-                params={'n': limit, 'offset': offset},
+                params={
+                    'n': limit, 
+                    'offset': offset
+                    # No write-back to avoid premature marking
+                },
                 timeout=5
             )
             if response.status_code == 200:
@@ -1801,9 +1807,9 @@ def like_post():
         if did_add_like:
             try:
                 gorse_client.record_interaction(user_id, post_id, 'like')
-                print(f"✓ Recorded like interaction in Gorse: user={user_id}, post={post_id}")
+                print(f"💚 GORSE SYNC: Recorded like - user={user_id[:15]}..., post={post_id[:15]}...")
             except Exception as e:
-                print(f"⚠ Failed to record like in Gorse: {e}")
+                print(f"⚠️  Failed to record like in Gorse: {e}")
         
         # Trigger engagement notification if post author is different and like was actually added
         if did_add_like and post_author_id and post_author_id != user_id:
@@ -3517,26 +3523,58 @@ def posts_flow():
     try:
         user_id = request.args.get('user_id')
         page = request.args.get('page', default=1, type=int)
-        posts_per_page = 30
+        posts_per_page = 10  # 🎯 Changed from 30 to 10 posts per page
 
-        print(f"Processing posts flow for user {user_id}, page {page}")
+        print(f"\n{'='*60}")
+        print(f"📱 FEED REQUEST from user: {user_id}, page: {page}")
+        print(f"{'='*60}")
 
         # Try to get recommendations from Gorse first
         if gorse_client.enabled:
             try:
                 offset = (page - 1) * posts_per_page
+                print(f"🤖 Requesting recommendations from Gorse...")
+                
+                # 🎯 Request 50% more posts to filter duplicates and low-quality recommendations
+                request_limit = int(posts_per_page * 1.5)
                 recommended_ids = gorse_client.get_recommendations(
                     user_id=user_id,
-                    limit=posts_per_page,
+                    limit=request_limit,
                     offset=offset
                 )
                 
-                if recommended_ids:
-                    print(f"Got {len(recommended_ids)} recommendations from Gorse")
+                if recommended_ids and len(recommended_ids) >= posts_per_page * 0.5:  # At least 50% success rate
+                    print(f"✅ GORSE ACTIVE: Got {len(recommended_ids)} personalized recommendations!")
+                    print(f"   Post IDs: {recommended_ids[:3]}..." if len(recommended_ids) > 3 else f"   Post IDs: {recommended_ids}")
+                    
+                    # 🎯 Check recommendation quality: if we got fewer posts than requested, pool is draining
+                    recommendation_quality = len(recommended_ids) / request_limit
+                    print(f"📊 Recommendation quality: {recommendation_quality:.1%} ({len(recommended_ids)}/{request_limit})")
+                    
                     posts = get_posts_by_ids(recommended_ids)
                     
-                    if posts:
-                        print(f"Successfully fetched {len(posts)} posts from Firestore")
+                    if posts and len(posts) >= posts_per_page * 0.5:
+                        print(f"✅ Successfully fetched {len(posts)} posts from Firestore")
+                        
+                        # 🎯 Only take the number we need
+                        posts = posts[:posts_per_page]
+                        actual_post_ids = [p.get('id') for p in posts if p.get('id')]
+                        
+                        # 🎯 Mark all recommended posts as 'read' immediately
+                        print(f"📝 Marking {len(actual_post_ids)} posts as read in Gorse...")
+                        for post_id in actual_post_ids:
+                            try:
+                                gorse_client.record_interaction(user_id, post_id, 'read')
+                            except Exception as e:
+                                print(f"⚠️  Failed to mark post {post_id} as read: {e}")
+                        print(f"✅ All posts marked as read")
+                        
+                        # 🎯 If quality is low (< 70%), warn that we're running out of recommendations
+                        if recommendation_quality < 0.7:
+                            print(f"⚠️  LOW QUALITY WARNING: Recommendation pool draining (quality: {recommendation_quality:.1%})")
+                            print(f"   Consider generating more content or waiting for user interactions")
+                        
+                        print(f"🎯 Returning GORSE-POWERED recommendations\n")
                         # Add source indicator
                         for post in posts:
                             post['recommendation_source'] = 'gorse'
@@ -3544,16 +3582,22 @@ def posts_flow():
                         return jsonify({
                             'posts': posts,
                             'page': page,
-                            'has_more': len(posts) == posts_per_page,
-                            'source': 'gorse'
+                            'has_more': recommendation_quality > 0.3,  # Only say "has_more" if quality is decent
+                            'source': 'gorse',
+                            'quality': round(recommendation_quality, 2)
                         }), 200
+                    else:
+                        print(f"⚠️  Not enough valid posts from Gorse ({len(posts)} posts), falling back")
                 else:
-                    print("No recommendations from Gorse, falling back to legacy algorithm")
+                    if recommended_ids:
+                        print(f"⚠️  Too few recommendations from Gorse ({len(recommended_ids)}/{request_limit}), falling back")
+                    else:
+                        print("⚠️  No recommendations from Gorse, falling back to legacy algorithm")
             except Exception as e:
-                print(f"Error getting Gorse recommendations: {e}")
-                print("Falling back to legacy algorithm")
+                print(f"❌ Error getting Gorse recommendations: {e}")
+                print("⚠️  Falling back to legacy algorithm")
         else:
-            print("Gorse is disabled, using legacy algorithm")
+            print("⚠️  Gorse is disabled, using legacy algorithm")
 
         user_doc = db.collection('humanUsers').document(user_id).get()
         user_categories = set()
