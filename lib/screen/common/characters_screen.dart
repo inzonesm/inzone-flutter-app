@@ -146,6 +146,8 @@ class _CharactersScreenState extends State<CharactersScreen> {
             InZoneAvatar avatar = InZoneAvatar.fromAICharacter(characterData);
             avatars.add(avatar);
           }
+          // Sort avatars by popularity descending
+          avatars.sort((a, b) => b.popularity.compareTo(a.popularity));
           _filterAvatars(searchQuery);
           isLoading = false;
         });
@@ -495,109 +497,123 @@ class _CharactersScreenState extends State<CharactersScreen> {
 
     return Column(
       children: [
-        Container(
-          width: 110, // Larger size
-          height: 110, // Larger size
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            gradient: LinearGradient(
-              colors: gradientColors,
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(3.0), // Border thickness
-            child: Container(
-              decoration: const BoxDecoration(
+        Stack(
+          alignment: Alignment.topRight,
+          children: [
+            Container(
+              width: 110, // Larger size
+              height: 110, // Larger size
+              decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: Colors.white,
+                gradient: LinearGradient(
+                  colors: gradientColors,
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
               ),
               child: Padding(
-                padding: const EdgeInsets.all(2.0), // White padding
-                child: ClipOval(
-                  child: GestureDetector(
-                    onTap: () {
-                      // Track AI character selection and viewing
-                      final userId = FirebaseAuth.instance.currentUser?.uid;
-                      if (userId != null) {
-                        // Add to viewed characters set
-                        _viewedCharacters.add(avatar.id);
+                padding: const EdgeInsets.all(3.0), // Border thickness
+                child: Container(
+                  decoration: const BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Colors.white,
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(2.0), // White padding
+                    child: ClipOval(
+                      child: GestureDetector(
+                        onTap: () {
+                          // Track AI character selection and viewing
+                          final userId = FirebaseAuth.instance.currentUser?.uid;
+                          if (userId != null) {
+                            // Add to viewed characters set
+                            _viewedCharacters.add(avatar.id);
 
-                        AppsFlyerService().logEvent('ai_character_selected', {
-                          'character_id': avatar.id,
-                          'character_name': avatar.name,
-                          'user_id': userId,
-                          'selection_method': 'grid_tap',
-                          'character_category': 'popular',
-                          'search_query':
-                              searchQuery.isNotEmpty ? searchQuery : null,
-                          'session_duration_so_far': DateTime.now()
-                              .difference(_sessionStartTime)
-                              .inSeconds,
-                          'characters_viewed_before_selection':
-                              _viewedCharacters.length - 1,
-                          'timestamp': DateTime.now().millisecondsSinceEpoch,
-                        });
+                            AppsFlyerService().logEvent('ai_character_selected', {
+                              'character_id': avatar.id,
+                              'character_name': avatar.name,
+                              'user_id': userId,
+                              'selection_method': 'grid_tap',
+                              'character_category': 'popular',
+                              'search_query':
+                                  searchQuery.isNotEmpty ? searchQuery : null,
+                              'session_duration_so_far': DateTime.now()
+                                  .difference(_sessionStartTime)
+                                  .inSeconds,
+                              'characters_viewed_before_selection':
+                                  _viewedCharacters.length - 1,
+                              'timestamp': DateTime.now().millisecondsSinceEpoch,
+                            });
 
-                        // Track character popularity
-                        AppsFlyerService()
-                            .logEvent('ai_character_popularity_increase', {
-                          'character_id': avatar.id,
-                          'character_name': avatar.name,
-                          'user_id': userId,
-                          'total_users_viewed': _viewedCharacters.length,
-                          'timestamp': DateTime.now().millisecondsSinceEpoch,
-                        });
-                      }
+                            // Track character popularity
+                            AppsFlyerService()
+                                .logEvent('ai_character_popularity_increase', {
+                              'character_id': avatar.id,
+                              'character_name': avatar.name,
+                              'user_id': userId,
+                              'total_users_viewed': _viewedCharacters.length,
+                            });
+                          }
 
-                      // Use the same navigation logic as in AvatarStoryComponent
-                      context.push(Routes.chat,
-                          extra: ChatUser(
-                              name: avatar.name,
-                              email: avatar.id,
-                              chatId: null,
-                              profilePictureURL: avatar.profilePicture));
-                    },
-                    child: Image.network(
-                      avatar.profilePicture,
-                      fit: BoxFit.cover,
-                      width: 105,
-                      height: 105,
-                      errorBuilder: (context, error, stackTrace) {
-                        return Center(
-                          child: Text(
-                            avatar.name.isNotEmpty
-                                ? avatar.name.substring(0, 1).toUpperCase()
-                                : "?",
-                            style: const TextStyle(
-                              fontSize: 40,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        );
-                      },
+                          // Use the same navigation logic as in AvatarStoryComponent
+                          context.push(Routes.chat,
+                              extra: ChatUser(
+                                  name: avatar.name,
+                                  email: avatar.id,
+                                  chatId: null,
+                                  profilePictureURL: avatar.profilePicture));
+                        },
+                        child: Image.network(
+                          avatar.profilePicture,
+                          fit: BoxFit.cover,
+                          width: 105,
+                          height: 105,
+                          errorBuilder: (context, error, stackTrace) {
+                            return Center(
+                              child: Text(
+                                avatar.name.isNotEmpty
+                                    ? avatar.name.substring(0, 1).toUpperCase()
+                                    : "?",
+                                style: const TextStyle(
+                                  fontSize: 32,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
                     ),
                   ),
                 ),
               ),
             ),
-          ),
+            if (avatar.popularity != null && avatar.popularity > 10)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.orange,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Text(
+                  "Popular",
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
+                  ),
+                ),
+              ),
+          ],
         ),
         const SizedBox(height: 8),
-        Column(
-          children: [
-            Text(
-              avatar.name,
-              style: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              textAlign: TextAlign.center,
-            ),
-          ],
+        Text(
+          avatar.name,
+          style: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+          ),
+          textAlign: TextAlign.center,
         ),
       ],
     );
