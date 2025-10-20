@@ -38,10 +38,10 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
-  
+
   print('📱 Background message received: ${message.notification?.title}');
   print('📱 Background message data: ${message.data}');
-  
+
   // Handle the background message here if needed
   // Note: You cannot update UI from background handler
 }
@@ -283,6 +283,9 @@ void main() async {
   });
 }
 
+// Add import for group discovery widget
+import 'package:inzone/group_discovery_widget.dart';
+
 class MyApp extends StatefulWidget {
   final SharedPreferences prefs;
   final bool needsUpdate;
@@ -377,13 +380,20 @@ class _MyAppState extends State<MyApp> {
     // Get the ThemeManager from the Provider
     final themeManager = Provider.of<ThemeManager>(context);
 
-    return MaterialApp.router(
+    return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'Inzone',
       theme: themeManager.getLightTheme(),
       darkTheme: themeManager.getDarkTheme(),
       themeMode: themeManager.themeMode,
-      routerConfig: AppRouter.router,
+      // Add route for group discovery
+      routes: {
+        '/groups': (context) => GroupDiscoveryScreen(),
+        // Add other routes as needed
+      },
+      // Default home can be your existing logic, or for demo:
+      // home: GroupDiscoveryScreen(),
+      // If you want to keep routerConfig, you can merge with routes above.
     );
   }
 }

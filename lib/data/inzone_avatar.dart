@@ -10,6 +10,7 @@ class InZoneAvatar {
   final int age;
   final String? greeting;
   final bool showFirst;
+  final int popularity;
 
   InZoneAvatar({
     required this.id,
@@ -23,6 +24,7 @@ class InZoneAvatar {
     required this.age,
     this.greeting,
     this.showFirst = false,
+    this.popularity = 0,
   });
 
   // Factory method to create an instance of InZoneAvatar from a JSON object
@@ -40,6 +42,7 @@ class InZoneAvatar {
       greeting: null,
       showFirst:
           json['showFirst'] == true || json['character']['showFirst'] == true,
+      popularity: json['character']['popularity'] ?? 0,
     );
   }
   factory InZoneAvatar.fromRepostJson(Map<String, dynamic> json) {
@@ -55,6 +58,7 @@ class InZoneAvatar {
       age: 0,
       greeting: null,
       showFirst: json['showFirst'] == true,
+      popularity: json['popularity'] ?? 0,
     );
   }
 

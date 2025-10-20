@@ -19,7 +19,7 @@ class InZoneDatabase {
     try {
       // Send a lightweight request to warm up the Cloud Run container
       const String warmUpUrl = 'https://inzoneapi-912424781531.us-central1.run.app/health';
-      
+
       // Make a simple GET request with a short timeout
       final response = await http.get(
         Uri.parse(warmUpUrl),
@@ -35,7 +35,7 @@ class InZoneDatabase {
           return http.Response('timeout', 408);
         },
       );
-      
+
       print('Cloud Run warm-up request completed with status: ${response.statusCode}');
     } catch (e) {
       // Silently handle errors - warm-up is not critical for app functionality
@@ -623,7 +623,7 @@ class InZoneDatabase {
         imageUrls: imageUrls,
         videoUrls: videoUrls,
       );
-      
+
       if (sentimentResponse != null) {
         // Check if content is blocked
         bool isBlocked = sentimentResponse["blocked"] ?? false;
@@ -635,7 +635,7 @@ class InZoneDatabase {
             "block_reason": sentimentResponse["block_reason"] ?? "Content violates guidelines",
           };
         }
-        
+
         int sentiment = sentimentResponse["sentiment"] as int;
         String rawCategory = sentimentResponse["category"] as String;
 
@@ -659,13 +659,13 @@ class InZoneDatabase {
         };
       }
       return {
-        "sentiment": -1, 
+        "sentiment": -1,
         "category": "Entertainment",
         "blocked": false,
       };
     } catch (e) {
       return {
-        "sentiment": -1, 
+        "sentiment": -1,
         "category": "Entertainment",
         "blocked": false,
       };
@@ -681,7 +681,7 @@ class InZoneDatabase {
   static Timer? _sentimentTimer;
   static String _lastAnalyzedContent = "";
   static Map<String, dynamic>? _lastSentimentResult;
-  
+
   static Future<Map<String, dynamic>> analyzeSentimentRealTime(
     String content, {
     List<String>? imageUrls,
@@ -691,21 +691,21 @@ class InZoneDatabase {
   }) async {
     // Cancel previous timer if exists
     _sentimentTimer?.cancel();
-    
+
     // If content is the same as last analyzed, return cached result
-    if (content == _lastAnalyzedContent && 
+    if (content == _lastAnalyzedContent &&
         _lastSentimentResult != null &&
-        (imageUrls?.isEmpty ?? true) && 
+        (imageUrls?.isEmpty ?? true) &&
         (videoUrls?.isEmpty ?? true)) {
       if (onResult != null) {
         onResult(_lastSentimentResult!);
       }
       return _lastSentimentResult!;
     }
-    
+
     // Set up debounced analysis
     Completer<Map<String, dynamic>> completer = Completer();
-    
+
     _sentimentTimer = Timer(debounceDelay, () async {
       try {
         final result = await analyzeSentiment(
@@ -713,15 +713,15 @@ class InZoneDatabase {
           imageUrls: imageUrls,
           videoUrls: videoUrls,
         );
-        
+
         // Cache the result
         _lastAnalyzedContent = content;
         _lastSentimentResult = result;
-        
+
         if (onResult != null) {
           onResult(result);
         }
-        
+
         if (!completer.isCompleted) {
           completer.complete(result);
         }
@@ -731,7 +731,7 @@ class InZoneDatabase {
         }
       }
     });
-    
+
     return completer.future;
   }
 
@@ -997,11 +997,11 @@ class InZoneDatabase {
       Map<String, dynamic> requestBody = {
         "text": textBody,
       };
-      
+
       if (imageUrls != null && imageUrls.isNotEmpty) {
         requestBody["image_urls"] = imageUrls;
       }
-      
+
       if (videoUrls != null && videoUrls.isNotEmpty) {
         requestBody["video_urls"] = videoUrls;
       }
@@ -1028,15 +1028,15 @@ class InZoneDatabase {
           // Check for inappropriate content
           bool hasInappropriateContent = false;
           String blockReason = "";
-          
+
           // Check overall assessment
           if (sentimentData.containsKey('overall_assessment')) {
             Map<String, dynamic> overallAssessment = sentimentData['overall_assessment'];
             hasInappropriateContent = overallAssessment['inappropriate_content_detected'] ?? false;
-            
+
             if (hasInappropriateContent) {
               List<String> reasons = [];
-              
+
               // Collect reasons from different analysis types
               if (sentimentData.containsKey('urban_dictionary_check')) {
                 Map<String, dynamic> urbanCheck = sentimentData['urban_dictionary_check'];
@@ -1047,7 +1047,7 @@ class InZoneDatabase {
                   }
                 }
               }
-              
+
               if (sentimentData.containsKey('text_analysis')) {
                 Map<String, dynamic> textAnalysis = sentimentData['text_analysis'];
                 if (textAnalysis.containsKey('HarmfulContent')) {
@@ -1057,21 +1057,21 @@ class InZoneDatabase {
                   }
                 }
               }
-              
+
               if (sentimentData.containsKey('image_analysis')) {
                 Map<String, dynamic> imageAnalysis = sentimentData['image_analysis'];
                 if (imageAnalysis['has_inappropriate_content'] == true) {
                   reasons.add("Inappropriate image content detected");
                 }
               }
-              
+
               if (sentimentData.containsKey('video_analysis')) {
                 Map<String, dynamic> videoAnalysis = sentimentData['video_analysis'];
                 if (videoAnalysis['has_inappropriate_content'] == true) {
                   reasons.add("Inappropriate video content detected");
                 }
               }
-              
+
               blockReason = reasons.isNotEmpty ? reasons.join('; ') : "Content violates community guidelines";
             }
           }
@@ -1079,7 +1079,7 @@ class InZoneDatabase {
           // For backward compatibility, also check individual text analysis
           if (!hasInappropriateContent && sentimentData.containsKey('text_analysis')) {
             Map<String, dynamic> textAnalysis = sentimentData['text_analysis'];
-            
+
             // Validate required keys for text analysis
             final requiredKeys = [
               "PositiveScore",
@@ -1089,7 +1089,7 @@ class InZoneDatabase {
               "Categories",
               "Keywords"
             ];
-            
+
             if (requiredKeys.every((key) => textAnalysis.containsKey(key))) {
               // Get the OverallSentiment value as string
               String overallSentiment = textAnalysis['OverallSentiment'].toString();
@@ -1121,7 +1121,7 @@ class InZoneDatabase {
               };
             }
           }
-          
+
           // If no proper text analysis but content is blocked
           if (hasInappropriateContent) {
             return {
@@ -1132,7 +1132,7 @@ class InZoneDatabase {
               "detailed_analysis": sentimentData,
             };
           }
-          
+
           return null; // Invalid response format
         } else if (responseData.containsKey('error')) {
           return null;
@@ -1207,7 +1207,7 @@ class InZoneDatabase {
   }
 
   static Future<void> createCharacter(
-      String name, String bio, String profilePictureUrl) async {
+      String name, String bio, String profilePictureUrl, {int popularity = 0}) async {
     const String url =
         'https://us-central1-inzonebackend.cloudfunctions.net/api/ai/create-character';
 
@@ -1215,7 +1215,8 @@ class InZoneDatabase {
     Map<String, dynamic> body = {
       "name": name,
       "bio": bio,
-      "profilePicture": profilePictureUrl
+      "profilePicture": profilePictureUrl,
+      "popularity": popularity
     };
 
     try {

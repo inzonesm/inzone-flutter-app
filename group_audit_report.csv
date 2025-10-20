@@ -1,0 +1,68 @@
+id,name,category,member_count,last_message_date,flags
+group_chat_10_20250519210010,Streaming‑Hit Musicians,entertainment,9,2025-07-04 22:39:17.181359+00:00,no_last_message_date
+group_chat_11_20250519210000,E‑Sports & Streaming Legends,sports,7,2025-05-28 16:27:56.369470+00:00,no_last_message_date
+group_chat_12_20250519210012,E‑Sports & Streaming Legends,sports,7,2025-05-28 16:42:53.372469+00:00,"duplicate,no_last_message_date"
+group_chat_13_20250519205308,YouTube Trailblazers,entertainment,4,2025-05-28 17:44:35.178409+00:00,"no_last_message_date,low_engagement"
+group_chat_14_20250519205305,YouTube Trailblazers,entertainment,3,2025-05-19 20:53:05.944553+00:00,"duplicate,no_last_message_date,low_engagement"
+group_chat_15_20250519205344,Social Justice Voices,entertainment,3,2025-05-19 20:53:44.349396+00:00,"no_last_message_date,low_engagement"
+group_chat_16_20250519205318,Social Justice Voices,entertainment,5,2025-05-19 20:53:18.140894+00:00,"duplicate,no_last_message_date"
+group_chat_17_20250519210023,Netflix Show Icons,entertainment,7,2025-05-28 16:57:06.993132+00:00,no_last_message_date
+group_chat_18_20250519205340,Netflix Show Icons,entertainment,5,2025-05-28 16:53:12.658241+00:00,"duplicate,no_last_message_date"
+group_chat_19_20250519205315,Stand‑Up & Satire Stars,entertainment,3,2025-05-19 20:53:15.991004+00:00,"no_last_message_date,low_engagement"
+group_chat_1_20250519205313,K‑Pop Powerhouses,entertainment,6,2025-09-19 02:45:58.434628+00:00,no_last_message_date
+group_chat_20250410191513,Culers' Corner,sports,5,2025-05-09 16:26:44.210594+00:00,no_last_message_date
+group_chat_20250414190829,Marvel Heroes: Multiverse Mayhem,entertainment,25,2025-10-28 16:19:38.066169+00:00,no_last_message_date
+group_chat_20250414190830,Sports Superstars: Halftime Huddle,sports,7,2025-08-07 23:21:04.959306+00:00,no_last_message_date
+group_chat_20250414191255,Hogwarts Common Room,entertainment,11,2025-10-30 18:45:07.539023+00:00,no_last_message_date
+group_chat_20250414191257,Pop Stars Central,entertainment,14,2025-08-31 20:35:51.298901+00:00,no_last_message_date
+group_chat_20250414191258,Anime Universe,entertainment,10,2025-10-30 18:46:04.039482+00:00,no_last_message_date
+group_chat_20250414191259,Hollywood Stars,entertainment,5,2025-05-08 23:10:10.057197+00:00,no_last_message_date
+group_chat_20_20250519205924,Stand‑Up & Satire Stars,entertainment,6,2025-05-19 20:59:24.615531+00:00,"duplicate,no_last_message_date"
+group_chat_21_20250519205329,Fashion & Beauty Influencers,lifestyle,4,2025-05-19 20:53:29.871373+00:00,"no_last_message_date,low_engagement"
+group_chat_22_20250519205935,Fashion & Beauty Influencers,lifestyle,6,2025-05-19 20:59:35.847010+00:00,"duplicate,no_last_message_date"
+group_chat_23_20250519205347,Sports Superstars,sports,3,2025-05-19 20:53:47.182283+00:00,"no_last_message_date,low_engagement"
+group_chat_24_20250519205949,Sports Superstars,sports,7,2025-07-26 10:52:46.507799+00:00,"duplicate,no_last_message_date"
+group_chat_25_20250519205342,Digital Entrepreneurs & Tech Innovators,technology,4,2025-05-28 16:57:55.905403+00:00,"no_last_message_date,low_engagement"
+group_chat_26_20250519205954,Digital Entrepreneurs & Tech Innovators,technology,6,2025-05-19 20:59:54.030052+00:00,"duplicate,no_last_message_date"
+group_chat_27_20250519210026,YA & Fantasy Book Heroes,entertainment,7,2025-05-19 21:00:26.254314+00:00,no_last_message_date
+group_chat_28_20250519205933,YA & Fantasy Book Heroes,entertainment,6,2025-05-19 20:59:33.845838+00:00,"duplicate,no_last_message_date"
+group_chat_29_20250519205412,Nostalgic Cartoon Revivals,entertainment,3,2025-05-19 20:54:12.124580+00:00,"no_last_message_date,low_engagement"
+group_chat_2_20250519205414,K‑Pop Powerhouses,entertainment,3,2025-05-19 20:54:14.454206+00:00,"duplicate,no_last_message_date,low_engagement"
+group_chat_30_20250519205951,Nostalgic Cartoon Revivals,entertainment,6,2025-05-19 20:59:51.563036+00:00,"duplicate,no_last_message_date"
+group_chat_31_20250519205416,Global Pop Divas/Idols,entertainment,3,2025-05-19 20:54:16.625154+00:00,"no_last_message_date,low_engagement"
+group_chat_32_20250519205403,Global Pop Divas/Idols,entertainment,3,2025-05-19 20:54:03.396147+00:00,"duplicate,no_last_message_date,low_engagement"
+group_chat_33_20250519205303,HipHop’s Finest: Beat Battle,entertainment,5,2025-07-02 22:22:11.423746+00:00,no_last_message_date
+group_chat_34_20250519205408,Modern Hip‑Hop Leaders,entertainment,3,2025-05-19 20:54:08.273254+00:00,"no_last_message_date,low_engagement"
+group_chat_35_20250519205323,Meme‑Born Personalities,entertainment,5,2025-05-19 20:53:23.874381+00:00,no_last_message_date
+group_chat_36_20250519205920,Meme Stars: Viral Verdict,entertainment,7,2025-07-02 22:26:45.246878+00:00,no_last_message_date
+group_chat_37_20250519210015,Sci‑Fi & Fantasy Franchise Leads,entertainment,6,2025-05-19 21:00:15.117065+00:00,no_last_message_date
+group_chat_38_20250519205401,Sci‑Fi & Fantasy Franchise Leads,entertainment,3,2025-05-19 20:54:01.146206+00:00,"duplicate,no_last_message_date,low_engagement"
+group_chat_39_20250519205918,Podcast & Commentary Hosts,entertainment,6,2025-05-19 20:59:18.437594+00:00,no_last_message_date
+group_chat_3_20250519205940,TikTok Titans,entertainment,7,2025-07-02 22:15:27.678512+00:00,no_last_message_date
+group_chat_40_20250519205927,Podcast & Commentary Hosts,entertainment,6,2025-05-19 20:59:27.178448+00:00,"duplicate,no_last_message_date"
+group_chat_41_20250519205349,Reggaeton & Latin Pop Dynamos,entertainment,1,2025-05-19 20:53:49.492971+00:00,"no_last_message_date,low_engagement"
+group_chat_42_20250519205354,Reggaeton & Latin Pop Dynamos,entertainment,3,2025-05-19 20:53:54.999210+00:00,"duplicate,no_last_message_date,low_engagement"
+group_chat_43_20250519205922,Alt & Indie Music Darlings,entertainment,6,2025-05-19 20:59:22.557302+00:00,no_last_message_date
+group_chat_44_20250519205957,Alt & Indie Music Darlings,entertainment,6,2025-05-19 20:59:57.503806+00:00,"duplicate,no_last_message_date"
+group_chat_45_20250519210018,European Creators & Influencers,entertainment,6,2025-05-19 21:00:18.891099+00:00,no_last_message_date
+group_chat_46_20250519205930,European Creators & Influencers,entertainment,6,2025-05-19 20:59:30.469231+00:00,"duplicate,no_last_message_date"
+group_chat_47_20250519205332,Eco‑Warriors,entertainment,3,2025-05-19 20:53:32.253112+00:00,"no_last_message_date,low_engagement"
+group_chat_48_20250519205357,Eco‑Warriors,entertainment,3,2025-05-19 20:53:57.560128+00:00,"duplicate,no_last_message_date,low_engagement"
+group_chat_49_20250519205311,K‑Drama Heartthrobs,entertainment,4,2025-05-19 20:53:11.680958+00:00,"no_last_message_date,low_engagement"
+group_chat_4_20250519210029,TikTok Titans,entertainment,6,2025-05-19 21:00:29.017857+00:00,"duplicate,no_last_message_date"
+group_chat_50_20250519210007,K‑Drama Heartthrobs,entertainment,6,2025-05-19 21:00:07.845123+00:00,"duplicate,no_last_message_date"
+group_chat_51_20250519205911,Classic Disney Characters,entertainment,8,2025-08-12 23:31:15.282295+00:00,no_last_message_date
+group_chat_52_20250519210002,NBA Young Stars,entertainment,6,2025-05-19 21:00:02.213692+00:00,no_last_message_date
+group_chat_53_20250519205327,2000s Comeback Stars,entertainment,4,2025-05-19 20:53:27.415917+00:00,"no_last_message_date,low_engagement"
+group_chat_54_20250519205259,2000s Comeback Stars,entertainment,4,2025-05-19 20:52:59.451143+00:00,"duplicate,no_last_message_date,low_engagement"
+group_chat_55_20250519205334,Extreme Sports & Alt Athletics,sports,3,2025-05-19 20:53:34.435793+00:00,"no_last_message_date,low_engagement"
+group_chat_56_20250519205946,Extreme Sports & Alt Athletics,sports,6,2025-05-19 20:59:46.237902+00:00,"duplicate,no_last_message_date"
+group_chat_57_20250519205405,Video Game Legends: Power-Up Poll,entertainment,11,2025-09-19 00:17:23.519590+00:00,no_last_message_date
+group_chat_58_20250519210021,Video Game Legends,entertainment,6,2025-05-19 21:00:21.608941+00:00,no_last_message_date
+group_chat_59_20250519205352,Virtual Influencers & AI Figures,entertainment,3,2025-07-20 23:55:46.292973+00:00,"no_last_message_date,low_engagement"
+group_chat_5_20250519205336,Marvel Cinematic Heroes,entertainment,3,2025-05-19 20:53:36.435595+00:00,"no_last_message_date,low_engagement"
+group_chat_60_20250519205909,Virtual Influencers & AI Figures,entertainment,6,2025-05-19 20:59:09.380288+00:00,"duplicate,no_last_message_date"
+group_chat_6_20250519205938,Marvel Cinematic Heroes,entertainment,6,2025-05-19 20:59:38.083951+00:00,"duplicate,no_last_message_date"
+group_chat_7_20250519210005,Anime Protagonists,entertainment,10,2025-09-03 17:14:16.457388+00:00,no_last_message_date
+group_chat_8_20250519205301,Anime Protagonists,entertainment,3,2025-05-19 20:53:01.545327+00:00,"duplicate,no_last_message_date,low_engagement"
+group_chat_9_20250519205943,Streaming‑Hit Musicians,entertainment,8,2025-05-19 20:59:43.551791+00:00,"duplicate,no_last_message_date"
