@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -9,6 +10,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_feather_icons/flutter_feather_icons.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
+import 'package:http/http.dart' as http;
 import 'package:inzone/components/posts/shimmering.dart';
 import 'package:inzone/components/video/video_widget.dart';
 import 'package:inzone/config/custom_icons.dart';
@@ -36,6 +38,9 @@ class PostCard extends StatefulWidget {
   final bool inProfile;
   final Function()? onAdLoaded;
   final bool autoOpenComments; // New field to auto-open comments
+  final String? targetCommentId; // ID of comment to navigate to
+  final String? targetReplyId; // ID of reply to navigate to
+  final bool autoExpandReplies; // Auto-expand replies section
 
   InZonePost getPost() {
     return post;
@@ -51,6 +56,9 @@ class PostCard extends StatefulWidget {
     this.inProfile = false,
     this.onAdLoaded,
     this.autoOpenComments = false, // New parameter to auto-open comments
+    this.targetCommentId, // ID of comment to navigate to
+    this.targetReplyId, // ID of reply to navigate to
+    this.autoExpandReplies = false, // Auto-expand replies section
   });
 
   @override
@@ -75,6 +83,12 @@ class _PostCardState extends State<PostCard>
 
   // Add this variable to track influencer status
   bool _isInfluencer = false;
+  
+  // Target comment highlighting for navigation
+  String? _highlightedCommentId;
+  
+  // Map to store GlobalKeys for each comment for precise scrolling
+  final Map<String, GlobalKey> _commentKeys = {};
 
   // Ad Unit IDs
   final String _androidAdUnitId = 'ca-app-pub-4474122990542651~2720978162';
@@ -85,6 +99,14 @@ class _PostCardState extends State<PostCard>
   // Override wantKeepAlive to keep this widget in memory when scrolled out of view
   @override
   bool get wantKeepAlive => true;
+
+  // Get or create a GlobalKey for a specific comment
+  GlobalKey _getCommentKey(String commentId) {
+    if (!_commentKeys.containsKey(commentId)) {
+      _commentKeys[commentId] = GlobalKey();
+    }
+    return _commentKeys[commentId]!;
+  }
 
   Future<bool> isCommentPresent() async {
     DocumentReference postDocumentReference =
@@ -250,6 +272,38 @@ class _PostCardState extends State<PostCard>
     if (widget.autoOpenComments) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         filterSheetModel();
+        
+        // Handle auto-expanding replies and navigating to specific comments/replies
+        if (widget.autoExpandReplies && widget.targetCommentId != null) {
+          // Auto-expand replies for the target comment
+          setState(() {
+            _expandedReplies.add(widget.targetCommentId!);
+          });
+          _expandedRepliesNotifier.value = Set.from(_expandedReplies);
+        }
+        
+        // If there's a target reply, just expand and navigate (don't start replying)
+        if (widget.targetReplyId != null && widget.targetCommentId != null) {
+          // Longer delay to ensure comments are fully loaded
+          Future.delayed(const Duration(milliseconds: 1500), () {
+            if (mounted) {
+              // Ensure we're NOT in reply mode when navigating
+              setState(() {
+                selectedCommentId = null;
+                selectedCommentAuthor = null;
+                showReplyComposer = false;
+                type = '';
+              });
+              
+              // Clear reactive notifiers to prevent reply interface
+              _replyComposerNotifier.value = false;
+              _selectedCommentNotifier.value = null;
+              
+              // Scroll to the target comment with multiple attempts
+              _scrollToCommentWithRetry(widget.targetCommentId!, 3);
+            }
+          });
+        }
       });
     }
   }
@@ -466,12 +520,9 @@ class _PostCardState extends State<PostCard>
             });
           } catch (e) {
             debugPrint('Error adding like in transaction: $e');
-            // Let outer catch handle rollback/UI
             rethrow;
           }
 
-          // Track analytics and send notification (best-effort). Only notify if
-          // the transaction actually added the like entry.
           final userId = AppsFlyerService().getCurrentUserId();
           if (userId != null) {
             String category = '';
@@ -513,16 +564,9 @@ class _PostCardState extends State<PostCard>
                     // debugPrint('NotificationService failed: $e');
                   }
 
-                  // Also ensure a notification doc exists in Firestore so the
-                  // backend/FE will show the like even if the event pipeline
-                  // failed or is delayed. Deduplicate by checking for an
-                  // existing engagement notification for this post/liker.
                   try {
                     final notifRef = FirebaseFirestore.instance.collection('notifications');
 
-                    // Try to resolve the canonical human user document for the
-                    // author. The post's author reference can be in multiple forms
-                    // (doc id, username, or stored uid), so try several lookups.
                     final humanUsersRef = FirebaseFirestore.instance.collection('humanUsers');
                     DocumentSnapshot? authorDoc;
                     String? resolvedAuthorUid;
@@ -2084,7 +2128,7 @@ class _PostCardState extends State<PostCard>
       'author': FirebaseAuth.instance.currentUser!.displayName,
       'text': commentText,
       'userId': FirebaseAuth.instance.currentUser!.uid,
-      'timestamp': DateTime.now().toUtc().millisecondsSinceEpoch.toString(),
+      'timestamp': DateTime.now().toUtc().toIso8601String(),
       'likedBy': [], // Initialize likedBy as an empty list
       'dislikedBy': [],
       'replyCount': 0,
@@ -2217,6 +2261,109 @@ class _PostCardState extends State<PostCard>
     print('Reply cancelled - all state cleared');
   }
 
+  // Scroll to a specific comment by ID with retry logic
+  void _scrollToCommentWithRetry(String commentId, int attemptsLeft) {
+    print('=== _scrollToCommentWithRetry called ===');
+    print('Target commentId: $commentId, attempts left: $attemptsLeft');
+    
+    if (attemptsLeft <= 0 || !mounted) {
+      print('Max attempts reached or widget unmounted');
+      return;
+    }
+    
+    // Set highlighting for the target comment
+    setState(() {
+      _highlightedCommentId = commentId;
+    });
+    
+    // First, try to find the comment using its GlobalKey
+    final commentKey = _getCommentKey(commentId);
+    
+    Future.delayed(const Duration(milliseconds: 500), () {
+      if (mounted) {
+        _scrollToCommentByKey(commentKey, commentId, attemptsLeft);
+      }
+    });
+    
+    // Clear highlighting after a delay
+    Future.delayed(const Duration(seconds: 3), () {
+      if (mounted) {
+        setState(() {
+          _highlightedCommentId = null;
+        });
+      }
+    });
+  }
+  
+  // Try to scroll to comment using its GlobalKey
+  void _scrollToCommentByKey(GlobalKey commentKey, String commentId, int attemptsLeft) {
+    print('=== _scrollToCommentByKey called ===');
+    print('Looking for comment: $commentId');
+    
+    if (!mounted || !_scrollController.hasClients) {
+      print('Controller not available');
+      return;
+    }
+    
+    // Try to get the RenderBox for the comment
+    final RenderBox? renderBox = commentKey.currentContext?.findRenderObject() as RenderBox?;
+    
+    if (renderBox != null) {
+      // Found the comment! Calculate its position
+      final position = renderBox.localToGlobal(Offset.zero);
+      final commentPosition = position.dy;
+      
+      // Get the current scroll position and calculate target
+      final currentScroll = _scrollController.offset;
+      final screenHeight = MediaQuery.of(context).size.height;
+      
+      // Calculate target scroll position to center the comment
+      final targetScroll = currentScroll + commentPosition - (screenHeight / 3);
+      
+      print('Found comment at position: $commentPosition');
+      print('Scrolling to: $targetScroll');
+      
+      _scrollController.animateTo(
+        targetScroll.clamp(0.0, _scrollController.position.maxScrollExtent),
+        duration: const Duration(milliseconds: 800),
+        curve: Curves.easeInOut,
+      );
+      
+    } else {
+      print('Comment not found in UI, using fallback method');
+      // Fallback to the previous method if we can't find the specific comment
+      _fallbackScrollMethod(commentId, attemptsLeft);
+    }
+  }
+  
+  // Fallback method when we can't find the comment by key
+  void _fallbackScrollMethod(String commentId, int attemptsLeft) {
+    print('=== Using fallback scroll method ===');
+    
+    if (!mounted || !_scrollController.hasClients) {
+      return;
+    }
+    
+    // Scroll to comments section first
+    final double maxScroll = _scrollController.position.maxScrollExtent;
+    final double targetPosition = maxScroll * 0.85;
+    
+    _scrollController.animateTo(
+      targetPosition,
+      duration: const Duration(milliseconds: 600),
+      curve: Curves.easeInOut,
+    ).then((_) {
+      // Try again after a delay if we have attempts left
+      if (attemptsLeft > 1 && mounted) {
+        Future.delayed(const Duration(milliseconds: 1000), () {
+          if (mounted) {
+            _scrollToCommentWithRetry(commentId, attemptsLeft - 1);
+          }
+        });
+      }
+    });
+  }
+  
   // Add reply to a comment
   void _addReply() async {
     print('=== _addReply called ===');
@@ -2254,8 +2401,51 @@ class _PostCardState extends State<PostCard>
 
       List<dynamic> currentComments = postSnapshot['comments'] ?? [];
       
-      // Create new reply with proper ID
-      final replyId = DateTime.now().millisecondsSinceEpoch.toString();
+      // First, ensure all existing comments have proper IDs
+      bool commentsModified = false;
+      for (int i = 0; i < currentComments.length; i++) {
+        var comment = currentComments[i];
+        
+        // Check if comment lacks an ID or has an invalid ID format
+        String? existingId = comment['id'] as String?;
+        if (existingId == null || existingId.isEmpty) {
+          // Generate a proper ID using the same logic as new comments
+          final newId = '${DateTime.now().millisecondsSinceEpoch}${1000 + (999 * (DateTime.now().microsecond / 1000000)).round()}_legacy_$i'; // Add suffix to avoid collisions
+          
+          currentComments[i]['id'] = newId;
+          commentsModified = true;
+          print('✅ Assigned ID $newId to comment without ID at index $i');
+          
+          // Small delay to ensure unique IDs
+          await Future.delayed(const Duration(milliseconds: 1));
+        }
+      }
+      
+      // If we modified any comments, update the document first
+      if (commentsModified) {
+        await postDocumentReference.update({'comments': currentComments});
+        print('✅ Updated comments with proper IDs');
+      }
+      
+      // Now find the parent comment and ensure it has a valid ID
+      String? validCommentId;
+      for (var comment in currentComments) {
+        String? commentId = comment['id'] as String?;
+        if (commentId == commentIdToUse) {
+          validCommentId = commentId;
+          break;
+        }
+      }
+      
+      // If we still couldn't find a valid parent comment ID, something is wrong
+      if (validCommentId == null) {
+        print('❌ ERROR: Could not find valid parent comment with ID: $commentIdToUse');
+        return;
+      }
+      
+      // Create new reply with proper ID (using same logic as comments)
+      final replyId = DateTime.now().millisecondsSinceEpoch.toString() + 
+                     (1000 + (999 * (DateTime.now().microsecond / 1000000)).round()).toString();
       
       Map<String, dynamic> newReply = {
         'id': replyId,
@@ -2263,8 +2453,8 @@ class _PostCardState extends State<PostCard>
         'text': replyText,
         'userId': FirebaseAuth.instance.currentUser!.uid,
         'postId': widget.post.id.toString(),
-        'parentCommentId': commentIdToUse,
-        'timestamp': DateTime.now().toUtc().millisecondsSinceEpoch.toString(),
+        'parentCommentId': validCommentId, // Use the validated comment ID
+        'timestamp': DateTime.now().toUtc().toIso8601String(),
         'likedBy': [],
         'dislikedBy': [],
         'replyCount': 0,
@@ -2276,6 +2466,30 @@ class _PostCardState extends State<PostCard>
 
       // Update the document
       await postDocumentReference.update({'comments': currentComments});
+
+      // Trigger notification for comment reply
+      try {
+        final response = await http.post(
+          Uri.parse('https://inzoneapi-912424781531.us-central1.run.app/api/notifications/events/comment-reply'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({
+            'postId': widget.post.id.toString(),
+            'replierId': FirebaseAuth.instance.currentUser!.uid,
+            'parentCommentId': validCommentId, // Use the validated comment ID
+            'replyContent': replyText,
+            'replyId': replyId,
+          }),
+        );
+        
+        if (response.statusCode == 200) {
+          print('✅ Comment reply notification sent successfully');
+        } else {
+          print('❌ Failed to send comment reply notification: ${response.statusCode}');
+        }
+      } catch (e) {
+        print('❌ Error sending comment reply notification: $e');
+        // Continue even if notification fails
+      }
 
       // Clear and hide reply composer
       _cancelReply();
@@ -2574,6 +2788,7 @@ class _PostCardState extends State<PostCard>
                                     final comment = reactiveComments[index];
                                     final replyCount = repliesMap[comment.id]?.length ?? 0; // Calculate reply count outside
                                 return AnimatedContainer(
+                                  key: _getCommentKey(comment.id), // Add GlobalKey for scrolling
                                   duration: const Duration(seconds: 1),
                                   child: Padding(
                                     padding: EdgeInsets.symmetric(

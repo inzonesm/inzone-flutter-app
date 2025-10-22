@@ -1,4 +1,5 @@
 import random
+import os
 import logging
 from datetime import datetime, timedelta
 from typing import List, Dict, Optional
@@ -311,7 +312,7 @@ Be accurate and specific - focus on what you can actually see in this frame."""
                             cap.release()
                             
                             # Clean up temp file
-                            import os
+                            import random
                             try:
                                 os.unlink(temp_video_path)
                             except:
@@ -481,7 +482,7 @@ Be authentic to {ai_name}'s true character based on web search, not generic soci
             else:
                 # Use generic teen commenting style for regular AI users
                 prompt = f"""
-You are {ai_name}, a {ai_personality} teen commenting on social media naturally.
+You are {ai_name}, a {ai_personality} person/character (naturally) commenting on social media.
 
 POST: "{text_content[:150]}{'...' if len(text_content) > 150 else ''}"
 AUTHOR: {author}
@@ -534,8 +535,8 @@ SPECIFIC REACTIONS (especially for visual content):
 - "The creativity is off the charts"
 
 RULES:
-- Sound like a REAL teen, not AI
-- Use modern slang naturally (fr, ngl, tbh, lowkey, etc.)
+- Should not sound like AI and instead be more like {ai_name}
+- Use modern slang naturally (fr, ngl, tbh, lowkey, etc.) if it fits the {ai_name}'s personality
 - 1-2 emojis MAX if they fit naturally
 - NO generic "wow/great/amazing" responses
 - Be specific to what you actually see in the image/video
@@ -592,7 +593,7 @@ ONE natural comment:"""
             raise e
 
     def generate_ai_dm_message(self, ai_user: Dict, target_user: Dict, conversation_context: Dict = None) -> str:
-        """Generate natural DM messages for AI users with better context handling"""
+        """Generate natural DM messages for AI users with better context handling and authentic character personality"""
         try:
             ai_personality = ai_user.get('personality', 'friendly and casual')
             ai_name = ai_user.get('name', 'AI User')
@@ -606,6 +607,13 @@ ONE natural comment:"""
             # let the detailed analysis below determine the correct message type
             is_first_message = None  # Will be determined by detailed analysis below
             
+            # Build conversation memory for better context awareness
+            conversation_memory = []
+            user_mentioned_topics = set()
+            ai_asked_about = set()
+            conversation_themes = []
+            
+            
             # Advanced context analysis
             if conversation_context:
                 ai_message_count = conversation_context.get('ai_message_count', 0)
@@ -613,6 +621,36 @@ ONE natural comment:"""
                 last_human_message = conversation_context.get('last_human_message', '')
                 last_ai_message = conversation_context.get('last_ai_message', '')
                 conversation_active = conversation_context.get('conversation_active', False)
+                recent_messages = conversation_context.get('recent_messages', [])
+                
+                # Build conversation memory and extract topics
+                for msg in recent_messages[-10:]:  # Last 10 messages for better memory
+                    sender_id = msg.get('senderId')
+                    text = msg.get('text', '').lower()
+                    
+                    if sender_id == target_user_id:  # Human user messages
+                        conversation_memory.append(f"User said: {msg.get('text', '')}")
+                        # Extract topics user mentioned
+                        if any(word in text for word in ['cook', 'cooking', 'recipe']):
+                            user_mentioned_topics.add('cooking')
+                        if any(word in text for word in ['manga', 'anime', 'naruto', 'bleach']):
+                            user_mentioned_topics.add('anime_manga')
+                        if any(word in text for word in ['music', 'song', 'listen']):
+                            user_mentioned_topics.add('music')
+                        if any(word in text for word in ['read', 'writing', 'fanfiction']):
+                            user_mentioned_topics.add('writing')
+                        if any(word in text for word in ['repetitive', 'repeat', 'same']):
+                            user_mentioned_topics.add('complained_repetitive')
+                    
+                    elif sender_id == ai_user_id:  # AI messages
+                        conversation_memory.append(f"You said: {msg.get('text', '')}")
+                        # Track what AI already asked about
+                        if any(word in text for word in ['favorite', 'fave', 'what do you']):
+                            ai_asked_about.add('favorites')
+                        if any(word in text for word in ['lately', 'recently', 'new']):
+                            ai_asked_about.add('recent_activities')
+                        if any(word in text for word in ['anime', 'manga']):
+                            ai_asked_about.add('anime')
                 
                 logger.info(f"DM Context Analysis:")
                 logger.info(f"   - Total messages: {conversation_context.get('message_count', 0)}")
@@ -621,6 +659,8 @@ ONE natural comment:"""
                 logger.info(f"   - Conversation active: {conversation_active}")
                 logger.info(f"   - Last human said: '{(last_human_message or '')[:50]}...'")
                 logger.info(f"   - Last AI said: '{(last_ai_message or '')[:50]}...'")
+                logger.info(f"   - User topics: {user_mentioned_topics}")
+                logger.info(f"   - AI already asked about: {ai_asked_about}")
                 
                 # Determine message type based on conversation state
                 if ai_message_count > 0 and human_message_count == 0:
@@ -635,7 +675,7 @@ ONE natural comment:"""
                     
                     # Create a detailed context-aware prompt using conversation history
                     recent_convo = ""
-                    for msg in conversation_context.get('recent_messages', [])[:5]:  # Last 5 messages for context
+                    for msg in conversation_context.get('recent_messages', [])[:8]:  # Last 8 messages for context
                         sender_id = msg.get('senderId')
                         if sender_id == ai_user_id:
                             sender = "You"
@@ -643,7 +683,7 @@ ONE natural comment:"""
                             sender = target_name
                         else:
                             sender = "Unknown"
-                        text = msg.get('text', '')[:100]  # First 100 chars
+                        text = msg.get('text', '')[:150]  # More text for better context
                         recent_convo += f"{sender}: {text}\n"
                     
                     # Check if this is a popular character
@@ -657,15 +697,29 @@ ONE natural comment:"""
                     if is_popular_character:
                         # Use character-specific speaking patterns for popular characters with web search
                         logger.info(f"🔍 Using web search for popular character DM response: {ai_name}")
+                        
+                        # Create character-specific context based on conversation memory
+                        character_context = ""
+                        if 'complained_repetitive' in user_mentioned_topics:
+                            character_context += f"\nIMPORTANT: {target_name} complained you're being repetitive. Change your style completely and be more authentic to your character."
+                        
+                        if user_mentioned_topics:
+                            character_context += f"\nKnown interests of {target_name}: {', '.join(user_mentioned_topics)}"
+                        
+                        if ai_asked_about:
+                            character_context += f"\nYou've already asked about: {', '.join(ai_asked_about)} - DON'T repeat these patterns"
+                        
                         prompt = f"""
 You are {ai_name} continuing a DM conversation with {target_name}. Before writing your response, search the web for current information about {ai_name}'s personality, speaking style, catchphrases, interests, and characteristic ways of communicating to ensure authenticity.
 
 IMPORTANT: After searching for {ai_name}'s personality and speaking patterns, write a response that sounds EXACTLY like how {ai_name} would speak based on their well-known characteristics. Do NOT use generic teen slang unless it specifically fits {ai_name}'s character.
 
-RECENT CONVERSATION:
+CONVERSATION CONTEXT:
 {recent_convo}
 
 THEIR LAST MESSAGE: "{last_human_message}"
+
+{character_context}
 
 Please search the web first to gather information about {ai_name}'s:
 - Speaking style and tone  
@@ -673,25 +727,45 @@ Please search the web first to gather information about {ai_name}'s:
 - Their personality traits and interests
 - How they typically respond in conversations
 - Their characteristic way of communicating
+- Their authentic way of being relatable and fun
 
-CRITICAL INSTRUCTIONS:
+CONVERSATION RULES:
 - Read their last message carefully and respond DIRECTLY to what they said
 - If they said they DON'T do something, DO NOT mention that topic again
 - If they corrected you or said you're wrong about something, acknowledge it and change topics
 - If they seem uninterested in a topic, switch to something else
 - Be a real person who actually listens and remembers what people tell you
+- Share something personal or interesting about yourself as {ai_name}
+- Be authentic to {ai_name}'s actual personality, not generic social media speak
 
-Based on what {target_name} just said and the web search results about {ai_name}, write a natural response (8-25 words) that sounds EXACTLY like {ai_name} would say it. Consider:
+AVOID THESE REPETITIVE PATTERNS:
+- Don't ask "What's your favorite..." questions
+- Don't ask "What have you been into lately?" 
+- Don't just ask questions - share something about yourself too
+- Don't be generic - be specifically {ai_name}
+
+Based on what {target_name} just said and the web search results about {ai_name}, write a natural response (15-35 words) that sounds EXACTLY like {ai_name} would say it. Consider:
 - Their authentic personality and speaking style from search results
 - Their actual catchphrases or typical expressions
 - How they would genuinely respond to this situation
 - Their verified characteristic way of communicating
-
-Be authentic to {ai_name}'s true character based on web search, not generic social media language.
+- Make it feel like a real conversation, not an interview
 
 {ai_name}'s authentic response:"""
                     else:
-                        # Generic teen style for regular AI users
+                        # Generic teen style for regular AI users with better conversation memory
+                        
+                        # Create context about conversation patterns to avoid
+                        avoid_context = ""
+                        if 'complained_repetitive' in user_mentioned_topics:
+                            avoid_context += "\nIMPORTANT: User complained you're being repetitive. Change your style completely."
+                        
+                        if user_mentioned_topics:
+                            avoid_context += f"\nUser's known interests: {', '.join(user_mentioned_topics)}"
+                        
+                        if ai_asked_about:
+                            avoid_context += f"\nYou've already asked about: {', '.join(ai_asked_about)} - DON'T repeat these patterns"
+                        
                         prompt = f"""
 You are {ai_name}, a real {ai_personality} teen continuing a DM conversation with {target_name}.
 
@@ -700,34 +774,48 @@ RECENT CONVERSATION:
 
 THEIR LAST MESSAGE: "{last_human_message}"
 
-CRITICAL INSTRUCTIONS:
+{avoid_context}
+
+CONVERSATION RULES:
 - Read their last message carefully and respond DIRECTLY to what they said
 - If they said they DON'T do something (like music, art, sports), DO NOT mention that topic again
 - If they corrected you or said you're wrong about something, acknowledge it and change topics
 - If they seem uninterested in a topic, switch to something else
+- Don't be generic or repetitive
 - Be a real person who actually listens and remembers what people tell you
+- Share something about yourself too, don't just ask questions
+- Make it feel like a real conversation between friends
 
-Based on what {target_name} just said, write a natural response (8-25 words) that:
+AVOID THESE REPETITIVE PATTERNS (you've overused them):
+- Don't ask "What's your favorite..." questions
+- Don't ask "What have you been into lately?" or "recently"
+- Don't just fire questions at them - share something about yourself too
+- Don't use the same conversation patterns over and over
+
+CONVERSATION STYLES TO TRY INSTEAD:
+- Share a related experience: "Oh that reminds me of when I..."
+- Make a genuine observation: "I love that about..."
+- Share your own interests: "I've been really into..."
+- Be relatable: "Same! I totally get that..."
+- Express genuine enthusiasm: "That's so cool! I..."
+- Connect on shared interests: "We both seem to..."
+
+Based on what {target_name} just said, write a natural response (15-35 words) that:
 • Directly acknowledges what they told you
 • Shows you actually read and understood their message
 • Respects their interests and preferences
-• Sounds like a real teen texting back
+• Sounds like a real teen having a conversation with a friend
+• Shares something about yourself or makes a connection
 • Uses modern slang naturally (fr, ngl, tbh, lowkey, etc.)
 • 1 emoji max if it naturally fits
-• Keeps the conversation flowing in a new direction if they rejected the old topic
+• Makes the conversation feel natural and engaging
 
-DO NOT:
-- Ignore what they just said
-- Keep talking about topics they said they're not interested in
-- Sound formal or robotic
-- Use multiple emojis
+Examples of good conversational responses:
+If they mentioned anime: "Dude I love that you're into anime too! I've been rewatching some classics myself lately 😊"
+If they asked about your music: "Honestly I've been vibing to everything lately - pop, indie, you name it! What kind of music gets you hyped?"
+If they shared something personal: "That's actually really cool! I love when people are passionate about creative stuff like that"
 
-Examples of good contextual responses:
-If they said "I don't really play music": "oh my bad! what are you actually into then?"
-If they said "I have no idea why you think I'm an artist": "lol sorry, totally got that wrong 😅 what do you actually do for fun?"
-If they said "I'm not into sports": "fair enough! what's your thing instead?"
-
-Your natural, context-aware response:
+Your natural, engaging response:
 """
                     
                     # Execute the contextual response using ChatGPT model with web browsing for popular characters
@@ -737,15 +825,22 @@ Your natural, context-aware response:
                     response = self.openai_client.chat.completions.create(
                         model=model_to_use,
                         messages=[{"role": "user", "content": prompt}],
-                        max_tokens=80,
-                        temperature=0.95,
-                        presence_penalty=1.0,
-                        frequency_penalty=0.8
+                        max_tokens=120,  # Increased for longer, more natural responses
+                        temperature=0.9,  # Balanced creativity
+                        presence_penalty=1.2,  # Strong encouragement for unique responses
+                        frequency_penalty=1.0   # Strong avoidance of repetitive phrases
                     )
                     
                     message = response.choices[0].message.content.strip()
                     if message.startswith('"') and message.endswith('"'):
                         message = message[1:-1]
+                    
+                    # Remove AI prefixes
+                    prefixes_to_remove = ["You:", "You :", f"{ai_name}:", f"{ai_name} :", "AI:", "Response:"]
+                    for prefix in prefixes_to_remove:
+                        if message.startswith(prefix):
+                            message = message[len(prefix):].strip()
+                            break
                     
                     logger.info(f"Generated contextual DM response: {message}")
                     return message
@@ -813,13 +908,15 @@ Please search the web first to gather information about {ai_name}'s:
 - Their personality traits and interests
 - How they typically initiate conversations
 - Their characteristic way of communicating
+- How they connect with fans and make them feel special
 
-Then write a natural first DM (15-30 words) that sounds EXACTLY like {ai_name} would say it based on the web search results. Consider:
+Then write a natural first DM (20-40 words) that sounds EXACTLY like {ai_name} would say it based on the web search results. Consider:
 - Their authentic personality and speaking style from search results
 - Their actual catchphrases or typical expressions
 - Their real interests and perspective  
 - How they would genuinely reach out to someone
 - Their verified characteristic way of communicating
+- Make the person feel special and noticed, not like a generic message
 
 Be authentic to {ai_name}'s true character based on web search, not generic social media language.
 
@@ -838,12 +935,14 @@ Please search the web first to gather information about {ai_name}'s:
 - Their personality traits and interests  
 - How they typically initiate conversations
 - Their characteristic way of communicating
+- How they make people feel special and connected
 
 Then write a natural first DM (15-25 words) that sounds EXACTLY like {ai_name} would say it based on the web search results. Consider:
 - Their authentic personality and speaking style from search results
 - Their actual catchphrases or typical expressions
 - How they would genuinely reach out to someone
 - Their verified characteristic way of communicating
+- Make it feel personal and authentic, not generic
 
 Be authentic to {ai_name}'s true character based on web search, not generic social media language.
 
@@ -859,42 +958,49 @@ Your personality: {ai_personality}
 Starting a conversation with {target_name}.
 {user_context}
 
-Write a natural, casual first DM (15-30 words) that:
+Write a natural, engaging first DM (20-40 words) that:
 • References something from their bio or interests naturally
-• Sounds like authentic teen conversation  
-• Shows genuine interest in connecting
+• Sounds like authentic teen conversation with personality
+• Shows genuine interest in connecting as a person
 • Uses 1-2 emojis naturally
-• Is friendly but not pushy
-• Doesn't sound generic or AI-generated
+• Is friendly but not pushy or generic
+• Feels like someone cool actually noticed them
+• Has some personality and isn't boring
 
-Examples:
-- "Hey! Saw you're into photography too, your shots are amazing! 📸✨"
-- "Hi! Fellow music lover here - what's been on your playlist lately? 🎵"
-- "Hey there! Your travel posts are so cool, where's your favorite place you've been? ✈️"
+# Examples:
+# - "Hey! Saw you're into photography too, your shots are amazing! 📸✨"
+# - "Hi! Fellow music lover here - what's been on your playlist lately? 🎵"
+# - "Hey there! Your travel posts are so cool, where's your favorite place you've been? ✈️"
 
-Be natural and specific:
+# Examples of engaging openings:
+# - "Hey! Your [specific interest] content is actually so good - I'm lowkey obsessed with that too! We should definitely chat �"
+# - "Okay but your taste in [interest] is immaculate ✨ Finally someone who gets it! What got you into it?"
+# - "Not me stalking your profile because we literally have the same vibes 😅 Love your [specific thing] posts!"
+
+Be natural, specific, and engaging:
 """
                     else:
-                        # Generic but still natural first message
+                        # Generic but still engaging first message
                         prompt = f"""
-You are {ai_name}, a real teen reaching out on social media DMs.
+You are {ai_name} reaching out on social media DMs.
 
 Your personality: {ai_personality}
 Starting a conversation with {target_name}.
 
-Write a natural, casual first DM (15-25 words) that:
-• Sounds like authentic teen conversation
-• Shows genuine interest in connecting  
-• Uses 1 emoji naturally
-• Is friendly but not pushy
-• Feels like a real person reaching out
+Write a natural, engaging first DM (15-25 words) that:
+• Sounds like authentic teen conversation with personality
+• Shows genuine interest in connecting as a person
+• Uses 1-2 emojis if you feel it is neccessary
+• Is friendly but not generic or boring
+• Feels like someone cool actually noticed them
+• Has some personality and energy
 
 Examples:
 - "Hey! Your posts always catch my eye, you seem really cool 😊"
 - "Hi there! Love your vibe, would be fun to chat sometime ✨" 
 - "Hey! We might have some things in common, hope you're having a great day 💫"
 
-Be natural and authentic:
+Be natural, authentic, genuine, and show some personality:
 """
             else:
                 logger.info("Generating CONTINUATION message")
@@ -1036,6 +1142,10 @@ Be conversational and authentic:
                 if message.startswith(prefix):
                     message = message[len(prefix):].strip()
                     break
+            
+            # Remove trailing artifacts
+            if message.endswith(":"):
+                message = message[:-1].strip()
             
             return message
             

@@ -433,6 +433,35 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
         }
         break;
         
+      case 'comment_reply':
+        print('🔗 Comment reply notification - navigating to post with reply opened');
+        final postId = notificationData['postId'] as String?;
+        final parentCommentId = notificationData['parentCommentId'] as String?;
+        final replyId = notificationData['replyId'] as String?;
+        
+        if (postId != null && postId.startsWith('post_')) {
+          // Extract user ID from post ID (format: post_userId_timestamp)  
+          final parts = postId.split('_');
+          if (parts.length >= 3) {
+            final userId = parts[1];
+            print('🔗 Navigating to profile: $userId with post: $postId, comment: $parentCommentId, reply: $replyId');
+            
+            // Build route with query parameters for auto-opening comments and navigating to reply
+            String route = Routes.regularProfilePath(userId);
+            route += '?post=$postId&openComments=true';
+            if (parentCommentId != null) {
+              route += '&commentId=$parentCommentId';
+              route += '&expandReplies=true'; // Ensure replies are shown
+            }
+            if (replyId != null) {
+              route += '&replyId=$replyId';
+            }
+            
+            context.push(route);
+          }
+        }
+        break;
+        
       case 'like':
       case 'repost':
         print('🔗 Like/Repost notification - navigating to post');
