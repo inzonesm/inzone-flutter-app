@@ -1,8 +1,6 @@
-from flask import Flask, request, jsonify
-from datetime import datetime, timedelta, timezone
-from dotenv import load_dotenv
-from flask_cors import CORS
-from openai import OpenAI
+import io
+import asyncio
+import re
 import requests
 import json
 import logging
@@ -17,16 +15,17 @@ import math
 import traceback
 import hashlib
 import threading
+from flask import Flask, request, jsonify
+from datetime import datetime, timedelta, timezone
+from dotenv import load_dotenv
+from flask_cors import CORS
+from openai import OpenAI
+from typing import List, Optional
 from firebase_admin import credentials, initialize_app, firestore, messaging
 from functools import lru_cache
 from datetime import datetime, timezone
 from queue import Queue
 from ai_engagement_scheduler import AIEngagementScheduler, EngagementAnalytics
-# from admin_dashboard import get_admin_dashboard_html
-# from ai_engagement_service import AIEngagementService
-import io
-import asyncio
-import re
 
 """
 Commands
@@ -789,7 +788,15 @@ def create_profile():
         }
 
         doc_ref = db.collection('humanUsers').document(data.get("UID")).set(user_data)
-     
+        
+        # Update Gorse with new user
+        try:
+            user_interests = data.get("UserInterests", [])
+            gorse_client.insert_user(data.get("UID"), labels=user_interests)
+            print(f"✓ Synced user {data.get('UID')} to Gorse")
+        except Exception as e:
+            print(f"⚠ Failed to sync user to Gorse: {e}")
+
         response = {
             "success": True,
             "data": {
@@ -1594,6 +1601,14 @@ def like_post():
             except Exception:
                 logger.error(f"Error updating likedBy for post {post_id}: {e}")
 
+        # Record interaction in Gorse
+        if did_add_like:
+            try:
+                gorse_client.record_interaction(user_id, post_id, 'like')
+                print(f"💚 GORSE SYNC: Recorded like - user={user_id[:15]}..., post={post_id[:15]}...")
+            except Exception as e:
+                print(f"⚠️  Failed to record like in Gorse: {e}")
+        
         # Trigger engagement notification if post author is different and like was actually added
         if did_add_like and post_author_id and post_author_id != user_id:
             try:
@@ -2635,6 +2650,25 @@ def create_human_post():
         }
 
         db.collection('humanPosts').document(data.get("Id")).set(post_data)
+        
+        # Update Gorse with new post
+        try:
+            labels = categories.copy() if categories else []
+            if image_content:
+                labels.append('image')
+            if video_content:
+                labels.append('video')
+            labels.append('humanPosts')
+            
+            gorse_client.insert_item(
+                item_id=data.get("Id"),
+                labels=labels,
+                comment=post_text[:200] if post_text else '',
+                timestamp=datetime.now(timezone.utc).isoformat()
+            )
+            print(f"✓ Synced post {data.get('Id')} to Gorse")
+        except Exception as e:
+            print(f"⚠ Failed to sync post to Gorse: {e}")
 
         return jsonify({"postId": data.get("Id")}), 200
     except Exception as ex:
@@ -3105,9 +3139,81 @@ def posts_flow():
     try:
         user_id = request.args.get('user_id')
         page = request.args.get('page', default=1, type=int)
-        posts_per_page = 30
+        posts_per_page = 10  # 🎯 Changed from 30 to 10 posts per page
 
-        print(f"Processing posts flow for user {user_id}, page {page}")
+        print(f"\n{'='*60}")
+        print(f"📱 FEED REQUEST from user: {user_id}, page: {page}")
+        print(f"{'='*60}")
+
+        # Try to get recommendations from Gorse first
+        if gorse_client.enabled:
+            try:
+                offset = (page - 1) * posts_per_page
+                print(f"🤖 Requesting recommendations from Gorse...")
+                
+                # 🎯 Request 50% more posts to filter duplicates and low-quality recommendations
+                request_limit = int(posts_per_page * 1.5)
+                recommended_ids = gorse_client.get_recommendations(
+                    user_id=user_id,
+                    limit=request_limit,
+                    offset=offset
+                )
+                
+                if recommended_ids and len(recommended_ids) >= posts_per_page * 0.5:  # At least 50% success rate
+                    print(f"✅ GORSE ACTIVE: Got {len(recommended_ids)} personalized recommendations!")
+                    print(f"   Post IDs: {recommended_ids[:3]}..." if len(recommended_ids) > 3 else f"   Post IDs: {recommended_ids}")
+                    
+                    # 🎯 Check recommendation quality: if we got fewer posts than requested, pool is draining
+                    recommendation_quality = len(recommended_ids) / request_limit
+                    print(f"📊 Recommendation quality: {recommendation_quality:.1%} ({len(recommended_ids)}/{request_limit})")
+                    
+                    posts = get_posts_by_ids(recommended_ids)
+                    
+                    if posts and len(posts) >= posts_per_page * 0.5:
+                        print(f"✅ Successfully fetched {len(posts)} posts from Firestore")
+                        
+                        # 🎯 Only take the number we need
+                        posts = posts[:posts_per_page]
+                        actual_post_ids = [p.get('id') for p in posts if p.get('id')]
+                        
+                        # 🎯 Mark all recommended posts as 'read' immediately
+                        print(f"📝 Marking {len(actual_post_ids)} posts as read in Gorse...")
+                        for post_id in actual_post_ids:
+                            try:
+                                gorse_client.record_interaction(user_id, post_id, 'read')
+                            except Exception as e:
+                                print(f"⚠️  Failed to mark post {post_id} as read: {e}")
+                        print(f"✅ All posts marked as read")
+                        
+                        # 🎯 If quality is low (< 70%), warn that we're running out of recommendations
+                        if recommendation_quality < 0.7:
+                            print(f"⚠️  LOW QUALITY WARNING: Recommendation pool draining (quality: {recommendation_quality:.1%})")
+                            print(f"   Consider generating more content or waiting for user interactions")
+                        
+                        print(f"🎯 Returning GORSE-POWERED recommendations\n")
+                        # Add source indicator
+                        for post in posts:
+                            post['recommendation_source'] = 'gorse'
+                        
+                        return jsonify({
+                            'posts': posts,
+                            'page': page,
+                            'has_more': recommendation_quality > 0.3,  # Only say "has_more" if quality is decent
+                            'source': 'gorse',
+                            'quality': round(recommendation_quality, 2)
+                        }), 200
+                    else:
+                        print(f"⚠️  Not enough valid posts from Gorse ({len(posts)} posts), falling back")
+                else:
+                    if recommended_ids:
+                        print(f"⚠️  Too few recommendations from Gorse ({len(recommended_ids)}/{request_limit}), falling back")
+                    else:
+                        print("⚠️  No recommendations from Gorse, falling back to legacy algorithm")
+            except Exception as e:
+                print(f"❌ Error getting Gorse recommendations: {e}")
+                print("⚠️  Falling back to legacy algorithm")
+        else:
+            print("⚠️  Gorse is disabled, using legacy algorithm")
 
         user_doc = db.collection('humanUsers').document(user_id).get()
         user_categories = set()
@@ -3593,207 +3699,207 @@ def write_comment():
         logger.error("Error writing comment: %s", ex)
         return jsonify({"success": False, "error": str(ex)}), 500
 
-@app.route('/api/comments/add-threaded-comment', methods=['POST'])
-def add_threaded_comment():
-    """Add a comment or reply with proper threading support"""
-    try:
-        data = request.get_json()
-        post_id = data.get("postId")
-        user_id = data.get("userId")
-        content = data.get("content")
-        parent_comment_id = data.get("parentCommentId")  # null for top-level comments
-        
-        if not post_id or not user_id or not content:
-            return jsonify({"success": False, "error": "Missing required fields"}), 400
-        
-        # Generate unique comment ID
-        import time
-        import random
-        comment_id = f"{int(time.time() * 1000)}{random.randint(1000, 9999)}"
-        
-        # Create comment data with threading support
-        comment_data = {
-            "id": comment_id,
-            "author": get_user_name(user_id),
-            "text": content,
-            "userId": user_id,
-            "postId": post_id,
-            "parentCommentId": parent_comment_id,
-            "timestamp": str(int(time.time() * 1000)),
-            "createdAt": firestore.SERVER_TIMESTAMP,
-            "likedBy": [],
-            "dislikedBy": [],
-            "replyCount": 0,
-            "isReply": parent_comment_id is not None
-        }
+# @app.route('/api/comments/add-threaded-comment', methods=['POST'])
+# def add_threaded_comment():
+#     """Add a comment or reply with proper threading support - OUTDATED"""
+#     try:
+#         data = request.get_json()
+#         post_id = data.get("postId")
+#         user_id = data.get("userId")
+#         content = data.get("content")
+#         parent_comment_id = data.get("parentCommentId")  # null for top-level comments
+#         
+#         if not post_id or not user_id or not content:
+#             return jsonify({"success": False, "error": "Missing required fields"}), 400
+#         
+#         # Generate unique comment ID
+#         import time
+#         import random
+#         comment_id = f"{int(time.time() * 1000)}{random.randint(1000, 9999)}"
+#         
+#         # Create comment data with threading support
+#         comment_data = {
+#             "id": comment_id,
+#             "author": get_user_name(user_id),
+#             "text": content,
+#             "userId": user_id,
+#             "postId": post_id,
+#             "parentCommentId": parent_comment_id,
+#             "timestamp": str(int(time.time() * 1000)),
+#             "createdAt": firestore.SERVER_TIMESTAMP,
+#             "likedBy": [],
+#             "dislikedBy": [],
+#             "replyCount": 0,
+#             "isReply": parent_comment_id is not None
+#         }
 
-        # Reference to the post's comment document
-        post_comment_ref = db.collection('postComments').document(post_id)
-        
-        # Use transaction for atomic updates
-        @firestore.transactional
-        def update_comments(transaction):
-            # Get current comments
-            post_doc = transaction.get(post_comment_ref)
-            current_comments = []
-            
-            if post_doc.exists:
-                current_comments = post_doc.to_dict().get('comments', [])
-            
-            # Add the new comment
-            current_comments.append(comment_data)
-            
-            # If this is a reply, increment parent's reply count
-            if parent_comment_id:
-                for comment in current_comments:
-                    if comment.get('id') == parent_comment_id:
-                        comment['replyCount'] = comment.get('replyCount', 0) + 1
-                        break
-            
-            # Update the document
-            transaction.set(post_comment_ref, {'comments': current_comments}, merge=True)
-            
-            return current_comments
-        
-        # Execute transaction
-        transaction = db.transaction()
-        updated_comments = update_comments(transaction)
-        
-        # Send notifications
-        try:
-            # Find the post owner to send notification
-            collections = ['humanPosts', 'reposts', 'aiPosts']
-            post_author_id = None
-            
-            for collection in collections:
-                try:
-                    post_doc = db.collection(collection).document(post_id).get()
-                    if post_doc.exists:
-                        post_data = post_doc.to_dict()
-                        post_author_id = post_data.get('user_document_id')
-                        break
-                except Exception as e:
-                    continue
-            
-            # Notify post author (if not commenting on own post)
-            if post_author_id and post_author_id != user_id:
-                notification_type = 'comment_reply' if parent_comment_id else 'comment'
-                notification_data = {
-                    'userId': post_author_id,
-                    'type': notification_type,
-                    'title': f'New {"Reply" if parent_comment_id else "Comment"}',
-                    'body': f'{get_user_name(user_id)} {"replied to" if parent_comment_id else "commented on"} your post',
-                    'isRead': False,
-                    'createdAt': firestore.SERVER_TIMESTAMP,
-                    'data': {
-                        'postId': post_id,
-                        'commentId': comment_id,
-                        'parentCommentId': parent_comment_id,
-                        'commenterId': user_id,
-                        'commenterUsername': get_user_name(user_id),
-                        'content': content
-                    }
-                }
-                db.collection('notifications').add(notification_data)
-            
-            # If this is a reply, also notify the parent comment author
-            if parent_comment_id:
-                parent_comment = next((c for c in updated_comments if c.get('id') == parent_comment_id), None)
-                if parent_comment:
-                    parent_author_id = parent_comment.get('userId')
-                    if parent_author_id and parent_author_id != user_id and parent_author_id != post_author_id:
-                        reply_notification_data = {
-                            'userId': parent_author_id,
-                            'type': 'comment_reply',
-                            'title': 'Reply to Your Comment',
-                            'body': f'{get_user_name(user_id)} replied to your comment',
-                            'isRead': False,
-                            'createdAt': firestore.SERVER_TIMESTAMP,
-                            'data': {
-                                'postId': post_id,
-                                'commentId': comment_id,
-                                'parentCommentId': parent_comment_id,
-                                'replierId': user_id,
-                                'replierUsername': get_user_name(user_id),
-                                'content': content
-                            }
-                        }
-                        db.collection('notifications').add(reply_notification_data)
-                        
-        except Exception as e:
-            logger.error(f"Error sending notifications: {e}")
-        
-        return jsonify({
-            "success": True,
-            "commentId": comment_id,
-            "isReply": parent_comment_id is not None
-        }), 200
-        
-    except Exception as ex:
-        logger.error("Error adding threaded comment: %s", ex)
-        return jsonify({"success": False, "error": str(ex)}), 500
+#         # Reference to the post's comment document
+#         post_comment_ref = db.collection('postComments').document(post_id)
+#         
+#         # Use transaction for atomic updates
+#         @firestore.transactional
+#         def update_comments(transaction):
+#             # Get current comments
+#             post_doc = transaction.get(post_comment_ref)
+#             current_comments = []
+#             
+#             if post_doc.exists:
+#                 current_comments = post_doc.to_dict().get('comments', [])
+#             
+#             # Add the new comment
+#             current_comments.append(comment_data)
+#             
+#             # If this is a reply, increment parent's reply count
+#             if parent_comment_id:
+#                 for comment in current_comments:
+#                     if comment.get('id') == parent_comment_id:
+#                         comment['replyCount'] = comment.get('replyCount', 0) + 1
+#                         break
+#             
+#             # Update the document
+#             transaction.set(post_comment_ref, {'comments': current_comments}, merge=True)
+#             
+#             return current_comments
+#         
+#         # Execute transaction
+#         transaction = db.transaction()
+#         updated_comments = update_comments(transaction)
+#         
+#         # Send notifications
+#         try:
+#             # Find the post owner to send notification
+#             collections = ['humanPosts', 'reposts', 'aiPosts']
+#             post_author_id = None
+#             
+#             for collection in collections:
+#                 try:
+#                     post_doc = db.collection(collection).document(post_id).get()
+#                     if post_doc.exists:
+#                         post_data = post_doc.to_dict()
+#                         post_author_id = post_data.get('user_document_id')
+#                         break
+#                 except Exception as e:
+#                     continue
+#             
+#             # Notify post author (if not commenting on own post)
+#             if post_author_id and post_author_id != user_id:
+#                 notification_type = 'comment_reply' if parent_comment_id else 'comment'
+#                 notification_data = {
+#                     'userId': post_author_id,
+#                     'type': notification_type,
+#                     'title': f'New {"Reply" if parent_comment_id else "Comment"}',
+#                     'body': f'{get_user_name(user_id)} {"replied to" if parent_comment_id else "commented on"} your post',
+#                     'isRead': False,
+#                     'createdAt': firestore.SERVER_TIMESTAMP,
+#                     'data': {
+#                         'postId': post_id,
+#                         'commentId': comment_id,
+#                         'parentCommentId': parent_comment_id,
+#                         'commenterId': user_id,
+#                         'commenterUsername': get_user_name(user_id),
+#                         'content': content
+#                     }
+#                 }
+#                 db.collection('notifications').add(notification_data)
+#             
+#             # If this is a reply, also notify the parent comment author
+#             if parent_comment_id:
+#                 parent_comment = next((c for c in updated_comments if c.get('id') == parent_comment_id), None)
+#                 if parent_comment:
+#                     parent_author_id = parent_comment.get('userId')
+#                     if parent_author_id and parent_author_id != user_id and parent_author_id != post_author_id:
+#                         reply_notification_data = {
+#                             'userId': parent_author_id,
+#                             'type': 'comment_reply',
+#                             'title': 'Reply to Your Comment',
+#                             'body': f'{get_user_name(user_id)} replied to your comment',
+#                             'isRead': False,
+#                             'createdAt': firestore.SERVER_TIMESTAMP,
+#                             'data': {
+#                                 'postId': post_id,
+#                                 'commentId': comment_id,
+#                                 'parentCommentId': parent_comment_id,
+#                                 'replierId': user_id,
+#                                 'replierUsername': get_user_name(user_id),
+#                                 'content': content
+#                             }
+#                         }
+#                         db.collection('notifications').add(reply_notification_data)
+#                         
+#         except Exception as e:
+#             logger.error(f"Error sending notifications: {e}")
+#         
+#         return jsonify({
+#             "success": True,
+#             "commentId": comment_id,
+#             "isReply": parent_comment_id is not None
+#         }), 200
+#         
+#     except Exception as ex:
+#         logger.error("Error adding threaded comment: %s", ex)
+#         return jsonify({"success": False, "error": str(ex)}), 500
 
-@app.route('/api/comments/get-threaded-comments', methods=['POST'])
-def get_threaded_comments():
-    """Get comments for a post with proper threading"""
-    try:
-        data = request.get_json()
-        post_id = data.get("postId")
+# @app.route('/api/comments/get-threaded-comments', methods=['POST'])
+# def get_threaded_comments():
+#     """Get comments for a post with proper threading"""
+#     try:
+#         data = request.get_json()
+#         post_id = data.get("postId")
         
-        if not post_id:
-            return jsonify({"success": False, "error": "Missing postId"}), 400
+#         if not post_id:
+#             return jsonify({"success": False, "error": "Missing postId"}), 400
         
-        # Get comments from Firestore
-        post_comment_doc = db.collection('postComments').document(post_id).get()
+#         # Get comments from Firestore
+#         post_comment_doc = db.collection('postComments').document(post_id).get()
         
-        if not post_comment_doc.exists:
-            return jsonify({"success": True, "comments": []}), 200
+#         if not post_comment_doc.exists:
+#             return jsonify({"success": True, "comments": []}), 200
         
-        comments_data = post_comment_doc.to_dict().get('comments', [])
+#         comments_data = post_comment_doc.to_dict().get('comments', [])
         
-        # Separate parent comments and replies
-        parent_comments = []
-        replies_by_parent = {}
+#         # Separate parent comments and replies
+#         parent_comments = []
+#         replies_by_parent = {}
         
-        for comment in comments_data:
-            if comment.get('parentCommentId'):
-                # This is a reply
-                parent_id = comment['parentCommentId']
-                if parent_id not in replies_by_parent:
-                    replies_by_parent[parent_id] = []
-                replies_by_parent[parent_id].append(comment)
-            else:
-                # This is a parent comment
-                parent_comments.append(comment)
+#         for comment in comments_data:
+#             if comment.get('parentCommentId'):
+#                 # This is a reply
+#                 parent_id = comment['parentCommentId']
+#                 if parent_id not in replies_by_parent:
+#                     replies_by_parent[parent_id] = []
+#                 replies_by_parent[parent_id].append(comment)
+#             else:
+#                 # This is a parent comment
+#                 parent_comments.append(comment)
         
-        # Sort parent comments by timestamp (newest first)
-        parent_comments.sort(key=lambda x: int(x.get('timestamp', 0)), reverse=True)
+#         # Sort parent comments by timestamp (newest first)
+#         parent_comments.sort(key=lambda x: int(x.get('timestamp', 0)), reverse=True)
         
-        # Sort replies within each parent (newest first)
-        for replies in replies_by_parent.values():
-            replies.sort(key=lambda x: int(x.get('timestamp', 0)), reverse=True)
+#         # Sort replies within each parent (newest first)
+#         for replies in replies_by_parent.values():
+#             replies.sort(key=lambda x: int(x.get('timestamp', 0)), reverse=True)
         
-        # Build the final threaded structure
-        threaded_comments = []
-        for parent in parent_comments:
-            parent_id = parent.get('id')
-            replies = replies_by_parent.get(parent_id, [])
+#         # Build the final threaded structure
+#         threaded_comments = []
+#         for parent in parent_comments:
+#             parent_id = parent.get('id')
+#             replies = replies_by_parent.get(parent_id, [])
             
-            # Update reply count
-            parent['replyCount'] = len(replies)
+#             # Update reply count
+#             parent['replyCount'] = len(replies)
             
-            threaded_comments.append(parent)
-            # Add replies after parent
-            threaded_comments.extend(replies)
+#             threaded_comments.append(parent)
+#             # Add replies after parent
+#             threaded_comments.extend(replies)
         
-        return jsonify({
-            "success": True,
-            "comments": threaded_comments
-        }), 200
+#         return jsonify({
+#             "success": True,
+#             "comments": threaded_comments
+#         }), 200
         
-    except Exception as ex:
-        logger.error("Error getting threaded comments: %s", ex)
-        return jsonify({"success": False, "error": str(ex)}), 500
+#     except Exception as ex:
+#         logger.error("Error getting threaded comments: %s", ex)
+#         return jsonify({"success": False, "error": str(ex)}), 500
 
 @app.route('/feed/get-user-posts', methods=['POST'])
 def get_user_posts():
@@ -8452,6 +8558,174 @@ def fix_missing_uid():
         
     except Exception as ex:
         logger.error("Error during UID fix process: %s", ex)
+        return jsonify({"success": False, "error": str(ex)}), 500
+
+# ---------------------------
+# Comment Reply Notification Endpoint
+# ---------------------------
+
+@app.route('/api/notifications/events/comment-reply', methods=['POST'])
+def trigger_comment_reply_notification():
+    """Trigger notification when a user replies to a comment"""
+    try:
+        data = request.get_json()
+        post_id = data.get("postId")
+        replier_id = data.get("replierId")  # User who made the reply
+        parent_comment_id = data.get("parentCommentId")  # The comment being replied to
+        reply_content = data.get("replyContent")
+        reply_id = data.get("replyId")
+        
+        if not all([post_id, replier_id, parent_comment_id, reply_content, reply_id]):
+            return jsonify({"success": False, "error": "Missing required fields: postId, replierId, parentCommentId, replyContent, replyId"}), 400
+        
+        # Get the post comments to find the parent comment
+        post_comment_doc = db.collection('postComments').document(post_id).get()
+        
+        if not post_comment_doc.exists:
+            return jsonify({"success": False, "error": "Post comments not found"}), 404
+        
+        comments = post_comment_doc.to_dict().get('comments', [])
+        
+        # Find the parent comment
+        parent_comment = None
+        post_author_id = None
+        
+        for comment in comments:
+            if comment.get('id') == parent_comment_id:
+                parent_comment = comment
+                break
+        
+        if not parent_comment:
+            return jsonify({"success": False, "error": "Parent comment not found"}), 404
+        
+        parent_comment_author_id = parent_comment.get('userId')
+        parent_comment_author = parent_comment.get('author')
+        
+        # Validate that both users are human users (not AI)
+        try:
+            # Check if replier is human user
+            replier_doc = db.collection('humanUsers').document(replier_id).get()
+            if not replier_doc.exists:
+                return jsonify({"success": False, "error": "Replier is not a human user"}), 400
+            
+            # Check if parent comment author is human user  
+            parent_author_doc = db.collection('humanUsers').document(parent_comment_author_id).get()
+            if not parent_author_doc.exists:
+                return jsonify({"success": False, "error": "Parent comment author is not a human user"}), 400
+                
+        except Exception as e:
+            logger.error(f"Error validating user types: {e}")
+            return jsonify({"success": False, "error": "Error validating user types"}), 500
+        
+        # Don't send notification if user is replying to their own comment
+        if replier_id == parent_comment_author_id:
+            return jsonify({"success": True, "message": "No notification sent - user replied to own comment"}), 200
+        
+        # Find the post owner
+        collections = ['humanPosts', 'reposts', 'aiPosts']
+        for collection in collections:
+            try:
+                post_doc = db.collection(collection).document(post_id).get()
+                if post_doc.exists:
+                    post_data = post_doc.to_dict()
+                    post_author_id = post_data.get('user_document_id')
+                    break
+            except Exception as e:
+                continue
+        
+        # Get replier's username
+        replier_username = get_user_name(replier_id)
+        
+        # Create and store notification for the parent comment author
+        notification_data = {
+            'userId': parent_comment_author_id,
+            'type': 'comment_reply',
+            'title': '',
+            'body': f'{replier_username} replied to your comment',
+            'isRead': False,
+            'createdAt': firestore.SERVER_TIMESTAMP,
+            'data': {
+                'postId': post_id,
+                'parentCommentId': parent_comment_id,
+                'parentCommentAuthor': parent_comment_author,
+                'parentCommentAuthorId': parent_comment_author_id,
+                'replyId': reply_id,
+                'replierId': replier_id,
+                'replierUsername': replier_username,
+                'replyContent': reply_content,
+                'postAuthorId': post_author_id
+            }
+        }
+        
+        # Store notification in Firestore
+        notification_ref = db.collection('notifications').add(notification_data)
+        notification_id = notification_ref[1].id
+        
+        # Send push notification directly
+        try:
+            # Get the parent comment author's FCM tokens
+            parent_user_doc = db.collection('humanUsers').document(parent_comment_author_id).get()
+            if parent_user_doc.exists:
+                parent_user_data = parent_user_doc.to_dict()
+                fcm_tokens = parent_user_data.get('fcmTokens', [])
+                
+                if fcm_tokens:
+                    # Create push notification message - use replier name as title, reply content as body
+                    title = f'{replier_username} replied to your comment'
+                    body = reply_content[:100] + ('...' if len(reply_content) > 100 else '')  # Truncate if too long
+                    
+                    # Send to all user's devices
+                    for token in fcm_tokens:
+                        try:
+                            message = messaging.Message(
+                                notification=messaging.Notification(
+                                    title=title,
+                                    body=body,
+                                ),
+                                data={
+                                    'type': 'comment_reply',
+                                    'postId': post_id,
+                                    'parentCommentId': parent_comment_id,
+                                    'parentCommentAuthor': parent_comment_author,
+                                    'parentCommentAuthorId': parent_comment_author_id,
+                                    'replyId': reply_id,
+                                    'replierId': replier_id,
+                                    'replierUsername': replier_username,
+                                    'replyContent': reply_content,
+                                    'notificationId': notification_id
+                                },
+                                token=token,
+                            )
+                            
+                            response = messaging.send(message)
+                            logger.info(f"Push notification sent successfully: {response}")
+                            
+                        except messaging.UnregisteredError:
+                            # Remove invalid token
+                            logger.warning(f"Removing invalid FCM token for user {parent_comment_author_id}")
+                            parent_user_ref = db.collection('humanUsers').document(parent_comment_author_id)
+                            parent_user_ref.update({
+                                'fcmTokens': firestore.ArrayRemove([token])
+                            })
+                        except Exception as token_error:
+                            logger.error(f"Error sending push notification to token {token}: {token_error}")
+                else:
+                    logger.warning(f"No FCM tokens found for user: {parent_comment_author_id}")
+            else:
+                logger.warning(f"Parent comment author not found: {parent_comment_author_id}")
+            
+        except Exception as e:
+            logger.error(f"Error sending push notification for comment reply: {e}")
+            # Continue even if push notification fails
+        
+        return jsonify({
+            "success": True,
+            "message": "Comment reply notification sent successfully",
+            "notificationId": notification_id
+        }), 200
+        
+    except Exception as ex:
+        logger.error("Error triggering comment reply notification: %s", ex)
         return jsonify({"success": False, "error": str(ex)}), 500
 
 if __name__ == '__main__':

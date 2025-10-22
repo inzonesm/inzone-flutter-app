@@ -1,5 +1,5 @@
 from flask import Flask, request, jsonify
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, time
 import firebase_admin
 from firebase_admin import credentials, firestore, messaging
 import os
@@ -166,21 +166,31 @@ class NotificationService:
         start_time = quiet_hours.get('start', '22:00')
         end_time = quiet_hours.get('end', '08:00')
         
-        # Parse quiet hours
-        start_hour, start_min = map(int, start_time.split(':'))
-        end_hour, end_min = map(int, end_time.split(':'))
+        # Validate time format
+        if not isinstance(start_time, str) or ':' not in start_time:
+            return now
+        if not isinstance(end_time, str) or ':' not in end_time:
+            return now
         
-        current_time = now.time()
-        quiet_start = datetime.time(start_hour, start_min)
-        quiet_end = datetime.time(end_hour, end_min)
-        
-        # Check if currently in quiet hours
-        if quiet_start <= current_time or current_time <= quiet_end:
-            # Schedule for end of quiet hours
-            tomorrow = now.date() + timedelta(days=1)
-            return datetime.combine(tomorrow, quiet_end)
-        
-        return now
+        try:
+            # Parse quiet hours
+            start_hour, start_min = map(int, start_time.split(':'))
+            end_hour, end_min = map(int, end_time.split(':'))
+            
+            current_time = now.time()
+            quiet_start = time(start_hour, start_min)
+            quiet_end = time(end_hour, end_min)
+            
+            # Check if currently in quiet hours
+            if quiet_start <= current_time or current_time <= quiet_end:
+                # Schedule for end of quiet hours
+                tomorrow = now.date() + timedelta(days=1)
+                return datetime.combine(tomorrow, quiet_end)
+            
+            return now
+        except (ValueError, TypeError) as e:
+            logger.error(f"Error parsing quiet hours: {e}")
+            return now
     
     def _get_batch_group(self, event_data: Dict) -> str:
         """Get batch group for notification batching"""
@@ -377,6 +387,11 @@ class NotificationService:
                 'title': 'New activity on your post',
                 'body': '{likes} likes • {comments} comments',
                 # 'deeplink': 'inzone://post/{postId}'
+            },
+            'comment_reply': {
+                'title': '{replierUsername} replied to your comment',
+                'body': '{replyContent}',
+                # 'deeplink': 'inzone://post/{postId}?comment={parentCommentId}&reply={replyId}'
             },
             'ai_nudge': {
                 'title': '{characterName} wants your take',
