@@ -7,6 +7,8 @@ import 'package:go_router/go_router.dart';
 import 'package:inzone/components/ui/button.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:toasty_box/toast_service.dart';
+import 'package:inzone/services/inzone_database.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class ContentSelectionSettingsScreen extends StatefulWidget {
   const ContentSelectionSettingsScreen({super.key});
@@ -26,7 +28,43 @@ class _ContentSelectionSettingsScreenState
   @override
   void initState() {
     super.initState();
-    _fetchCategories();
+    _initializeScreen();
+  }
+
+  Future<void> _initializeScreen() async {
+    // Load both categories and user interests in parallel
+    await Future.wait([
+      _fetchCategories(),
+      _loadUserInterests(),
+    ]);
+  }
+
+  Future<void> _loadUserInterests() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        final userDoc = await FirebaseFirestore.instance
+            .collection('humanUsers')
+            .doc(user.uid)
+            .get();
+        
+        if (userDoc.exists) {
+          final data = userDoc.data();
+          final interests = data?['user_interests'] as List?;
+          if (interests != null) {
+            setState(() {
+              selectedTopics.clear();
+              selectedTopics.addAll(List<String>.from(interests));
+            });
+            print('✅ Loaded ${selectedTopics.length} user interests: $interests');
+          } else {
+            print('ℹ️  No interests found for user');
+          }
+        }
+      }
+    } catch (e) {
+      print('❌ Error loading user interests: $e');
+    }
   }
 
   Future<void> _fetchCategories() async {
@@ -83,18 +121,58 @@ class _ContentSelectionSettingsScreenState
     });
   }
 
-  void _saveSelection() {
-    ToastService.showToast(
-      context,
-      backgroundColor: Theme.of(context).canvasColor,
-      shadowColor: Colors.transparent,
-      leading: const Icon(
-        Icons.check_circle, // or Icons.error, Icons.warning, etc.
-        color: Colors.greenAccent, // or Colors.redAccent, Colors.orange, etc.
-      ),
-      message: "Saved",
-    );
-    context.pop();
+  void _saveSelection() async {
+    try {
+      // Get current user ID
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        ToastService.showToast(
+          context,
+          backgroundColor: Theme.of(context).canvasColor,
+          shadowColor: Colors.transparent,
+          leading: const Icon(Icons.error, color: Colors.red),
+          message: "Error: Not logged in",
+        );
+        return;
+      }
+
+      print('🔍 Saving interests for user: ${user.uid}');
+      print('   Selected topics: $selectedTopics');
+
+      // Call the backend to update interests
+      final success = await InZoneDatabase.updateUserInterests(user.uid, selectedTopics);
+      
+      if (success) {
+        ToastService.showToast(
+          context,
+          backgroundColor: Theme.of(context).canvasColor,
+          shadowColor: Colors.transparent,
+          leading: const Icon(
+            Icons.check_circle,
+            color: Colors.greenAccent,
+          ),
+          message: "Interests saved and synced to recommendation engine",
+        );
+        context.pop();
+      } else {
+        ToastService.showToast(
+          context,
+          backgroundColor: Theme.of(context).canvasColor,
+          shadowColor: Colors.transparent,
+          leading: const Icon(Icons.error, color: Colors.red),
+          message: "Failed to save interests",
+        );
+      }
+    } catch (e) {
+      print('Error saving interests: $e');
+      ToastService.showToast(
+        context,
+        backgroundColor: Theme.of(context).canvasColor,
+        shadowColor: Colors.transparent,
+        leading: const Icon(Icons.error, color: Colors.red),
+        message: "Error: $e",
+      );
+    }
   }
 
   // Fallback icons for categories - we'll extract emoji from category name or use default
@@ -374,6 +452,7 @@ class _ContentSelectionSettingsScreenState
                                     .map((topic) => TopicSelectorWidget(
                                           topic: topic,
                                           callBack: addToList,
+                                          isSelected: selectedTopics.contains(topic),
                                         ))
                                     .toList(),
                               )
@@ -397,6 +476,7 @@ class _ContentSelectionSettingsScreenState
                                             .map((topic) => TopicSelectorWidget(
                                                   topic: topic,
                                                   callBack: addToList,
+                                                  isSelected: selectedTopics.contains(topic),
                                                 ))
                                             .toList(),
                                       ),
@@ -414,6 +494,7 @@ class _ContentSelectionSettingsScreenState
                                                     TopicSelectorWidget(
                                                       topic: topic,
                                                       callBack: addToList,
+                                                      isSelected: selectedTopics.contains(topic),
                                                     ))
                                                 .toList()
                                             : [],

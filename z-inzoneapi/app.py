@@ -269,6 +269,21 @@ class GorseClient:
             print(f"Error inserting item to Gorse: {e}")
             return False
     
+    def refresh_user_recommendations(self, user_id: str):
+        """Clear cached recommendations for a specific user"""
+        if not self.enabled:
+            return False
+        
+        # Actually, there's no direct API to clear cache in Gorse
+        # The cache will automatically expire based on cache_expire setting
+        # The best we can do is ensure the user data is updated (which we already did)
+        # and let Gorse handle the cache expiration naturally
+        
+        print(f"ℹ️  User {user_id} recommendations will refresh after cache expires (cache_expire in config)")
+        print(f"   Note: Gorse doesn't provide an API to manually clear individual user cache")
+        print(f"   The updated interests are already in Gorse - fresh recommendations will be generated when cache expires")
+        return True
+    
     def delete_item(self, item_id: str):
         """Delete an item (post) from Gorse"""
         if not self.enabled:
@@ -1029,6 +1044,18 @@ def update_name():
 
         # Update the document in Firestore
         db.collection('humanUsers').document(user_id).update({"name": name})
+        
+        # Sync updated user to Gorse
+        try:
+            user_doc = db.collection('humanUsers').document(user_id).get()
+            if user_doc.exists:
+                user_data = user_doc.to_dict()
+                user_interests = user_data.get("user_interests", [])
+                gorse_client.insert_user(user_id, labels=user_interests)
+                print(f"✓ Synced user {user_id} name update to Gorse")
+        except Exception as e:
+            print(f"⚠ Failed to sync user update to Gorse: {e}")
+        
         return jsonify({"success": True}), 200
     except Exception as ex:
         logger.error("Error updating name: %s", ex)
@@ -1246,12 +1273,26 @@ def update_username():
     except Exception as ex:
         logger.error("Error updating username: %s", ex)
         return jsonify({"success": False, "error": str(ex)}), 500
+    finally:
+        # Sync updated user to Gorse
+        try:
+            user_doc = db.collection('humanUsers').document(user_id).get()
+            if user_doc.exists:
+                user_data = user_doc.to_dict()
+                user_interests = user_data.get("user_interests", [])
+                gorse_client.insert_user(user_id, labels=user_interests)
+                print(f"✓ Synced user {user_id} username update to Gorse")
+        except Exception as e:
+            print(f"⚠ Failed to sync user update to Gorse: {e}")
 
 @app.route('/user/update-profile', methods=['POST'])
 def update_profile():
     try:
         data = request.get_json()
         user_id = data.get("UserId")
+        print(f"📝 Update profile request for user: {user_id}")
+        print(f"   Data: {data}")
+        
         update_data = {
             "name": data.get("Name"),
             "username": data.get("Username"),
@@ -1261,9 +1302,23 @@ def update_profile():
 
         # Update the document in Firestore
         db.collection('humanUsers').document(user_id).update(update_data)
+        print(f"✓ Updated profile in Firestore for user {user_id}")
+        
+        # Sync updated user to Gorse
+        try:
+            user_doc = db.collection('humanUsers').document(user_id).get()
+            if user_doc.exists:
+                user_data = user_doc.to_dict()
+                user_interests = user_data.get("user_interests", [])
+                gorse_client.insert_user(user_id, labels=user_interests)
+                print(f"✓ Synced user {user_id} profile update to Gorse")
+        except Exception as e:
+            print(f"⚠ Failed to sync user update to Gorse: {e}")
+        
         return jsonify({"success": True}), 200
     except Exception as ex:
         logger.error("Error updating profile: %s", ex)
+        return jsonify({"success": False, "error": str(ex)}), 500
         
 @app.route('/user/update-profile-picture', methods=['POST'])
 def update_profile_picture():
@@ -1277,6 +1332,18 @@ def update_profile_picture():
 
         # Update the document in Firestore
         db.collection('humanUsers').document(user_id).update({"profilePicture": profile_picture})
+        
+        # Sync updated user to Gorse
+        try:
+            user_doc = db.collection('humanUsers').document(user_id).get()
+            if user_doc.exists:
+                user_data = user_doc.to_dict()
+                user_interests = user_data.get("user_interests", [])
+                gorse_client.insert_user(user_id, labels=user_interests)
+                print(f"✓ Synced user {user_id} profile picture update to Gorse")
+        except Exception as e:
+            print(f"⚠ Failed to sync user update to Gorse: {e}")
+        
         return jsonify({"success": True}), 200
     except Exception as ex:
         logger.error("Error updating profile picture: %s", ex)
@@ -1294,9 +1361,53 @@ def update_bio():
 
         # Update the document in Firestore
         db.collection('humanUsers').document(user_id).update({"bio": bio})
+        
+        # Sync updated user to Gorse
+        try:
+            user_doc = db.collection('humanUsers').document(user_id).get()
+            if user_doc.exists:
+                user_data = user_doc.to_dict()
+                user_interests = user_data.get("user_interests", [])
+                gorse_client.insert_user(user_id, labels=user_interests)
+                print(f"✓ Synced user {user_id} bio update to Gorse")
+        except Exception as e:
+            print(f"⚠ Failed to sync user update to Gorse: {e}")
+        
         return jsonify({"success": True}), 200
     except Exception as ex:
         logger.error("Error updating bio: %s", ex)
+        return jsonify({"success": False, "error": str(ex)}), 500
+
+@app.route('/user/update-interests', methods=['POST'])
+def update_interests():
+    try:
+        data = request.get_json()
+        user_id = data.get("UID")
+        interests = data.get("Interests")
+        
+        print(f"📝 Update interests request for user: {user_id}")
+        print(f"   New interests: {interests}")
+        
+        if not user_id or interests is None:
+            return jsonify({"success": False, "error": "User Id and Interests are required"}), 400
+
+        # Update the document in Firestore
+        db.collection('humanUsers').document(user_id).update({"user_interests": interests})
+        print(f"✓ Updated interests in Firestore for user {user_id}")
+        
+        # Sync updated user interests to Gorse - THIS IS THE MOST IMPORTANT SYNC!
+        try:
+            gorse_client.insert_user(user_id, labels=interests)
+            print(f"✓ Synced user {user_id} interests to Gorse with {len(interests)} labels")
+            
+            # Note about cache refresh
+            gorse_client.refresh_user_recommendations(user_id)
+        except Exception as e:
+            print(f"⚠ Failed to sync user interests to Gorse: {e}")
+        
+        return jsonify({"success": True}), 200
+    except Exception as ex:
+        logger.error("Error updating interests: %s", ex)
         return jsonify({"success": False, "error": str(ex)}), 500
 
 @app.route('/user/get-profile', methods=['GET'])

@@ -8,6 +8,7 @@ import 'dart:async'; // Add Timer import
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../main.dart';
+import '../config/api_config.dart';
 
 class InZoneDatabase {
   // Track last API call time to prevent too many requests
@@ -57,8 +58,7 @@ class InZoneDatabase {
     // Update the last API call time
     _lastFeedApiCallTime = DateTime.now().toUtc();
 
-    String url =
-        'https://inzoneapi-912424781531.us-central1.run.app/feed/posts-flow';
+    String url = ApiConfig.endpoint('/feed/posts-flow');
 
     // If page parameter is provided, add it to the URL
     if (page != null) {
@@ -1434,8 +1434,8 @@ class InZoneDatabase {
 
   // Helper method to update user name
   static Future<bool> updateUserName(String userId, String name) async {
-    const String url =
-        'https://inzoneapi-912424781531.us-central1.run.app/user/update-name';
+    final String url = ApiConfig.endpoint('/user/update-name');
+    print('🔍 Updating name, URL: $url'); // Debug log
 
     Map<String, dynamic> requestBody = {
       "UID": userId,
@@ -1466,8 +1466,7 @@ class InZoneDatabase {
 
   // Helper method to update username
   static Future<bool> updateUserUsername(String userId, String username) async {
-    const String url =
-        'https://inzoneapi-912424781531.us-central1.run.app/user/update-username';
+    final String url = ApiConfig.endpoint('/user/update-username');
 
     Map<String, dynamic> requestBody = {
       "UID": userId,
@@ -1499,8 +1498,7 @@ class InZoneDatabase {
 
   // Helper method to update bio
   static Future<bool> updateUserBio(String userId, String bio) async {
-    const String url =
-        'https://inzoneapi-912424781531.us-central1.run.app/user/update-bio';
+    final String url = ApiConfig.endpoint('/user/update-bio');
 
     Map<String, dynamic> requestBody = {
       "UID": userId,
@@ -1532,8 +1530,7 @@ class InZoneDatabase {
   // Helper method to update profile picture
   static Future<bool> updateUserProfilePicture(
       String userId, String profilePicture) async {
-    const String url =
-        'https://inzoneapi-912424781531.us-central1.run.app/user/update-profile-picture';
+    final String url = ApiConfig.endpoint('/user/update-profile-picture');
 
     Map<String, dynamic> requestBody = {
       "UID": userId,
@@ -1560,6 +1557,100 @@ class InZoneDatabase {
     } catch (e) {
       print('Error updating profile picture: $e');
       return false;
+    }
+  }
+
+  // Helper method to update user interests
+  static Future<bool> updateUserInterests(String userId, List<String> interests) async {
+    final String url = ApiConfig.endpoint('/user/update-interests');
+    print('🔍 Updating interests, URL: $url'); // Debug log
+    print('   Interests: $interests');
+
+    Map<String, dynamic> requestBody = {
+      "UID": userId,
+      "Interests": interests,
+    };
+
+    try {
+      final http.Response response = await http.post(
+        Uri.parse(url),
+        headers: <String, String>{
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode(requestBody),
+      );
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> responseData = jsonDecode(response.body);
+        print('✓ Interests updated successfully');
+        return responseData["success"] == true;
+      } else {
+        print('Failed to update interests. Status code: ${response.statusCode}');
+        return false;
+      }
+    } catch (e) {
+      print('Error updating interests: $e');
+      return false;
+    }
+  }
+
+  // Track post view for Gorse recommendation engine
+  static Future<void> trackPostView(String userId, String postId) async {
+    final String url = ApiConfig.endpoint('/feed/track-view');
+    
+    try {
+      await http.post(
+        Uri.parse(url),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'user_id': userId, 'post_id': postId}),
+      );
+    } catch (e) {
+      print('Error tracking view: $e');
+    }
+  }
+
+  // Track post like for Gorse recommendation engine
+  static Future<void> trackPostLike(String userId, String postId) async {
+    final String url = ApiConfig.endpoint('/feed/track-like');
+    
+    try {
+      await http.post(
+        Uri.parse(url),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'user_id': userId, 'post_id': postId}),
+      );
+    } catch (e) {
+      print('Error tracking like: $e');
+    }
+  }
+
+  // Track post comment for Gorse recommendation engine
+  static Future<void> trackPostComment(String userId, String postId) async {
+    final String url = ApiConfig.endpoint('/feed/track-comment');
+    
+    try {
+      await http.post(
+        Uri.parse(url),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'user_id': userId, 'post_id': postId}),
+      );
+    } catch (e) {
+      print('Error tracking comment: $e');
+    }
+  }
+
+  // Track post share for Gorse recommendation engine
+  static Future<void> trackPostShare(String userId, String postId) async {
+    final String url = ApiConfig.endpoint('/feed/track-share');
+    
+    try {
+      await http.post(
+        Uri.parse(url),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'user_id': userId, 'post_id': postId}),
+      );
+    } catch (e) {
+      print('Error tracking share: $e');
     }
   }
 
@@ -2031,6 +2122,11 @@ class InZoneDatabase {
   // Add this method to update user profile
   static Future<void> updateUserProfileData(
       String userId, Map<String, dynamic> profileData) async {
+    print('🔍 updateUserProfileData called!');
+    print('   UserId: $userId');
+    print('   ProfileData: $profileData');
+    print('   ApiConfig.baseUrl: ${ApiConfig.baseUrl}');
+    
     try {
       // Verify the user is still authenticated
       User? currentUser = FirebaseAuth.instance.currentUser;
