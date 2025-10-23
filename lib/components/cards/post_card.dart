@@ -266,6 +266,12 @@ class _PostCardState extends State<PostCard>
         widget.post.id != "unknown" &&
         widget.post.id.isNotEmpty) {
       PostViewTracker.startViewingPost(widget.post.id);
+      
+      // Track view for Gorse recommendation engine
+      final userId = FirebaseAuth.instance.currentUser?.uid;
+      if (userId != null) {
+        InZoneDatabase.trackPostView(userId, widget.post.id);
+      }
     }
     
     // Auto-open comments if requested
@@ -541,6 +547,9 @@ class _PostCardState extends State<PostCard>
                   ? widget.post.userReference
                   : null,
             );
+
+            // Track like for Gorse recommendation engine
+            InZoneDatabase.trackPostLike(userId, widget.post.id);
 
             if (didAddLike) {
               try {
@@ -2099,6 +2108,9 @@ class _PostCardState extends State<PostCard>
             ? widget.post.userReference
             : null,
       );
+      
+      // Track comment for Gorse recommendation engine
+      InZoneDatabase.trackPostComment(userId, widget.post.id);
     }
 
     // Reference to the document where comments are stored
