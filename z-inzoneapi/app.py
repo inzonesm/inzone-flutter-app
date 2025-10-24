@@ -3500,8 +3500,9 @@ def track_post_view():
         if not user_id or not post_id:
             return jsonify({'error': 'user_id and post_id required'}), 400
         
-        # Record in Gorse
+        # Record in Gorse as 'read' feedback
         gorse_client.record_interaction(user_id, post_id, 'read')
+        print(f"👁️  User {user_id[:8]}... viewed post {post_id[:8]}... (tracked as 'read')")
         
         return jsonify({'success': True}), 200
     except Exception as e:
@@ -3670,14 +3671,8 @@ def posts_flow():
                         posts = posts[:posts_per_page]
                         actual_post_ids = [p.get('id') for p in posts if p.get('id')]
                         
-                        # 🎯 Mark all recommended posts as 'read' immediately
-                        print(f"📝 Marking {len(actual_post_ids)} posts as read in Gorse...")
-                        for post_id in actual_post_ids:
-                            try:
-                                gorse_client.record_interaction(user_id, post_id, 'read')
-                            except Exception as e:
-                                print(f"⚠️  Failed to mark post {post_id} as read: {e}")
-                        print(f"✅ All posts marked as read")
+                        # 🎯 Do NOT mark as 'read' here - let Flutter track actual views via /feed/track-view
+                        print(f"📝 Returning {len(actual_post_ids)} recommendations (will be marked as read when actually viewed)")
                         
                         # 🎯 If quality is low (< 70%), warn that we're running out of recommendations
                         if recommendation_quality < 0.7:
