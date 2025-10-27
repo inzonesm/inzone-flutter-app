@@ -333,41 +333,53 @@ class _CharacterCreationScreenState extends State<CharacterCreationScreen> {
                                     const EdgeInsets.symmetric(vertical: 60.0),
                                 child: ElevatedButton(
                                     onPressed: () async {
-                                      // Navigator.push(
-                                      //     context,
-                                      //     MaterialPageRoute(
-                                      //         builder: (context) => const InformationPages()));
+                                      // Validation for required fields
+                                      if (nameController.text.isEmpty) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          const SnackBar(content: Text("Character name is required"))
+                                        );
+                                        return;
+                                      }
+                                      if (descriptionController.text.isEmpty) {
+                                        print("Showing snackbar for missing description");
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          const SnackBar(content: Text("Character description is required"))
+                                        );
+                                        return;
+                                      }
+                                      if (url == null || url!.isEmpty) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          const SnackBar(content: Text("Character image is required"))
+                                        );
+                                        return;
+                                      }
 
-                                      if (nameController.text.isNotEmpty) {
-                                        _savedList.add(nameController.text);
-                                        _savePreferences(_savedList);
-                                        setState(() {
-                                          showLoading = true;
-                                          showFields = false;
-                                        });
+                                      _savedList.add(nameController.text);
+                                      _savePreferences(_savedList);
+                                      setState(() {
+                                        showLoading = true;
+                                        showFields = false;
+                                      });
 
-                                        url = await InZoneDatabase
-                                            .generateImage(descriptionController
-                                                    .text.isEmpty
-                                                ? "No description given by user"
-                                                : descriptionController.text);
-                                        if (kDebugMode) {
-                                          print(url);
-                                        }
-                                        if (url != null) {
-                                          await InZoneDatabase.createCharacter(
-                                                  nameController.text,
-                                                  descriptionController.text,
-                                                  url!)
-                                              .whenComplete(() {
-                                            setState(() {
-                                              nameSubmitted = true;
+                                      // Generate image if not already done
+                                      if (url == null) {
+                                        url = await InZoneDatabase.generateImage(descriptionController.text);
+                                      }
 
-                                              timerOver = true;
-                                              showLoading = false;
-                                            });
+                                      // Create character with popularity field
+                                      if (url != null) {
+                                        await InZoneDatabase.createCharacter(
+                                          nameController.text,
+                                          descriptionController.text,
+                                          url!,
+                                          popularity: 0 // New field
+                                        ).whenComplete(() {
+                                          setState(() {
+                                            nameSubmitted = true;
+                                            timerOver = true;
+                                            showLoading = false;
                                           });
-                                        }
+                                        });
                                       }
                                     },
                                     style: ElevatedButton.styleFrom(
