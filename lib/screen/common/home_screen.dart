@@ -244,8 +244,9 @@ class HomeScreenState extends State<HomeScreen> {
     });
 
     try {
-      final response =
-          await InZoneDatabase.getFeed(page: isRefresh ? 1 : reloadCount);
+      // CONSISTENT PAGINATION: Always use page 1 for fresh batch
+      // _currentPage tracks client-side pagination within the batch
+      final response = await InZoneDatabase.getFeed(page: 1);
 
       if (!mounted) return;
 
@@ -265,7 +266,7 @@ class HomeScreenState extends State<HomeScreen> {
             }
 
             _currentPage++;
-            hasMorePosts = newPosts.isNotEmpty;
+            hasMorePosts = true; // Always true for infinite scroll
           });
         } else {
           setState(() {
@@ -325,11 +326,62 @@ class HomeScreenState extends State<HomeScreen> {
           List<dynamic> newPosts = response['posts'] ?? [];
 
           if (newPosts.isEmpty) {
-            // No more posts to load
-            setState(() {
-              hasMorePosts = false;
-              isLoadingMore = false;
-            });
+            // Reached end of current batch - fetch NEW recommendations for infinite scroll
+            print('📱 Reached end of batch, fetching fresh recommendations for infinite scroll...');
+            
+            // Don't call loadFeed - instead fetch directly and append
+            try {
+              // Increment to signal new batch request
+              reloadCount++;
+              
+              // Fetch fresh recommendations directly
+              final freshResponse = await InZoneDatabase.getFeed(page: 1);
+              
+              if (!mounted) return;
+              
+              if (freshResponse != null && freshResponse.containsKey('posts')) {
+                List<dynamic> freshPosts = freshResponse['posts'] ?? [];
+                
+                if (freshPosts.isNotEmpty) {
+                  setState(() {
+                    // Reset pagination for new batch
+                    _currentPage = 0;
+                    
+                    // APPEND new posts (don't clear existing ones)
+                    posts.addAll(freshPosts);
+                    originalPosts = List.from(posts);
+                    
+                    // Extract categories from fresh posts
+                    for (var post in freshPosts) {
+                      String category = _extractCategoryFromPost(post);
+                      if (category.isNotEmpty && !categoriesList.contains(category)) {
+                        categoriesList.add(category);
+                      }
+                    }
+                    
+                    isLoadingMore = false;
+                    hasMorePosts = true;
+                  });
+                  
+                  print('✅ Loaded ${freshPosts.length} fresh posts for infinite scroll');
+                } else {
+                  print('⚠️ Fresh batch was empty');
+                  setState(() {
+                    isLoadingMore = false;
+                  });
+                }
+              } else {
+                print('⚠️ No response from fresh batch request');
+                setState(() {
+                  isLoadingMore = false;
+                });
+              }
+            } catch (e) {
+              print('Error fetching fresh batch: $e');
+              setState(() {
+                isLoadingMore = false;
+              });
+            }
             return;
           }
 
@@ -351,23 +403,29 @@ class HomeScreenState extends State<HomeScreen> {
             }
 
             _currentPage++;
-            hasMorePosts = newPosts.isNotEmpty;
+            hasMorePosts = true; // Always has more for infinite scroll
           });
         } else {
+          // No posts in response - just mark as not loading
+          print('⚠️ Response had no posts key');
           setState(() {
-            hasMorePosts = false;
+            isLoadingMore = false;
           });
+          return;
         }
       } else {
+        // Null response - just mark as not loading
+        print('⚠️ Null response from getFeed');
         setState(() {
-          hasMorePosts = false;
+          isLoadingMore = false;
         });
+        return;
       }
     } catch (e) {
       print('Error loading more posts: $e');
-      // Ensure we don't keep showing loading state if there's an error
+      // Just log the error and stop loading
       setState(() {
-        hasMorePosts = false;
+        isLoadingMore = false;
       });
     } finally {
       if (mounted) {

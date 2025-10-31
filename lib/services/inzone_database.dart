@@ -58,26 +58,32 @@ class InZoneDatabase {
     // Update the last API call time
     _lastFeedApiCallTime = DateTime.now().toUtc();
 
-    String url = ApiConfig.endpoint('/feed/posts-flow');
-
-    // If page parameter is provided, add it to the URL
-    if (page != null) {
-      if (page != 0) {
-        url =
-            '$url?user_id=${FirebaseAuth.instance.currentUser!.uid}&page=$page';
-      } else {
-        url = '$url?user_id=${FirebaseAuth.instance.currentUser!.uid}&page=1';
-      }
-    }
+    // Use new smart recommendations endpoint (Firestore-based cold start)
+    String url = ApiConfig.endpoint('/feed/get-smart-recommendations');
 
     try {
-      // Make the GET request with timeout
-      final response = await http.get(
+      // PAGINATION FIX: Request moderate pool to avoid timeout
+      // Backend returns 30 posts (fast), Flutter paginates client-side
+      int postsPerPage = 10;
+      int currentPage = (page != null && page > 0) ? page : 1;
+      int totalPoolSize = 30; // Request 30 posts (3 pages, avoids timeout)
+
+      // Prepare request body for POST endpoint
+      final requestBody = {
+        'user_id': FirebaseAuth.instance.currentUser!.uid,
+        'limit': totalPoolSize, // Always request full pool
+        'target_match_rate': 0.7,
+        'include_verification': false,
+      };
+
+      // Make the POST request with timeout
+      final response = await http.post(
         Uri.parse(url),
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
         },
+        body: jsonEncode(requestBody),
       ).timeout(const Duration(seconds: 15), onTimeout: () {
         // Return a timeout response
         throw TimeoutException('The request took too long to complete');
@@ -87,8 +93,32 @@ class InZoneDatabase {
       if (response.statusCode == 200) {
         final jsonData = jsonDecode(response.body);
 
-        // Return the response as is - it should contain a 'posts' field with post_type
-        return jsonData;
+        // Extract posts from response
+        if (jsonData['success'] == true && jsonData.containsKey('recommendations')) {
+          List<dynamic> allPosts = jsonData['recommendations'];
+
+          // For pagination: return only the new posts for this page
+          int startIndex = (currentPage - 1) * postsPerPage;
+          int endIndex = startIndex + postsPerPage;
+
+          List<dynamic> pagePosts = [];
+          if (startIndex < allPosts.length) {
+            endIndex = endIndex > allPosts.length ? allPosts.length : endIndex;
+            pagePosts = allPosts.sublist(startIndex, endIndex);
+          }
+
+          // Return in the same format as old endpoint for compatibility
+          return {
+            'posts': pagePosts,
+            'page': currentPage,
+            'has_more': endIndex < allPosts.length, // Has more if there are posts left in pool
+            'source': 'smart_recommendations',
+            'total_in_pool': allPosts.length,
+          };
+        } else {
+          print('Smart recommendations returned no posts');
+          return {'posts': []};
+        }
       } else if (response.statusCode == 429) {
         // Too many requests - add additional delay
         print('Rate limited by API (429). Waiting before retrying...');
