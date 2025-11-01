@@ -1,5 +1,3 @@
-inzone-flutter-app/lib/services/analytics_service.dart
-```
 import 'package:firebase_analytics/firebase_analytics.dart';
 
 class AnalyticsService {
