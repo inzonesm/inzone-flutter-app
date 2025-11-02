@@ -189,20 +189,28 @@ class _InterestSelectionScreenState extends State<InterestSelectionScreen> {
       print("InterestScreen - Finishing signup for user: ${user.uid}");
       print("InterestScreen - Selected interests: $_interests");
 
+      // Update interests via backend API (this will calculate and set masterCategories)
+      final success = await InZoneDatabase.updateUserInterests(user.uid, _interests);
+      
+      if (!success) {
+        throw Exception("Failed to update interests via API");
+      }
+      
+      print("InterestScreen - ✅ Interests and masterCategories updated via API");
+
       // Set a timestamp to mark profile completion using UTC time
       final timestamp = DateTime.now().toUtc().toIso8601String();
       print("InterestScreen - Setting createdAt timestamp: $timestamp");
 
-      // Update the user document with interests and createdAt timestamp
+      // Update the createdAt timestamp
       await FirebaseFirestore.instance
           .collection('humanUsers')
           .doc(user.uid)
           .update({
-        'interests': _interests,
         'createdAt': timestamp,
       });
 
-      print("InterestScreen - Updated interests and set createdAt timestamp");
+      print("InterestScreen - ✅ Set createdAt timestamp");
 
       // Force refresh of auth state
       await AppRouter.authNotifier.refreshAuthState();
@@ -431,6 +439,7 @@ class _InterestSelectionScreenState extends State<InterestSelectionScreen> {
                                     .map((topic) => TopicSelectorWidget(
                                           topic: topic,
                                           callBack: _toggleInterest,
+                                          isSelected: _interests.contains(topic), // Add selection state
                                         ))
                                     .toList(),
                               )
@@ -454,6 +463,7 @@ class _InterestSelectionScreenState extends State<InterestSelectionScreen> {
                                             .map((topic) => TopicSelectorWidget(
                                                   topic: topic,
                                                   callBack: _toggleInterest,
+                                                  isSelected: _interests.contains(topic), // Add selection state
                                                 ))
                                             .toList(),
                                       ),
@@ -471,6 +481,7 @@ class _InterestSelectionScreenState extends State<InterestSelectionScreen> {
                                                     TopicSelectorWidget(
                                                       topic: topic,
                                                       callBack: _toggleInterest,
+                                                      isSelected: _interests.contains(topic), // Add selection state
                                                     ))
                                                 .toList()
                                             : [],

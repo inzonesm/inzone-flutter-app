@@ -14,10 +14,6 @@ import 'package:inzone/services/notification_badge_service.dart';
 class NotificationEventService {
   static const String _apiUrl = 'https://inzoneapi-912424781531.us-central1.run.app';
   
-  // Local notifications instance for immediate display
-  static final FlutterLocalNotificationsPlugin _localNotifications = 
-      FlutterLocalNotificationsPlugin();
-  
   // Firebase messaging instance
   static final FirebaseMessaging _firebaseMessaging = FirebaseMessaging.instance;
 
@@ -375,32 +371,66 @@ class NotificationEventService {
       handlePushNotificationTap(message.data);
     });
     
-    // Handle terminated app message taps (app was completely closed)
-    RemoteMessage? initialMessage = await _firebaseMessaging.getInitialMessage();
-    if (initialMessage != null) {
-      print('📱 Terminated app message received: ${initialMessage.data}');
-      // Delay handling to ensure app is fully initialized
-      Future.delayed(const Duration(milliseconds: 1000), () {
-        final user = FirebaseAuth.instance.currentUser;
-        if (user != null) {
-          handlePushNotificationTap(initialMessage.data);
-        } else {
-          // Store for later if user not logged in yet
-          _pendingInitialMessage = initialMessage;
-        }
-      });
-    }
+    // Initial message handling is done by NotificationService and passed via setInitialMessage()
+    print('📱 Push notification initialization complete');
   }
 
   // Store initial message if user isn't logged in yet
   static RemoteMessage? _pendingInitialMessage;
 
+  /// Set the initial message from NotificationService (since getInitialMessage can only be called once)
+  static void setInitialMessage(RemoteMessage message) {
+    print('📱 Received initial message from NotificationService: ${message.data}');
+    _pendingInitialMessage = message;
+    print('📱 Stored initial message for later handling after app initialization');
+  }
+
   /// Handle pending initial message after user logs in
   static Future<void> handlePendingInitialMessage() async {
     if (_pendingInitialMessage != null) {
       print('📱 Handling pending initial message after login: ${_pendingInitialMessage!.data}');
-      handlePushNotificationTap(_pendingInitialMessage!.data);
+      
+      // Wait a bit longer to ensure the app is fully initialized
+      await Future.delayed(const Duration(milliseconds: 2000));
+      
+      // Retry mechanism for navigation
+      await _handlePushNotificationWithRetry(_pendingInitialMessage!.data, maxRetries: 3);
       _pendingInitialMessage = null;
+    }
+  }
+  
+  /// Handle push notification with retry logic for cold starts
+  static Future<void> _handlePushNotificationWithRetry(Map<String, dynamic> data, {int maxRetries = 3}) async {
+    for (int attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        print('📱 Navigation attempt $attempt of $maxRetries');
+        
+        // Check if router is ready by testing if we can access the current route
+        try {
+          final currentRoute = AppRouter.router.routeInformationProvider.value.uri.toString();
+          print('📱 Router is ready, current route: $currentRoute');
+          await handlePushNotificationTap(data);
+          return; // Success, exit retry loop
+        } catch (routerError) {
+          print('📱 Router not ready yet: $routerError');
+          if (attempt < maxRetries) {
+            await Future.delayed(Duration(milliseconds: 1000 * attempt)); // Exponential backoff
+          }
+        }
+      } catch (e) {
+        print('📱 Navigation attempt $attempt failed: $e');
+        if (attempt < maxRetries) {
+          await Future.delayed(Duration(milliseconds: 1000 * attempt)); // Exponential backoff
+        } else {
+          print('📱 All navigation attempts failed, giving up');
+          // As a last resort, just navigate to home
+          try {
+            AppRouter.router.go(Routes.home);
+          } catch (finalError) {
+            print('📱 Even home navigation failed: $finalError');
+          }
+        }
+      }
     }
   }
 
@@ -1477,6 +1507,42 @@ class NotificationEventService {
             }
           } else {
             print('⚠️ No postId or invalid format in comment notification');
+            AppRouter.router.push(Routes.home);
+          }
+          break;
+          
+        case 'comment_reply':
+          print('🔗 Comment reply notification - navigating to post with reply opened');
+          final postId = data['postId'] as String?;
+          final parentCommentId = data['parentCommentId'] as String?;
+          final replyId = data['replyId'] as String?;
+          
+          if (postId != null && postId.startsWith('post_')) {
+            // Extract user ID from post ID (format: post_userId_timestamp)  
+            final parts = postId.split('_');
+            if (parts.length >= 3) {
+              final userId = parts[1];
+              print('🔗 Navigating to profile: $userId with post: $postId, comment: $parentCommentId, reply: $replyId');
+              
+              // Build route with query parameters for auto-opening comments and navigating to reply
+              String route = Routes.regularProfilePath(userId);
+              route += '?post=$postId&openComments=true';
+              if (parentCommentId != null) {
+                route += '&commentId=$parentCommentId';
+                route += '&expandReplies=true'; // Ensure replies are shown
+              }
+              if (replyId != null) {
+                route += '&replyId=$replyId';
+              }
+              
+              AppRouter.router.push(route);
+            } else {
+              // Fallback to home if post ID format is unexpected
+              print('⚠️ Unexpected post ID format: $postId');
+              AppRouter.router.push(Routes.home);
+            }
+          } else {
+            print('⚠️ No postId or invalid format in comment reply notification');
             AppRouter.router.push(Routes.home);
           }
           break;

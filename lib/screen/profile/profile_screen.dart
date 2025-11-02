@@ -1209,6 +1209,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           // Check if this is the post that should have comments opened
                           final targetPostId = widget.routerState?.uri.queryParameters['post'];
                           final shouldOpenComments = widget.routerState?.uri.queryParameters['openComments'] == 'true';
+                          final targetCommentId = widget.routerState?.uri.queryParameters['commentId'];
+                          final targetReplyId = widget.routerState?.uri.queryParameters['replyId'];
+                          final shouldExpandReplies = widget.routerState?.uri.queryParameters['expandReplies'] == 'true';
                           final isTargetPost = targetPostId != null && _posts[index].id == targetPostId;
                           
                           return PostCard(
@@ -1218,6 +1221,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             onTap: (postId) {},
                             inProfile: true,
                             autoOpenComments: shouldOpenComments && isTargetPost,
+                            targetCommentId: targetCommentId,
+                            targetReplyId: targetReplyId,
+                            autoExpandReplies: shouldExpandReplies && isTargetPost,
                           );
                         }),
                         const SizedBox(height: 100),
