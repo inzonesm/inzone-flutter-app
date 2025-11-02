@@ -43,7 +43,7 @@ class HomeScreenState extends State<HomeScreen> {
 
   late DateTime _startTime;
   int pageOpened = 0;
-  int _currentPage = 0;
+  int _currentPage = 1;  // Start from page 1 (backend pagination starts at 1)
   final int _pageSize = 10; //
   bool hasMorePosts = true;
   String? selectedCategory; // Track the currently selected category
@@ -122,28 +122,17 @@ class HomeScreenState extends State<HomeScreen> {
   void _onScroll() {
     if (_scrollThrottleTimer?.isActive ?? false) return;
 
-    _scrollThrottleTimer = Timer(const Duration(milliseconds: 300), () {
+    _scrollThrottleTimer = Timer(const Duration(milliseconds: 500), () {
       if (!_scrollController.hasClients) return;
       _trackScrollBehavior();
 
-      double scrollPosition = _scrollController.position.pixels;
-      int estimatedVisibleIndex = (scrollPosition / 200).floor();
-
-      if ((estimatedVisibleIndex - _currentVisibleIndex).abs() > 3) {
-        _currentVisibleIndex = estimatedVisibleIndex;
-
-        int totalItemsWithAds = posts.length + (posts.length ~/ 10);
-        int remainingItems = totalItemsWithAds - _currentVisibleIndex;
-
-        if (remainingItems <= 10 && !isLoadingMore && hasMorePosts) {
-          _loadMorePosts();
-        }
-      }
-
+      // SIMPLIFIED: Only trigger when very close to the absolute bottom
+      // Removed the "remaining items" check which was causing premature loading
       if (_scrollController.position.pixels >=
-              _scrollController.position.maxScrollExtent - 800 &&
+              _scrollController.position.maxScrollExtent - 200 &&
           !isLoadingMore &&
           hasMorePosts) {
+        print('🎯 Scroll trigger: Near bottom (within 200px), loading more posts...');
         _loadMorePosts();
       }
     });
@@ -226,7 +215,7 @@ class HomeScreenState extends State<HomeScreen> {
 
     if (isRefresh) {
       setState(() {
-        _currentPage = 0;
+        _currentPage = 1;  // Reset to page 1 for new batch
         posts.clear();
         originalPosts.clear();
         categoriesList.clear();
@@ -244,9 +233,18 @@ class HomeScreenState extends State<HomeScreen> {
     });
 
     try {
+      // Collect currently loaded post IDs to exclude from backend
+      List<String> currentPostIds = posts.map((post) =>
+        post['id']?.toString() ?? post['_id']?.toString() ?? ''
+      ).where((id) => id.isNotEmpty).toList();
+
       // CONSISTENT PAGINATION: Always use page 1 for fresh batch
       // _currentPage tracks client-side pagination within the batch
-      final response = await InZoneDatabase.getFeed(page: 1);
+      final response = await InZoneDatabase.getFeed(
+        page: 1,
+        batchNumber: reloadCount, // NEW: Pass batch number to get different recommendations
+        excludeIds: currentPostIds, // Exclude already-loaded posts
+      );
 
       if (!mounted) return;
 
@@ -254,8 +252,22 @@ class HomeScreenState extends State<HomeScreen> {
         if (response.containsKey('posts')) {
           List<dynamic> newPosts = response['posts'] ?? [];
 
+          // Check for duplicates before adding
+          Set<String> existingIds = posts.map((post) =>
+            post['id']?.toString() ?? post['_id']?.toString() ?? ''
+          ).where((id) => id.isNotEmpty).toSet();
+
+          List<dynamic> uniqueNewPosts = newPosts.where((post) {
+            String id = post['id']?.toString() ?? post['_id']?.toString() ?? '';
+            return id.isNotEmpty && !existingIds.contains(id);
+          }).toList();
+
+          if (uniqueNewPosts.length != newPosts.length) {
+            print('⚠️ WARNING: Filtered out ${newPosts.length - uniqueNewPosts.length} duplicate posts!');
+          }
+
           setState(() {
-            posts.addAll(newPosts);
+            posts.addAll(uniqueNewPosts);
             originalPosts = List.from(posts);
 
             for (var post in newPosts) {
@@ -265,9 +277,17 @@ class HomeScreenState extends State<HomeScreen> {
               }
             }
 
-            _currentPage++;
+            // Keep _currentPage at 1 since we just loaded page 1
+            // Next scroll will load page 2
             hasMorePosts = true; // Always true for infinite scroll
           });
+
+          print('✅ LOADED Initial Page 1 of Batch $reloadCount: ${newPosts.length} posts (Total now: ${posts.length})');
+          // Show first 3 post IDs for verification
+          for (int i = 0; i < newPosts.length.clamp(0, 3); i++) {
+            String id = newPosts[i]['id']?.toString() ?? newPosts[i]['_id']?.toString() ?? 'unknown';
+            print('   Post ${i + 1}: ${id.length >= 8 ? id.substring(0, 8) : id}...');
+          }
         } else {
           setState(() {
             if (isRefresh) {
@@ -312,12 +332,25 @@ class HomeScreenState extends State<HomeScreen> {
 
     setState(() {
       isLoadingMore = true;
-      // Don't increment reloadCount here - it causes issues with pagination
     });
 
+    print('📄 _loadMorePosts: Requesting page ${_currentPage + 1} of batch $reloadCount');
+    print('   Current state: ${posts.length} posts loaded, _currentPage=$_currentPage');
+
     try {
-      // Always use current page number for pagination rather than reloadCount
-      final response = await InZoneDatabase.getFeed(page: _currentPage + 1);
+      // Collect currently loaded post IDs to exclude from backend
+      List<String> currentPostIds = posts.map((post) =>
+        post['id']?.toString() ?? post['_id']?.toString() ?? ''
+      ).where((id) => id.isNotEmpty).toList();
+
+      // PAGINATION FIX: Keep same batch, just load next page
+      // page: _currentPage + 1 = next page in current batch
+      // batchNumber: reloadCount = stay in same batch
+      final response = await InZoneDatabase.getFeed(
+        page: _currentPage + 1,
+        batchNumber: reloadCount,  // Keep same batch for consistent pagination
+        excludeIds: currentPostIds, // Exclude already-loaded posts
+      );
 
       if (!mounted) return;
 
@@ -325,17 +358,29 @@ class HomeScreenState extends State<HomeScreen> {
         if (response.containsKey('posts')) {
           List<dynamic> newPosts = response['posts'] ?? [];
 
+          print('📥 Received ${newPosts.length} posts for page ${_currentPage + 1}');
+
           if (newPosts.isEmpty) {
-            // Reached end of current batch - fetch NEW recommendations for infinite scroll
-            print('📱 Reached end of batch, fetching fresh recommendations for infinite scroll...');
+            // Reached end of current batch (all 3 pages loaded)
+            // Now fetch a NEW batch for infinite scroll
+            print('📱 Reached end of batch (page ${_currentPage + 1}), fetching new batch...');
+            print('   Total posts so far: ${posts.length}');
             
-            // Don't call loadFeed - instead fetch directly and append
             try {
-              // Increment to signal new batch request
+              // Increment batch number to get new recommendations
               reloadCount++;
-              
-              // Fetch fresh recommendations directly
-              final freshResponse = await InZoneDatabase.getFeed(page: 1);
+
+              // Collect currently loaded post IDs to exclude from backend
+              List<String> currentPostIds = posts.map((post) =>
+                post['id']?.toString() ?? post['_id']?.toString() ?? ''
+              ).where((id) => id.isNotEmpty).toList();
+
+              // Fetch NEW batch, starting from page 1
+              final freshResponse = await InZoneDatabase.getFeed(
+                page: 1,
+                batchNumber: reloadCount, // NEW batch number
+                excludeIds: currentPostIds, // Exclude already-loaded posts
+              );
               
               if (!mounted) return;
               
@@ -343,14 +388,28 @@ class HomeScreenState extends State<HomeScreen> {
                 List<dynamic> freshPosts = freshResponse['posts'] ?? [];
                 
                 if (freshPosts.isNotEmpty) {
+                  // Check for duplicates before adding new batch
+                  Set<String> existingIds = posts.map((post) =>
+                    post['id']?.toString() ?? post['_id']?.toString() ?? ''
+                  ).where((id) => id.isNotEmpty).toSet();
+
+                  List<dynamic> uniqueFreshPosts = freshPosts.where((post) {
+                    String id = post['id']?.toString() ?? post['_id']?.toString() ?? '';
+                    return id.isNotEmpty && !existingIds.contains(id);
+                  }).toList();
+
+                  if (uniqueFreshPosts.length != freshPosts.length) {
+                    print('⚠️ WARNING: Filtered out ${freshPosts.length - uniqueFreshPosts.length} duplicate posts in new batch!');
+                  }
+
                   setState(() {
-                    // Reset pagination for new batch
-                    _currentPage = 0;
-                    
-                    // APPEND new posts (don't clear existing ones)
-                    posts.addAll(freshPosts);
+                    // Reset page counter for new batch
+                    _currentPage = 1;
+
+                    // APPEND new posts (infinite scroll)
+                    posts.addAll(uniqueFreshPosts);
                     originalPosts = List.from(posts);
-                    
+
                     // Extract categories from fresh posts
                     for (var post in freshPosts) {
                       String category = _extractCategoryFromPost(post);
@@ -358,26 +417,31 @@ class HomeScreenState extends State<HomeScreen> {
                         categoriesList.add(category);
                       }
                     }
-                    
+
                     isLoadingMore = false;
                     hasMorePosts = true;
                   });
-                  
-                  print('✅ Loaded ${freshPosts.length} fresh posts for infinite scroll');
+
+                  print('✅ LOADED NEW Batch $reloadCount, Page 1: ${freshPosts.length} posts (Total now: ${posts.length})');
+                  // Show first 3 post IDs for verification
+                  for (int i = 0; i < freshPosts.length.clamp(0, 3); i++) {
+                    String id = freshPosts[i]['id']?.toString() ?? freshPosts[i]['_id']?.toString() ?? 'unknown';
+                    print('   Post ${posts.length - freshPosts.length + i + 1}: ${id.length >= 8 ? id.substring(0, 8) : id}...');
+                  }
                 } else {
-                  print('⚠️ Fresh batch was empty');
+                  print('⚠️ New batch was empty');
                   setState(() {
                     isLoadingMore = false;
                   });
                 }
               } else {
-                print('⚠️ No response from fresh batch request');
+                print('⚠️ No response from new batch request');
                 setState(() {
                   isLoadingMore = false;
                 });
               }
             } catch (e) {
-              print('Error fetching fresh batch: $e');
+              print('Error fetching new batch: $e');
               setState(() {
                 isLoadingMore = false;
               });
@@ -385,9 +449,34 @@ class HomeScreenState extends State<HomeScreen> {
             return;
           }
 
+          // Successfully loaded next page in current batch
+          // Check for duplicates before adding
+          Set<String> existingIds = posts.map((post) =>
+            post['id']?.toString() ?? post['_id']?.toString() ?? ''
+          ).where((id) => id.isNotEmpty).toSet();
+
+          List<dynamic> uniqueNewPosts = newPosts.where((post) {
+            String id = post['id']?.toString() ?? post['_id']?.toString() ?? '';
+            return id.isNotEmpty && !existingIds.contains(id);
+          }).toList();
+
+          if (uniqueNewPosts.length != newPosts.length) {
+            print('⚠️ WARNING: Filtered out ${newPosts.length - uniqueNewPosts.length} duplicate posts in _loadMorePosts!');
+          }
+
+          // Check if we got any unique posts after filtering
+          if (uniqueNewPosts.isEmpty) {
+            print('⚠️ All posts were duplicates after filtering. No new posts to add.');
+            setState(() {
+              isLoadingMore = false;
+              // Don't stop pagination - just skip this page
+            });
+            return;
+          }
+
           setState(() {
-            posts.addAll(newPosts);
-            originalPosts = List.from(posts); // Update original posts
+            posts.addAll(uniqueNewPosts);
+            originalPosts = List.from(posts);
 
             // Extract additional categories
             for (var post in newPosts) {
@@ -403,10 +492,17 @@ class HomeScreenState extends State<HomeScreen> {
             }
 
             _currentPage++;
-            hasMorePosts = true; // Always has more for infinite scroll
+            hasMorePosts = true;
           });
+
+          print('✅ LOADED Page ${_currentPage} of Batch $reloadCount: ${newPosts.length} posts (Total now: ${posts.length})');
+          // Show first 3 post IDs for verification
+          for (int i = 0; i < newPosts.length.clamp(0, 3); i++) {
+            String id = newPosts[i]['id']?.toString() ?? newPosts[i]['_id']?.toString() ?? 'unknown';
+            print('   Post ${posts.length - newPosts.length + i + 1}: ${id.length >= 8 ? id.substring(0, 8) : id}...');
+          }
         } else {
-          // No posts in response - just mark as not loading
+          // No posts in response
           print('⚠️ Response had no posts key');
           setState(() {
             isLoadingMore = false;
@@ -589,6 +685,19 @@ class HomeScreenState extends State<HomeScreen> {
     // Increment view count when post is built (not for ads or carousels)
     String postId =
         actualPost['id']?.toString() ?? actualPost['_id']?.toString() ?? '';
+
+    // LOG: Track which post is being displayed
+    String postContentPreview = '';
+    if (actualPost.containsKey('post')) {
+      var postData = actualPost['post'];
+      if (postData is Map && postData.containsKey('text_content')) {
+        String textContent = postData['text_content']?.toString() ?? '';
+        postContentPreview = textContent.length > 30 ? textContent.substring(0, 30) : textContent;
+      }
+    }
+
+    print('📺 DISPLAY Post #${actualPostIndex + 1}/${posts.length} | ListViewIdx: $index | ID: ${postId.length >= 8 ? postId.substring(0, 8) : postId}... | Type: $postType | Preview: "$postContentPreview${postContentPreview.isNotEmpty ? "..." : ""}"');
+
     if (postId.isNotEmpty &&
         postType != 'unknown' &&
         !_viewedPosts.contains(postId)) {
@@ -874,7 +983,28 @@ class HomeScreenState extends State<HomeScreen> {
                               posts.length + (posts.length ~/ 10);
 
                           if (index == totalItemsWithAds && isLoadingMore) {
-                            return const SizedBox(height: 1);
+                            // Show loading indicator at the bottom
+                            return Container(
+                              padding: const EdgeInsets.symmetric(vertical: 20),
+                              child: Center(
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const CircularProgressIndicator(
+                                      strokeWidth: 2.5,
+                                    ),
+                                    const SizedBox(height: 12),
+                                    Text(
+                                      'Loading more posts...',
+                                      style: TextStyle(
+                                        color: Colors.grey[600],
+                                        fontSize: 13,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
                           } else if (index ==
                               totalItemsWithAds + (isLoadingMore ? 1 : 0)) {
                             // Bottom padding for navigation bar
