@@ -44,7 +44,7 @@ class InZoneDatabase {
     }
   }
 
-  static Future<dynamic> getFeed({int? page}) async {
+  static Future<dynamic> getFeed({int? page, int? batchNumber, List<String>? excludeIds}) async {
     // Throttle API requests to prevent overloading
     if (_lastFeedApiCallTime != null) {
       final timeSinceLastCall =
@@ -62,18 +62,21 @@ class InZoneDatabase {
     String url = ApiConfig.endpoint('/feed/get-smart-recommendations');
 
     try {
-      // PAGINATION FIX: Request moderate pool to avoid timeout
-      // Backend returns 30 posts (fast), Flutter paginates client-side
+      // PAGINATION FIX: Each batch has 30 posts (3 pages x 10 posts)
+      // Same batch_number = same 30 posts, different pages = different slices
       int postsPerPage = 10;
       int currentPage = (page != null && page > 0) ? page : 1;
-      int totalPoolSize = 30; // Request 30 posts (3 pages, avoids timeout)
+      int totalPoolSize = 30; // Backend generates 30 posts per batch (3 pages)
 
       // Prepare request body for POST endpoint
       final requestBody = {
         'user_id': FirebaseAuth.instance.currentUser!.uid,
-        'limit': totalPoolSize, // Always request full pool
+        'limit': totalPoolSize, // Request full pool size
         'target_match_rate': 0.7,
         'include_verification': false,
+        'page': currentPage, // NEW: Which page of the batch to return
+        'batch_number': batchNumber ?? 0, // Which batch to generate
+        'exclude_ids': excludeIds ?? [], // Posts already loaded in client
       };
 
       // Make the POST request with timeout
@@ -95,25 +98,28 @@ class InZoneDatabase {
 
         // Extract posts from response
         if (jsonData['success'] == true && jsonData.containsKey('recommendations')) {
-          List<dynamic> allPosts = jsonData['recommendations'];
+          // Backend already handles pagination - just use the posts directly!
+          List<dynamic> pagePosts = jsonData['recommendations'];
 
-          // For pagination: return only the new posts for this page
-          int startIndex = (currentPage - 1) * postsPerPage;
-          int endIndex = startIndex + postsPerPage;
+          // Get metadata from backend response
+          int poolSize = jsonData['data']?['pool_size'] ?? 30;
+          int batchNumber = jsonData['data']?['batch_number'] ?? 0;
 
-          List<dynamic> pagePosts = [];
-          if (startIndex < allPosts.length) {
-            endIndex = endIndex > allPosts.length ? allPosts.length : endIndex;
-            pagePosts = allPosts.sublist(startIndex, endIndex);
-          }
+          // Calculate if there are more pages in the current batch
+          // Each batch has poolSize posts (usually 30), divided into pages of 10
+          bool hasMore = (currentPage * postsPerPage) < poolSize;
+
+          print('✅ getFeed: Received ${pagePosts.length} posts for page $currentPage of batch $batchNumber');
+          print('   Pool size: $poolSize, Has more: $hasMore');
 
           // Return in the same format as old endpoint for compatibility
           return {
             'posts': pagePosts,
             'page': currentPage,
-            'has_more': endIndex < allPosts.length, // Has more if there are posts left in pool
+            'has_more': hasMore,
             'source': 'smart_recommendations',
-            'total_in_pool': allPosts.length,
+            'total_in_pool': poolSize,
+            'batch_number': batchNumber,
           };
         } else {
           print('Smart recommendations returned no posts');
@@ -1624,31 +1630,46 @@ class InZoneDatabase {
     }
   }
 
+  // Session-level tracking to prevent duplicate view tracking
+  static final Set<String> _trackedPostsThisSession = {};
+
   // Track post view for Gorse recommendation engine
   static Future<void> trackPostView(String userId, String postId) async {
+    // Prevent duplicate tracking in the same session
+    final trackingKey = '$userId:$postId';
+    if (_trackedPostsThisSession.contains(trackingKey)) {
+      print('⏭️ Skipping duplicate view tracking for post: $postId');
+      return;
+    }
+
+    _trackedPostsThisSession.add(trackingKey);
+
     final String url = ApiConfig.endpoint('/feed/track-view');
-    
+
     try {
       await http.post(
         Uri.parse(url),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'user_id': userId, 'post_id': postId}),
-      );
+      ).timeout(const Duration(seconds: 5));
+      print('✅ View tracked for post: ${postId.length >= 8 ? postId.substring(0, 8) : postId}...');
     } catch (e) {
       print('Error tracking view: $e');
+      // Remove from tracked set on error so it can be retried
+      _trackedPostsThisSession.remove(trackingKey);
     }
   }
 
   // Track post like for Gorse recommendation engine
   static Future<void> trackPostLike(String userId, String postId) async {
     final String url = ApiConfig.endpoint('/feed/track-like');
-    
+
     try {
       await http.post(
         Uri.parse(url),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'user_id': userId, 'post_id': postId}),
-      );
+      ).timeout(const Duration(seconds: 5));
     } catch (e) {
       print('Error tracking like: $e');
     }
@@ -1657,13 +1678,13 @@ class InZoneDatabase {
   // Track post comment for Gorse recommendation engine
   static Future<void> trackPostComment(String userId, String postId) async {
     final String url = ApiConfig.endpoint('/feed/track-comment');
-    
+
     try {
       await http.post(
         Uri.parse(url),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'user_id': userId, 'post_id': postId}),
-      );
+      ).timeout(const Duration(seconds: 5));
     } catch (e) {
       print('Error tracking comment: $e');
     }
@@ -1672,13 +1693,13 @@ class InZoneDatabase {
   // Track post share for Gorse recommendation engine
   static Future<void> trackPostShare(String userId, String postId) async {
     final String url = ApiConfig.endpoint('/feed/track-share');
-    
+
     try {
       await http.post(
         Uri.parse(url),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'user_id': userId, 'post_id': postId}),
-      );
+      ).timeout(const Duration(seconds: 5));
     } catch (e) {
       print('Error tracking share: $e');
     }

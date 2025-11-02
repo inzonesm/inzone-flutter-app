@@ -244,11 +244,15 @@ class _PostCardState extends State<PostCard>
         widget.post.id != "unknown" &&
         widget.post.id.isNotEmpty) {
       PostViewTracker.startViewingPost(widget.post.id);
-      
-      // Track view for Gorse recommendation engine
+
+      // Track view for Gorse recommendation engine (non-blocking)
       final userId = FirebaseAuth.instance.currentUser?.uid;
       if (userId != null) {
-        InZoneDatabase.trackPostView(userId, widget.post.id);
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          InZoneDatabase.trackPostView(userId, widget.post.id).catchError((e) {
+            print('View tracking failed: $e');
+          });
+        });
       }
     }
     
