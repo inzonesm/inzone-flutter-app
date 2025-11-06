@@ -1,6 +1,8 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:inzone/data/comment_class.dart';
+import 'package:inzone/router/routes.dart';
 
 class CommentsTile extends StatefulWidget {
   final String commentText;
@@ -154,20 +156,28 @@ class _CommentsTileState extends State<CommentsTile> {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Profile Picture
-              ClipRRect(
-                borderRadius: BorderRadius.circular(20),
-                child: widget.profilePictureUrl.isNotEmpty
-                    ? CachedNetworkImage(
-                        imageUrl: widget.profilePictureUrl,
-                        width: widget.isReply ? 32 : 40, // Smaller for replies
-                        height: widget.isReply ? 32 : 40,
-                        fit: BoxFit.cover,
-                        placeholder: (context, url) => const SizedBox(),
-                        errorWidget: (context, url, error) =>
-                            Icon(Icons.account_circle, size: widget.isReply ? 32 : 40),
-                      )
-                    : Icon(Icons.account_circle, size: widget.isReply ? 32 : 40),
+              // Profile Picture - Make it tappable
+              GestureDetector(
+                onTap: () {
+                  // Navigate to user profile if commentAuthorId is available
+                  if (widget.commentAuthorId != null && widget.commentAuthorId!.isNotEmpty) {
+                    context.push(Routes.regularProfilePath(widget.commentAuthorId!));
+                  }
+                },
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(20),
+                  child: widget.profilePictureUrl.isNotEmpty
+                      ? CachedNetworkImage(
+                          imageUrl: widget.profilePictureUrl,
+                          width: widget.isReply ? 32 : 40, // Smaller for replies
+                          height: widget.isReply ? 32 : 40,
+                          fit: BoxFit.cover,
+                          placeholder: (context, url) => const SizedBox(),
+                          errorWidget: (context, url, error) =>
+                              Icon(Icons.account_circle, size: widget.isReply ? 32 : 40),
+                        )
+                      : Icon(Icons.account_circle, size: widget.isReply ? 32 : 40),
+                ),
               ),
               const SizedBox(width: 10),
 
@@ -181,13 +191,21 @@ class _CommentsTileState extends State<CommentsTile> {
                       Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          // Replier's name first (no icon or reply text before it)
-                          Text(
-                            widget.author,
-                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                fontWeight: FontWeight.bold,
-                                color: Theme.of(context).textTheme.titleMedium?.color,
-                              ),
+                          // Replier's name first (no icon or reply text before it) - Make it tappable
+                          GestureDetector(
+                            onTap: () {
+                              // Navigate to user profile if commentAuthorId is available
+                              if (widget.commentAuthorId != null && widget.commentAuthorId!.isNotEmpty) {
+                                context.push(Routes.regularProfilePath(widget.commentAuthorId!));
+                              }
+                            },
+                            child: Text(
+                              widget.author,
+                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  color: Theme.of(context).textTheme.titleMedium?.color,
+                                ),
+                            ),
                           ),
                           // Only show the Author tag (with bullet) when the replier is the post creator.
                           if (isCommentAuthorCreator) ...[
@@ -240,12 +258,20 @@ class _CommentsTileState extends State<CommentsTile> {
                     if (!widget.isReply)
                       Row(
                         children: [
-                          Text(
-                            widget.author,
-                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                  color: Theme.of(context).textTheme.titleMedium?.color,
-                                ),
+                          GestureDetector(
+                            onTap: () {
+                              // Navigate to user profile if commentAuthorId is available
+                              if (widget.commentAuthorId != null && widget.commentAuthorId!.isNotEmpty) {
+                                context.push(Routes.regularProfilePath(widget.commentAuthorId!));
+                              }
+                            },
+                            child: Text(
+                              widget.author,
+                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                    color: Theme.of(context).textTheme.titleMedium?.color,
+                                  ),
+                            ),
                           ),
                           const SizedBox(width: 8),
                           Text(
