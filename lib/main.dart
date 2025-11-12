@@ -2,6 +2,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:firebase_remote_config/firebase_remote_config.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:inzone/config/default_firebase_options.dart';
@@ -253,6 +255,39 @@ void main() async {
   await initPlatformState();
   String? advertisingId = await appsFlyerService.getAdvertisingId();
   print("The advertising ID is $advertisingId");
+
+  // Initialize Firebase Analytics for ad revenue tracking
+  final FirebaseAnalytics analytics = FirebaseAnalytics.instance;
+  await analytics.setAnalyticsCollectionEnabled(true);
+  print("✅ Firebase Analytics initialized for ad revenue tracking");
+  
+  // Set influencer_id user property if user came via referral
+  // This enables attribution of ad revenue to specific influencers
+  try {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      // Check if user has a referrer stored in Firestore
+      final userDoc = await FirebaseFirestore.instance
+          .collection('humanUsers')
+          .doc(user.uid)
+          .get();
+      
+      if (userDoc.exists) {
+        final userData = userDoc.data();
+        final referrerId = userData?['referred_by'] as String?;
+        
+        if (referrerId != null && referrerId.isNotEmpty) {
+          await analytics.setUserProperty(
+            name: 'influencer_id',
+            value: referrerId,
+          );
+          print("✅ Set influencer_id user property: $referrerId");
+        }
+      }
+    }
+  } catch (e) {
+    print("⚠️ Failed to set influencer_id: $e");
+  }
 
   // Warm up Cloud Run container to improve app performance
   // This runs asynchronously and doesn't block app startup

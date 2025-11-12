@@ -5,6 +5,7 @@ import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_analytics/firebase_analytics.dart';
 
 class RewardAdService {
   static final RewardAdService _instance = RewardAdService._internal();
@@ -13,6 +14,7 @@ class RewardAdService {
 
   RewardedAd? _rewardedAd;
   bool _isRewardedAdReady = false;
+  final FirebaseAnalytics _analytics = FirebaseAnalytics.instance;
 
   static const int maxDailyRewardAds = 5;
   static const int rewardAmountPerAd = 10;
@@ -70,6 +72,7 @@ class RewardAdService {
           _rewardedAd = ad;
           _isRewardedAdReady = true;
           _setRewardAdCallbacks();
+          _setPaidEventListener(ad);  // Track ad revenue
         },
         onAdFailedToLoad: (LoadAdError error) {
           _rewardedAd = null;
@@ -78,6 +81,41 @@ class RewardAdService {
         },
       ),
     );
+  }
+
+  /// Set up paid event listener for impression-level ad revenue tracking
+  /// This sends ad_impression events with revenue to Firebase Analytics
+  /// which then exports to BigQuery for influencer attribution
+  void _setPaidEventListener(RewardedAd ad) {
+    ad.onPaidEvent = (ad, valueMicros, precision, currencyCode) async {
+      try {
+        final user = FirebaseAuth.instance.currentUser;
+        
+        // Only log if user is authenticated - we need their UID for attribution
+        if (user == null) {
+          debugPrint('⚠️ Skipping ad impression tracking - user not authenticated');
+          return;
+        }
+        
+        // Log ad impression with revenue to Firebase Analytics
+        await _analytics.logEvent(
+          name: 'ad_impression',
+          parameters: {
+            'ad_platform': 'admob',
+            'ad_format': 'rewarded',
+            'ad_unit_id': _rewardAdUnitId,
+            'value': valueMicros,  // Revenue in micros
+            'currency': currencyCode,
+            'precision_type': precision.toString(),
+            'user_id': user.uid,  // Must have authenticated user ID
+          },
+        );
+        
+        debugPrint('💰 Ad impression tracked: ${valueMicros / 1000000} $currencyCode for user ${user.uid}');
+      } catch (e) {
+        debugPrint('Error tracking ad impression: $e');
+      }
+    };
   }
 
   void _setRewardAdCallbacks() {
