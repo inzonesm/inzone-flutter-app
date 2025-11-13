@@ -198,13 +198,8 @@ Future<void> requestTrackingPermission() async {
 void main() async {
   WidgetsBinding widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
   FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
-
-  // Initialize AdMob with test device configuration
   MobileAds.instance.initialize();
 
-  // Initialize reward ad service
-  final rewardAdService = RewardAdService();
-  await rewardAdService.initialize();
 
   // Initialize SharedPreferences
   SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -261,33 +256,8 @@ void main() async {
   await analytics.setAnalyticsCollectionEnabled(true);
   print("✅ Firebase Analytics initialized for ad revenue tracking");
   
-  // Set influencer_id user property if user came via referral
-  // This enables attribution of ad revenue to specific influencers
-  try {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user != null) {
-      // Check if user has a referrer stored in Firestore
-      final userDoc = await FirebaseFirestore.instance
-          .collection('humanUsers')
-          .doc(user.uid)
-          .get();
-      
-      if (userDoc.exists) {
-        final userData = userDoc.data();
-        final referrerId = userData?['referred_by'] as String?;
-        
-        if (referrerId != null && referrerId.isNotEmpty) {
-          await analytics.setUserProperty(
-            name: 'influencer_id',
-            value: referrerId,
-          );
-          print("✅ Set influencer_id user property: $referrerId");
-        }
-      }
-    }
-  } catch (e) {
-    print("⚠️ Failed to set influencer_id: $e");
-  }
+  // Note: influencer_id user property will be set after login
+  // See _MyAppState.initState() for the implementation
 
   // Warm up Cloud Run container to improve app performance
   // This runs asynchronously and doesn't block app startup
@@ -336,7 +306,10 @@ class _MyAppState extends State<MyApp> {
     // Set up auth state change listener for pending notifications
     FirebaseAuth.instance.authStateChanges().listen((User? user) {
       if (user != null && mounted) {
-        // User just signed in, handle any pending push notification
+        // User just signed in, set influencer_id user property
+        _setInfluencerIdProperty(user.uid);
+        
+        // Handle any pending push notification
         Future.delayed(const Duration(milliseconds: 500), () async {
           await NotificationEventService.handlePendingInitialMessage();
         });
@@ -364,6 +337,9 @@ class _MyAppState extends State<MyApp> {
         // User is logged in - go to home
         print("User is logged in - going to home");
         AppRouter.setInitialRoute(Routes.home);
+
+        // Initialize reward ad service for logged-in users
+        _initializeRewardAds();
 
         // Start AI engagement service for logged-in users
         _startAIEngagementService();
@@ -398,6 +374,46 @@ class _MyAppState extends State<MyApp> {
     } catch (e) {
       print("⚠️ Failed to start AI engagement service: $e");
       // Don't crash the app if AI service fails to start
+    }
+  }
+
+  /// Initialize reward ad service (load first ad in background)
+  void _initializeRewardAds() {
+    Future.delayed(const Duration(seconds: 2), () async {
+      try {
+        final rewardAdService = RewardAdService();
+        await rewardAdService.initialize();
+        print("✅ Reward ad service initialized");
+      } catch (e) {
+        print("⚠️ Failed to initialize reward ads: $e");
+        // Don't crash if ad loading fails
+      }
+    });
+  }
+
+  /// Set influencer_id user property for ad revenue attribution
+  Future<void> _setInfluencerIdProperty(String userId) async {
+    try {
+      final userDoc = await FirebaseFirestore.instance
+          .collection('humanUsers')
+          .doc(userId)
+          .get();
+      
+      if (userDoc.exists) {
+        final userData = userDoc.data();
+        final referrerId = userData?['referred_by'] as String?;
+        
+        if (referrerId != null && referrerId.isNotEmpty) {
+          await FirebaseAnalytics.instance.setUserProperty(
+            name: 'influencer_id',
+            value: referrerId,
+          );
+          print("✅ Set influencer_id user property: $referrerId");
+        }
+      }
+    } catch (e) {
+      print("⚠️ Failed to set influencer_id: $e");
+      // Don't crash if this fails
     }
   }
 
