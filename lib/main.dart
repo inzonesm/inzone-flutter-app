@@ -255,9 +255,6 @@ void main() async {
   final FirebaseAnalytics analytics = FirebaseAnalytics.instance;
   await analytics.setAnalyticsCollectionEnabled(true);
   print("✅ Firebase Analytics initialized for ad revenue tracking");
-  
-  // Note: influencer_id user property will be set after login
-  // See _MyAppState.initState() for the implementation
 
   // Warm up Cloud Run container to improve app performance
   // This runs asynchronously and doesn't block app startup
