@@ -12,92 +12,97 @@ import 'package:inzone/data/group_data.dart';
 import 'package:inzone/services/notification_badge_service.dart';
 
 class NotificationEventService {
-  static const String _apiUrl = 'https://inzoneapi-912424781531.us-central1.run.app';
-  
+  static const String _apiUrl =
+      'https://inzoneapi-912424781531.us-central1.run.app';
+
   // Local notifications instance for immediate display
-  static final FlutterLocalNotificationsPlugin _localNotifications = 
+  static final FlutterLocalNotificationsPlugin _localNotifications =
       FlutterLocalNotificationsPlugin();
-  
+
   // Firebase messaging instance
-  static final FirebaseMessaging _firebaseMessaging = FirebaseMessaging.instance;
+  static final FirebaseMessaging _firebaseMessaging =
+      FirebaseMessaging.instance;
 
   /// Helper method to validate and resolve user ID for human users only
   /// This method is specifically for notifications and only returns human user IDs
   static Future<String?> _resolveHumanUserId(String userId) async {
     try {
       // If it looks like a valid Firebase UID (alphanumeric, no spaces, no special chars except possibly hyphens/underscores)
-      if (RegExp(r'^[a-zA-Z0-9_-]+$').hasMatch(userId) && !userId.contains(' ')) {
+      if (RegExp(r'^[a-zA-Z0-9_-]+$').hasMatch(userId) &&
+          !userId.contains(' ')) {
         // Check if the document exists in humanUsers first
         final userDoc = await FirebaseFirestore.instance
             .collection('humanUsers')
             .doc(userId)
             .get();
-        
+
         if (userDoc.exists) {
           return userId; // Valid human user ID found
         }
-        
+
         // Check if it's an AI character (should not receive notifications)
         final characterDoc = await FirebaseFirestore.instance
             .collection('popularCharacters')
             .doc(userId)
             .get();
-        
+
         if (characterDoc.exists) {
-          print('❌ _resolveHumanUserId: $userId is an AI character - cannot send notifications to AI');
+          print(
+              '❌ _resolveHumanUserId: $userId is an AI character - cannot send notifications to AI');
           return null; // AI characters should not receive notifications
         }
       }
-      
+
       // If direct lookup failed or ID looks like a display name, search by name/displayName in humanUsers only
       print('🔍 Searching for human user ID by display name: $userId');
-      
+
       // Search in humanUsers by name or displayName
       final queryByName = await FirebaseFirestore.instance
           .collection('humanUsers')
           .where('name', isEqualTo: userId)
           .limit(1)
           .get();
-      
+
       if (queryByName.docs.isNotEmpty) {
         final actualUserId = queryByName.docs.first.id;
-        print('✅ Found human user ID by name: $actualUserId for display name: $userId');
+        print(
+            '✅ Found human user ID by name: $actualUserId for display name: $userId');
         return actualUserId;
       }
-      
+
       final queryByDisplayName = await FirebaseFirestore.instance
           .collection('humanUsers')
           .where('displayName', isEqualTo: userId)
           .limit(1)
           .get();
-      
+
       if (queryByDisplayName.docs.isNotEmpty) {
         final actualUserId = queryByDisplayName.docs.first.id;
-        print('✅ Found human user ID by displayName: $actualUserId for display name: $userId');
+        print(
+            '✅ Found human user ID by displayName: $actualUserId for display name: $userId');
         return actualUserId;
       }
-      
+
       // Try case-insensitive search in humanUsers only
-      final allUsers = await FirebaseFirestore.instance
-          .collection('humanUsers')
-          .get();
-      
+      final allUsers =
+          await FirebaseFirestore.instance.collection('humanUsers').get();
+
       for (final doc in allUsers.docs) {
         final userData = doc.data();
         final name = userData['name']?.toString().toLowerCase();
         final displayName = userData['displayName']?.toString().toLowerCase();
         final searchTerm = userId.toLowerCase();
-        
+
         if (name == searchTerm || displayName == searchTerm) {
           final actualUserId = doc.id;
-          print('✅ Found human user ID by case-insensitive search: $actualUserId for: $userId');
+          print(
+              '✅ Found human user ID by case-insensitive search: $actualUserId for: $userId');
           return actualUserId;
         }
       }
-      
+
       print('❌ Could not resolve human user ID for: $userId');
       return null;
-      
     } catch (e) {
       print('❌ Error resolving human user ID for $userId: $e');
       return null;
@@ -115,101 +120,101 @@ class NotificationEventService {
   //           .collection('humanUsers')
   //           .doc(userId)
   //           .get();
-        
+
   //       if (userDoc.exists) {
   //         return userId; // Valid human user ID found
   //       }
-        
+
   //       // Check if the document exists in popularCharacters (AI characters)
   //       final characterDoc = await FirebaseFirestore.instance
   //           .collection('popularCharacters')
   //           .doc(userId)
   //           .get();
-        
+
   //       if (characterDoc.exists) {
   //         return userId; // Valid AI character ID found
   //       }
   //     }
-      
+
   //     // If direct lookup failed or ID looks like a display name, search by name/displayName
   //     print('🔍 Searching for user ID by display name: $userId');
-      
+
   //     // Search in humanUsers by name or displayName
   //     final queryByName = await FirebaseFirestore.instance
   //         .collection('humanUsers')
   //         .where('name', isEqualTo: userId)
   //         .limit(1)
   //         .get();
-      
+
   //     if (queryByName.docs.isNotEmpty) {
   //       final actualUserId = queryByName.docs.first.id;
   //       print('✅ Found user ID by name: $actualUserId for display name: $userId');
   //       return actualUserId;
   //     }
-      
+
   //     final queryByDisplayName = await FirebaseFirestore.instance
   //         .collection('humanUsers')
   //         .where('displayName', isEqualTo: userId)
   //         .limit(1)
   //         .get();
-      
+
   //     if (queryByDisplayName.docs.isNotEmpty) {
   //       final actualUserId = queryByDisplayName.docs.first.id;
   //       print('✅ Found user ID by displayName: $actualUserId for display name: $userId');
   //       return actualUserId;
   //     }
-      
+
   //     // Search in popularCharacters by name
   //     final queryByCharacterName = await FirebaseFirestore.instance
   //         .collection('popularCharacters')
   //         .where('name', isEqualTo: userId)
   //         .limit(1)
   //         .get();
-      
+
   //     if (queryByCharacterName.docs.isNotEmpty) {
   //       final actualUserId = queryByCharacterName.docs.first.id;
   //       print('✅ Found AI character ID by name: $actualUserId for display name: $userId');
   //       return actualUserId;
   //     }
-      
+
   //     // Try case-insensitive search in both collections
   //     final allUsers = await FirebaseFirestore.instance
   //         .collection('humanUsers')
   //         .get();
-      
+
   //     for (final doc in allUsers.docs) {
   //       final userData = doc.data();
   //       final name = userData['name']?.toString().toLowerCase();
   //       final displayName = userData['displayName']?.toString().toLowerCase();
   //       final searchTerm = userId.toLowerCase();
-        
+
   //       if (name == searchTerm || displayName == searchTerm) {
   //         final actualUserId = doc.id;
   //         print('✅ Found user ID by case-insensitive search: $actualUserId for: $userId');
   //         return actualUserId;
   //       }
   //     }
-      
+
   //     // Try case-insensitive search in popularCharacters
   //     final allCharacters = await FirebaseFirestore.instance
   //         .collection('popularCharacters')
   //         .get();
-      
+
   //     for (final doc in allCharacters.docs) {
   //       final characterData = doc.data();
   //       final name = characterData['name']?.toString().toLowerCase();
   //       final searchTerm = userId.toLowerCase();
-        
+
   //       if (name == searchTerm) {
   //         final actualUserId = doc.id;
   //         print('✅ Found AI character ID by case-insensitive search: $actualUserId for: $userId');
   //         return actualUserId;
   //       }
   //     }
-      
+
   //     print('❌ Could not resolve user ID for: $userId');
   //     return null;
-      
+
   //   } catch (e) {
   //     print('❌ Error resolving user ID for $userId: $e');
   //     return null;
@@ -218,7 +223,8 @@ class NotificationEventService {
 
   /// Mark notification as read by searching for it using push notification data
   /// Since notifications don't have an id field, we search by document characteristics
-  static Future<void> _markNotificationAsReadByData(String userId, String type, Map<String, dynamic> pushData) async {
+  static Future<void> _markNotificationAsReadByData(
+      String userId, String type, Map<String, dynamic> pushData) async {
     try {
       // Simple query without orderBy to avoid index requirements
       final querySnapshot = await FirebaseFirestore.instance
@@ -226,14 +232,15 @@ class NotificationEventService {
           .where('userId', isEqualTo: userId)
           .limit(100)
           .get();
-      
+
       if (querySnapshot.docs.isEmpty) {
         return;
       }
-      
+
       // Check if push data contains a notification document ID
-      final notificationId = pushData['notificationId'] as String? ?? pushData['id'] as String?;
-      
+      final notificationId =
+          pushData['notificationId'] as String? ?? pushData['id'] as String?;
+
       if (notificationId != null) {
         // Direct approach: mark specific notification by document ID
         try {
@@ -249,51 +256,55 @@ class NotificationEventService {
           // If direct ID fails, continue with matching below
         }
       }
-      
+
       // Find the specific notification that matches
       for (final doc in querySnapshot.docs) {
         final notificationData = doc.data();
         final isRead = notificationData['isRead'] as bool? ?? false;
-        
+
         // Skip if already read
         if (isRead) continue;
-        
+
         final notificationType = notificationData['type'] as String? ?? '';
-        final storedData = notificationData['data'] as Map<String, dynamic>? ?? {};
-        
+        final storedData =
+            notificationData['data'] as Map<String, dynamic>? ?? {};
+
         // Simple type matching first
         bool typeMatches = notificationType == type;
-        
+
         if (!typeMatches) continue;
-        
+
         // For precise matching, check one key field based on type
         bool isMatch = false;
-        
+
         switch (type) {
           case 'follow':
-            final pushFollowerId = pushData['followerId'] as String? ?? pushData['userId'] as String?;
-            final storedFollowerId = storedData['followerId'] as String? ?? storedData['userId'] as String?;
-            isMatch = pushFollowerId != null && pushFollowerId == storedFollowerId;
+            final pushFollowerId = pushData['followerId'] as String? ??
+                pushData['userId'] as String?;
+            final storedFollowerId = storedData['followerId'] as String? ??
+                storedData['userId'] as String?;
+            isMatch =
+                pushFollowerId != null && pushFollowerId == storedFollowerId;
             break;
-            
+
           case 'comment':
             final pushPostId = pushData['postId'] as String?;
             final storedPostId = storedData['postId'] as String?;
             isMatch = pushPostId != null && pushPostId == storedPostId;
             break;
-            
+
           case 'like':
             final pushPostId = pushData['postId'] as String?;
             final storedPostId = storedData['postId'] as String?;
             isMatch = pushPostId != null && pushPostId == storedPostId;
             break;
-            
+
           default:
             // For other types, just match the first unread notification of same type
             isMatch = true;
             break;
         }
-        
+
         if (isMatch) {
           await FirebaseFirestore.instance
               .collection('notifications')
@@ -305,7 +316,6 @@ class NotificationEventService {
           return; // Done - marked specific notification
         }
       }
-      
     } catch (e) {
       // Silent fail
     }
@@ -315,7 +325,8 @@ class NotificationEventService {
   static Future<void> initializePushNotifications() async {
     try {
       // Request notification permissions first
-      NotificationSettings settings = await _firebaseMessaging.requestPermission(
+      NotificationSettings settings =
+          await _firebaseMessaging.requestPermission(
         alert: true,
         announcement: false,
         badge: true,
@@ -324,25 +335,25 @@ class NotificationEventService {
         provisional: false,
         sound: true,
       );
-      print('🔔 Notification permission status: ${settings.authorizationStatus}');
-      
+      print(
+          '🔔 Notification permission status: ${settings.authorizationStatus}');
+
       if (settings.authorizationStatus == AuthorizationStatus.authorized ||
           settings.authorizationStatus == AuthorizationStatus.provisional) {
-        
         // Configure FCM message handlers
         await _configureFCM();
-        
+
         // Wait a bit to ensure user authentication is complete
         await Future.delayed(const Duration(seconds: 2));
-        
+
         // On iOS, wait a bit more for APNS to be properly initialized
         if (Platform.isIOS) {
           await Future.delayed(const Duration(seconds: 3));
         }
-        
+
         // Register FCM token when app starts
         await _registerFCMToken();
-        
+
         // Listen for token refresh
         _firebaseMessaging.onTokenRefresh.listen((newToken) {
           print('🔄 FCM Token refreshed: ${newToken.substring(0, 20)}...');
@@ -351,7 +362,7 @@ class NotificationEventService {
             _registerTokenWithBackend(user.uid, newToken);
           }
         });
-        
+
         print('✅ Push notifications initialized');
       } else {
         print('❌ Notification permissions denied');
@@ -368,15 +379,16 @@ class NotificationEventService {
       print('📱 Foreground message received: ${message.notification?.title}');
       // You can show local notification here if needed
     });
-    
+
     // Handle background message taps (app was in background)
     FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
       print('📱 Background message tapped: ${message.data}');
       handlePushNotificationTap(message.data);
     });
-    
+
     // Handle terminated app message taps (app was completely closed)
-    RemoteMessage? initialMessage = await _firebaseMessaging.getInitialMessage();
+    RemoteMessage? initialMessage =
+        await _firebaseMessaging.getInitialMessage();
     if (initialMessage != null) {
       print('📱 Terminated app message received: ${initialMessage.data}');
       // Delay handling to ensure app is fully initialized
@@ -398,7 +410,8 @@ class NotificationEventService {
   /// Handle pending initial message after user logs in
   static Future<void> handlePendingInitialMessage() async {
     if (_pendingInitialMessage != null) {
-      print('📱 Handling pending initial message after login: ${_pendingInitialMessage!.data}');
+      print(
+          '📱 Handling pending initial message after login: ${_pendingInitialMessage!.data}');
       handlePushNotificationTap(_pendingInitialMessage!.data);
       _pendingInitialMessage = null;
     }
@@ -407,10 +420,10 @@ class NotificationEventService {
   /// Manual method to re-register FCM token (call after login)
   static Future<void> reRegisterFCMToken() async {
     print('🔄 Manually re-registering FCM token...');
-    
+
     // Add a small delay to ensure authentication is complete
     await Future.delayed(const Duration(seconds: 1));
-    
+
     await _registerFCMToken();
   }
 
@@ -419,22 +432,23 @@ class NotificationEventService {
     try {
       print('🔍 Debug: Testing FCM token...');
       String? token = await _firebaseMessaging.getToken();
-      
+
       if (token != null) {
         print('📱 Current FCM token: $token');
         print('📱 Token length: ${token.length}');
         print('📱 Token starts with: ${token.substring(0, 20)}...');
-        
+
         final user = FirebaseAuth.instance.currentUser;
         if (user != null) {
           print('👤 Current user: ${user.uid}');
           print('👤 User email: ${user.email}');
-          
+
           // Test sending a push notification to self
           await _sendPushNotificationToUser(
             userId: user.uid,
             title: 'FCM Test',
-            body: 'This is a test push notification to verify FCM token validity',
+            body:
+                'This is a test push notification to verify FCM token validity',
             data: {'type': 'test'},
           );
         } else {
@@ -452,24 +466,25 @@ class NotificationEventService {
   static Future<void> _registerFCMToken() async {
     try {
       print('🔄 Getting FCM token...');
-      
+
       // On iOS, wait for APNS token to be available before getting FCM token
       if (Platform.isIOS) {
         await _waitForAPNSToken();
       }
-      
+
       String? token = await _firebaseMessaging.getToken();
-      
+
       if (token != null) {
-        print('📱 FCM token obtained: ${token.substring(0, 30)}...${token.substring(token.length - 10)}');
-        
+        print(
+            '📱 FCM token obtained: ${token.substring(0, 30)}...${token.substring(token.length - 10)}');
+
         final user = FirebaseAuth.instance.currentUser;
         if (user != null) {
           print('👤 Current user: ${user.uid}');
-          
+
           // Register with backend API
           await _registerTokenWithBackend(user.uid, token);
-          
+
           // Also update Firestore for backup
           await FirebaseFirestore.instance
               .collection('humanUsers')
@@ -494,11 +509,11 @@ class NotificationEventService {
   static Future<void> _waitForAPNSToken() async {
     try {
       print('🍎 Waiting for APNS token...');
-      
+
       // Try to get APNS token with retries
       int maxRetries = 10;
       int retryCount = 0;
-      
+
       while (retryCount < maxRetries) {
         try {
           String? apnsToken = await _firebaseMessaging.getAPNSToken();
@@ -507,28 +522,31 @@ class NotificationEventService {
             return;
           }
         } catch (e) {
-          print('⚠️ APNS token not yet available (attempt ${retryCount + 1}/$maxRetries): $e');
+          print(
+              '⚠️ APNS token not yet available (attempt ${retryCount + 1}/$maxRetries): $e');
         }
-        
+
         retryCount++;
-        
+
         // Wait before retrying, with exponential backoff
         int delaySeconds = retryCount * 2;
         print('⏳ Waiting ${delaySeconds}s before retry...');
         await Future.delayed(Duration(seconds: delaySeconds));
       }
-      
-      print('⚠️ APNS token not available after $maxRetries attempts, proceeding anyway...');
+
+      print(
+          '⚠️ APNS token not available after $maxRetries attempts, proceeding anyway...');
     } catch (e) {
       print('❌ Error waiting for APNS token: $e');
     }
   }
 
   /// Register token with backend API
-  static Future<void> _registerTokenWithBackend(String userId, String token) async {
+  static Future<void> _registerTokenWithBackend(
+      String userId, String token) async {
     try {
       print('🌐 Registering token with backend for user: $userId');
-      
+
       final response = await http.post(
         Uri.parse('$_apiUrl/api/notifications/register-token'),
         headers: {'Content-Type': 'application/json'},
@@ -547,7 +565,8 @@ class NotificationEventService {
           print('📊 Backend response: ${response.body}');
         }
       } else {
-        print('❌ Failed to register FCM token with backend: ${response.statusCode}');
+        print(
+            '❌ Failed to register FCM token with backend: ${response.statusCode}');
         print('❌ Response body: ${response.body}');
       }
     } catch (e) {
@@ -564,16 +583,16 @@ class NotificationEventService {
   }) async {
     try {
       print('🔄 Sending push notification to user: $userId');
-      
+
       // For push notifications, we should ONLY send to human users, not AI characters
       // First check if this is directly a human user
       final humanUserDoc = await FirebaseFirestore.instance
           .collection('humanUsers')
           .doc(userId)
           .get();
-      
+
       String? actualUserId;
-      
+
       if (humanUserDoc.exists) {
         // Direct human user ID - use it
         actualUserId = userId;
@@ -584,14 +603,15 @@ class NotificationEventService {
             .collection('popularCharacters')
             .doc(userId)
             .get();
-        
+
         if (aiDoc.exists) {
-          print('❌ Cannot send push notification to AI character: $userId - skipping');
+          print(
+              '❌ Cannot send push notification to AI character: $userId - skipping');
           print('📍 Call stack trace:');
           print(StackTrace.current);
           return;
         }
-        
+
         // Try to resolve as a display name to human user ID
         final resolvedUserId = await _resolveHumanUserId(userId);
         if (resolvedUserId != null) {
@@ -600,20 +620,23 @@ class NotificationEventService {
               .collection('humanUsers')
               .doc(resolvedUserId)
               .get();
-          
+
           if (resolvedUserDoc.exists) {
             actualUserId = resolvedUserId;
-            print('🔄 Resolved to human user ID: $actualUserId instead of: $userId');
+            print(
+                '🔄 Resolved to human user ID: $actualUserId instead of: $userId');
           } else {
-            print('❌ Resolved ID is not a human user: $resolvedUserId - skipping push notification');
+            print(
+                '❌ Resolved ID is not a human user: $resolvedUserId - skipping push notification');
             return;
           }
         } else {
-          print('❌ Could not resolve user ID: $userId - skipping push notification');
+          print(
+              '❌ Could not resolve user ID: $userId - skipping push notification');
           return;
         }
       }
-      
+
       // Send push notification via backend
       final response = await http.post(
         Uri.parse('$_apiUrl/api/notifications/send-push'),
@@ -670,11 +693,14 @@ class NotificationEventService {
 
   /// Trigger notification when a new message is sent in a group chat
   /// Enhanced with push notifications
-  static Future<void> onGroupMessage(String groupId, String content, String senderId, {String? messageId}) async {
+  static Future<void> onGroupMessage(
+      String groupId, String content, String senderId,
+      {String? messageId}) async {
     try {
       // Generate unique message ID if not provided
-      final uniqueMessageId = messageId ?? 'msg_${DateTime.now().millisecondsSinceEpoch}_${senderId.hashCode}_${content.hashCode}';
-      
+      final uniqueMessageId = messageId ??
+          'msg_${DateTime.now().millisecondsSinceEpoch}_${senderId.hashCode}_${content.hashCode}';
+
       final response = await http.post(
         Uri.parse('$_apiUrl/api/notifications/events/group-message'),
         headers: {'Content-Type': 'application/json'},
@@ -683,13 +709,14 @@ class NotificationEventService {
           'content': content,
           'senderId': senderId,
           'timestamp': DateTime.now().toIso8601String(),
-          'messageId': uniqueMessageId, // Add unique message ID for deduplication
+          'messageId':
+              uniqueMessageId, // Add unique message ID for deduplication
         }),
       );
 
       if (response.statusCode == 200) {
         print('✅ Group message notification event sent');
-        
+
         // Send push notifications to group participants (except sender)
         await _sendGroupMessagePushNotifications(groupId, content, senderId);
       } else {
@@ -701,19 +728,20 @@ class NotificationEventService {
   }
 
   /// Send push notifications to group participants
-  static Future<void> _sendGroupMessagePushNotifications(String groupId, String content, String senderId) async {
+  static Future<void> _sendGroupMessagePushNotifications(
+      String groupId, String content, String senderId) async {
     try {
       // Get group participants from Firestore
       final groupDoc = await FirebaseFirestore.instance
           .collection('groupChats')
           .doc(groupId)
           .get();
-      
+
       if (groupDoc.exists) {
         final groupData = groupDoc.data()!;
         final participants = groupData['participants'] as List?;
         final groupName = groupData['name'] as String? ?? 'Group Chat';
-        
+
         if (participants != null) {
           // Get sender name
           String senderName = 'Someone';
@@ -724,7 +752,7 @@ class NotificationEventService {
           if (senderParticipant != null) {
             senderName = senderParticipant['name'] ?? 'Someone';
           }
-          
+
           // Send push to all participants except sender
           for (var participant in participants) {
             final participantId = participant['uid'];
@@ -732,7 +760,9 @@ class NotificationEventService {
               await _sendPushNotificationToUser(
                 userId: participantId,
                 title: '$senderName sent a message in $groupName',
-                body: content.length > 50 ? '${content.substring(0, 50)}...' : content,
+                body: content.length > 50
+                    ? '${content.substring(0, 50)}...'
+                    : content,
                 data: {
                   'type': 'group_message',
                   'groupId': groupId,
@@ -752,11 +782,14 @@ class NotificationEventService {
   }
 
   /// Trigger notification when a user is mentioned in a group chat
-  static Future<void> onGroupMention(String groupId, String mentionedUserId, String content, String senderId, {String? messageId}) async {
+  static Future<void> onGroupMention(
+      String groupId, String mentionedUserId, String content, String senderId,
+      {String? messageId}) async {
     try {
       // Generate unique message ID if not provided
-      final uniqueMessageId = messageId ?? 'mention_${DateTime.now().millisecondsSinceEpoch}_${senderId.hashCode}_${mentionedUserId.hashCode}';
-      
+      final uniqueMessageId = messageId ??
+          'mention_${DateTime.now().millisecondsSinceEpoch}_${senderId.hashCode}_${mentionedUserId.hashCode}';
+
       final response = await http.post(
         Uri.parse('$_apiUrl/api/notifications/events/group-mention'),
         headers: {'Content-Type': 'application/json'},
@@ -766,15 +799,17 @@ class NotificationEventService {
           'content': content,
           'senderId': senderId,
           'timestamp': DateTime.now().toIso8601String(),
-          'messageId': uniqueMessageId, // Add unique message ID for deduplication
+          'messageId':
+              uniqueMessageId, // Add unique message ID for deduplication
         }),
       );
 
       if (response.statusCode == 200) {
         print('✅ Group mention notification event sent');
-        
+
         // Send push notification to mentioned user
-        await _sendGroupMentionPushNotification(groupId, mentionedUserId, content, senderId);
+        await _sendGroupMentionPushNotification(
+            groupId, mentionedUserId, content, senderId);
       }
     } catch (e) {
       print('❌ Error sending group mention event: $e');
@@ -782,21 +817,22 @@ class NotificationEventService {
   }
 
   /// Send push notification for group mention
-  static Future<void> _sendGroupMentionPushNotification(String groupId, String mentionedUserId, String content, String senderId) async {
+  static Future<void> _sendGroupMentionPushNotification(String groupId,
+      String mentionedUserId, String content, String senderId) async {
     try {
       // Get group and sender info
       final groupDoc = await FirebaseFirestore.instance
           .collection('groupChats')
           .doc(groupId)
           .get();
-      
+
       String groupName = 'Group Chat';
       String senderName = 'Someone';
-      
+
       if (groupDoc.exists) {
         final groupData = groupDoc.data()!;
         groupName = groupData['name'] as String? ?? 'Group Chat';
-        
+
         // Get sender name from participants
         final participants = groupData['participants'] as List?;
         if (participants != null) {
@@ -809,7 +845,7 @@ class NotificationEventService {
           }
         }
       }
-      
+
       // Send push notification to mentioned user
       await _sendPushNotificationToUser(
         userId: mentionedUserId,
@@ -830,7 +866,8 @@ class NotificationEventService {
   }
 
   /// Trigger notification for 1:1 DM (AI or Human)
-  static Future<void> onDirectMessage(String chatId, String content, String senderId, String receiverId) async {
+  static Future<void> onDirectMessage(
+      String chatId, String content, String senderId, String receiverId) async {
     try {
       final response = await http.post(
         Uri.parse('$_apiUrl/api/notifications/events/direct-message'),
@@ -846,9 +883,10 @@ class NotificationEventService {
 
       if (response.statusCode == 200) {
         print('✅ Direct message notification event sent');
-        
+
         // Send push notification to receiver with sender name
-        await _sendDirectMessagePushNotification(chatId, content, senderId, receiverId);
+        await _sendDirectMessagePushNotification(
+            chatId, content, senderId, receiverId);
       }
     } catch (e) {
       print('❌ Error sending direct message event: $e');
@@ -856,10 +894,12 @@ class NotificationEventService {
   }
 
   /// Trigger notification for AI auto-response (with push notification)
-  static Future<void> onAIAutoResponse(String chatId, String content, String aiId, String receiverId) async {
+  static Future<void> onAIAutoResponse(
+      String chatId, String content, String aiId, String receiverId) async {
     try {
-      print('🤖 Triggering AI auto-response notification: AI $aiId -> User $receiverId');
-      
+      print(
+          '🤖 Triggering AI auto-response notification: AI $aiId -> User $receiverId');
+
       final response = await http.post(
         Uri.parse('$_apiUrl/api/notifications/events/ai-auto-response'),
         headers: {'Content-Type': 'application/json'},
@@ -874,11 +914,13 @@ class NotificationEventService {
 
       if (response.statusCode == 200) {
         print('✅ AI auto-response notification event sent');
-        
+
         // Send push notification to receiver
-        await _sendAIAutoResponsePushNotification(chatId, content, aiId, receiverId);
+        await _sendAIAutoResponsePushNotification(
+            chatId, content, aiId, receiverId);
       } else {
-        print('❌ Failed to send AI auto-response event: ${response.statusCode} - ${response.body}');
+        print(
+            '❌ Failed to send AI auto-response event: ${response.statusCode} - ${response.body}');
       }
     } catch (e) {
       print('❌ Error sending AI auto-response event: $e');
@@ -886,7 +928,8 @@ class NotificationEventService {
   }
 
   /// Send push notification for direct message
-  static Future<void> _sendDirectMessagePushNotification(String chatId, String content, String senderId, String receiverId) async {
+  static Future<void> _sendDirectMessagePushNotification(
+      String chatId, String content, String senderId, String receiverId) async {
     try {
       // Get sender name for notification
       String senderName = 'Someone';
@@ -902,7 +945,7 @@ class NotificationEventService {
       } catch (e) {
         print('Could not fetch sender name: $e');
       }
-      
+
       // Send push notification to receiver with sender name
       await _sendPushNotificationToUser(
         userId: receiverId,
@@ -923,7 +966,8 @@ class NotificationEventService {
   }
 
   /// Send push notification for AI auto-response
-  static Future<void> _sendAIAutoResponsePushNotification(String chatId, String content, String aiId, String receiverId) async {
+  static Future<void> _sendAIAutoResponsePushNotification(
+      String chatId, String content, String aiId, String receiverId) async {
     try {
       // Get AI character name for notification
       String aiName = 'AI Character';
@@ -939,7 +983,7 @@ class NotificationEventService {
       } catch (e) {
         print('Could not fetch AI character name: $e');
       }
-      
+
       // Send push notification to receiver
       await _sendPushNotificationToUser(
         userId: receiverId,
@@ -954,7 +998,7 @@ class NotificationEventService {
           'route': '/chat/$chatId',
         },
       );
-      
+
       print('✅ AI auto-response push notification sent to user $receiverId');
     } catch (e) {
       print('❌ Error sending AI auto-response push notification: $e');
@@ -985,12 +1029,13 @@ class NotificationEventService {
 
       if (response.statusCode == 200) {
         print('✅ Post engagement notification event sent');
-        
+
         // Send push notification to post author (if not engaging with own post)
         if (postAuthorId != null && userId != postAuthorId) {
-          await _sendPostEngagementPushNotification(postId, type, userId, postAuthorId, content);
+          await _sendPostEngagementPushNotification(
+              postId, type, userId, postAuthorId, content);
         }
-        
+
         // Track analytics
         AppsFlyerService().logEvent('notification_event_triggered', {
           'event_type': 'post_engagement',
@@ -1006,7 +1051,8 @@ class NotificationEventService {
   }
 
   /// Send push notification for post engagement
-  static Future<void> _sendPostEngagementPushNotification(String postId, String type, String userId, String postAuthorId, String? content) async {
+  static Future<void> _sendPostEngagementPushNotification(String postId,
+      String type, String userId, String postAuthorId, String? content) async {
     try {
       // Get user name for notification
       String userName = 'Someone';
@@ -1026,7 +1072,7 @@ class NotificationEventService {
       // Generate notification message based on type
       String title = '';
       String body = '';
-      
+
       switch (type) {
         case 'like':
           title = 'New Like';
@@ -1034,7 +1080,8 @@ class NotificationEventService {
           break;
         case 'comment':
           title = 'New Comment';
-          body = '$userName commented on your post${content != null ? ': ${content.length > 30 ? '${content.substring(0, 30)}...' : content}' : ''}';
+          body =
+              '$userName commented on your post${content != null ? ': ${content.length > 30 ? '${content.substring(0, 30)}...' : content}' : ''}';
           break;
         case 'share':
           title = 'Post Shared';
@@ -1044,7 +1091,7 @@ class NotificationEventService {
           title = 'Post Engagement';
           body = '$userName interacted with your post';
       }
-      
+
       // Send push notification to post author
       await _sendPushNotificationToUser(
         userId: postAuthorId,
@@ -1066,17 +1113,18 @@ class NotificationEventService {
   }
 
   /// Trigger notification for follow events
-  static Future<void> onUserFollow(String followerId, String followedUserId) async {
+  static Future<void> onUserFollow(
+      String followerId, String followedUserId) async {
     print('📋 DEBUG: onUserFollow called with:');
     print('   - followerId: "$followerId"');
     print('   - followedUserId: "$followedUserId"');
-    
+
     // Don't send notification if user is following themselves
     if (followerId == followedUserId) {
       print('🚫 Skipping follow notification: User cannot follow themselves');
       return;
     }
-    
+
     try {
       final response = await http.post(
         Uri.parse('$_apiUrl/api/notifications/events/user-follow'),
@@ -1090,11 +1138,12 @@ class NotificationEventService {
 
       if (response.statusCode == 200) {
         print('✅ User follow notification event sent');
-        
+
         // Send push notification to followed user
         await _sendFollowPushNotification(followerId, followedUserId);
       } else {
-        print('❌ Failed to send follow event: ${response.statusCode} - ${response.body}');
+        print(
+            '❌ Failed to send follow event: ${response.statusCode} - ${response.body}');
       }
     } catch (e) {
       print('❌ Error sending user follow event: $e');
@@ -1102,12 +1151,13 @@ class NotificationEventService {
   }
 
   /// Send push notification for follow event
-  static Future<void> _sendFollowPushNotification(String followerId, String followedUserId) async {
+  static Future<void> _sendFollowPushNotification(
+      String followerId, String followedUserId) async {
     try {
       print('📋 DEBUG: _sendFollowPushNotification called with:');
       print('   - followerId: "$followerId"');
       print('   - followedUserId: "$followedUserId"');
-      
+
       // Get follower name for notification
       String followerName = 'Someone';
       try {
@@ -1117,7 +1167,8 @@ class NotificationEventService {
             .get();
         if (userDoc.exists) {
           final userData = userDoc.data()!;
-          followerName = userData['name'] ?? userData['displayName'] ?? 'Someone';
+          followerName =
+              userData['name'] ?? userData['displayName'] ?? 'Someone';
           print('📋 DEBUG: Found follower name: "$followerName"');
         } else {
           print('📋 DEBUG: Follower document not found for ID: "$followerId"');
@@ -1125,9 +1176,10 @@ class NotificationEventService {
       } catch (e) {
         print('Could not fetch follower name: $e');
       }
-      
-      print('📋 DEBUG: About to call _sendPushNotificationToUser with userId: "$followedUserId"');
-      
+
+      print(
+          '📋 DEBUG: About to call _sendPushNotificationToUser with userId: "$followedUserId"');
+
       // Send push notification to the followed user
       await _sendPushNotificationToUser(
         userId: followedUserId,
@@ -1194,7 +1246,7 @@ class NotificationEventService {
 
       if (response.statusCode == 200) {
         print('✅ Rare coin offer notification event sent');
-        
+
         // Track analytics
         AppsFlyerService().logEvent('rare_offer_triggered', {
           'user_id': userId,
@@ -1217,13 +1269,13 @@ class NotificationEventService {
           .collection('humanUsers')
           .doc(userId)
           .get();
-      
+
       if (!userDoc.exists) return;
-      
+
       final userData = userDoc.data()!;
       final currentBalance = userData['balance'] ?? 0;
       final lastOfferCheck = userData['lastOfferCheck'] as Timestamp?;
-      
+
       // Check if user has low balance (less than 100 coins)
       if (currentBalance < 100) {
         await onRareCoinOffer(
@@ -1234,13 +1286,12 @@ class NotificationEventService {
         );
         return;
       }
-      
+
       // Check if user hasn't earned coins in 7 days
       if (lastOfferCheck != null) {
-        final daysSinceLastOffer = DateTime.now()
-            .difference(lastOfferCheck.toDate())
-            .inDays;
-        
+        final daysSinceLastOffer =
+            DateTime.now().difference(lastOfferCheck.toDate()).inDays;
+
         if (daysSinceLastOffer >= 7) {
           await onRareCoinOffer(
             userId: userId,
@@ -1250,7 +1301,7 @@ class NotificationEventService {
           );
         }
       }
-      
+
       // Update last offer check timestamp
       await FirebaseFirestore.instance
           .collection('humanUsers')
@@ -1258,14 +1309,14 @@ class NotificationEventService {
           .update({
         'lastOfferCheck': FieldValue.serverTimestamp(),
       });
-      
     } catch (e) {
       print('❌ Error checking rare coin offer eligibility: $e');
     }
   }
 
   /// Handle failed purchase - trigger coin offer
-  static Future<void> onFailedPurchase(String userId, int attemptedAmount) async {
+  static Future<void> onFailedPurchase(
+      String userId, int attemptedAmount) async {
     await onRareCoinOffer(
       userId: userId,
       offerType: 'watch_video',
@@ -1275,7 +1326,8 @@ class NotificationEventService {
   }
 
   /// Queue AI nudge notification for inactive users
-  static Future<void> queueAINudge(String userId, String characterId, String lastChatId) async {
+  static Future<void> queueAINudge(
+      String userId, String characterId, String lastChatId) async {
     try {
       final response = await http.post(
         Uri.parse('$_apiUrl/api/notifications/events/ai-nudge'),
@@ -1313,7 +1365,10 @@ class NotificationEventService {
 
   /// Mark notification as opened
   // deeplink parameter is deprecated and removed from storage
-  static Future<void> markNotificationOpened(String notificationId, /* String? deeplink */) async {
+  static Future<void> markNotificationOpened(
+    String notificationId,
+    /* String? deeplink */
+  ) async {
     try {
       await FirebaseFirestore.instance
           .collection('notificationsQueue')
@@ -1322,7 +1377,7 @@ class NotificationEventService {
         'status': 'opened',
         'openedAt': FieldValue.serverTimestamp(),
       });
-      
+
       // Track analytics (deprecated deeplink removed)
       AppsFlyerService().logEvent('notif_open', {
         'notification_id': notificationId,
@@ -1366,7 +1421,7 @@ class NotificationEventService {
         'status': 'dismissed',
         'dismissedAt': FieldValue.serverTimestamp(),
       });
-      
+
       // Track analytics
       AppsFlyerService().logEvent('notif_dismiss', {
         'notification_id': notificationId,
@@ -1379,21 +1434,23 @@ class NotificationEventService {
 
   /// Handle push notification tap routing
   /// This method should be called when a user taps on a push notification
-  static Future<void> handlePushNotificationTap(Map<String, dynamic> data) async {
+  static Future<void> handlePushNotificationTap(
+      Map<String, dynamic> data) async {
     try {
       final type = data['type'] as String? ?? 'system';
       print('🔗 Handling push notification tap - Type: $type, Data: $data');
 
       final user = FirebaseAuth.instance.currentUser;
       print('👤 Current user: ${user?.uid ?? 'null'}');
-      
+
       // Mark the corresponding notification in Firestore as read
       // Search for notification by its characteristics since there's no id field
       if (user != null) {
-        print('📝 About to call _markNotificationAsReadByData for user: ${user.uid}');
+        print(
+            '📝 About to call _markNotificationAsReadByData for user: ${user.uid}');
         await _markNotificationAsReadByData(user.uid, type, data);
         print('✅ _markNotificationAsReadByData completed');
-        
+
         // Clear iOS badge immediately using multiple approaches
         if (Platform.isIOS) {
           try {
@@ -1404,14 +1461,14 @@ class NotificationEventService {
             print('⚠️ Error force clearing iOS badge: $e');
           }
         }
-        
+
         // Immediately update iOS badge after marking notification as read
         print('📱 Immediately updating iOS badge...');
         await NotificationBadgeService.syncBadgeCount();
       } else {
         print('❌ User is null, cannot mark notification as read');
       }
-      
+
       // Import the badge service to ensure notifications get marked as read
       // and badge counts are updated properly on iOS
       try {
@@ -1419,11 +1476,11 @@ class NotificationEventService {
         // if (notificationId != null) {
         //   // Mark this specific notification as read
         //   await markNotificationOpened(notificationId);
-        //   
+        //
         //   // Update badge count
         //   await NotificationBadgeService.syncBadgeCount();
         // }
-        
+
         print('🔄 Syncing badge count again for safety...');
         // Update badge count after marking notification as read
         await NotificationBadgeService.syncBadgeCount();
@@ -1439,7 +1496,8 @@ class NotificationEventService {
         case 'user_follow':
           print('🔗 Follow notification - navigating to followers screen');
           // Get the follower ID from notification data
-          final followerId = data['followerId'] as String? ?? data['userId'] as String?;
+          final followerId =
+              data['followerId'] as String? ?? data['userId'] as String?;
           if (followerId != null) {
             // Navigate to the follower's profile followers/following screen
             AppRouter.router.push(Routes.followersFollowingPath(followerId));
@@ -1448,27 +1506,29 @@ class NotificationEventService {
             AppRouter.router.push(Routes.home);
           }
           break;
-          
+
         case 'comment':
         case 'post_comment':
-          print('🔗 Comment notification - navigating to post with comments opened');
+          print(
+              '🔗 Comment notification - navigating to post with comments opened');
           final postId = data['postId'] as String?;
           final commentId = data['commentId'] as String?;
-          
+
           if (postId != null && postId.startsWith('post_')) {
-            // Extract user ID from post ID (format: post_userId_timestamp)  
+            // Extract user ID from post ID (format: post_userId_timestamp)
             final parts = postId.split('_');
             if (parts.length >= 3) {
               final userId = parts[1];
-              print('🔗 Navigating to profile: $userId with post: $postId and comments opened');
-              
+              print(
+                  '🔗 Navigating to profile: $userId with post: $postId and comments opened');
+
               // Build route with query parameters for auto-opening comments
               String route = Routes.regularProfilePath(userId);
               route += '?post=$postId&openComments=true';
               if (commentId != null) {
                 route += '&commentId=$commentId';
               }
-              
+
               AppRouter.router.push(route);
             } else {
               // Fallback to home if post ID format is unexpected
@@ -1480,24 +1540,25 @@ class NotificationEventService {
             AppRouter.router.push(Routes.home);
           }
           break;
-          
+
         case 'like':
         case 'post_like':
         case 'repost':
         case 'post_engagement':
-          print('🔗 Like/Repost/Post engagement notification - navigating to post');
+          print(
+              '🔗 Like/Repost/Post engagement notification - navigating to post');
           final postId = data['postId'] as String?;
-          
+
           if (postId != null && postId.startsWith('post_')) {
             // Extract user ID from post ID
             final parts = postId.split('_');
             if (parts.length >= 3) {
               final userId = parts[1];
               print('🔗 Navigating to profile: $userId with post: $postId');
-              
+
               String route = Routes.regularProfilePath(userId);
               route += '?post=$postId';
-              
+
               AppRouter.router.push(route);
             } else {
               // Fallback to home if post ID format is unexpected
@@ -1509,12 +1570,14 @@ class NotificationEventService {
             AppRouter.router.push(Routes.home);
           }
           break;
-          
+
         case 'group_message':
         case 'group_mention':
-          print('🔗 Group message/mention notification - navigating to group chat');
-          final chatId = data['chatId'] as String? ?? data['groupId'] as String?;
-          
+          print(
+              '🔗 Group message/mention notification - navigating to group chat');
+          final chatId =
+              data['chatId'] as String? ?? data['groupId'] as String?;
+
           if (chatId != null && chatId.startsWith('group_chat_')) {
             // Group chat
             final groupData = GroupData(
@@ -1524,8 +1587,11 @@ class NotificationEventService {
               memberCount: 0,
               messageCount: 0,
               avatars: [],
+              imageUrl: data['imageUrl'] as String? ?? '',
+              category: data['groupChatCategory'] as String? ?? '',
               isMember: true,
               showRandomCharacters: true,
+              showFirst: false,
             );
             AppRouter.router.push(Routes.groupChat, extra: groupData);
           } else {
@@ -1533,29 +1599,32 @@ class NotificationEventService {
             AppRouter.router.push(Routes.home);
           }
           break;
-          
+
         case 'direct_message':
         case 'ai_auto_response':
-          print('🔗 Direct message/AI auto-response notification - navigating to chat');
+          print(
+              '🔗 Direct message/AI auto-response notification - navigating to chat');
           final chatId = data['chatId'] as String?;
-          
+
           if (chatId != null) {
             // Individual chat - extract other user ID
             final currentUserId = user?.uid ?? '';
             final userIds = chatId.split('_');
             String? otherUserId;
-            
+
             for (String userId in userIds) {
               if (userId != currentUserId) {
                 otherUserId = userId;
                 break;
               }
             }
-            
+
             if (otherUserId != null) {
               // Try to get the other user's name, first from notification data, then from Firestore
-              String otherUserName = data['senderName'] as String? ?? data['aiCharacterName'] as String? ?? 'Chat';
-              
+              String otherUserName = data['senderName'] as String? ??
+                  data['aiCharacterName'] as String? ??
+                  'Chat';
+
               // If we don't have a proper name from notification data, fetch from Firestore
               if (otherUserName == 'Chat' || otherUserName.isEmpty) {
                 try {
@@ -1564,11 +1633,15 @@ class NotificationEventService {
                       .collection('popularCharacters')
                       .doc(otherUserId)
                       .get();
-                  
+
                   if (userDoc.exists) {
                     final userData = userDoc.data()!;
-                    otherUserName = userData['name'] ?? userData['displayName'] ?? userData['username'] ?? 'AI Character';
-                    print('🔗 Fetched AI character name from Firestore: $otherUserName');
+                    otherUserName = userData['name'] ??
+                        userData['displayName'] ??
+                        userData['username'] ??
+                        'AI Character';
+                    print(
+                        '🔗 Fetched AI character name from Firestore: $otherUserName');
                   } else {
                     // Try human users
                     userDoc = await FirebaseFirestore.instance
@@ -1577,22 +1650,27 @@ class NotificationEventService {
                         .get();
                     if (userDoc.exists) {
                       final userData = userDoc.data()!;
-                      otherUserName = userData['name'] ?? userData['displayName'] ?? userData['username'] ?? 'User';
-                      print('🔗 Fetched user name from Firestore: $otherUserName');
+                      otherUserName = userData['name'] ??
+                          userData['displayName'] ??
+                          userData['username'] ??
+                          'User';
+                      print(
+                          '🔗 Fetched user name from Firestore: $otherUserName');
                     }
                   }
                 } catch (e) {
                   print('❌ Error fetching other user name: $e');
                 }
               }
-              
+
               AppRouter.router.push(Routes.chat, extra: {
                 'conversationId': chatId,
                 'otherUserId': otherUserId,
                 'otherUserName': otherUserName,
               });
             } else {
-              print('⚠️ Could not determine other user ID from chat ID: $chatId');
+              print(
+                  '⚠️ Could not determine other user ID from chat ID: $chatId');
               AppRouter.router.push(Routes.home);
             }
           } else {
@@ -1600,20 +1678,19 @@ class NotificationEventService {
             AppRouter.router.push(Routes.home);
           }
           break;
-          
+
         default:
           print('🔗 Unknown notification type: $type - going to home');
           AppRouter.router.push(Routes.home);
           break;
       }
-      
+
       // After successful navigation, ensure badge is updated
       try {
         await NotificationBadgeService.syncBadgeCount();
       } catch (e) {
         print('⚠️ Error syncing badge count after navigation: $e');
       }
-      
     } catch (e) {
       print('❌ Error handling push notification tap: $e');
       // Fallback to home

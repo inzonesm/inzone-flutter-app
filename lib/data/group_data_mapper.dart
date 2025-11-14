@@ -11,33 +11,38 @@ class GroupDataMapper {
       memberCount: chatData.participants.length,
       messageCount: chatData.messages.length,
       avatars: _extractAvatarTokens(chatData.participants),
+      imageUrl: '', // No imageUrl available in chatData
+      category: '', // No category available in chatData
       isMember: true, // If we're viewing it, we're a member
       showRandomCharacters: true, // Default to true for dynamic groups
       showFirst: false, // Default to false for Firestore groups
     );
   }
-  
+
   /// Extract avatar tokens from participants
   static List<String> _extractAvatarTokens(List<Participant> participants) {
     // We'll use up to 4 participant UIDs as avatar tokens
     List<String> avatars = [];
-    
+
     for (var i = 0; i < participants.length && i < 4; i++) {
       avatars.add(participants[i].uid);
     }
-    
+
     return avatars;
   }
-  
+
   /// Creates a dummy GroupData based on the GroupChatData for testing or defaults
   static GroupData createDummyGroupData() {
     return GroupData(
       id: 'group_chat_20250410191513',
       name: "Culers' Corner",
-      description: "A special group chat for the biggest Culers. Join us for exclusive content and discussions!",
+      description:
+          "A special group chat for the biggest Culers. Join us for exclusive content and discussions!",
       memberCount: 2,
       messageCount: 2,
       avatars: [],
+      imageUrl: '',
+      category: '',
       isMember: true,
       showRandomCharacters: true,
       showFirst: false,
@@ -49,13 +54,16 @@ class GroupDataMapper {
     return GroupData(
       id: id,
       name: "Culers' Corner",
-      description: "A special group chat for the biggest Culers. Join us for exclusive content and discussions!",
+      description:
+          "A special group chat for the biggest Culers. Join us for exclusive content and discussions!",
       memberCount: 2,
       messageCount: 2,
       avatars: [],
+      imageUrl: '',
+      category: '',
       isMember: true,
       showRandomCharacters: true,
       showFirst: false,
     );
   }
-} 
+}

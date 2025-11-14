@@ -12,7 +12,8 @@ class NotificationCenterScreen extends StatefulWidget {
   const NotificationCenterScreen({super.key});
 
   @override
-  State<NotificationCenterScreen> createState() => _NotificationCenterScreenState();
+  State<NotificationCenterScreen> createState() =>
+      _NotificationCenterScreenState();
 }
 
 class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
@@ -31,7 +32,8 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.surface,
       appBar: AppBar(
-        title: const Text('Notifications', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text('Notifications',
+            style: TextStyle(fontWeight: FontWeight.bold)),
         backgroundColor: Theme.of(context).colorScheme.surface,
         elevation: 0,
         actions: [
@@ -109,11 +111,13 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
           notifications.sort((a, b) {
             final aData = a.data() as Map<String, dynamic>;
             final bData = b.data() as Map<String, dynamic>;
-            final aCreated = (aData['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now();
-            final bCreated = (bData['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now();
+            final aCreated =
+                (aData['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now();
+            final bCreated =
+                (bData['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now();
             return bCreated.compareTo(aCreated); // Descending order
           });
-          
+
           // Limit to 50 most recent
           if (notifications.length > 50) {
             notifications = notifications.take(50).toList();
@@ -148,15 +152,17 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
           Text(
             'No notifications yet',
             style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
-            ),
+                  color:
+                      Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                ),
           ),
           const SizedBox(height: 8),
           Text(
             'When you receive notifications, they\'ll appear here',
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
-            ),
+                  color:
+                      Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
+                ),
             textAlign: TextAlign.center,
           ),
         ],
@@ -164,17 +170,18 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
     );
   }
 
-  List<NotificationGroup> _groupNotificationsByDate(List<QueryDocumentSnapshot> notifications) {
+  List<NotificationGroup> _groupNotificationsByDate(
+      List<QueryDocumentSnapshot> notifications) {
     final Map<String, List<QueryDocumentSnapshot>> grouped = {};
     final now = DateTime.now();
-    
+
     for (final notification in notifications) {
       final data = notification.data() as Map<String, dynamic>;
       final createdAt = (data['createdAt'] as Timestamp?)?.toDate() ?? now;
-      
+
       String dateKey;
       final difference = now.difference(createdAt).inDays;
-      
+
       if (difference == 0) {
         dateKey = 'Today';
       } else if (difference == 1) {
@@ -184,10 +191,10 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
       } else {
         dateKey = DateFormat('MMM dd, yyyy').format(createdAt);
       }
-      
+
       grouped.putIfAbsent(dateKey, () => []).add(notification);
     }
-    
+
     return grouped.entries
         .map((entry) => NotificationGroup(
               title: entry.key,
@@ -205,12 +212,13 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
           child: Text(
             group.title,
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.bold,
-              color: Theme.of(context).colorScheme.primary,
-            ),
+                  fontWeight: FontWeight.bold,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
           ),
         ),
-        ...group.notifications.map((notification) => _buildNotificationItem(notification)),
+        ...group.notifications
+            .map((notification) => _buildNotificationItem(notification)),
       ],
     );
   }
@@ -253,10 +261,15 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(12),
-              border: isRead ? null : Border.all(
-                color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
-                width: 1,
-              ),
+              border: isRead
+                  ? null
+                  : Border.all(
+                      color: Theme.of(context)
+                          .colorScheme
+                          .primary
+                          .withOpacity(0.3),
+                      width: 1,
+                    ),
             ),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -270,19 +283,27 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
                       Text(
                         title,
                         style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                          fontWeight: isRead ? FontWeight.normal : FontWeight.bold,
-                          color: isRead
-                              ? Theme.of(context).colorScheme.onSurface.withOpacity(0.7)
-                              : Theme.of(context).colorScheme.onSurface,
-                        ),
+                              fontWeight:
+                                  isRead ? FontWeight.normal : FontWeight.bold,
+                              color: isRead
+                                  ? Theme.of(context)
+                                      .colorScheme
+                                      .onSurface
+                                      .withOpacity(0.7)
+                                  : Theme.of(context).colorScheme.onSurface,
+                            ),
                       ),
                       if (body.isNotEmpty) ...[
                         const SizedBox(height: 4),
                         Text(
                           body,
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
-                          ),
+                          style:
+                              Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurface
+                                        .withOpacity(0.6),
+                                  ),
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -291,10 +312,14 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
                         const SizedBox(height: 8),
                         Text(
                           _formatTime(createdAt),
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: Theme.of(context).colorScheme.onSurface.withOpacity(0.4),
-                            fontSize: 12,
-                          ),
+                          style:
+                              Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurface
+                                        .withOpacity(0.4),
+                                    fontSize: 12,
+                                  ),
                         ),
                       ],
                     ],
@@ -388,13 +413,14 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
     final type = data['type'] as String? ?? 'system';
     final isRead = data['isRead'] as bool? ?? false;
     final notificationData = data['data'] as Map<String, dynamic>? ?? {};
-    
+
     // Mark as read if not already
     if (!isRead) {
       _markAsRead(notification.id);
     }
 
-    print('🔗 Handling notification tap - Type: $type, Data: $notificationData');
+    print(
+        '🔗 Handling notification tap - Type: $type, Data: $notificationData');
 
     // Handle navigation based on notification type and data
     switch (type) {
@@ -407,57 +433,60 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
           context.push(Routes.followersFollowingPath(followerId));
         }
         break;
-        
+
       case 'comment':
       case 'post_comment':
-        print('🔗 Comment notification - navigating to post with comments opened');
+        print(
+            '🔗 Comment notification - navigating to post with comments opened');
         final postId = notificationData['postId'] as String?;
         final commentId = notificationData['commentId'] as String?;
-        
+
         if (postId != null && postId.startsWith('post_')) {
-          // Extract user ID from post ID (format: post_userId_timestamp)  
+          // Extract user ID from post ID (format: post_userId_timestamp)
           final parts = postId.split('_');
           if (parts.length >= 3) {
             final userId = parts[1];
-            print('🔗 Navigating to profile: $userId with post: $postId and comments opened');
-            
+            print(
+                '🔗 Navigating to profile: $userId with post: $postId and comments opened');
+
             // Build route with query parameters for auto-opening comments
             String route = Routes.regularProfilePath(userId);
             route += '?post=$postId&openComments=true';
             if (commentId != null) {
               route += '&commentId=$commentId';
             }
-            
+
             context.push(route);
           }
         }
         break;
-        
+
       case 'like':
       case 'repost':
         print('🔗 Like/Repost notification - navigating to post');
         final postId = notificationData['postId'] as String?;
-        
+
         if (postId != null && postId.startsWith('post_')) {
           // Extract user ID from post ID
           final parts = postId.split('_');
           if (parts.length >= 3) {
             final userId = parts[1];
             print('🔗 Navigating to profile: $userId with post: $postId');
-            
+
             String route = Routes.regularProfilePath(userId);
             route += '?post=$postId';
-            
+
             context.push(route);
           }
         }
         break;
-        
+
       case 'group_message':
       case 'direct_message':
         print('🔗 Message notification - navigating to chat');
-        final chatId = notificationData['chatId'] as String? ?? notificationData['groupId'] as String?;
-        
+        final chatId = notificationData['chatId'] as String? ??
+            notificationData['groupId'] as String?;
+
         if (chatId != null) {
           if (chatId.startsWith('group_chat_')) {
             // Group chat
@@ -468,6 +497,8 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
               memberCount: 0,
               messageCount: 0,
               avatars: [],
+              imageUrl: notificationData['imageUrl'] as String? ?? '',
+              category: notificationData['groupChatCategory'] as String? ?? '',
               isMember: true,
               showRandomCharacters: true,
             );
@@ -477,16 +508,17 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
             final currentUserId = user?.uid ?? '';
             final userIds = chatId.split('_');
             String? otherUserId;
-            
+
             for (String userId in userIds) {
               if (userId != currentUserId) {
                 otherUserId = userId;
                 break;
               }
             }
-            
+
             if (otherUserId != null) {
-              final otherUserName = notificationData['senderName'] as String? ?? 'Chat';
+              final otherUserName =
+                  notificationData['senderName'] as String? ?? 'Chat';
               context.push(Routes.chat, extra: {
                 'conversationId': chatId,
                 'otherUserId': otherUserId,
@@ -496,7 +528,7 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
           }
         }
         break;
-        
+
       default:
         print('🔗 Unknown notification type: $type - going to home');
         context.push(Routes.home);
@@ -567,10 +599,10 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
 
   void _markAllAsRead() async {
     setState(() => _isLoading = true);
-    
+
     try {
       final batch = FirebaseFirestore.instance.batch();
-      
+
       // Get all notifications for user (without isRead filter to avoid composite index)
       final notifications = await FirebaseFirestore.instance
           .collection('notifications')
@@ -580,7 +612,8 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
       // Filter unread notifications manually and update them
       for (final doc in notifications.docs) {
         final data = doc.data();
-        if (data['isRead'] != true) { // Only update if not already read
+        if (data['isRead'] != true) {
+          // Only update if not already read
           batch.update(doc.reference, {
             'isRead': true,
             'readAt': FieldValue.serverTimestamp(),
@@ -589,7 +622,7 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
       }
 
       await batch.commit();
-      
+
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('All notifications marked as read')),
       );
@@ -598,7 +631,7 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
         SnackBar(content: Text('Error: $e')),
       );
     }
-    
+
     setState(() => _isLoading = false);
   }
 
@@ -607,7 +640,8 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Clear all notifications'),
-        content: const Text('Are you sure you want to delete all notifications? This action cannot be undone.'),
+        content: const Text(
+            'Are you sure you want to delete all notifications? This action cannot be undone.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -624,7 +658,7 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
     if (confirmed != true) return;
 
     setState(() => _isLoading = true);
-    
+
     try {
       final batch = FirebaseFirestore.instance.batch();
       final notifications = await FirebaseFirestore.instance
@@ -637,7 +671,7 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
       }
 
       await batch.commit();
-      
+
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('All notifications cleared')),
       );
@@ -646,7 +680,7 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
         SnackBar(content: Text('Error: $e')),
       );
     }
-    
+
     setState(() => _isLoading = false);
   }
 }

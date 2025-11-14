@@ -34,5 +34,7 @@
 	<string>1:912424781531:ios:13382f575885c1c872aefe</string>
 	<key>DATABASE_URL</key>
 	<string>https://inzone-f93e4-default-rtdb.firebaseio.com</string>
+	<key>ADMOB_APP_ID</key>
+	<string>ca-app-pub-4474122990542651~2508616366</string>
 </dict>
 </plist>

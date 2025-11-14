@@ -63,6 +63,14 @@
           }
         },
         {
+          "client_id": "912424781531-vgqav00gjktphcngla4k3gbtig4rgek1.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.aadeshkheria.inzone",
+            "certificate_hash": "c6bed6652f115e68a2ff14f6c572963be18dafff"
+          }
+        },
+        {
           "client_id": "912424781531-vru85aelna5oro0lrnkl11jd49oc74ss.apps.googleusercontent.com",
           "client_type": 3
         }
@@ -88,7 +96,8 @@
             }
           ]
         }
-      }
+      },
+      "admob_app_id": "ca-app-pub-4474122990542651~2720978162"
     }
   ],
   "configuration_version": "1"

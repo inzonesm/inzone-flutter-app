@@ -483,6 +483,8 @@ class AppRouter {
                 memberCount: 0,
                 messageCount: 0,
                 avatars: [],
+                imageUrl: '',
+                category: '',
                 isMember: true,
                 showRandomCharacters: true,
               ),

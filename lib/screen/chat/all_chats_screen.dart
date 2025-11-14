@@ -580,6 +580,8 @@ class _ChatUserCardState extends State<ChatUserCard> {
                       (doc.data()?['participants'] as List?)?.length ?? 0,
                   messageCount: doc.data()?['messageCount'] ?? 0,
                   avatars: avatars,
+                  imageUrl: doc.data()?['imageUrl'] ?? '',
+                  category: doc.data()?['groupChatCategory'] ?? '',
                   isMember: true,
                   showRandomCharacters: true,
                 );

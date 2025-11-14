@@ -4,7 +4,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:firebase_remote_config/firebase_remote_config.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:inzone/config/default_firebase_options.dart';
+import 'firebase_options.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:inzone/theme/theme_manager.dart';
 import 'package:provider/provider.dart';
@@ -17,6 +17,7 @@ import 'package:inzone/services/notification_event_service.dart';
 import 'package:purchases_flutter/models/purchases_configuration.dart'
     show PurchasesConfiguration;
 import 'dart:io' show Platform;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:purchases_flutter/purchases_flutter.dart'
     show LogLevel, Purchases;
@@ -26,6 +27,7 @@ import 'package:app_tracking_transparency/app_tracking_transparency.dart';
 import 'package:inzone/services/reward_ad_service.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:inzone/services/ai_engagement_service.dart';
+import 'package:inzone/screen/explore/group_discovery_widget.dart';
 
 // Key for storing first launch status in SharedPreferences
 const String FIRST_LAUNCH_KEY = 'is_first_launch';
@@ -152,13 +154,13 @@ Future<void> initPlatformState() async {
   await Purchases.setLogLevel(LogLevel.debug);
 
   PurchasesConfiguration configuration;
-  if (Platform.isAndroid) {
+  if (!kIsWeb && Platform.isAndroid) {
     if (FirebaseAuth.instance.currentUser != null) {
       await Purchases.configure(
           PurchasesConfiguration('goog_TMTKRzQNQBHDOwdGzYeRqHhbDPB')
             ..appUserID = FirebaseAuth.instance.currentUser!.uid);
     }
-  } else if (Platform.isIOS) {
+  } else if (!kIsWeb && Platform.isIOS) {
     if (FirebaseAuth.instance.currentUser != null) {
       await Purchases.configure(
           PurchasesConfiguration('appl_veaMcyjzStDagTGHzLYMJiDVkWO')
@@ -169,7 +171,7 @@ Future<void> initPlatformState() async {
 }
 
 Future<void> requestTrackingPermission() async {
-  if (Platform.isIOS) {
+  if (!kIsWeb && Platform.isIOS) {
     final TrackingStatus status =
         await AppTrackingTransparency.requestTrackingAuthorization();
 
@@ -197,12 +199,15 @@ void main() async {
   WidgetsBinding widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
   FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
 
-  // Initialize AdMob with test device configuration
-  MobileAds.instance.initialize();
+  // Only initialize AdMob and reward ad service on mobile platforms (not web)
+  if (!kIsWeb) {
+    // Initialize AdMob with test device configuration
+    MobileAds.instance.initialize();
 
-  // Initialize reward ad service
-  final rewardAdService = RewardAdService();
-  await rewardAdService.initialize();
+    // Initialize reward ad service
+    final rewardAdService = RewardAdService();
+    await rewardAdService.initialize();
+  }
 
   // Initialize SharedPreferences
   SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -219,20 +224,21 @@ void main() async {
   // Register FCM background message handler
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
-  // Initialize notification service
-  try {
-    await NotificationService.initialize();
-    print('✅ Notification service initialized');
-  } catch (e) {
-    print('⚠️ Failed to initialize notification service: $e');
-  }
+  // Initialize notification service and push notifications only on mobile (not web)
+  if (!kIsWeb) {
+    try {
+      await NotificationService.initialize();
+      print('✅ Notification service initialized');
+    } catch (e) {
+      print('⚠️ Failed to initialize notification service: $e');
+    }
 
-  // Initialize push notifications for event service
-  try {
-    await NotificationEventService.initializePushNotifications();
-    print('✅ Push notifications initialized');
-  } catch (e) {
-    print('⚠️ Failed to initialize push notifications: $e');
+    try {
+      await NotificationEventService.initializePushNotifications();
+      print('✅ Push notifications initialized');
+    } catch (e) {
+      print('⚠️ Failed to initialize push notifications: $e');
+    }
   }
 
   // Setup Firebase Remote Config
@@ -247,12 +253,14 @@ void main() async {
   // Request tracking permission and get IDFA if authorized
   await requestTrackingPermission();
 
-  // Initialize AppsFlyerService
-  final appsFlyerService = AppsFlyerService();
-  await appsFlyerService.initialize();
-  await initPlatformState();
-  String? advertisingId = await appsFlyerService.getAdvertisingId();
-  print("The advertising ID is $advertisingId");
+  // Initialize AppsFlyerService only on mobile (not web)
+  if (!kIsWeb) {
+    final appsFlyerService = AppsFlyerService();
+    await appsFlyerService.initialize();
+    await initPlatformState();
+    String? advertisingId = await appsFlyerService.getAdvertisingId();
+    print("The advertising ID is $advertisingId");
+  }
 
   // Warm up Cloud Run container to improve app performance
   // This runs asynchronously and doesn't block app startup
@@ -282,9 +290,6 @@ void main() async {
     );
   });
 }
-
-// Add import for group discovery widget
-import 'package:inzone/group_discovery_widget.dart';
 
 class MyApp extends StatefulWidget {
   final SharedPreferences prefs;
@@ -386,14 +391,11 @@ class _MyAppState extends State<MyApp> {
       theme: themeManager.getLightTheme(),
       darkTheme: themeManager.getDarkTheme(),
       themeMode: themeManager.themeMode,
-      // Add route for group discovery
-      routes: {
-        '/groups': (context) => GroupDiscoveryScreen(),
-        // Add other routes as needed
-      },
-      // Default home can be your existing logic, or for demo:
-      // home: GroupDiscoveryScreen(),
-      // If you want to keep routerConfig, you can merge with routes above.
+      home: GroupDiscoveryScreen(), // TEMP: Always show group chat discovery
+      // routes: {
+      //   '/groups': (context) => GroupDiscoveryScreen(),
+      //   // Add other routes as needed
+      // },
     );
   }
 }
