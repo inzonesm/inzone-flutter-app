@@ -279,7 +279,7 @@ class _TipScreenState extends State<TipScreen> {
           }
         });
       } else {
-        _showErrorToast('Failed to send coins: ${response['message']}');
+        _showErrorToast('Failed to send coins: ${response['error'] ?? 'Unknown error'}');
       }
     } catch (e) {
       // Close loading dialog
