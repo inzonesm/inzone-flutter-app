@@ -816,8 +816,7 @@ class InZoneDatabase {
         username = FirebaseAuth.instance.currentUser!.displayName!;
       }
 
-      String url =
-          'https://inzoneapi-912424781531.us-central1.run.app/feed/create-human-post';
+      String url = ApiConfig.endpoint('/feed/create-human-post');
 
       Map<String, dynamic> postData = {
         "UserName": username, // Use the retrieved username instead
