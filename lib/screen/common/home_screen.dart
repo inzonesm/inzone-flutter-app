@@ -986,22 +986,9 @@ class HomeScreenState extends State<HomeScreen> {
                             // Show loading indicator at the bottom
                             return Container(
                               padding: const EdgeInsets.symmetric(vertical: 20),
-                              child: Center(
-                                child: Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    const CircularProgressIndicator(
-                                      strokeWidth: 2.5,
-                                    ),
-                                    const SizedBox(height: 12),
-                                    Text(
-                                      'Loading more posts...',
-                                      style: TextStyle(
-                                        color: Colors.grey[600],
-                                        fontSize: 13,
-                                      ),
-                                    ),
-                                  ],
+                              child: const Center(
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2.5,
                                 ),
                               ),
                             );
