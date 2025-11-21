@@ -70,7 +70,7 @@ class DefaultFirebaseOptions {
   );
 
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'AIzaSyAtCxPBjXhzvv1DnGBALOvBDqfcIsxCMuo',
+    apiKey: 'AIzaSyAtCxPBjXhZvv1DnGBALOvBDqfcIsxCMuo',
     authDomain: 'inzone-f93e4.firebaseapp.com',
     databaseURL: 'https://inzone-f93e4-default-rtdb.firebaseio.com',
     projectId: 'inzone-f93e4',

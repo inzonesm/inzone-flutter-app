@@ -14,9 +14,21 @@ class GroupDiscoveryScreen extends StatelessWidget {
             .where('archived', isEqualTo: false)
             .snapshots(),
         builder: (context, snapshot) {
-          if (!snapshot.hasData)
+          // Debug: print errors
+          if (snapshot.hasError) {
+            print('🔥 Firestore snapshot error: ${snapshot.error}');
+            return Center(
+                child: Text('Error loading groups: ${snapshot.error}'));
+          }
+          if (!snapshot.hasData) {
+            print('⏳ Waiting for Firestore data...');
             return Center(child: CircularProgressIndicator());
+          }
           final groups = snapshot.data!.docs;
+          print('📦 Firestore groupChats fetched: count = ${groups.length}');
+          if (groups.isNotEmpty) {
+            print('📝 Group doc IDs: ${groups.map((d) => d.id).join(", ")}');
+          }
           // Categorize groups
           Map<String, List<DocumentSnapshot>> categorized = {};
           for (var doc in groups) {
@@ -40,9 +52,10 @@ class GroupDiscoveryScreen extends StatelessWidget {
                         child: ListTile(
                           leading: ClipRRect(
                             borderRadius: BorderRadius.circular(8),
-                            child: (doc['avatars'] != null &&
+                            child: ((doc.data() as Map<String, dynamic>)
+                                        .containsKey('avatars') &&
                                     doc['avatars'] is List &&
-                                    doc['avatars'].isNotEmpty)
+                                    (doc['avatars'] as List).isNotEmpty)
                                 ? Image.network(
                                     doc['avatars'][0],
                                     width: 48,
@@ -52,7 +65,20 @@ class GroupDiscoveryScreen extends StatelessWidget {
                                 : Icon(Icons.group, size: 48),
                           ),
                           title: Text(doc['name']),
-                          subtitle: Text(doc['description']),
+                          subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(doc['description']),
+                              SizedBox(height: 4),
+                              Text(
+                                'ID: ${doc.id}',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey[600],
+                                ),
+                              ),
+                            ],
+                          ),
                           onTap: () {
                             // Convert Firestore doc to GroupData and navigate to GroupChatScreen
                             final group = GroupData(

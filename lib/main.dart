@@ -320,11 +320,12 @@ class _MyAppState extends State<MyApp> {
       FlutterNativeSplash.remove();
 
       // If update is required, show force update screen
-      if (widget.needsUpdate) {
-        print("Force update required - showing update screen");
-        AppRouter.setInitialRoute(Routes.forceUpdate);
-        return;
-      }
+      // BYPASS: Always show group discovery, skip force update and router logic
+      // if (widget.needsUpdate) {
+      //   print("Force update required - showing update screen");
+      //   AppRouter.setInitialRoute(Routes.forceUpdate);
+      //   return;
+      // }
 
       // Check if this is the first launch
       bool isFirstLaunch = widget.prefs.getBool(FIRST_LAUNCH_KEY) ?? true;
@@ -333,33 +334,34 @@ class _MyAppState extends State<MyApp> {
       final currentUser = FirebaseAuth.instance.currentUser;
 
       // Determine initial route based on login status
-      if (currentUser != null) {
-        // User is logged in - go to home
-        print("User is logged in - going to home");
-        AppRouter.setInitialRoute(Routes.home);
+      // BYPASS: Always show group discovery, skip auth-based routing
+      // if (currentUser != null) {
+      //   // User is logged in - go to home
+      //   print("User is logged in - going to home");
+      //   AppRouter.setInitialRoute(Routes.home);
 
-        // Start AI engagement service for logged-in users
-        _startAIEngagementService();
+      //   // Start AI engagement service for logged-in users
+      //   _startAIEngagementService();
 
-        // Handle any pending push notification
-        Future.delayed(const Duration(milliseconds: 1000), () async {
-          await NotificationEventService.handlePendingInitialMessage();
-        });
+      //   // Handle any pending push notification
+      //   Future.delayed(const Duration(milliseconds: 1000), () async {
+      //     await NotificationEventService.handlePendingInitialMessage();
+      //   });
 
-        // Update first launch status if it was the first launch
-        if (isFirstLaunch) {
-          widget.prefs.setBool(FIRST_LAUNCH_KEY, false);
-        }
-      } else {
-        // User is not logged in - always show onboarding
-        print("User is not logged in - showing onboarding");
-        AppRouter.setInitialRoute(Routes.onboarding);
+      //   // Update first launch status if it was the first launch
+      //   if (isFirstLaunch) {
+      //     widget.prefs.setBool(FIRST_LAUNCH_KEY, false);
+      //   }
+      // } else {
+      //   // User is not logged in - always show onboarding
+      //   print("User is not logged in - showing onboarding");
+      //   AppRouter.setInitialRoute(Routes.onboarding);
 
-        // Update first launch status if it was the first launch
-        if (isFirstLaunch) {
-          widget.prefs.setBool(FIRST_LAUNCH_KEY, false);
-        }
-      }
+      //   // Update first launch status if it was the first launch
+      //   if (isFirstLaunch) {
+      //     widget.prefs.setBool(FIRST_LAUNCH_KEY, false);
+      //   }
+      // }
     });
   }
 
