@@ -4,16 +4,21 @@ import 'package:flutter_svg/flutter_svg.dart';
 class TopicSelectorWidget extends StatefulWidget {
   final String topic;
   final void Function(String topic) callBack;
+  final bool isSelected; // Add this parameter to receive selection state from parent
 
-  const TopicSelectorWidget(
-      {super.key, required this.topic, required this.callBack});
+  const TopicSelectorWidget({
+    super.key, 
+    required this.topic, 
+    required this.callBack,
+    this.isSelected = false, // Default to false
+  });
 
   @override
   State<TopicSelectorWidget> createState() => _TopicSelectorWidgetState();
 }
 
 class _TopicSelectorWidgetState extends State<TopicSelectorWidget> {
-  bool selected = false;
+  // Remove internal selected state - use widget.isSelected instead
 
   String replaceAndCapitalize(String text) {
     if (text.contains("_")) {
@@ -29,9 +34,7 @@ class _TopicSelectorWidgetState extends State<TopicSelectorWidget> {
   }
 
   void _toggleSelection() {
-    setState(() {
-      selected = !selected;
-    });
+    // Just call the callback - parent will manage the selection state
     widget.callBack(widget.topic);
   }
 
@@ -57,8 +60,8 @@ class _TopicSelectorWidgetState extends State<TopicSelectorWidget> {
         margin: const EdgeInsets.symmetric(horizontal: 5, vertical: 5),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(30),
-          color: selected ? selectedBackgroundColor : unselectedBackgroundColor,
-          border: selected
+          color: widget.isSelected ? selectedBackgroundColor : unselectedBackgroundColor,
+          border: widget.isSelected
               ? Border.all(color: selectedBorderColor, width: 1.5)
               : null,
         ),
@@ -70,15 +73,15 @@ class _TopicSelectorWidgetState extends State<TopicSelectorWidget> {
             //     "icons/category_icons/${widget.topic}.svg",
             //     height: 20,
             //     width: 20,
-            //     color: selected ? selectedBorderColor : unselectedTextColor,
+            //     color: widget.isSelected ? selectedBorderColor : unselectedTextColor,
             //   ),
             //   const SizedBox(width: 8),
             // ],
             Text(
               replaceAndCapitalize(widget.topic),
               style: TextStyle(
-                color: selected ? selectedTextColor : unselectedTextColor,
-                fontWeight: selected ? FontWeight.bold : FontWeight.normal,
+                color: widget.isSelected ? selectedTextColor : unselectedTextColor,
+                fontWeight: widget.isSelected ? FontWeight.bold : FontWeight.normal,
                 fontSize: 16,
               ),
             ),

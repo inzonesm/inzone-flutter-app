@@ -12,6 +12,7 @@ class MessageBubble extends StatelessWidget {
   final String? senderName;
   final Widget? senderAvatar;
   final VoidCallback? onShare;
+  final VoidCallback? onSenderTap; // New callback for tapping sender avatar/name
 
   const MessageBubble({
     super.key,
@@ -21,6 +22,7 @@ class MessageBubble extends StatelessWidget {
     this.senderName,
     this.senderAvatar,
     this.onShare,
+    this.onSenderTap,
   });
 
   @override
@@ -33,7 +35,10 @@ class MessageBubble extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           if (!isMe && senderAvatar != null) ...[
-            senderAvatar!,
+            GestureDetector(
+              onTap: onSenderTap,
+              child: senderAvatar!,
+            ),
             const SizedBox(width: 2),
           ],
           Flexible(
@@ -71,12 +76,16 @@ class MessageBubble extends StatelessWidget {
                       if (!isMe && senderName != null)
                         Padding(
                           padding: const EdgeInsets.only(bottom: 6.0),
-                          child: Text(
-                            senderName!,
-                            style: TextStyle(
-                              fontSize: 12,
-                              color:
-                                  Theme.of(context).textTheme.bodySmall?.color,
+                          child: GestureDetector(
+                            onTap: onSenderTap,
+                            child: Text(
+                              senderName!,
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color:
+                                    Theme.of(context).textTheme.bodySmall?.color,
+                              ),
                             ),
                           ),
                         ),

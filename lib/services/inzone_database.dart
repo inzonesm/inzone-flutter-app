@@ -8,6 +8,7 @@ import 'dart:async'; // Add Timer import
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../main.dart';
+import '../config/api_config.dart';
 
 class InZoneDatabase {
   // Track last API call time to prevent too many requests
@@ -45,7 +46,8 @@ class InZoneDatabase {
     }
   }
 
-  static Future<dynamic> getFeed({int? page}) async {
+  static Future<dynamic> getFeed(
+      {int? page, int? batchNumber, List<String>? excludeIds}) async {
     // Throttle API requests to prevent overloading
     if (_lastFeedApiCallTime != null) {
       final timeSinceLastCall =
@@ -59,28 +61,38 @@ class InZoneDatabase {
     // Update the last API call time
     _lastFeedApiCallTime = DateTime.now().toUtc();
 
-    String url =
-        'https://inzoneapi-912424781531.us-central1.run.app/feed/posts-flow';
-
-    // If page parameter is provided, add it to the URL
-    if (page != null) {
-      if (page != 0) {
-        url =
-            '$url?user_id=${FirebaseAuth.instance.currentUser!.uid}&page=$page';
-      } else {
-        url = '$url?user_id=${FirebaseAuth.instance.currentUser!.uid}&page=1';
-      }
-    }
+    // Use new smart recommendations endpoint (Firestore-based cold start)
+    String url = ApiConfig.endpoint('/feed/get-smart-recommendations');
 
     try {
-      // Make the GET request with timeout
-      final response = await http.get(
+      // PAGINATION FIX: Each batch has 30 posts (3 pages x 10 posts)
+      // Same batch_number = same 30 posts, different pages = different slices
+      int postsPerPage = 10;
+      int currentPage = (page != null && page > 0) ? page : 1;
+      int totalPoolSize = 30; // Backend generates 30 posts per batch (3 pages)
+
+      // Prepare request body for POST endpoint
+      final requestBody = {
+        'user_id': FirebaseAuth.instance.currentUser!.uid,
+        'limit': totalPoolSize, // Request full pool size
+        'target_match_rate': 0.7,
+        'include_verification': false,
+        'page': currentPage, // NEW: Which page of the batch to return
+        'batch_number': batchNumber ?? 0, // Which batch to generate
+        'exclude_ids': excludeIds ?? [], // Posts already loaded in client
+      };
+
+      // Make the POST request with timeout
+      final response = await http
+          .post(
         Uri.parse(url),
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
         },
-      ).timeout(const Duration(seconds: 15), onTimeout: () {
+        body: jsonEncode(requestBody),
+      )
+          .timeout(const Duration(seconds: 15), onTimeout: () {
         // Return a timeout response
         throw TimeoutException('The request took too long to complete');
       });
@@ -89,8 +101,37 @@ class InZoneDatabase {
       if (response.statusCode == 200) {
         final jsonData = jsonDecode(response.body);
 
-        // Return the response as is - it should contain a 'posts' field with post_type
-        return jsonData;
+        // Extract posts from response
+        if (jsonData['success'] == true &&
+            jsonData.containsKey('recommendations')) {
+          // Backend already handles pagination - just use the posts directly!
+          List<dynamic> pagePosts = jsonData['recommendations'];
+
+          // Get metadata from backend response
+          int poolSize = jsonData['data']?['pool_size'] ?? 30;
+          int batchNumber = jsonData['data']?['batch_number'] ?? 0;
+
+          // Calculate if there are more pages in the current batch
+          // Each batch has poolSize posts (usually 30), divided into pages of 10
+          bool hasMore = (currentPage * postsPerPage) < poolSize;
+
+          print(
+              '✅ getFeed: Received ${pagePosts.length} posts for page $currentPage of batch $batchNumber');
+          print('   Pool size: $poolSize, Has more: $hasMore');
+
+          // Return in the same format as old endpoint for compatibility
+          return {
+            'posts': pagePosts,
+            'page': currentPage,
+            'has_more': hasMore,
+            'source': 'smart_recommendations',
+            'total_in_pool': poolSize,
+            'batch_number': batchNumber,
+          };
+        } else {
+          print('Smart recommendations returned no posts');
+          return {'posts': []};
+        }
       } else if (response.statusCode == 429) {
         // Too many requests - add additional delay
         print('Rate limited by API (429). Waiting before retrying...');
@@ -784,8 +825,7 @@ class InZoneDatabase {
         username = FirebaseAuth.instance.currentUser!.displayName!;
       }
 
-      String url =
-          'https://inzoneapi-912424781531.us-central1.run.app/feed/create-human-post';
+      String url = ApiConfig.endpoint('/feed/create-human-post');
 
       Map<String, dynamic> postData = {
         "UserName": username, // Use the retrieved username instead
@@ -1458,8 +1498,8 @@ class InZoneDatabase {
 
   // Helper method to update user name
   static Future<bool> updateUserName(String userId, String name) async {
-    const String url =
-        'https://inzoneapi-912424781531.us-central1.run.app/user/update-name';
+    final String url = ApiConfig.endpoint('/user/update-name');
+    print('🔍 Updating name, URL: $url'); // Debug log
 
     Map<String, dynamic> requestBody = {
       "UID": userId,
@@ -1490,8 +1530,7 @@ class InZoneDatabase {
 
   // Helper method to update username
   static Future<bool> updateUserUsername(String userId, String username) async {
-    const String url =
-        'https://inzoneapi-912424781531.us-central1.run.app/user/update-username';
+    final String url = ApiConfig.endpoint('/user/update-username');
 
     Map<String, dynamic> requestBody = {
       "UID": userId,
@@ -1523,8 +1562,7 @@ class InZoneDatabase {
 
   // Helper method to update bio
   static Future<bool> updateUserBio(String userId, String bio) async {
-    const String url =
-        'https://inzoneapi-912424781531.us-central1.run.app/user/update-bio';
+    final String url = ApiConfig.endpoint('/user/update-bio');
 
     Map<String, dynamic> requestBody = {
       "UID": userId,
@@ -1556,8 +1594,7 @@ class InZoneDatabase {
   // Helper method to update profile picture
   static Future<bool> updateUserProfilePicture(
       String userId, String profilePicture) async {
-    const String url =
-        'https://inzoneapi-912424781531.us-central1.run.app/user/update-profile-picture';
+    final String url = ApiConfig.endpoint('/user/update-profile-picture');
 
     Map<String, dynamic> requestBody = {
       "UID": userId,
@@ -1584,6 +1621,126 @@ class InZoneDatabase {
     } catch (e) {
       print('Error updating profile picture: $e');
       return false;
+    }
+  }
+
+  // Helper method to update user interests
+  static Future<bool> updateUserInterests(
+      String userId, List<String> interests) async {
+    final String url = ApiConfig.endpoint('/user/update-interests');
+    print('🔍 Updating interests, URL: $url'); // Debug log
+    print('   Interests: $interests');
+
+    Map<String, dynamic> requestBody = {
+      "UID": userId,
+      "Interests": interests,
+    };
+
+    try {
+      final http.Response response = await http.post(
+        Uri.parse(url),
+        headers: <String, String>{
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode(requestBody),
+      );
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> responseData = jsonDecode(response.body);
+        print('✓ Interests updated successfully');
+        return responseData["success"] == true;
+      } else {
+        print(
+            'Failed to update interests. Status code: ${response.statusCode}');
+        return false;
+      }
+    } catch (e) {
+      print('Error updating interests: $e');
+      return false;
+    }
+  }
+
+  // Session-level tracking to prevent duplicate view tracking
+  static final Set<String> _trackedPostsThisSession = {};
+
+  // Track post view for Gorse recommendation engine
+  static Future<void> trackPostView(String userId, String postId) async {
+    // Prevent duplicate tracking in the same session
+    final trackingKey = '$userId:$postId';
+    if (_trackedPostsThisSession.contains(trackingKey)) {
+      print('⏭️ Skipping duplicate view tracking for post: $postId');
+      return;
+    }
+
+    _trackedPostsThisSession.add(trackingKey);
+
+    final String url = ApiConfig.endpoint('/feed/track-view');
+
+    try {
+      await http
+          .post(
+            Uri.parse(url),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({'user_id': userId, 'post_id': postId}),
+          )
+          .timeout(const Duration(seconds: 5));
+      print(
+          '✅ View tracked for post: ${postId.length >= 8 ? postId.substring(0, 8) : postId}...');
+    } catch (e) {
+      print('Error tracking view: $e');
+      // Remove from tracked set on error so it can be retried
+      _trackedPostsThisSession.remove(trackingKey);
+    }
+  }
+
+  // Track post like for Gorse recommendation engine
+  static Future<void> trackPostLike(String userId, String postId) async {
+    final String url = ApiConfig.endpoint('/feed/track-like');
+
+    try {
+      await http
+          .post(
+            Uri.parse(url),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({'user_id': userId, 'post_id': postId}),
+          )
+          .timeout(const Duration(seconds: 5));
+    } catch (e) {
+      print('Error tracking like: $e');
+    }
+  }
+
+  // Track post comment for Gorse recommendation engine
+  static Future<void> trackPostComment(String userId, String postId) async {
+    final String url = ApiConfig.endpoint('/feed/track-comment');
+
+    try {
+      await http
+          .post(
+            Uri.parse(url),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({'user_id': userId, 'post_id': postId}),
+          )
+          .timeout(const Duration(seconds: 5));
+    } catch (e) {
+      print('Error tracking comment: $e');
+    }
+  }
+
+  // Track post share for Gorse recommendation engine
+  static Future<void> trackPostShare(String userId, String postId) async {
+    final String url = ApiConfig.endpoint('/feed/track-share');
+
+    try {
+      await http
+          .post(
+            Uri.parse(url),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({'user_id': userId, 'post_id': postId}),
+          )
+          .timeout(const Duration(seconds: 5));
+    } catch (e) {
+      print('Error tracking share: $e');
     }
   }
 
@@ -2117,6 +2274,11 @@ class InZoneDatabase {
   // Add this method to update user profile
   static Future<void> updateUserProfileData(
       String userId, Map<String, dynamic> profileData) async {
+    print('🔍 updateUserProfileData called!');
+    print('   UserId: $userId');
+    print('   ProfileData: $profileData');
+    print('   ApiConfig.baseUrl: ${ApiConfig.baseUrl}');
+
     try {
       // Verify the user is still authenticated
       User? currentUser = FirebaseAuth.instance.currentUser;

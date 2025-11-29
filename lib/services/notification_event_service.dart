@@ -12,13 +12,12 @@ import 'package:inzone/data/group_data.dart';
 import 'package:inzone/services/notification_badge_service.dart';
 
 class NotificationEventService {
-  static const String _apiUrl =
-      'https://inzoneapi-912424781531.us-central1.run.app';
-
+  static const String _apiUrl = 'https://inzoneapi-912424781531.us-central1.run.app';
+  
   // Local notifications instance for immediate display
-  static final FlutterLocalNotificationsPlugin _localNotifications =
+  static final FlutterLocalNotificationsPlugin _localNotifications = 
       FlutterLocalNotificationsPlugin();
-
+  
   // Firebase messaging instance
   static final FirebaseMessaging _firebaseMessaging =
       FirebaseMessaging.instance;
@@ -385,10 +384,9 @@ class NotificationEventService {
       print('📱 Background message tapped: ${message.data}');
       handlePushNotificationTap(message.data);
     });
-
+    
     // Handle terminated app message taps (app was completely closed)
-    RemoteMessage? initialMessage =
-        await _firebaseMessaging.getInitialMessage();
+    RemoteMessage? initialMessage = await _firebaseMessaging.getInitialMessage();
     if (initialMessage != null) {
       print('📱 Terminated app message received: ${initialMessage.data}');
       // Delay handling to ensure app is fully initialized
@@ -407,13 +405,54 @@ class NotificationEventService {
   // Store initial message if user isn't logged in yet
   static RemoteMessage? _pendingInitialMessage;
 
+  /// Set the initial message from NotificationService (since getInitialMessage can only be called once)
+  static void setInitialMessage(RemoteMessage message) {
+    print('📱 Received initial message from NotificationService: ${message.data}');
+    _pendingInitialMessage = message;
+    print('📱 Stored initial message for later handling after app initialization');
+  }
+
   /// Handle pending initial message after user logs in
   static Future<void> handlePendingInitialMessage() async {
     if (_pendingInitialMessage != null) {
-      print(
-          '📱 Handling pending initial message after login: ${_pendingInitialMessage!.data}');
+      print('📱 Handling pending initial message after login: ${_pendingInitialMessage!.data}');
       handlePushNotificationTap(_pendingInitialMessage!.data);
       _pendingInitialMessage = null;
+    }
+  }
+  
+  /// Handle push notification with retry logic for cold starts
+  static Future<void> _handlePushNotificationWithRetry(Map<String, dynamic> data, {int maxRetries = 3}) async {
+    for (int attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        print('📱 Navigation attempt $attempt of $maxRetries');
+        
+        // Check if router is ready by testing if we can access the current route
+        try {
+          final currentRoute = AppRouter.router.routeInformationProvider.value.uri.toString();
+          print('📱 Router is ready, current route: $currentRoute');
+          await handlePushNotificationTap(data);
+          return; // Success, exit retry loop
+        } catch (routerError) {
+          print('📱 Router not ready yet: $routerError');
+          if (attempt < maxRetries) {
+            await Future.delayed(Duration(milliseconds: 1000 * attempt)); // Exponential backoff
+          }
+        }
+      } catch (e) {
+        print('📱 Navigation attempt $attempt failed: $e');
+        if (attempt < maxRetries) {
+          await Future.delayed(Duration(milliseconds: 1000 * attempt)); // Exponential backoff
+        } else {
+          print('📱 All navigation attempts failed, giving up');
+          // As a last resort, just navigate to home
+          try {
+            AppRouter.router.go(Routes.home);
+          } catch (finalError) {
+            print('📱 Even home navigation failed: $finalError');
+          }
+        }
+      }
     }
   }
 
@@ -1540,7 +1579,7 @@ class NotificationEventService {
             AppRouter.router.push(Routes.home);
           }
           break;
-
+          
         case 'like':
         case 'post_like':
         case 'repost':

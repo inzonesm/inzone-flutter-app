@@ -2,6 +2,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:firebase_remote_config/firebase_remote_config.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'firebase_options.dart';
@@ -202,14 +204,12 @@ void main() async {
   WidgetsBinding widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
   FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
 
-  // Only initialize AdMob and reward ad service on mobile platforms (not web)
+  // Only initialize AdMob on mobile platforms (not web)
   if (!kIsWeb) {
     // Initialize AdMob with test device configuration
     MobileAds.instance.initialize();
-
-    // Initialize reward ad service
-    final rewardAdService = RewardAdService();
-    await rewardAdService.initialize();
+  } else {
+    MobileAds.instance.initialize();
   }
 
   // Initialize SharedPreferences
@@ -265,6 +265,11 @@ void main() async {
     print("The advertising ID is $advertisingId");
   }
 
+  // Initialize Firebase Analytics for ad revenue tracking
+  final FirebaseAnalytics analytics = FirebaseAnalytics.instance;
+  await analytics.setAnalyticsCollectionEnabled(true);
+  print("✅ Firebase Analytics initialized for ad revenue tracking");
+
   // Warm up Cloud Run container to improve app performance
   // This runs asynchronously and doesn't block app startup
   InZoneDatabase.warmUpCloudRun();
@@ -312,7 +317,10 @@ class _MyAppState extends State<MyApp> {
     // Set up auth state change listener for pending notifications
     FirebaseAuth.instance.authStateChanges().listen((User? user) {
       if (user != null && mounted) {
-        // User just signed in, handle any pending push notification
+        // User just signed in, set influencer_id user property
+        _setInfluencerIdProperty(user.uid);
+
+        // Handle any pending push notification
         Future.delayed(const Duration(milliseconds: 500), () async {
           await NotificationEventService.handlePendingInitialMessage();
         });
@@ -342,6 +350,9 @@ class _MyAppState extends State<MyApp> {
       //   // User is logged in - go to home
       //   print("User is logged in - going to home");
       //   AppRouter.setInitialRoute(Routes.home);
+
+      //   // Initialize reward ad service for logged-in users
+      //   _initializeRewardAds();
 
       //   // Start AI engagement service for logged-in users
       //   _startAIEngagementService();
@@ -376,6 +387,46 @@ class _MyAppState extends State<MyApp> {
     } catch (e) {
       print("⚠️ Failed to start AI engagement service: $e");
       // Don't crash the app if AI service fails to start
+    }
+  }
+
+  /// Initialize reward ad service (load first ad in background)
+  void _initializeRewardAds() {
+    Future.delayed(const Duration(seconds: 2), () async {
+      try {
+        final rewardAdService = RewardAdService();
+        await rewardAdService.initialize();
+        print("✅ Reward ad service initialized");
+      } catch (e) {
+        print("⚠️ Failed to initialize reward ads: $e");
+        // Don't crash if ad loading fails
+      }
+    });
+  }
+
+  /// Set influencer_id user property for ad revenue attribution
+  Future<void> _setInfluencerIdProperty(String userId) async {
+    try {
+      final userDoc = await FirebaseFirestore.instance
+          .collection('humanUsers')
+          .doc(userId)
+          .get();
+
+      if (userDoc.exists) {
+        final userData = userDoc.data();
+        final referrerId = userData?['referred_by'] as String?;
+
+        if (referrerId != null && referrerId.isNotEmpty) {
+          await FirebaseAnalytics.instance.setUserProperty(
+            name: 'influencer_id',
+            value: referrerId,
+          );
+          print("✅ Set influencer_id user property: $referrerId");
+        }
+      }
+    } catch (e) {
+      print("⚠️ Failed to set influencer_id: $e");
+      // Don't crash if this fails
     }
   }
 

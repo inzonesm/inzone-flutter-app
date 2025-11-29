@@ -29,17 +29,17 @@ if (flutterVersionName == null) {
 android {
     namespace = "com.aadeshkheria.inzone"
     compileSdk = 36
-    ndkVersion = "27.0.12077973"
+    ndkVersion = "28.0.12674087"
 
     compileOptions {
         // Flag to enable support for the new language APIs
         coreLibraryDesugaringEnabled true
-        // Sets Java compatibility to Java 8
-        sourceCompatibility = JavaVersion.VERSION_1_8
-        targetCompatibility = JavaVersion.VERSION_1_8
+        // Sets Java compatibility to Java 11
+        sourceCompatibility = JavaVersion.VERSION_11
+        targetCompatibility = JavaVersion.VERSION_11
     }
     kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_1_8
+        jvmTarget = '11'
     }
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
@@ -67,6 +67,14 @@ signingConfigs {
     }
 
     
+    // Packaging options for 16KB page size support
+    packaging {
+        jniLibs {
+            // AGP 8.5.1+ automatically aligns to 16KB
+            // Using uncompressed libraries (default) for better performance
+            useLegacyPackaging = false
+        }
+    }
 }
 
 flutter {
@@ -76,9 +84,9 @@ flutter {
 
 dependencies {
     implementation 'androidx.constraintlayout:constraintlayout:2.2.1'
-    implementation 'com.facebook.android:facebook-android-sdk:[8,9)'
+    implementation 'com.facebook.android:facebook-android-sdk:17.0.2'  // Updated for 16KB support
     implementation "com.miui.referrer:homereferrer:1.0.0.6"
-    implementation 'com.appsflyer:af-android-sdk:6.17.0'
+    implementation 'com.appsflyer:af-android-sdk:6.15.3'  // Latest stable version
     implementation 'com.android.installreferrer:installreferrer:2.2'
     implementation 'androidx.cardview:cardview:1.0.0'
     implementation 'com.google.android.gms:play-services-appset:16.1.0'

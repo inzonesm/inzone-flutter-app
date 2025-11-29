@@ -19,9 +19,16 @@ allprojects {
 rootProject.buildDir = "../build"
 subprojects {
     project.buildDir = "${rootProject.buildDir}/${project.name}"
-}
-subprojects {
     project.evaluationDependsOn(":app")
+}
+
+// Suppress deprecation and unchecked warnings from third-party dependencies
+gradle.projectsEvaluated {
+    tasks.withType(JavaCompile) {
+        options.compilerArgs << "-Xlint:-options"
+        options.compilerArgs << "-Xlint:-deprecation"
+        options.compilerArgs << "-Xlint:-unchecked"
+    }
 }
 
 tasks.register("clean", Delete) {

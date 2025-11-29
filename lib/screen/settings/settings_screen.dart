@@ -51,89 +51,221 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _launchInBrowser(String url) async {
-    if (await canLaunch(url)) {
-      await launch(
-        url,
-        forceSafariVC: false,
-        forceWebView: false,
-        headers: <String, String>{"header_key": "header_value"},
-      );
-    } else {
-      throw "Could not launch $url";
+    try {
+      if (await canLaunch(url)) {
+        await launch(
+          url,
+          forceSafariVC: false,
+          forceWebView: false,
+          headers: <String, String>{"header_key": "header_value"},
+        );
+      } else {
+        if (mounted) {
+          ToastService.showToast(
+            context,
+            backgroundColor: Theme.of(context).canvasColor,
+            shadowColor: Colors.transparent,
+            leading: const Icon(
+              Icons.error,
+              color: Colors.redAccent,
+            ),
+            message: 'Unable to open the link. Please try again later.',
+          );
+        }
+      }
+    } catch (e) {
+      print('Error launching URL: $e');
+      if (mounted) {
+        ToastService.showToast(
+          context,
+          backgroundColor: Theme.of(context).canvasColor,
+          shadowColor: Colors.transparent,
+          leading: const Icon(
+            Icons.error,
+            color: Colors.redAccent,
+          ),
+          message: 'Unable to open the link. Please check your internet connection.',
+        );
+      }
     }
   }
 
   void presentPaywall() async {
-    final paywallResult = await RevenueCatUI.presentPaywall();
-
-    print('Paywall result: $paywallResult ${paywallResult.name}');
-    if (paywallResult == PaywallResult.purchased ||
-        paywallResult == PaywallResult.restored) {
-      // Retrieve the latest customer information
-      final customerInfo = await Purchases.getCustomerInfo();
-      final transactions =
-          List<StoreTransaction>.from(customerInfo.nonSubscriptionTransactions);
-      if (transactions.isNotEmpty) {
-        // Sort transactions by purchase date in descending order
-        print(transactions);
-        transactions.sort((a, b) => b.purchaseDate.compareTo(a.purchaseDate));
-
-        for (var item in transactions) {
-          print(item.productIdentifier);
-          print(item.purchaseDate);
-          print("\n\n");
+    try {
+      // Check if user is authenticated first
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser == null) {
+        if (mounted) {
+          ToastService.showToast(
+            context,
+            backgroundColor: Theme.of(context).canvasColor,
+            shadowColor: Colors.transparent,
+            leading: const Icon(
+              Icons.warning_amber_rounded,
+              color: Colors.orange,
+            ),
+            message: 'Please sign in to view subscription options.',
+          );
         }
+        return;
+      }
 
-        try {
-          // Get the most recent transaction
-          final latestTransaction = transactions.first;
-          final String productId = latestTransaction.productIdentifier;
-          final String platform = Platform.isIOS ? 'ios' : 'android';
+      // Try to check if RevenueCat is configured
+      try {
+        await Purchases.getCustomerInfo();
+      } catch (e) {
+        print('RevenueCat not initialized, attempting to configure...');
+        // RevenueCat might not be initialized, show error
+        if (mounted) {
+          ToastService.showToast(
+            context,
+            backgroundColor: Theme.of(context).canvasColor,
+            shadowColor: Colors.transparent,
+            leading: const Icon(
+              Icons.error,
+              color: Colors.redAccent,
+            ),
+            message: 'Unable to load subscription service. Please restart the app.',
+          );
+        }
+        return;
+      }
 
-          // Get receipt data from the transaction
-          final String receiptData = latestTransaction.transactionIdentifier;
+      final paywallResult = await RevenueCatUI.presentPaywall();
 
-          // Process the purchase with our backend
-          if (Platform.isAndroid) {
-            if (productId == "2025incashadvanced") {
-              await _monetizationService.purchaseInCash(
-                  productId, platform, receiptData);
-            } else if (productId == "2025incashelite") {
-              await _monetizationService.purchaseInCash(
-                  productId, platform, receiptData);
-            } else if (productId == "2025incashbasic") {
-              await _monetizationService.purchaseInCash(
-                  productId, platform, receiptData);
-            } else if (productId == "2025incashgold" ||
-                productId == "2025incashgold:2025incashgold") {
-              // For subscription, we also need to update subscription status
-              await _monetizationService.purchaseInCash(
-                  productId, platform, receiptData);
+      print('Paywall result: $paywallResult ${paywallResult.name}');
+      if (paywallResult == PaywallResult.purchased ||
+          paywallResult == PaywallResult.restored) {
+        // Retrieve the latest customer information
+        final customerInfo = await Purchases.getCustomerInfo();
+        final transactions =
+            List<StoreTransaction>.from(customerInfo.nonSubscriptionTransactions);
+        if (transactions.isNotEmpty) {
+          // Sort transactions by purchase date in descending order
+          print(transactions);
+          transactions.sort((a, b) => b.purchaseDate.compareTo(a.purchaseDate));
+
+          for (var item in transactions) {
+            print(item.productIdentifier);
+            print(item.purchaseDate);
+            print("\n\n");
+          }
+
+          try {
+            // Get the most recent transaction
+            final latestTransaction = transactions.first;
+            final String productId = latestTransaction.productIdentifier;
+            final String platform = Platform.isIOS ? 'ios' : 'android';
+
+            // Get receipt data from the transaction
+            final String receiptData = latestTransaction.transactionIdentifier;
+
+            // Process the purchase with our backend
+            if (Platform.isAndroid) {
+              if (productId == "2025incashadvanced") {
+                await _monetizationService.purchaseInCash(
+                    productId, platform, receiptData);
+              } else if (productId == "2025incashelite") {
+                await _monetizationService.purchaseInCash(
+                    productId, platform, receiptData);
+              } else if (productId == "2025incashbasic") {
+                await _monetizationService.purchaseInCash(
+                    productId, platform, receiptData);
+              } else if (productId == "2025incashgold" ||
+                  productId == "2025incashgold:2025incashgold") {
+                // For subscription, we also need to update subscription status
+                await _monetizationService.purchaseInCash(
+                    productId, platform, receiptData);
+              }
+            } else if (Platform.isIOS) {
+              if (productId == "InCashGold") {
+                // For subscription, we also need to update subscription status
+                await _monetizationService.purchaseInCash(
+                    productId, platform, receiptData);
+              } else if (productId == "InCashAdvanced2025") {
+                await _monetizationService.purchaseInCash(
+                    productId, platform, receiptData);
+              } else if (productId == "InCashElite2025") {
+                await _monetizationService.purchaseInCash(
+                    productId, platform, receiptData);
+              } else if (productId == "InCashBasic2025") {
+                await _monetizationService.purchaseInCash(
+                    productId, platform, receiptData);
+              }
             }
-          } else if (Platform.isIOS) {
-            if (productId == "InCashGold") {
-              // For subscription, we also need to update subscription status
-              await _monetizationService.purchaseInCash(
-                  productId, platform, receiptData);
-            } else if (productId == "InCashAdvanced2025") {
-              await _monetizationService.purchaseInCash(
-                  productId, platform, receiptData);
-            } else if (productId == "InCashElite2025") {
-              await _monetizationService.purchaseInCash(
-                  productId, platform, receiptData);
-            } else if (productId == "InCashBasic2025") {
-              await _monetizationService.purchaseInCash(
-                  productId, platform, receiptData);
+            
+            // Show success message
+            if (mounted) {
+              ToastService.showToast(
+                context,
+                backgroundColor: Theme.of(context).canvasColor,
+                shadowColor: Colors.transparent,
+                leading: const Icon(
+                  Icons.check_circle,
+                  color: Colors.greenAccent,
+                ),
+                message: 'Purchase successful!',
+              );
+            }
+          } catch (e) {
+            print('Error processing purchase: $e');
+            if (mounted) {
+              ToastService.showToast(
+                context,
+                backgroundColor: Theme.of(context).canvasColor,
+                shadowColor: Colors.transparent,
+                leading: const Icon(
+                  Icons.error,
+                  color: Colors.redAccent,
+                ),
+                message: 'Error processing purchase: ${e.toString()}',
+              );
             }
           }
-        } catch (e) {
-          print('Error processing purchase: $e');
+        }
+      } else if (paywallResult == PaywallResult.cancelled) {
+        print("User closed the paywall without making a purchase.");
+      } else if (paywallResult == PaywallResult.error) {
+        print("An error occurred while presenting the paywall.");
+        if (mounted) {
+          ToastService.showToast(
+            context,
+            backgroundColor: Theme.of(context).canvasColor,
+            shadowColor: Colors.transparent,
+            leading: const Icon(
+              Icons.error,
+              color: Colors.redAccent,
+            ),
+            message: 'Unable to load subscription options. Please try again.',
+          );
         }
       }
-    } else if (paywallResult == PaywallResult.cancelled) {
-      print("User closed the paywall without making a purchase.");
-    } else if (paywallResult == PaywallResult.error) {
-      print("An error occurred while presenting the paywall.");
+    } catch (e) {
+      print('Error presenting paywall: $e');
+      
+      // Check for specific error types
+      String errorMessage = 'Unable to open subscription page. Please try again later.';
+      
+      if (e.toString().contains('PAYWALLS_MISSING_WRONG_ACTIVITY') || 
+          e.toString().contains('FlutterFragmentActivity')) {
+        errorMessage = 'App configuration error. Please update and restart the app.';
+      } else if (e.toString().contains('network') || 
+                 e.toString().contains('connection')) {
+        errorMessage = 'Network error. Please check your internet connection.';
+      }
+      
+      if (mounted) {
+        ToastService.showToast(
+          context,
+          backgroundColor: Theme.of(context).canvasColor,
+          shadowColor: Colors.transparent,
+          leading: const Icon(
+            Icons.error,
+            color: Colors.redAccent,
+          ),
+          message: errorMessage,
+        );
+      }
     }
   }
 

@@ -228,7 +228,9 @@ class NotificationService {
     // Handle terminated app message taps
     RemoteMessage? initialMessage = await _firebaseMessaging.getInitialMessage();
     if (initialMessage != null) {
-      _handleMessageOpenedApp(initialMessage);
+      print('🔗 Initial message detected in NotificationService, passing to NotificationEventService');
+      // Pass the initial message to NotificationEventService for proper cold start handling
+      NotificationEventService.setInitialMessage(initialMessage);
     }
   }
 
