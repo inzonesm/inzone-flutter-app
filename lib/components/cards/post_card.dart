@@ -36,6 +36,8 @@ class PostCard extends StatefulWidget {
   final bool inProfile;
   final Function()? onAdLoaded;
   final bool autoOpenComments; // New field to auto-open comments
+  final Function(String)? onPostDeleted; // Callback when post is deleted
+  final Function(InZonePost)? onPostUpdated; // Callback when post is edited
 
   InZonePost getPost() {
     return post;
@@ -51,6 +53,8 @@ class PostCard extends StatefulWidget {
     this.inProfile = false,
     this.onAdLoaded,
     this.autoOpenComments = false, // New parameter to auto-open comments
+    this.onPostDeleted, // Callback for deletion
+    this.onPostUpdated, // Callback for updates
   });
 
   @override
@@ -245,7 +249,7 @@ class _PostCardState extends State<PostCard>
         widget.post.id.isNotEmpty) {
       PostViewTracker.startViewingPost(widget.post.id);
     }
-    
+
     // Auto-open comments if requested
     if (widget.autoOpenComments) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -424,7 +428,9 @@ class _PostCardState extends State<PostCard>
 
       final String currentUid = currentUser.uid;
       final collectionName = widget.post.isAi ? 'aiPosts' : 'humanPosts';
-      final docRef = FirebaseFirestore.instance.collection(collectionName).doc(widget.post.id);
+      final docRef = FirebaseFirestore.instance
+          .collection(collectionName)
+          .doc(widget.post.id);
 
       try {
         final likeEntry = await _buildLikeEntryForCurrentUser(currentUid);
@@ -434,18 +440,25 @@ class _PostCardState extends State<PostCard>
           // for this user doesn't already exist (avoid duplicates due to map inequality)
           bool didAddLike = false;
           try {
-            didAddLike = await FirebaseFirestore.instance.runTransaction<bool>((tx) async {
+            didAddLike = await FirebaseFirestore.instance
+                .runTransaction<bool>((tx) async {
               final snap = await tx.get(docRef);
               final likeEntryLocal = likeEntry; // capture
 
               if (!snap.exists) {
                 // Create doc with likedBy array
-                tx.set(docRef, {'likedBy': [likeEntryLocal]}, SetOptions(merge: true));
+                tx.set(
+                    docRef,
+                    {
+                      'likedBy': [likeEntryLocal]
+                    },
+                    SetOptions(merge: true));
                 return true;
               }
 
               final data = snap.data() as Map<String, dynamic>;
-              final List<dynamic> likedBy = List<dynamic>.from(data['likedBy'] ?? []);
+              final List<dynamic> likedBy =
+                  List<dynamic>.from(data['likedBy'] ?? []);
 
               final alreadyExists = likedBy.any((entry) {
                 try {
@@ -502,7 +515,7 @@ class _PostCardState extends State<PostCard>
                   // Fire the server-side notification pipeline (best-effort)
                   try {
                     await NotificationEventService.onPostEngagement(
-                    // await NotificationService.sendPostEngagementNotification(
+                      // await NotificationService.sendPostEngagementNotification(
                       postId: widget.post.id,
                       type: 'like',
                       userId: userId,
@@ -518,15 +531,18 @@ class _PostCardState extends State<PostCard>
                   // failed or is delayed. Deduplicate by checking for an
                   // existing engagement notification for this post/liker.
                   try {
-                    final notifRef = FirebaseFirestore.instance.collection('notifications');
+                    final notifRef =
+                        FirebaseFirestore.instance.collection('notifications');
 
                     // Try to resolve the canonical human user document for the
                     // author. The post's author reference can be in multiple forms
                     // (doc id, username, or stored uid), so try several lookups.
-                    final humanUsersRef = FirebaseFirestore.instance.collection('humanUsers');
+                    final humanUsersRef =
+                        FirebaseFirestore.instance.collection('humanUsers');
                     DocumentSnapshot? authorDoc;
                     String? resolvedAuthorUid;
-                    String resolvedAuthorUsername = authorId; // default fallback
+                    String resolvedAuthorUsername =
+                        authorId; // default fallback
 
                     try {
                       // 1) Try doc(id)
@@ -535,17 +551,26 @@ class _PostCardState extends State<PostCard>
                         authorDoc = byId;
                       } else {
                         // 2) Try username == authorId
-                        final q1 = await humanUsersRef.where('username', isEqualTo: authorId).limit(1).get();
+                        final q1 = await humanUsersRef
+                            .where('username', isEqualTo: authorId)
+                            .limit(1)
+                            .get();
                         if (q1.docs.isNotEmpty) {
                           authorDoc = q1.docs.first;
                         } else {
                           // 3) Try uid == authorId
-                          final q2 = await humanUsersRef.where('uid', isEqualTo: authorId).limit(1).get();
+                          final q2 = await humanUsersRef
+                              .where('uid', isEqualTo: authorId)
+                              .limit(1)
+                              .get();
                           if (q2.docs.isNotEmpty) {
                             authorDoc = q2.docs.first;
                           } else {
                             // 4) Try legacy user_document_id field
-                            final q3 = await humanUsersRef.where('user_document_id', isEqualTo: authorId).limit(1).get();
+                            final q3 = await humanUsersRef
+                                .where('user_document_id', isEqualTo: authorId)
+                                .limit(1)
+                                .get();
                             if (q3.docs.isNotEmpty) {
                               authorDoc = q3.docs.first;
                             }
@@ -556,13 +581,18 @@ class _PostCardState extends State<PostCard>
                       if (authorDoc != null && authorDoc.exists) {
                         final data = authorDoc.data() as Map<String, dynamic>;
                         resolvedAuthorUid = data['uid'] ?? authorDoc.id;
-                        resolvedAuthorUsername = data['username'] ?? data['name'] ?? resolvedAuthorUsername;
-                        debugPrint('Resolved author "$authorId" -> uid: $resolvedAuthorUid username: $resolvedAuthorUsername');
+                        resolvedAuthorUsername = data['username'] ??
+                            data['name'] ??
+                            resolvedAuthorUsername;
+                        debugPrint(
+                            'Resolved author "$authorId" -> uid: $resolvedAuthorUid username: $resolvedAuthorUsername');
                       } else {
-                        debugPrint('Skipping fallback notification: could not resolve authorId "$authorId" to humanUsers doc');
+                        debugPrint(
+                            'Skipping fallback notification: could not resolve authorId "$authorId" to humanUsers doc');
                       }
                     } catch (e) {
-                      debugPrint('Error resolving humanUsers author for fallback notification: $e');
+                      debugPrint(
+                          'Error resolving humanUsers author for fallback notification: $e');
                     }
 
                     if (resolvedAuthorUid != null) {
@@ -577,10 +607,13 @@ class _PostCardState extends State<PostCard>
                       if (query.docs.isEmpty) {
                         // Prefer the username from the likeEntry if available, then
                         // FirebaseAuth displayName, then AppsFlyer id.
-                        final likerNameFromEntry = likeEntry['username'] as String?;
-                        final likerName = (likerNameFromEntry != null && likerNameFromEntry.isNotEmpty)
+                        final likerNameFromEntry =
+                            likeEntry['username'] as String?;
+                        final likerName = (likerNameFromEntry != null &&
+                                likerNameFromEntry.isNotEmpty)
                             ? likerNameFromEntry
-                            : (FirebaseAuth.instance.currentUser?.displayName ?? userId);
+                            : (FirebaseAuth.instance.currentUser?.displayName ??
+                                userId);
 
                         final added = await notifRef.add({
                           'userId': resolvedAuthorUid,
@@ -598,15 +631,18 @@ class _PostCardState extends State<PostCard>
                           // 'deeplink': 'inzone://post/${widget.post.id}', // deeplink disabled
                         });
 
-                        debugPrint('Fallback like notification written to notifications doc: ${added.id} for user $resolvedAuthorUid (username: $resolvedAuthorUsername)');
+                        debugPrint(
+                            'Fallback like notification written to notifications doc: ${added.id} for user $resolvedAuthorUid (username: $resolvedAuthorUsername)');
                       }
                     }
                   } catch (e) {
-                    debugPrint('Failed to write fallback notification to Firestore: $e');
+                    debugPrint(
+                        'Failed to write fallback notification to Firestore: $e');
                   }
                 }
               } catch (e) {
-                debugPrint('Error handling post-like notification fallback: $e');
+                debugPrint(
+                    'Error handling post-like notification fallback: $e');
               }
             }
           }
@@ -615,7 +651,8 @@ class _PostCardState extends State<PostCard>
           final snap = await docRef.get();
           if (snap.exists) {
             final data = snap.data() as Map<String, dynamic>;
-            final List<dynamic> likedBy = List<dynamic>.from(data['likedBy'] ?? []);
+            final List<dynamic> likedBy =
+                List<dynamic>.from(data['likedBy'] ?? []);
             final updated = likedBy.where((entry) {
               try {
                 if (entry is Map) {
@@ -665,7 +702,8 @@ class _PostCardState extends State<PostCard>
             await LikedPostsPreferences.addLikedPost(widget.post);
           }
         } catch (e2) {
-          debugPrint('Error rolling back local prefs after backend failure: $e2');
+          debugPrint(
+              'Error rolling back local prefs after backend failure: $e2');
         }
       }
     });
@@ -1172,6 +1210,19 @@ class _PostCardState extends State<PostCard>
             //     "Tip ${widget.post.userName}",
             //     "tip",
             //   ),
+            // Show delete/edit only for user's own post
+            if (_isCurrentUserPost()) ...[
+              _optionItem(
+                Icons.delete,
+                "Delete Post",
+                "delete_post",
+              ),
+              _optionItem(
+                Icons.edit,
+                "Edit Post",
+                "edit_post",
+              ),
+            ],
             const SizedBox(height: 15),
           ],
         ),
@@ -1218,6 +1269,10 @@ class _PostCardState extends State<PostCard>
         } else if (value == "dont_show") {
           // Show reason input dialog for user
           _showReportUserDialog(context);
+        } else if (value == "delete_post") {
+          _showDeleteConfirmation(context);
+        } else if (value == "edit_post") {
+          _navigateToEditPost(context);
         }
         // Temporarily commented out - tipping feature disabled
         // else if (value == "tip") {
@@ -1252,6 +1307,219 @@ class _PostCardState extends State<PostCard>
         ),
       ),
     );
+  }
+
+  // Helper to check if current user is the post owner
+  bool _isCurrentUserPost() {
+    // TEMPORARY: Enable testing mode - allow editing/deleting all posts
+    print('🟢 TESTING MODE: Edit/Delete enabled for all posts');
+    return true;
+
+    // TODO: Uncomment this code when testing is complete
+    // final currentUser = FirebaseAuth.instance.currentUser;
+    // if (currentUser == null) {
+    //   print('🔵 No current user logged in');
+    //   return false;
+    // }
+    //
+    // final isOwner = widget.post.userReference == currentUser.uid;
+    // print('🔵 Checking post ownership:');
+    // print('   Current User ID: ${currentUser.uid}');
+    // print('   Post User Reference: ${widget.post.userReference}');
+    // print('   Is Owner: $isOwner');
+    //
+    // return isOwner;
+  }
+
+  // Show confirmation dialog before deleting post
+  void _showDeleteConfirmation(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20.0),
+          ),
+          elevation: 0,
+          backgroundColor: Colors.transparent,
+          child: Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Theme.of(context).cardColor,
+              shape: BoxShape.rectangle,
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  blurRadius: 10,
+                  offset: const Offset(0, 5),
+                ),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  children: [
+                    Icon(
+                      Icons.delete,
+                      color: Theme.of(context).colorScheme.error,
+                      size: 28,
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      'Delete Post',
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        color: Theme.of(context).textTheme.titleLarge?.color,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                Container(
+                  padding: const EdgeInsets.all(15),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context)
+                        .colorScheme
+                        .surfaceContainerHighest
+                        .withOpacity(0.3),
+                    borderRadius: BorderRadius.circular(15),
+                  ),
+                  child: Text(
+                    'Are you sure you want to delete this post? This action cannot be undone.',
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: Theme.of(context).textTheme.bodyMedium?.color,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      child: Text('Cancel'),
+                      onPressed: () {
+                        Navigator.of(context).pop();
+                      },
+                    ),
+                    const SizedBox(width: 10),
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Theme.of(context).colorScheme.error,
+                      ),
+                      child: Text('Delete'),
+                      onPressed: () async {
+                        Navigator.of(context).pop();
+                        await _deletePost();
+                      },
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  // Delete post from backend and update UI
+  Future<void> _deletePost() async {
+    try {
+      // Call the backend API to delete the post
+      final success = await InZoneDatabase.deletePost(postId: widget.post.id);
+
+      if (success) {
+        // Also delete from local Firestore cache
+        try {
+          final collectionName = widget.post.isAi ? 'aiPosts' : 'humanPosts';
+          await FirebaseFirestore.instance
+              .collection(collectionName)
+              .doc(widget.post.id)
+              .delete();
+        } catch (e) {
+          print('Local Firestore delete failed (non-critical): $e');
+        }
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Post deleted successfully'),
+              backgroundColor: Colors.green,
+              duration: Duration(seconds: 2),
+            ),
+          );
+
+          // Notify parent widget to remove this post from the list
+          widget.onPostDeleted?.call(widget.post.id);
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Failed to delete post from server'),
+              backgroundColor: Colors.red,
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error deleting post: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    }
+  }
+
+  // Navigate to edit post page
+  void _navigateToEditPost(BuildContext context) async {
+    final result = await Navigator.pushNamed(
+      context,
+      '/editPost',
+      arguments: widget.post,
+    );
+
+    // If the post was successfully updated, result contains the new text content
+    if (result != null && result is String && mounted) {
+      print('✏️ Post edited successfully, updating UI with new content');
+      print('   Old content: ${widget.post.textContent}');
+      print('   New content: $result');
+
+      // Create updated post with new text content
+      final updatedPost = InZonePost(
+        category: widget.post.category,
+        userName: widget.post.userName,
+        comments: widget.post.comments,
+        datePosted: widget.post.datePosted,
+        likes: widget.post.likes,
+        id: widget.post.id,
+        imageContent: widget.post.imageContent,
+        videoContent: widget.post.videoContent,
+        textContent: result, // Use the new content from edit screen
+        userReference: widget.post.userReference,
+        mainCategory: widget.post.mainCategory,
+        isAi: widget.post.isAi,
+        characterInfo: widget.post.characterInfo,
+      );
+
+      // Notify parent and update local state
+      widget.onPostUpdated?.call(updatedPost);
+
+      setState(() {
+        widget.post = updatedPost;
+      });
+
+      print('✅ Post UI updated successfully');
+    }
   }
 
   // Temporarily commented out - tipping feature disabled
@@ -1841,29 +2109,36 @@ class _PostCardState extends State<PostCard>
   final TextEditingController _replyController = TextEditingController();
   TextEditingController mySearchController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
-  final FocusNode _textFieldFocusNode = FocusNode(); // Add focus node for auto-focus
+  final FocusNode _textFieldFocusNode =
+      FocusNode(); // Add focus node for auto-focus
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  String type = '';
+  String type = 'Comment'; // Default to 'Comment' mode
+
+  // Debouncing and loading state
+  bool _isSubmitting = false;
+  DateTime? _lastSubmitTime;
 
   // Reply state that persists through rebuilds
   String? selectedCommentId;
   String? selectedCommentAuthor;
   bool showReplyComposer = false;
-  
+
   // More persistent reply state
   final Map<String, dynamic> _replyState = {
     'commentId': null,
     'author': null,
     'isReplying': false,
   };
-  
+
   // Track which comments have their replies expanded
   final Set<String> _expandedReplies = <String>{};
-  
+
   // Use ValueNotifiers for reactive state
   final ValueNotifier<bool> _replyComposerNotifier = ValueNotifier<bool>(false);
-  final ValueNotifier<String?> _selectedCommentNotifier = ValueNotifier<String?>(null);
-  final ValueNotifier<Set<String>> _expandedRepliesNotifier = ValueNotifier<Set<String>>({});
+  final ValueNotifier<String?> _selectedCommentNotifier =
+      ValueNotifier<String?>(null);
+  final ValueNotifier<Set<String>> _expandedRepliesNotifier =
+      ValueNotifier<Set<String>>({});
 
   Widget chatInput(String? commentId, String? name) {
     // Use ValueListenableBuilder to ensure reactive updates
@@ -1871,7 +2146,7 @@ class _PostCardState extends State<PostCard>
       valueListenable: _selectedCommentNotifier,
       builder: (context, selectedComment, child) {
         final isInReplyMode = type == 'Reply' && selectedCommentAuthor != null;
-        
+
         return Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -1882,9 +2157,12 @@ class _PostCardState extends State<PostCard>
                 child: Row(
                   children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 6),
                       decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                        color: Theme.of(context)
+                            .colorScheme
+                            .surfaceContainerHighest,
                         borderRadius: BorderRadius.circular(16),
                       ),
                       child: Row(
@@ -1893,14 +2171,17 @@ class _PostCardState extends State<PostCard>
                           Icon(
                             Icons.reply,
                             size: 16,
-                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                            color:
+                                Theme.of(context).colorScheme.onSurfaceVariant,
                           ),
                           const SizedBox(width: 6),
                           Text(
                             'Replying to @$selectedCommentAuthor',
                             style: TextStyle(
                               fontSize: 13,
-                              color: Theme.of(context).colorScheme.onSurfaceVariant,
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurfaceVariant,
                               fontWeight: FontWeight.w500,
                             ),
                           ),
@@ -1929,7 +2210,8 @@ class _PostCardState extends State<PostCard>
 
             // Input field
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 15.0, vertical: 30),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 15.0, vertical: 30),
               child: Row(
                 children: [
                   Expanded(
@@ -1942,12 +2224,14 @@ class _PostCardState extends State<PostCard>
                           focusNode: _textFieldFocusNode,
                           cursorColor: Theme.of(context).colorScheme.primary,
                           style: TextStyle(
-                            color: Theme.of(context).textTheme.bodyMedium?.color,
+                            color:
+                                Theme.of(context).textTheme.bodyMedium?.color,
                             fontSize: 14,
                             fontWeight: FontWeight.w500,
                           ),
-                          controller:
-                              type == 'Reply' ? _replyController : mySearchController,
+                          controller: type == 'Reply'
+                              ? _replyController
+                              : mySearchController,
                           onTap: () {
                             print('TextFormField tapped - current type: $type');
                             // Always ensure focus when tapped
@@ -1967,10 +2251,11 @@ class _PostCardState extends State<PostCard>
                                 .colorScheme
                                 .onSurface
                                 .withOpacity(0.4),
-                            contentPadding:
-                                const EdgeInsets.only(top: 10, left: 16, right: 16),
+                            contentPadding: const EdgeInsets.only(
+                                top: 10, left: 16, right: 16),
                             border: InputBorder.none,
-                            hintText: type == 'Reply' ? 'Add Reply' : 'Add Comment',
+                            hintText:
+                                type == 'Reply' ? 'Add Reply' : 'Add Comment',
                             hintStyle: TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.w400,
@@ -2004,20 +2289,45 @@ class _PostCardState extends State<PostCard>
                     height: 43,
                     color: Theme.of(context).colorScheme.primary,
                     shape: const CircleBorder(),
-                    onPressed: () {
-                      print('Send button pressed - type: $type');
-                      if (type == 'Reply') {
-                        _addReply();
-                      } else {
-                        _addComment();
-                      }
-                    },
-                    child: const Center(
-                      child: Icon(
-                        Icons.send,
-                        color: Colors.white,
-                        size: 18,
-                      ),
+                    onPressed: _isSubmitting
+                        ? null
+                        : () async {
+                            // Debounce: Prevent multiple rapid submissions
+                            final now = DateTime.now();
+                            if (_lastSubmitTime != null &&
+                                now
+                                        .difference(_lastSubmitTime!)
+                                        .inMilliseconds <
+                                    500) {
+                              print('Debounced: Ignoring rapid tap');
+                              return;
+                            }
+
+                            _lastSubmitTime = now;
+                            print('Send button pressed - type: $type');
+
+                            if (type == 'Reply') {
+                              await _addReply();
+                            } else {
+                              await _addComment();
+                            }
+                          },
+                    child: Center(
+                      child: _isSubmitting
+                          ? SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor:
+                                    AlwaysStoppedAnimation<Color>(Colors.white),
+                              ),
+                            )
+                          : const Icon(
+                              Icons.send,
+                              color: Colors.white,
+                              size: 18,
+                            ),
                     ),
                   ),
                 ],
@@ -2030,89 +2340,133 @@ class _PostCardState extends State<PostCard>
   }
 
   // Add comment to Firestore
-  void _addComment() async {
+  Future<void> _addComment() async {
     print(widget.post.id);
     String commentText = mySearchController.text.trim();
 
     if (commentText.isEmpty) return;
 
-    // Track comment event in AppsFlyer
-    final userId = AppsFlyerService().getCurrentUserId();
-    if (userId != null) {
-      String category = '';
-      if (widget.post.category.isNotEmpty) {
-        category = widget.post.category;
-      } else if (widget.post.mainCategory.isNotEmpty) {
-        category = widget.post.mainCategory;
+    // Prevent duplicate submissions
+    if (_isSubmitting) {
+      print('Already submitting, ignoring duplicate call');
+      return;
+    }
+
+    final currentUser = FirebaseAuth.instance.currentUser;
+    final user = FirebaseAuth.instance.currentUser;
+    // TEMPORARY: Disabled for testing
+    // if (user == null) {
+    //   ScaffoldMessenger.of(context).showSnackBar(
+    //     SnackBar(content: Text('You must be logged in to comment.')),
+    //   );
+    //   return;
+    // }
+
+    // Set loading state
+    setState(() {
+      _isSubmitting = true;
+    });
+
+    try {
+      // Track comment event in AppsFlyer
+      final userId = AppsFlyerService().getCurrentUserId();
+      if (userId != null) {
+        String category = '';
+        if (widget.post.category.isNotEmpty) {
+          category = widget.post.category;
+        } else if (widget.post.mainCategory.isNotEmpty) {
+          category = widget.post.mainCategory;
+        }
+
+        AppsFlyerService().trackPostComment(
+          postId: widget.post.id,
+          userId: userId,
+          commentText: commentText,
+          category: category.isNotEmpty ? category : null,
+          authorId: widget.post.userReference.isNotEmpty
+              ? widget.post.userReference
+              : null,
+        );
       }
 
-      AppsFlyerService().trackPostComment(
+      // Reference to the document where comments are stored
+      DocumentReference postDocumentReference =
+          _firestore.collection('postComments').doc(widget.post.id.toString());
+
+      // Get the document snapshot
+      DocumentSnapshot postSnapshot = await postDocumentReference.get();
+
+      // Initialize currentComments
+      List<dynamic> currentComments = [];
+
+      if (postSnapshot.exists) {
+        // If the document exists, retrieve the current comments list
+        final data = postSnapshot.data();
+        if (data is Map<String, dynamic>) {
+          currentComments = data['comments'] ?? [];
+        } else {
+          currentComments = [];
+        }
+      } else {
+        // If the document does not exist, create it with an empty comments list
+        await postDocumentReference.set({'comments': currentComments});
+      }
+
+      // New comment to add
+      final commentId = DateTime.now().millisecondsSinceEpoch.toString() +
+          (1000 + (999 * (DateTime.now().microsecond / 1000000)).round())
+              .toString();
+
+      Map<String, dynamic> newComment = {
+        'id': commentId,
+        'author': user?.displayName ?? 'TestUser',
+        'text': commentText,
+        'userId': user?.uid ?? 'test-user-id',
+        'timestamp': DateTime.now().toUtc().millisecondsSinceEpoch.toString(),
+        'likedBy': [], // Initialize likedBy as an empty list
+        'dislikedBy': [],
+        'replyCount': 0,
+        'parentCommentId': null,
+        'isReply': false,
+      };
+
+      // Add the new comment to the existing comments list
+      currentComments.add(newComment);
+
+      // Update the document with the new comments list
+      await postDocumentReference.update({'comments': currentComments});
+
+      // Trigger notification for post engagement (comment)
+      await NotificationEventService.onPostEngagement(
+        // await NotificationService.sendPostEngagementNotification(
         postId: widget.post.id,
-        userId: userId,
-        commentText: commentText,
-        category: category.isNotEmpty ? category : null,
-        authorId: widget.post.userReference.isNotEmpty
+        type: 'comment',
+        userId: user?.uid ?? 'test-user-id',
+        content: commentText,
+        postAuthorId: widget.post.userReference.isNotEmpty
             ? widget.post.userReference
             : null,
       );
+
+      setState(() {
+        mySearchController.clear();
+      });
+    } catch (e) {
+      print('Error adding comment: $e');
+      // Show error to user
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to add comment. Please try again.')),
+        );
+      }
+    } finally {
+      // Always reset loading state
+      if (mounted) {
+        setState(() {
+          _isSubmitting = false;
+        });
+      }
     }
-
-    // Reference to the document where comments are stored
-    DocumentReference postDocumentReference =
-        _firestore.collection('postComments').doc(widget.post.id.toString());
-
-    // Get the document snapshot
-    DocumentSnapshot postSnapshot = await postDocumentReference.get();
-
-    // Initialize currentComments
-    List<dynamic> currentComments = [];
-
-    if (postSnapshot.exists) {
-      // If the document exists, retrieve the current comments list
-      currentComments = postSnapshot['comments'] ?? [];
-    } else {
-      // If the document does not exist, create it with an empty comments list
-      await postDocumentReference.set({'comments': currentComments});
-    }
-
-    // New comment to add
-    final commentId = DateTime.now().millisecondsSinceEpoch.toString() + 
-                     (1000 + (999 * (DateTime.now().microsecond / 1000000)).round()).toString();
-    
-    Map<String, dynamic> newComment = {
-      'id': commentId,
-      'author': FirebaseAuth.instance.currentUser!.displayName,
-      'text': commentText,
-      'userId': FirebaseAuth.instance.currentUser!.uid,
-      'timestamp': DateTime.now().toUtc().millisecondsSinceEpoch.toString(),
-      'likedBy': [], // Initialize likedBy as an empty list
-      'dislikedBy': [],
-      'replyCount': 0,
-      'parentCommentId': null,
-      'isReply': false,
-    };
-
-    // Add the new comment to the existing comments list
-    currentComments.add(newComment);
-
-    // Update the document with the new comments list
-    await postDocumentReference.update({'comments': currentComments});
-
-    // Trigger notification for post engagement (comment)
-    await NotificationEventService.onPostEngagement(
-    // await NotificationService.sendPostEngagementNotification(
-      postId: widget.post.id,
-      type: 'comment',
-      userId: FirebaseAuth.instance.currentUser!.uid,
-      content: commentText,
-      postAuthorId: widget.post.userReference.isNotEmpty 
-          ? widget.post.userReference 
-          : null,
-    );
-
-    setState(() {
-      mySearchController.clear();
-    });
   }
 
   // Toggle replies visibility for a comment
@@ -2124,11 +2478,12 @@ class _PostCardState extends State<PostCard>
         _expandedReplies.add(commentId);
       }
     });
-    
+
     // Update the notifier to trigger reactive rebuilds
     _expandedRepliesNotifier.value = Set.from(_expandedReplies);
-    
-    print('Toggled replies for $commentId, expanded: ${_expandedReplies.contains(commentId)}');
+
+    print(
+        'Toggled replies for $commentId, expanded: ${_expandedReplies.contains(commentId)}');
   }
 
   // Start reply to a comment - robust and consistent reply switching
@@ -2136,13 +2491,13 @@ class _PostCardState extends State<PostCard>
     print('=== START REPLY ===');
     print('commentId: $commentId, commentAuthor: $commentAuthor');
     print('Current selectedCommentId: $selectedCommentId');
-    
+
     // Clear any existing reply text when switching targets
     if (selectedCommentId != null && selectedCommentId != commentId) {
       _replyController.clear();
       print('Cleared reply text due to target switch');
     }
-    
+
     // Update all state variables consistently
     setState(() {
       selectedCommentId = commentId;
@@ -2150,29 +2505,29 @@ class _PostCardState extends State<PostCard>
       showReplyComposer = true;
       type = 'Reply';
     });
-    
+
     // Update reactive notifiers
     _selectedCommentNotifier.value = commentId;
     _replyComposerNotifier.value = true;
-    
+
     // Update persistent state
     _replyState['commentId'] = commentId;
     _replyState['author'] = commentAuthor;
     _replyState['isReplying'] = true;
-    
+
     // Force focus on the text field - more aggressive approach
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         // First try immediate focus
         _textFieldFocusNode.requestFocus();
-        
+
         // Then try with delay as backup
         Future.delayed(const Duration(milliseconds: 50), () {
           if (mounted && !_textFieldFocusNode.hasFocus) {
             _textFieldFocusNode.requestFocus();
           }
         });
-        
+
         // Final attempt with longer delay
         Future.delayed(const Duration(milliseconds: 200), () {
           if (mounted && !_textFieldFocusNode.hasFocus) {
@@ -2181,64 +2536,76 @@ class _PostCardState extends State<PostCard>
         });
       }
     });
-    
-    print('Reply target switched successfully - selectedCommentId: $selectedCommentId, type: $type');
+
+    print(
+        'Reply target switched successfully - selectedCommentId: $selectedCommentId, type: $type');
   }
 
   // Cancel reply - comprehensive cleanup
   void _cancelReply() {
     print('=== CANCEL REPLY ===');
-    
+
     // Force unfocus immediately
     if (_textFieldFocusNode.hasFocus) {
       _textFieldFocusNode.unfocus();
     }
-    
+
     // Clear the reply text
     _replyController.clear();
-    
+
     // Reset all state variables consistently
     setState(() {
       selectedCommentId = null;
       selectedCommentAuthor = null;
       showReplyComposer = false;
-      type = '';
+      type = 'Comment'; // Reset to comment mode
     });
-    
+
     // Update reactive notifiers
     _replyComposerNotifier.value = false;
     _selectedCommentNotifier.value = null;
-    
+
     // Clear persistent state
     _replyState['commentId'] = null;
     _replyState['author'] = null;
     _replyState['isReplying'] = false;
-    
+
     print('Reply cancelled - all state cleared');
   }
 
   // Add reply to a comment
-  void _addReply() async {
+  Future<void> _addReply() async {
     print('=== _addReply called ===');
     print('selectedCommentId: $selectedCommentId');
     print('selectedCommentAuthor: $selectedCommentAuthor');
     print('_replyState: $_replyState');
-    
+
     String replyText = _replyController.text.trim();
     print('replyText: "$replyText"');
-    
+
     // Try to get comment ID from either source
     String? commentIdToUse = selectedCommentId ?? _replyState['commentId'];
-    
+
     if (commentIdToUse == null || commentIdToUse.isEmpty) {
       print('ERROR: No valid commentId found');
       return;
     }
-    
+
     if (replyText.isEmpty) {
       print('ERROR: Reply text is empty');
       return;
     }
+
+    // Prevent duplicate submissions
+    if (_isSubmitting) {
+      print('Already submitting, ignoring duplicate call');
+      return;
+    }
+
+    // Set loading state
+    setState(() {
+      _isSubmitting = true;
+    });
 
     print('Proceeding with commentId: $commentIdToUse');
 
@@ -2249,19 +2616,27 @@ class _PostCardState extends State<PostCard>
 
       // Get the document snapshot
       DocumentSnapshot postSnapshot = await postDocumentReference.get();
-      
+
       if (!postSnapshot.exists) return;
 
       List<dynamic> currentComments = postSnapshot['comments'] ?? [];
-      
+
       // Create new reply with proper ID
       final replyId = DateTime.now().millisecondsSinceEpoch.toString();
-      
+
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('You must be logged in to reply.')),
+        );
+        return;
+      }
+
       Map<String, dynamic> newReply = {
         'id': replyId,
-        'author': FirebaseAuth.instance.currentUser!.displayName ?? 'Anonymous',
+        'author': user.displayName ?? 'Anonymous',
         'text': replyText,
-        'userId': FirebaseAuth.instance.currentUser!.uid,
+        'userId': user.uid,
         'postId': widget.post.id.toString(),
         'parentCommentId': commentIdToUse,
         'timestamp': DateTime.now().toUtc().millisecondsSinceEpoch.toString(),
@@ -2271,6 +2646,8 @@ class _PostCardState extends State<PostCard>
         'isReply': true,
       };
 
+      // Add your logic here to append newReply to the relevant comments/replies list and update Firestore as needed.
+
       // Add the reply to comments list
       currentComments.add(newReply);
 
@@ -2279,10 +2656,17 @@ class _PostCardState extends State<PostCard>
 
       // Clear and hide reply composer
       _cancelReply();
-      
+
       print('Reply added successfully');
     } catch (e) {
       print('Error adding reply: $e');
+    } finally {
+      // Reset loading state
+      if (mounted) {
+        setState(() {
+          _isSubmitting = false;
+        });
+      }
     }
   }
 
@@ -2306,8 +2690,21 @@ class _PostCardState extends State<PostCard>
 
 // Function to toggle like status and store it in SharedPreferences
   toggleLikeComment(String commentId) async {
-    CommentClass comment = await getComment(commentId);
-    String currentUserId = FirebaseAuth.instance.currentUser!.uid;
+    CommentClass? comment = await getComment(commentId);
+    if (comment == null) {
+      print('ERROR: Could not fetch comment for $commentId');
+      return;
+    }
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content:
+                Text('You must be logged in to like or unlike a comment.')),
+      );
+      return;
+    }
+    String currentUserId = currentUser.uid;
 
     // Check if the current user has already liked or disliked the comment
     bool isLiked = comment.likedBy!.contains(currentUserId);
@@ -2353,8 +2750,19 @@ class _PostCardState extends State<PostCard>
 
 // Function to toggle dislike status and store it in SharedPreferences
   toggleUnLikeComment(String commentId) async {
-    CommentClass comment = await getComment(commentId);
-    String currentUserId = FirebaseAuth.instance.currentUser!.uid;
+    CommentClass? comment = await getComment(commentId);
+    if (comment == null) {
+      print('ERROR: Could not fetch comment for $commentId');
+      return;
+    }
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('You must be logged in to unlike a comment.')),
+      );
+      return;
+    }
+    String currentUserId = currentUser.uid;
 
     // Check if the current user has already liked or disliked the comment
     bool isDisliked = comment.dislikedBy!.contains(currentUserId);
@@ -2398,10 +2806,17 @@ class _PostCardState extends State<PostCard>
     return !isDisliked;
   }
 
-  Future<CommentClass> getComment(String commentId) async {
+  Future<CommentClass?> getComment(String commentId) async {
     DocumentSnapshot snapshot =
         await _firestore.collection('comments').doc(commentId).get();
-    return CommentClass.fromJson(snapshot.data() as Map<String, dynamic>);
+    final rawData = snapshot.data();
+    print('DEBUG: Raw Firestore comment data for $commentId: $rawData');
+    try {
+      return CommentClass.fromJson(rawData as Map<String, dynamic>);
+    } catch (e) {
+      print('ERROR: Failed to parse comment for $commentId: $e');
+      return null;
+    }
   }
 
   Map<String, bool> likedComments = {};
@@ -2410,10 +2825,10 @@ class _PostCardState extends State<PostCard>
 
   filterSheetModel() {
     debugPrint('filterSheetModel called - resetting all reply state');
-    
+
     // Clear all reply state when opening comment section
     _cancelReply();
-    
+
     // Also clear the comment text field
     mySearchController.clear();
 
@@ -2472,7 +2887,8 @@ class _PostCardState extends State<PostCard>
                             final commentsList = data['comments'] ?? [];
                             final allComments =
                                 commentsList.map<CommentClass>((comment) {
-                              final commentIndex = commentsList.indexOf(comment);
+                              final commentIndex =
+                                  commentsList.indexOf(comment);
                               print("FULL COMMENT DATA: $comment");
                               print(
                                   "COMMENT AUTHOR DATA: ${comment['author']}");
@@ -2482,12 +2898,15 @@ class _PostCardState extends State<PostCard>
                                 text: comment['text'] ?? '',
                                 replies: [], // Will be populated from separate reply processing
                                 timestamp: comment['timestamp'] ?? "",
-                                id: comment['id'] ?? comment['timestamp'] ?? commentIndex.toString(),
+                                id: comment['id'] ??
+                                    comment['timestamp'] ??
+                                    commentIndex.toString(),
                                 postId: widget.post.id.toString(),
                                 userId: comment['userId'] ?? '',
                                 parentCommentId: comment['parentCommentId'],
                                 replyCount: comment['replyCount'] ?? 0,
-                                isReply: comment['isReply'] ?? (comment['parentCommentId'] != null),
+                                isReply: comment['isReply'] ??
+                                    (comment['parentCommentId'] != null),
                                 likedBy: comment['likedBy'] != null
                                     ? List<String>.from(comment['likedBy'])
                                     : [],
@@ -2499,11 +2918,14 @@ class _PostCardState extends State<PostCard>
                             }).toList();
 
                             // Separate parent comments and replies
-                            final parentComments = allComments.where((CommentClass c) => !c.isReply).toList();
+                            final parentComments = allComments
+                                .where((CommentClass c) => !c.isReply)
+                                .toList();
                             final repliesMap = <String, List<CommentClass>>{};
-                            
+
                             // Group replies by parent comment ID
-                            for (final reply in allComments.where((CommentClass c) => c.isReply)) {
+                            for (final reply in allComments
+                                .where((CommentClass c) => c.isReply)) {
                               final parentId = reply.parentCommentId;
                               if (parentId != null) {
                                 if (!repliesMap.containsKey(parentId)) {
@@ -2533,23 +2955,25 @@ class _PostCardState extends State<PostCard>
                                 ),
                               );
                             }
-                            
+
                             // Wrap ListView in ValueListenableBuilder to make it reactive to expanded replies
                             return ValueListenableBuilder<Set<String>>(
                               valueListenable: _expandedRepliesNotifier,
                               builder: (context, expandedSet, child) {
                                 // Rebuild comments list based on current expanded state
                                 final List<CommentClass> reactiveComments = [];
-                                final Map<String, String> parentCommentAuthors = {}; // Map comment ID to author
-                                
+                                final Map<String, String> parentCommentAuthors =
+                                    {}; // Map comment ID to author
+
                                 // First pass: collect parent comment authors
                                 for (final parent in parentComments) {
-                                  parentCommentAuthors[parent.id] = parent.author;
+                                  parentCommentAuthors[parent.id] =
+                                      parent.author;
                                 }
-                                
+
                                 for (final parent in parentComments) {
                                   reactiveComments.add(parent);
-                                  
+
                                   // Only add replies if this parent comment is expanded
                                   if (expandedSet.contains(parent.id)) {
                                     final replies = repliesMap[parent.id] ?? [];
@@ -2557,7 +2981,8 @@ class _PostCardState extends State<PostCard>
                                       try {
                                         final aTime = int.parse(a.timestamp);
                                         final bTime = int.parse(b.timestamp);
-                                        return aTime.compareTo(bTime); // Oldest first for replies (chronological)
+                                        return aTime.compareTo(
+                                            bTime); // Oldest first for replies (chronological)
                                       } catch (e) {
                                         return 0;
                                       }
@@ -2565,109 +2990,160 @@ class _PostCardState extends State<PostCard>
                                     reactiveComments.addAll(replies);
                                   }
                                 }
-                                
+
                                 return ListView.builder(
                                   padding:
                                       const EdgeInsets.fromLTRB(20, 5, 20, 100),
                                   itemCount: reactiveComments.length,
-                                  itemBuilder: (BuildContext context, int index) {
+                                  itemBuilder:
+                                      (BuildContext context, int index) {
                                     final comment = reactiveComments[index];
-                                    final replyCount = repliesMap[comment.id]?.length ?? 0; // Calculate reply count outside
-                                return AnimatedContainer(
-                                  duration: const Duration(seconds: 1),
-                                  child: Padding(
-                                    padding: EdgeInsets.symmetric(
-                                        horizontal: 0.0, 
-                                        vertical: comment.isReply 
-                                            ? 0.0 // No padding for replies
-                                            : (replyCount > 0 && expandedSet.contains(comment.id))
-                                                ? 2.0 // Reduced padding for parent comments with expanded replies
-                                                : 10.0), // Normal padding for parent comments without replies
-                                    child: FutureBuilder<DocumentSnapshot>(
-                                      future: comment.userId.isNotEmpty
-                                          ? FirebaseFirestore.instance
-                                              .collection('humanUsers')
-                                              .doc(comment.userId)
-                                              .get()
-                                          : null,
-                                      builder: (BuildContext context,
-                                          AsyncSnapshot<DocumentSnapshot>
-                                              snapshot) {
-                                        String username = comment.author;
-                                        String profilePicUrl = '';
+                                    final replyCount =
+                                        repliesMap[comment.id]?.length ??
+                                            0; // Calculate reply count outside
+                                    return AnimatedContainer(
+                                      duration: const Duration(seconds: 1),
+                                      child: Padding(
+                                        padding: EdgeInsets.symmetric(
+                                            horizontal: 0.0,
+                                            vertical: comment.isReply
+                                                ? 0.0 // No padding for replies
+                                                : (replyCount > 0 &&
+                                                        expandedSet.contains(
+                                                            comment.id))
+                                                    ? 2.0 // Reduced padding for parent comments with expanded replies
+                                                    : 10.0), // Normal padding for parent comments without replies
+                                        child: FutureBuilder<DocumentSnapshot>(
+                                          future: comment.userId.isNotEmpty
+                                              ? FirebaseFirestore.instance
+                                                  .collection('humanUsers')
+                                                  .doc(comment.userId)
+                                                  .get()
+                                              : null,
+                                          builder: (BuildContext context,
+                                              AsyncSnapshot<DocumentSnapshot>
+                                                  snapshot) {
+                                            String username = comment.author;
+                                            String profilePicUrl = '';
 
-                                        if (snapshot.hasData &&
-                                            snapshot.data != null &&
-                                            snapshot.data!.exists) {
-                                          final userData = snapshot.data!.data()
-                                              as Map<String, dynamic>;
-                                          username = userData['username'] ??
-                                              userData['name'] ??
-                                              comment.author;
-                                          profilePicUrl =
-                                              userData['profilePicture'] ??
+                                            if (snapshot.hasData &&
+                                                snapshot.data != null &&
+                                                snapshot.data!.exists) {
+                                              final userData =
+                                                  snapshot.data!.data()
+                                                      as Map<String, dynamic>;
+                                              username = userData['username'] ??
+                                                  userData['name'] ??
+                                                  comment.author;
+                                              profilePicUrl = userData[
+                                                      'profilePicture'] ??
                                                   userData['profileImage'] ??
                                                   '';
-                                        }
+                                            }
 
-                                        // Get actual reply count from repliesMap
-                                        final actualReplyCount = repliesMap[comment.id]?.length ?? 0;
-                                        
-                                        return ValueListenableBuilder<Set<String>>(
-                                          valueListenable: _expandedRepliesNotifier,
-                                          builder: (context, expandedSet, child) {
-                                            final isCurrentlyExpanded = expandedSet.contains(comment.id);
-                                            return Container(
-                                              child: CommentsTile(
-                                                key: ValueKey('comment-${comment.id}-$isCurrentlyExpanded-$actualReplyCount'),
-                                                commentText: comment.text,
-                                                profilePictureUrl: profilePicUrl,
-                                                author: username,
-                                                timestamp: comment.timestamp,
-                                                commentId: comment.id.isNotEmpty ? comment.id : index.toString(),
-                                                parentCommentId: comment.parentCommentId,
-                                                parentCommentAuthor: comment.isReply && comment.parentCommentId != null 
-                                                    ? parentCommentAuthors[comment.parentCommentId] 
-                                                    : null,
-                                                postCreatorId: widget.post.isAi 
-                                                    ? widget.post.userName // For AI posts, use userName
-                                                    : widget.post.userReference, // For human posts, use userReference
-                                                commentAuthorId: comment.userId, // Pass the comment author's user ID
-                                                replyCount: actualReplyCount,
-                                                isReply: comment.isReply,
-                                                showReplies: isCurrentlyExpanded,
-                                                likedBy: comment.likedBy ?? [],
-                                                dislikedBy: comment.dislikedBy ?? [],
-                                                currentUserId: FirebaseAuth
-                                                        .instance.currentUser?.uid ??
-                                                    '',
-                                                onLike: () {
-                                                  // Implement database update for likes
-                                                  _updateCommentLikes(
-                                                      comment, index, reactiveComments);
-                                                },
-                                                onDislike: () {
-                                                  // Implement database update for dislikes
-                                                  _updateCommentDislikes(
-                                                      comment, index, reactiveComments);
-                                                },
-                                                onReply: () {
-                                                  print('Reply button tapped for comment: ${comment.id}, author: $username');
-                                                  _startReply(comment.id.isNotEmpty ? comment.id : index.toString(), username);
-                                                },
-                                                onToggleReplies: actualReplyCount > 0 ? () {
-                                                  _toggleReplies(comment.id);
-                                                } : null,
-                                              ),
+                                            // Get actual reply count from repliesMap
+                                            final actualReplyCount =
+                                                repliesMap[comment.id]
+                                                        ?.length ??
+                                                    0;
+
+                                            return ValueListenableBuilder<
+                                                Set<String>>(
+                                              valueListenable:
+                                                  _expandedRepliesNotifier,
+                                              builder: (context, expandedSet,
+                                                  child) {
+                                                final isCurrentlyExpanded =
+                                                    expandedSet
+                                                        .contains(comment.id);
+                                                return Container(
+                                                  child: CommentsTile(
+                                                    key: ValueKey(
+                                                        'comment-${comment.id}-$isCurrentlyExpanded-$actualReplyCount'),
+                                                    commentText: comment.text,
+                                                    profilePictureUrl:
+                                                        profilePicUrl,
+                                                    author: username,
+                                                    timestamp:
+                                                        comment.timestamp,
+                                                    commentId:
+                                                        comment.id.isNotEmpty
+                                                            ? comment.id
+                                                            : index.toString(),
+                                                    parentCommentId:
+                                                        comment.parentCommentId,
+                                                    parentCommentAuthor: comment
+                                                                .isReply &&
+                                                            comment.parentCommentId !=
+                                                                null
+                                                        ? parentCommentAuthors[
+                                                            comment
+                                                                .parentCommentId]
+                                                        : null,
+                                                    postCreatorId: widget
+                                                            .post.isAi
+                                                        ? widget.post
+                                                            .userName // For AI posts, use userName
+                                                        : widget.post
+                                                            .userReference, // For human posts, use userReference
+                                                    commentAuthorId: comment
+                                                        .userId, // Pass the comment author's user ID
+                                                    replyCount:
+                                                        actualReplyCount,
+                                                    isReply: comment.isReply,
+                                                    showReplies:
+                                                        isCurrentlyExpanded,
+                                                    likedBy:
+                                                        comment.likedBy ?? [],
+                                                    dislikedBy:
+                                                        comment.dislikedBy ??
+                                                            [],
+                                                    currentUserId: FirebaseAuth
+                                                            .instance
+                                                            .currentUser
+                                                            ?.uid ??
+                                                        '',
+                                                    onLike: () {
+                                                      // Implement database update for likes
+                                                      _updateCommentLikes(
+                                                          comment,
+                                                          index,
+                                                          reactiveComments);
+                                                    },
+                                                    onDislike: () {
+                                                      // Implement database update for dislikes
+                                                      _updateCommentDislikes(
+                                                          comment,
+                                                          index,
+                                                          reactiveComments);
+                                                    },
+                                                    onReply: () {
+                                                      print(
+                                                          'Reply button tapped for comment: ${comment.id}, author: $username');
+                                                      _startReply(
+                                                          comment.id.isNotEmpty
+                                                              ? comment.id
+                                                              : index
+                                                                  .toString(),
+                                                          username);
+                                                    },
+                                                    onToggleReplies:
+                                                        actualReplyCount > 0
+                                                            ? () {
+                                                                _toggleReplies(
+                                                                    comment.id);
+                                                              }
+                                                            : null,
+                                                  ),
+                                                );
+                                              },
                                             );
                                           },
-                                        );
-                                      },
-                                    ),
-                                  ),
+                                        ),
+                                      ),
+                                    );
+                                  },
                                 );
-                              },
-                            );
                               },
                             );
                           } else if (snapshot.hasError) {
@@ -2685,7 +3161,7 @@ class _PostCardState extends State<PostCard>
                         },
                       ),
                     ),
-                    
+
                     // Debug state indicator - Reactive with ValueListenableBuilder
                     /*ValueListenableBuilder<bool>(
                       valueListenable: _replyComposerNotifier,
@@ -2700,7 +3176,7 @@ class _PostCardState extends State<PostCard>
                         );
                       },
                     ),*/
-                    
+
                     // Reply Input - Reactive with ValueListenableBuilder
                     // ValueListenableBuilder<bool>(
                     //   valueListenable: _replyComposerNotifier,
@@ -2712,7 +3188,7 @@ class _PostCardState extends State<PostCard>
                     //             child: Column(
                     //               crossAxisAlignment: CrossAxisAlignment.start,
                     //               children: [
-                    //                 Text('Replying to ${selectedCommentAuthor ?? "comment"}', 
+                    //                 Text('Replying to ${selectedCommentAuthor ?? "comment"}',
                     //                      style: const TextStyle(fontSize: 12, color: Colors.grey)),
                     //                 const SizedBox(height: 8),
                     //                 Row(
@@ -2747,7 +3223,7 @@ class _PostCardState extends State<PostCard>
                     //         : const SizedBox.shrink();
                     //   },
                     // ),
-                    
+
                     chatInput(
                         comment?.id.toString(), comment?.author.toString())
                   ],

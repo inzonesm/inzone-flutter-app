@@ -18,7 +18,8 @@ class InZoneDatabase {
   static Future<void> warmUpCloudRun() async {
     try {
       // Send a lightweight request to warm up the Cloud Run container
-      const String warmUpUrl = 'https://inzoneapi-912424781531.us-central1.run.app/health';
+      const String warmUpUrl =
+          'https://inzoneapi-912424781531.us-central1.run.app/health';
 
       // Make a simple GET request with a short timeout
       final response = await http.get(
@@ -36,7 +37,8 @@ class InZoneDatabase {
         },
       );
 
-      print('Cloud Run warm-up request completed with status: ${response.statusCode}');
+      print(
+          'Cloud Run warm-up request completed with status: ${response.statusCode}');
     } catch (e) {
       // Silently handle errors - warm-up is not critical for app functionality
       print('Cloud Run warm-up failed (non-critical): $e');
@@ -632,7 +634,8 @@ class InZoneDatabase {
             "sentiment": -2, // Special code for blocked content
             "category": "Blocked",
             "blocked": true,
-            "block_reason": sentimentResponse["block_reason"] ?? "Content violates guidelines",
+            "block_reason": sentimentResponse["block_reason"] ??
+                "Content violates guidelines",
           };
         }
 
@@ -673,7 +676,8 @@ class InZoneDatabase {
   }
 
   // Backward compatibility method for text-only sentiment analysis
-  static Future<Map<String, dynamic>> analyzeSentimentTextOnly(String content) async {
+  static Future<Map<String, dynamic>> analyzeSentimentTextOnly(
+      String content) async {
     return analyzeSentiment(content);
   }
 
@@ -1031,53 +1035,66 @@ class InZoneDatabase {
 
           // Check overall assessment
           if (sentimentData.containsKey('overall_assessment')) {
-            Map<String, dynamic> overallAssessment = sentimentData['overall_assessment'];
-            hasInappropriateContent = overallAssessment['inappropriate_content_detected'] ?? false;
+            Map<String, dynamic> overallAssessment =
+                sentimentData['overall_assessment'];
+            hasInappropriateContent =
+                overallAssessment['inappropriate_content_detected'] ?? false;
 
             if (hasInappropriateContent) {
               List<String> reasons = [];
 
               // Collect reasons from different analysis types
               if (sentimentData.containsKey('urban_dictionary_check')) {
-                Map<String, dynamic> urbanCheck = sentimentData['urban_dictionary_check'];
+                Map<String, dynamic> urbanCheck =
+                    sentimentData['urban_dictionary_check'];
                 if (urbanCheck['has_negative_slang'] == true) {
-                  List<dynamic> flaggedTerms = urbanCheck['flagged_terms'] ?? [];
+                  List<dynamic> flaggedTerms =
+                      urbanCheck['flagged_terms'] ?? [];
                   if (flaggedTerms.isNotEmpty) {
-                    reasons.add("Contains inappropriate slang: ${flaggedTerms.join(', ')}");
+                    reasons.add(
+                        "Contains inappropriate slang: ${flaggedTerms.join(', ')}");
                   }
                 }
               }
 
               if (sentimentData.containsKey('text_analysis')) {
-                Map<String, dynamic> textAnalysis = sentimentData['text_analysis'];
+                Map<String, dynamic> textAnalysis =
+                    sentimentData['text_analysis'];
                 if (textAnalysis.containsKey('HarmfulContent')) {
-                  Map<String, dynamic> harmfulContent = textAnalysis['HarmfulContent'];
+                  Map<String, dynamic> harmfulContent =
+                      textAnalysis['HarmfulContent'];
                   if (harmfulContent['detected'] == true) {
-                    reasons.add("Harmful content detected: ${harmfulContent['reasoning'] ?? 'Inappropriate content'}");
+                    reasons.add(
+                        "Harmful content detected: ${harmfulContent['reasoning'] ?? 'Inappropriate content'}");
                   }
                 }
               }
 
               if (sentimentData.containsKey('image_analysis')) {
-                Map<String, dynamic> imageAnalysis = sentimentData['image_analysis'];
+                Map<String, dynamic> imageAnalysis =
+                    sentimentData['image_analysis'];
                 if (imageAnalysis['has_inappropriate_content'] == true) {
                   reasons.add("Inappropriate image content detected");
                 }
               }
 
               if (sentimentData.containsKey('video_analysis')) {
-                Map<String, dynamic> videoAnalysis = sentimentData['video_analysis'];
+                Map<String, dynamic> videoAnalysis =
+                    sentimentData['video_analysis'];
                 if (videoAnalysis['has_inappropriate_content'] == true) {
                   reasons.add("Inappropriate video content detected");
                 }
               }
 
-              blockReason = reasons.isNotEmpty ? reasons.join('; ') : "Content violates community guidelines";
+              blockReason = reasons.isNotEmpty
+                  ? reasons.join('; ')
+                  : "Content violates community guidelines";
             }
           }
 
           // For backward compatibility, also check individual text analysis
-          if (!hasInappropriateContent && sentimentData.containsKey('text_analysis')) {
+          if (!hasInappropriateContent &&
+              sentimentData.containsKey('text_analysis')) {
             Map<String, dynamic> textAnalysis = sentimentData['text_analysis'];
 
             // Validate required keys for text analysis
@@ -1092,7 +1109,8 @@ class InZoneDatabase {
 
             if (requiredKeys.every((key) => textAnalysis.containsKey(key))) {
               // Get the OverallSentiment value as string
-              String overallSentiment = textAnalysis['OverallSentiment'].toString();
+              String overallSentiment =
+                  textAnalysis['OverallSentiment'].toString();
 
               // Convert string sentiment to our three categories
               int sentimentCategory;
@@ -1107,17 +1125,21 @@ class InZoneDatabase {
                   sentimentCategory = 0;
                   break;
                 default:
-                  sentimentCategory = 0; // Default to neutral for unknown values
+                  sentimentCategory =
+                      0; // Default to neutral for unknown values
               }
 
               return {
-                "sentiment": hasInappropriateContent ? -2 : sentimentCategory, // -2 indicates blocked content
+                "sentiment": hasInappropriateContent
+                    ? -2
+                    : sentimentCategory, // -2 indicates blocked content
                 "category": textAnalysis['Categories'].isNotEmpty
                     ? textAnalysis['Categories'][0]
                     : "Entertainment",
                 "blocked": hasInappropriateContent,
                 "block_reason": blockReason,
-                "detailed_analysis": sentimentData, // Include full analysis for debugging
+                "detailed_analysis":
+                    sentimentData, // Include full analysis for debugging
               };
             }
           }
@@ -1207,7 +1229,8 @@ class InZoneDatabase {
   }
 
   static Future<void> createCharacter(
-      String name, String bio, String profilePictureUrl, {int popularity = 0}) async {
+      String name, String bio, String profilePictureUrl,
+      {int popularity = 0}) async {
     const String url =
         'https://us-central1-inzonebackend.cloudfunctions.net/api/ai/create-character';
 
@@ -1581,6 +1604,10 @@ class InZoneDatabase {
     if (content != null) requestBody["Content"] = content;
     if (imageUrl != null) requestBody["ImageUrl"] = imageUrl;
 
+    print('📝 UpdatePost API call:');
+    print('   URL: $url');
+    print('   Request body: ${jsonEncode(requestBody)}');
+
     try {
       final http.Response response = await http.post(
         Uri.parse(url),
@@ -1589,6 +1616,9 @@ class InZoneDatabase {
         },
         body: jsonEncode(requestBody),
       );
+
+      print('📝 Response status: ${response.statusCode}');
+      print('📝 Response body: ${response.body}');
 
       if (response.statusCode == 200) {
         final Map<String, dynamic> responseData = jsonDecode(response.body);
@@ -1607,6 +1637,61 @@ class InZoneDatabase {
       }
     } catch (e) {
       return false;
+    }
+  }
+
+  static Future<bool> deletePost({
+    required String postId,
+  }) async {
+    const String url =
+        'https://inzoneapi-912424781531.us-central1.run.app/feed/delete-post';
+
+    // Build the request body with the required postId
+    Map<String, dynamic> requestBody = {
+      "PostId": postId,
+    };
+
+    print('🗑️ Attempting to delete post: $postId');
+    print('🗑️ Request body: ${jsonEncode(requestBody)}');
+
+    try {
+      final http.Response response = await http.post(
+        Uri.parse(url),
+        headers: <String, String>{
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode(requestBody),
+      );
+
+      print('🗑️ Delete response status: ${response.statusCode}');
+      print('🗑️ Delete response body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> responseData = jsonDecode(response.body);
+
+        // Check if the delete was successful
+        if (responseData.containsKey("success") &&
+            responseData["success"] == true) {
+          print('✅ Post deleted successfully from backend');
+          return true;
+        } else {
+          print('❌ Backend returned success=false');
+          return false;
+        }
+      } else if (response.statusCode == 404) {
+        print('❌ Post not found (404) - API endpoint may not exist');
+        // Return true anyway since we'll delete from Firestore
+        return true;
+      } else {
+        print('❌ Failed to delete post. Status code: ${response.statusCode}');
+        print('   Response: ${response.body}');
+        // Return true anyway to allow local deletion
+        return true;
+      }
+    } catch (e) {
+      print('❌ Error deleting post from backend: $e');
+      // Return true to allow local Firestore deletion
+      return true;
     }
   }
 

@@ -85,7 +85,10 @@ class GroupDiscoveryScreen extends StatelessWidget {
                               id: doc.id,
                               name: doc['name'] ?? '',
                               description: doc['description'] ?? '',
-                              memberCount: doc['memberCount'] ?? 0,
+                              memberCount: (doc.data() as Map<String, dynamic>)
+                                      .containsKey('memberCount')
+                                  ? doc['memberCount']
+                                  : 0,
                               messageCount: doc['messageCount'] ?? 0,
                               avatars: (doc['avatars'] is List)
                                   ? List<String>.from(doc['avatars'])

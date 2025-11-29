@@ -28,6 +28,9 @@ import 'package:inzone/services/reward_ad_service.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:inzone/services/ai_engagement_service.dart';
 import 'package:inzone/screen/explore/group_discovery_widget.dart';
+import 'package:inzone/screen/explore/explore_screen.dart';
+import 'package:inzone/screen/post/edit_post_screen.dart';
+import 'package:inzone/data/inzone_post.dart';
 
 // Key for storing first launch status in SharedPreferences
 const String FIRST_LAUNCH_KEY = 'is_first_launch';
@@ -393,11 +396,17 @@ class _MyAppState extends State<MyApp> {
       theme: themeManager.getLightTheme(),
       darkTheme: themeManager.getDarkTheme(),
       themeMode: themeManager.themeMode,
-      home: GroupDiscoveryScreen(), // TEMP: Always show group chat discovery
-      // routes: {
-      //   '/groups': (context) => GroupDiscoveryScreen(),
-      //   // Add other routes as needed
-      // },
+      home:
+          ExploreScreen(), // TEMP: Show ExploreScreen for post/comment feature testing
+      onGenerateRoute: (settings) {
+        if (settings.name == '/editPost') {
+          final post = settings.arguments as InZonePost;
+          return MaterialPageRoute(
+            builder: (context) => EditPostScreen(post: post),
+          );
+        }
+        return null;
+      },
     );
   }
 }

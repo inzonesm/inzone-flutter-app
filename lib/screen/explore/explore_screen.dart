@@ -10,6 +10,7 @@ import 'package:shimmer/shimmer.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:inzone/data/inzone_post.dart';
 
@@ -34,13 +35,30 @@ class _ExploreScreenState extends State<ExploreScreen> {
   bool isSearching = false;
   final ScrollController _scrollController = ScrollController();
   TextEditingController searchController = TextEditingController();
+  Set<String> deletedPostIds = {}; // Track deleted posts locally
   @override
   void initState() {
     super.initState();
     _startTime = DateTime.now().toUtc();
+    _loadDeletedPosts(); // Load previously deleted post IDs
     getFeed(); // Initial data fetch
     _scrollController
         .addListener(_onScroll); // Attach scroll listener for lazy loading
+  }
+
+  // Load deleted post IDs from SharedPreferences
+  Future<void> _loadDeletedPosts() async {
+    final prefs = await SharedPreferences.getInstance();
+    final deletedIds = prefs.getStringList('deleted_post_ids') ?? [];
+    setState(() {
+      deletedPostIds = deletedIds.toSet();
+    });
+  }
+
+  // Save deleted post IDs to SharedPreferences
+  Future<void> _saveDeletedPosts() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList('deleted_post_ids', deletedPostIds.toList());
   }
 
   @override
@@ -81,13 +99,14 @@ class _ExploreScreenState extends State<ExploreScreen> {
     // Fetch data from InZoneDatabase
     final response = await InZoneDatabase.getFeed();
 
+    // Debug: Print the raw response for inspection
+    print('Raw response from getFeed: $response');
+
     // Ensure the response contains the expected structure
-    if (response != null &&
-        response.containsKey('posts') &&
-        response.containsKey('characters')) {
+    if (response != null && response.containsKey('posts')) {
       // Parse the posts and avatars
       List<dynamic> fetchedPosts = response['posts'];
-      List<dynamic> fetchedCharacters = response['characters'];
+      List<dynamic> fetchedCharacters = response['characters'] ?? [];
 
       for (var characterJson in fetchedCharacters) {
         InZoneAvatar avatar = InZoneAvatar.fromJson(characterJson);
@@ -96,7 +115,11 @@ class _ExploreScreenState extends State<ExploreScreen> {
 
       _addPostsToScreen(fetchedPosts);
     } else {
-      throw Exception('Invalid response structure');
+      // Handle error case gracefully - show empty state instead of throwing
+      print('Failed to load feed - response was null or invalid');
+      setState(() {
+        isLoading = false;
+      });
     }
   }
 
@@ -110,6 +133,8 @@ class _ExploreScreenState extends State<ExploreScreen> {
     if (response != null && response.containsKey('posts')) {
       List<dynamic> fetchedPosts = response['posts'];
       _addPostsToScreen(fetchedPosts);
+    } else {
+      print('Failed to load more posts - response was null or invalid');
     }
 
     setState(() {
@@ -121,10 +146,48 @@ class _ExploreScreenState extends State<ExploreScreen> {
     for (var postJson
         in fetchedPosts.skip(_currentPage * _pageSize).take(_pageSize)) {
       InZonePost post = InZonePost.fromJson(postJson);
+
+      // Skip posts that have been deleted locally
+      if (deletedPostIds.contains(post.id)) {
+        continue;
+      }
+
       posts.add(PostCard(
         post: post,
         onTap: (postId) {
           print('You tapped on post with ID: $postId');
+        },
+        onPostDeleted: (postId) {
+          // Remove the deleted post from both lists and track it
+          setState(() {
+            deletedPostIds.add(postId); // Remember this post is deleted
+            _saveDeletedPosts(); // Persist to storage
+            posts.removeWhere((postCard) => postCard.post.id == postId);
+            finalHomeScreen.removeWhere((widget) {
+              if (widget is PostCard) {
+                return widget.post.id == postId;
+              }
+              return false;
+            });
+          });
+          print('✅ Post $postId marked as deleted and saved to preferences');
+        },
+        onPostUpdated: (updatedPost) {
+          // Update the post in the list
+          setState(() {
+            final index = posts
+                .indexWhere((postCard) => postCard.post.id == updatedPost.id);
+            if (index != -1) {
+              posts[index] = PostCard(
+                post: updatedPost,
+                onTap: (postId) {
+                  print('You tapped on post with ID: $postId');
+                },
+                onPostDeleted: posts[index].onPostDeleted,
+                onPostUpdated: posts[index].onPostUpdated,
+              );
+            }
+          });
         },
       ));
       if (!categoriesList.contains(post.category) && post.category.isNotEmpty) {
