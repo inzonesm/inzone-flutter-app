@@ -594,7 +594,8 @@ class _PostCardState extends State<PostCard>
                     // Try to resolve the canonical human user document for the
                     // author. The post's author reference can be in multiple forms
                     // (doc id, username, or stored uid), so try several lookups.
-                    final humanUsersRef = FirebaseFirestore.instance.collection('humanUsers');
+                    final humanUsersRef =
+                        FirebaseFirestore.instance.collection('humanUsers');
                     DocumentSnapshot? authorDoc;
                     String? resolvedAuthorUid;
                     String resolvedAuthorUsername =
@@ -2480,10 +2481,10 @@ class _PostCardState extends State<PostCard>
       if (!postSnapshot.exists) return;
 
       List<dynamic> currentComments = postSnapshot['comments'] ?? [];
-      
+
       // Create new reply with proper ID
       final replyId = DateTime.now().millisecondsSinceEpoch.toString();
-      
+
       Map<String, dynamic> newReply = {
         'id': replyId,
         'author': FirebaseAuth.instance.currentUser!.displayName ?? 'Anonymous',
@@ -2834,29 +2835,33 @@ class _PostCardState extends State<PostCard>
                                   itemBuilder:
                                       (BuildContext context, int index) {
                                     final comment = reactiveComments[index];
-                                    final replyCount = repliesMap[comment.id]?.length ?? 0; // Calculate reply count outside
-                                return AnimatedContainer(
-                                  duration: const Duration(seconds: 1),
-                                  child: Padding(
-                                    padding: EdgeInsets.symmetric(
-                                        horizontal: 0.0, 
-                                        vertical: comment.isReply 
-                                            ? 0.0 // No padding for replies
-                                            : (replyCount > 0 && expandedSet.contains(comment.id))
-                                                ? 2.0 // Reduced padding for parent comments with expanded replies
-                                                : 10.0), // Normal padding for parent comments without replies
-                                    child: FutureBuilder<DocumentSnapshot>(
-                                      future: comment.userId.isNotEmpty
-                                          ? FirebaseFirestore.instance
-                                              .collection('humanUsers')
-                                              .doc(comment.userId)
-                                              .get()
-                                          : null,
-                                      builder: (BuildContext context,
-                                          AsyncSnapshot<DocumentSnapshot>
-                                              snapshot) {
-                                        String username = comment.author;
-                                        String profilePicUrl = '';
+                                    final replyCount =
+                                        repliesMap[comment.id]?.length ??
+                                            0; // Calculate reply count outside
+                                    return AnimatedContainer(
+                                      duration: const Duration(seconds: 1),
+                                      child: Padding(
+                                        padding: EdgeInsets.symmetric(
+                                            horizontal: 0.0,
+                                            vertical: comment.isReply
+                                                ? 0.0 // No padding for replies
+                                                : (replyCount > 0 &&
+                                                        expandedSet.contains(
+                                                            comment.id))
+                                                    ? 2.0 // Reduced padding for parent comments with expanded replies
+                                                    : 10.0), // Normal padding for parent comments without replies
+                                        child: FutureBuilder<DocumentSnapshot>(
+                                          future: comment.userId.isNotEmpty
+                                              ? FirebaseFirestore.instance
+                                                  .collection('humanUsers')
+                                                  .doc(comment.userId)
+                                                  .get()
+                                              : null,
+                                          builder: (BuildContext context,
+                                              AsyncSnapshot<DocumentSnapshot>
+                                                  snapshot) {
+                                            String username = comment.author;
+                                            String profilePicUrl = '';
 
                                             if (snapshot.hasData &&
                                                 snapshot.data != null &&
