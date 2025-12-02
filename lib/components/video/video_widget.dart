@@ -46,7 +46,10 @@ final Map<String, VideoController> _cachedControllers = {};
 final Map<String, bool> _cachedInitStatus = {};
 
 final List<String> _cacheQueue = [];
-const int _maxCacheSize = 3;
+const int _maxCacheSize = 1; // Reduced from 3 to 1 for performance
+
+// Track currently playing video
+String? _currentlyPlayingVideoUrl;
 
 void _cleanupCache() {
   while (_cacheQueue.length > _maxCacheSize) {
@@ -74,10 +77,27 @@ void disposeAllVideoCache() {
     _cachedControllers.clear();
     _cachedInitStatus.clear();
     _cacheQueue.clear();
+    _currentlyPlayingVideoUrl = null;
     debugPrint('All video cache disposed');
   } catch (e) {
     debugPrint('Error disposing all video cache: $e');
   }
+}
+
+// Pause all videos except the specified URL
+void _pauseOtherVideos(String currentVideoUrl) {
+  if (_currentlyPlayingVideoUrl == currentVideoUrl) return;
+
+  // Pause the previously playing video
+  if (_currentlyPlayingVideoUrl != null) {
+    final previousPlayer = _cachedPlayers[_currentlyPlayingVideoUrl];
+    if (previousPlayer != null && previousPlayer.state.playing) {
+      previousPlayer.pause();
+      debugPrint('Paused previous video: $_currentlyPlayingVideoUrl');
+    }
+  }
+
+  _currentlyPlayingVideoUrl = currentVideoUrl;
 }
 
 /// Video widget with autoplay functionality.
@@ -142,6 +162,8 @@ class _VideoWidgetState extends State<VideoWidget> with WidgetsBindingObserver {
   DateTime? _videoStartTime;
   Duration _totalWatchTime = Duration.zero;
   Duration _lastPosition = Duration.zero;
+  Timer? _trackingTimer;
+  bool _dimensionsSet = false;
 
   @override
   void initState() {
@@ -183,12 +205,18 @@ class _VideoWidgetState extends State<VideoWidget> with WidgetsBindingObserver {
         _mediaKitPlayer!.setVolume(VideoMuteManager.isMuted ? 0 : 100);
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted && _mediaKitPlayer != null) {
+            _pauseOtherVideos(widget.videoUrl);
             _mediaKitPlayer!.play();
           }
         });
       }
     } else {
-      _initializeVideo();
+      // Defer initialization to avoid blocking the UI
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _initializeVideo();
+        }
+      });
     }
 
     _loadingTimeoutTimer = Timer(const Duration(seconds: 15), () {
@@ -260,10 +288,15 @@ class _VideoWidgetState extends State<VideoWidget> with WidgetsBindingObserver {
   }
 
   Future<void> _initializeVideo() async {
+    if (!mounted) return;
+
     setState(() {
       _isLoading = true;
       _isPlayable = true;
     });
+
+    // Add a small delay to allow the UI to render first
+    await Future.delayed(const Duration(milliseconds: 50));
 
     // Process the URL to handle YouTube links
     String mediaUrl = widget.videoUrl;
@@ -387,12 +420,24 @@ class _VideoWidgetState extends State<VideoWidget> with WidgetsBindingObserver {
         }
       });
 
-      _positionSubscription =
-          _mediaKitPlayer!.stream.position.listen((position) {
-        if (mounted) {
+      // Optimized: Use a periodic timer instead of listening to every frame
+      // Check position every 500ms instead of 60+ times per second
+      _trackingTimer = Timer.periodic(const Duration(milliseconds: 500), (_) {
+        if (mounted && _mediaKitPlayer != null) {
+          final position = _mediaKitPlayer!.state.position;
+
           // Update watch time tracking
           _updateWatchTime(position);
 
+          // Track video progress and completion
+          _trackVideoProgress(position);
+        }
+      });
+
+      // Set dimensions once when available
+      _positionSubscription =
+          _mediaKitPlayer!.stream.position.listen((position) {
+        if (mounted && !_dimensionsSet) {
           final videoWidth = _mediaKitPlayer!.state.width?.toDouble();
           final videoHeight = _mediaKitPlayer!.state.height?.toDouble();
 
@@ -400,7 +445,7 @@ class _VideoWidgetState extends State<VideoWidget> with WidgetsBindingObserver {
               videoHeight != null &&
               videoWidth > 0 &&
               videoHeight > 0) {
-            // debugPrint('Early video dimensions: ${videoWidth}x$videoHeight');
+            _dimensionsSet = true;
             final aspectRatio = videoWidth / videoHeight;
             if (widget.onAspectRatioUpdated != null) {
               widget.onAspectRatioUpdated!(aspectRatio);
@@ -417,10 +462,10 @@ class _VideoWidgetState extends State<VideoWidget> with WidgetsBindingObserver {
 
               debugPrint('Player cached for URL: ${widget.videoUrl}');
             }
-          }
 
-          // Track video progress and completion
-          _trackVideoProgress(position);
+            // Cancel subscription after dimensions are set
+            _positionSubscription?.cancel();
+          }
         }
       });
 
@@ -452,6 +497,7 @@ class _VideoWidgetState extends State<VideoWidget> with WidgetsBindingObserver {
       debugPrint('MediaKit Player opened successfully');
 
       // Enable autoplay - start playing automatically when initialized
+      _pauseOtherVideos(widget.videoUrl);
       _mediaKitPlayer!.play();
 
       if (!_cachedPlayers.containsKey(widget.videoUrl)) {
@@ -559,6 +605,7 @@ class _VideoWidgetState extends State<VideoWidget> with WidgetsBindingObserver {
             _isVisible = isVisible;
             try {
               if (isVisible) {
+                _pauseOtherVideos(widget.videoUrl);
                 _ytController?.play();
               } else {
                 _ytController?.pause();
@@ -638,6 +685,7 @@ class _VideoWidgetState extends State<VideoWidget> with WidgetsBindingObserver {
                       _mediaKitPlayer!.pause();
                       _trackVideoPause();
                     } else {
+                      _pauseOtherVideos(widget.videoUrl);
                       _mediaKitPlayer!.play();
                       _trackVideoStart();
                       // Ensure volume is set when manually playing
@@ -674,6 +722,7 @@ class _VideoWidgetState extends State<VideoWidget> with WidgetsBindingObserver {
                               _mediaKitPlayer!.pause();
                               _trackVideoPause();
                             } else {
+                              _pauseOtherVideos(widget.videoUrl);
                               _mediaKitPlayer!.play();
                               _trackVideoStart();
                               // Ensure volume is set when manually playing
@@ -957,6 +1006,7 @@ class _VideoWidgetState extends State<VideoWidget> with WidgetsBindingObserver {
           _isVisible = isVisible;
           if (_mediaKitPlayer != null && _isInitialized) {
             if (isVisible) {
+              _pauseOtherVideos(widget.videoUrl);
               _mediaKitPlayer!.play();
               _trackVideoStart();
             } else {
@@ -979,6 +1029,7 @@ class _VideoWidgetState extends State<VideoWidget> with WidgetsBindingObserver {
     _loadingTimeoutTimer?.cancel();
     _scrubbingTimer?.cancel();
     _hideControlsTimer?.cancel();
+    _trackingTimer?.cancel();
 
     // Cancel subscriptions to prevent memory leaks
     _muteSubscription?.cancel();
@@ -1007,6 +1058,14 @@ class _VideoWidgetState extends State<VideoWidget> with WidgetsBindingObserver {
     // Clear references to prevent memory leaks
     _mediaKitPlayer = null;
     _mediaKitVideoController = null;
+
+    // Remove YouTube listener before disposing
+    if (_ytListener != null && _ytController != null) {
+      try {
+        _ytController!.removeListener(_ytListener!);
+      } catch (_) {}
+    }
+
     try {
       _ytController?.dispose();
     } catch (_) {}
