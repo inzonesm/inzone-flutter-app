@@ -1,0 +1,10 @@
+// QUICK MANUAL FIX - If you still don't see edit/delete options:
+
+// In lib/components/cards/post_card.dart, find the _isPostOwner() method around line 358
+// and make it look EXACTLY like this:
+
+bool _isPostOwner() {
+  return true;  // This line makes ALL posts editable for testing
+}
+
+// That's it! Save the file and hot restart (press 'r' in terminal or Cmd+R in VS Code)

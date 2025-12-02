@@ -62,6 +62,28 @@ class _SavedScreenState extends State<SavedScreen> {
                 post: post,
                 showHue: false,
                 onTap: (postId) {},
+                onDeleted: (postId) {
+                  setState(() {
+                    posts.removeWhere((w) =>
+                        w is Padding &&
+                        (w.child is SizedBox && (w.child as SizedBox).child is PostCard &&
+                            ((w.child as SizedBox).child as PostCard).post.id == postId));
+                  });
+                },
+                onUpdated: (updatedPost) {
+                  setState(() {
+                    for (var i = 0; i < posts.length; i++) {
+                      final w = posts[i];
+                      if (w is Padding && w.child is SizedBox) {
+                        final sb = w.child as SizedBox;
+                        if (sb.child is PostCard) {
+                          final pc = sb.child as PostCard;
+                          if (pc.post.id == updatedPost.id) pc.post = updatedPost;
+                        }
+                      }
+                    }
+                  });
+                },
               ),
             ),
           ),

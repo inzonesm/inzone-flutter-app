@@ -126,6 +126,26 @@ class _ExploreScreenState extends State<ExploreScreen> {
         onTap: (postId) {
           print('You tapped on post with ID: $postId');
         },
+        onDeleted: (postId) {
+          setState(() {
+            posts.removeWhere((pc) => pc.post.id == postId);
+            finalHomeScreen.removeWhere((w) => w is PostCard && (w as PostCard).post.id == postId);
+          });
+        },
+        onUpdated: (updatedPost) {
+          setState(() {
+            for (var pc in posts) {
+              if (pc.post.id == updatedPost.id) {
+                pc.post = updatedPost;
+              }
+            }
+            for (var w in finalHomeScreen) {
+              if (w is PostCard && w.post.id == updatedPost.id) {
+                w.post = updatedPost;
+              }
+            }
+          });
+        },
       ));
       if (!categoriesList.contains(post.category) && post.category.isNotEmpty) {
         categoriesList.add(post.category);
