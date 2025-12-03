@@ -756,6 +756,25 @@ class HomeScreenState extends State<HomeScreen> {
             post: postObj,
             onTap: (postId) {},
             inProfile: false,
+            onDeleted: (postId) {
+              setState(() {
+                posts.removeWhere((p) => (p is Map && p['id'] == postId) || (p is InZonePost && p.id == postId));
+                feedItems.removeWhere((w) => w is PostCard && (w as PostCard).post.id == postId);
+              });
+            },
+            onUpdated: (updatedPost) {
+              setState(() {
+                for (int i = 0; i < posts.length; i++) {
+                  final p = posts[i];
+                  if ((p is Map && p['id'] == updatedPost.id) || (p is InZonePost && p.id == updatedPost.id)) {
+                    posts[i] = updatedPost;
+                  }
+                }
+                for (var w in feedItems) {
+                  if (w is PostCard && w.post.id == updatedPost.id) w.post = updatedPost;
+                }
+              });
+            },
           );
 
         case 'human_post':
@@ -780,6 +799,25 @@ class HomeScreenState extends State<HomeScreen> {
             post: postObj,
             onTap: (postId) {},
             inProfile: false,
+            onDeleted: (postId) {
+              setState(() {
+                posts.removeWhere((p) => (p is Map && p['id'] == postId) || (p is InZonePost && p.id == postId));
+                feedItems.removeWhere((w) => w is PostCard && (w as PostCard).post.id == postId);
+              });
+            },
+            onUpdated: (updatedPost) {
+              setState(() {
+                for (int i = 0; i < posts.length; i++) {
+                  final p = posts[i];
+                  if ((p is Map && p['id'] == updatedPost.id) || (p is InZonePost && p.id == updatedPost.id)) {
+                    posts[i] = updatedPost;
+                  }
+                }
+                for (var w in feedItems) {
+                  if (w is PostCard && w.post.id == updatedPost.id) w.post = updatedPost;
+                }
+              });
+            },
           );
 
         default:
@@ -804,6 +842,25 @@ class HomeScreenState extends State<HomeScreen> {
             post: postObj,
             onTap: (postId) {},
             inProfile: false,
+            onDeleted: (postId) {
+              setState(() {
+                posts.removeWhere((p) => (p is Map && p['id'] == postId) || (p is InZonePost && p.id == postId));
+                feedItems.removeWhere((w) => w is PostCard && (w as PostCard).post.id == postId);
+              });
+            },
+            onUpdated: (updatedPost) {
+              setState(() {
+                for (int i = 0; i < posts.length; i++) {
+                  final p = posts[i];
+                  if ((p is Map && p['id'] == updatedPost.id) || (p is InZonePost && p.id == updatedPost.id)) {
+                    posts[i] = updatedPost;
+                  }
+                }
+                for (var w in feedItems) {
+                  if (w is PostCard && w.post.id == updatedPost.id) w.post = updatedPost;
+                }
+              });
+            },
           );
       }
     } catch (e) {

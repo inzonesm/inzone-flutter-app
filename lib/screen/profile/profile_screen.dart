@@ -1219,6 +1219,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             profileImageUrl: profileImageUrl,
                             showHue: false,
                             onTap: (postId) {},
+                            onDeleted: (postId) {
+                              setState(() {
+                                _posts.removeWhere((p) => p.id == postId);
+                              });
+                            },
+                            onUpdated: (updatedPost) {
+                              setState(() {
+                                final idx = _posts.indexWhere((p) => p.id == updatedPost.id);
+                                if (idx != -1) _posts[idx] = updatedPost;
+                              });
+                            },
                             inProfile: true,
                             autoOpenComments: shouldOpenComments && isTargetPost,
                             targetCommentId: targetCommentId,
