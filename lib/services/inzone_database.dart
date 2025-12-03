@@ -1766,64 +1766,32 @@ class InZoneDatabase {
   static Future<bool> deletePost({
     required String postId,
   }) async {
-    const String url =
-        'https://inzoneapi-912424781531.us-central1.run.app/feed/delete-post';
-
-    // Get current user ID for authorization
-    String? currentUserUID;
-    await InZoneDatabase.getCurrentUserUid().then((value) {
-      if (value != null) {
-        currentUserUID = value;
-      }
-    });
-
-    if (currentUserUID == null) {
-      return false;
-    }
-
-    // Build the request body with the required postId and user ID for authorization
-    Map<String, dynamic> requestBody = {
-      "PostId": postId,
-      "UserId": currentUserUID, // For backend authorization check
-    };
-
+    print('🔥 DELETE POST: Since delete endpoint doesn\'t exist, using update to mark as deleted');
+    print('   PostId: $postId');
+    
+    // Since the backend doesn't have a delete endpoint, 
+    // we'll use the update endpoint to mark the post as deleted
+    const String deletedContent = "[This post has been deleted by the user]";
+    
     try {
-      final http.Response response = await http.post(
-        Uri.parse(url),
-        headers: <String, String>{
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode(requestBody),
+      // Use the existing updatePost function to mark as deleted
+      bool success = await updatePost(
+        postId: postId,
+        content: deletedContent,
       );
-
-      if (response.statusCode == 200) {
-        final Map<String, dynamic> responseData = jsonDecode(response.body);
-
-        // Check if the deletion was successful
-        if (responseData.containsKey("success") &&
-            responseData["success"] == true) {
-          return true;
-        } else {
-          print('Delete post failed: ${responseData["error"] ?? "Unknown error"}');
-          return false;
-        }
-      } else if (response.statusCode == 403) {
-        print('Delete post failed: Not authorized to delete this post');
-        return false;
-      } else if (response.statusCode == 404) {
-        print('Delete post failed: Post not found');
-        return false;
+      
+      if (success) {
+        print('✅ Post successfully marked as deleted: $postId');
+        return true;
       } else {
-        print('Delete post failed with status code: ${response.statusCode}');
+        print('❌ Failed to mark post as deleted: $postId');
         return false;
       }
     } catch (e) {
-      print('Delete post exception: $e');
+      print('❌ Exception during delete (via update): $e');
       return false;
     }
-  }
-
-  static Future<String?> writeComment({
+  }  static Future<String?> writeComment({
     required String postId,
     required String content,
   }) async {
