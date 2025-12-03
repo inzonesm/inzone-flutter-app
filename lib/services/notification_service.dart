@@ -13,6 +13,7 @@ import 'package:inzone/services/appsflyer_service.dart';
 import 'package:http/http.dart' as http;
 import 'package:inzone/router/app_router.dart';
 import 'package:inzone/services/notification_event_service.dart';
+import '../config/api_config.dart';
 
 class NotificationService {
   static const String _channelDmHigh = 'dm_high';
@@ -20,8 +21,6 @@ class NotificationService {
   static const String _channelEngagementDigest = 'engagement_digest';
   static const String _channelSystem = 'system';
   static const String _channelOffers = 'offers';
-
-  static const String _apiBaseUrl = 'https://inzoneapi-912424781531.us-central1.run.app';
   
   static final FirebaseMessaging _firebaseMessaging = FirebaseMessaging.instance;
   static final FlutterLocalNotificationsPlugin _localNotifications = 
@@ -303,7 +302,7 @@ class NotificationService {
   static Future<void> _registerTokenWithBackend(String userId, String token) async {
     try {
       final response = await http.post(
-        Uri.parse('$_apiBaseUrl/api/notifications/register-token'),
+        Uri.parse(ApiConfig.endpoint('/api/notifications/register-token')),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'userId': userId,
@@ -333,7 +332,7 @@ class NotificationService {
       
       // Send push notification via backend
       final response = await http.post(
-        Uri.parse('$_apiBaseUrl/api/notifications/send-push'),
+        Uri.parse(ApiConfig.endpoint('/api/notifications/send-push')),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'userId': userId,
@@ -491,7 +490,7 @@ class NotificationService {
   static Future<void> _updatePreferencesWithBackend(String userId, Map<String, dynamic> preferences) async {
     try {
       final response = await http.post(
-        Uri.parse('$_apiBaseUrl/api/notifications/preferences'),
+        Uri.parse(ApiConfig.endpoint('/api/notifications/preferences')),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'userId': userId,
@@ -561,7 +560,7 @@ class NotificationService {
       }
       
       final response = await http.post(
-        Uri.parse('$_apiBaseUrl/api/notifications/events/group-message'),
+        Uri.parse(ApiConfig.endpoint('/api/notifications/events/group-message')),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'groupId': groupId,
@@ -596,7 +595,7 @@ class NotificationService {
       final actualSenderName = senderName ?? await _getUsersName(senderId);
       
       final response = await http.post(
-        Uri.parse('$_apiBaseUrl/api/notifications/events/group-mention'),
+        Uri.parse(ApiConfig.endpoint('/api/notifications/events/group-mention')),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'groupId': groupId,
@@ -663,7 +662,7 @@ class NotificationService {
       
       // Also send via backend for additional processing
       final response = await http.post(
-        Uri.parse('$_apiBaseUrl/api/notifications/events/direct-message'),
+        Uri.parse(ApiConfig.endpoint('/api/notifications/events/direct-message')),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'chatId': chatId,
@@ -748,7 +747,7 @@ class NotificationService {
       }
       
       final response = await http.post(
-        Uri.parse('$_apiBaseUrl/api/notifications/events/post-engagement'),
+        Uri.parse(ApiConfig.endpoint('/api/notifications/events/post-engagement')),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'postId': postId,
@@ -779,7 +778,7 @@ class NotificationService {
   }) async {
     try {
       final response = await http.post(
-        Uri.parse('$_apiBaseUrl/api/notifications/events/ai-nudge'),
+        Uri.parse(ApiConfig.endpoint('/api/notifications/events/ai-nudge')),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'userId': userId,
@@ -804,7 +803,7 @@ class NotificationService {
   static Future<Map<String, dynamic>?> getAllUserNotifications(String userId) async {
     try {
       final response = await http.get(
-        Uri.parse('$_apiBaseUrl/api/notifications/user/$userId/all'),
+        Uri.parse(ApiConfig.endpoint('/api/notifications/user/$userId/all')),
         headers: {'Content-Type': 'application/json'},
       );
 

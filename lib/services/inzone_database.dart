@@ -694,10 +694,14 @@ class InZoneDatabase {
           "blocked": false,
         };
       }
+      
+      // FALLBACK: If sentiment analysis fails, allow posting with neutral sentiment
+      print("Sentiment analysis failed, using fallback (neutral sentiment)");
       return {
-        "sentiment": -1,
+        "sentiment": 0, // Neutral - allow posting
         "category": "Entertainment",
         "blocked": false,
+        "fallback": true, // Indicate this was a fallback response
       };
     } catch (e) {
       return {
@@ -1170,10 +1174,18 @@ class InZoneDatabase {
 
           return null; // Invalid response format
         } else if (responseData.containsKey('error')) {
+          String errorCode = responseData.containsKey('code') ? responseData['code'] : 'UNKNOWN';
+          print("Sentiment API Error [$errorCode]: ${responseData['error']}");
+          
+          // For specific API errors, return null to trigger fallback
+          if (errorCode == 'SENTIMENT_FORMAT_ERROR') {
+            print("OpenAI integration error detected - using fallback");
+          }
           return null;
         }
         return null;
       } else {
+        print("HTTP ${response.statusCode}: Sentiment analysis service unavailable");
         return null;
       }
     } catch (e) {

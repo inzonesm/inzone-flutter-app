@@ -121,20 +121,31 @@ class _PostScreenState extends State<PostScreen> {
       videoUrls: videoUrls,
       onResult: (result) {
         if (mounted) {
+          // REAL-TIME DEBUG LOGGING
+          print("=== REAL-TIME MODERATION DEBUG ===");
+          print("Real-time content: '$postContent'");
+          print("Real-time result: ${result.toString()}");
+          if (result.containsKey('block_reason') && result['block_reason'] != null) {
+            print("Real-time block reason: ${result['block_reason']}");
+          }
+          print("=====================================\n");
+          
           setState(() {
             isAnalyzingRealTime = false;
             int sentiment = result["sentiment"] as int;
             bool isBlocked = result["blocked"] ?? false;
+            bool isFallback = result["fallback"] ?? false;
             currentBlockReason = result["block_reason"];
 
-            if (sentiment == -2 || isBlocked) {
-              // Content is blocked
+            if ((sentiment == -2 || isBlocked) && !isFallback) {
+              // Content is blocked (only if not using fallback)
               moveValue = low;
               doesNotWork = true;
-            } else if (sentiment == -1) {
+            } else if (sentiment == -1 && !isFallback) {
               moveValue = low;
               doesNotWork = true;
-            } else if (sentiment == 0) {
+            } else if (sentiment == 0 || isFallback) {
+              // Neutral sentiment OR fallback mode (allow posting)
               moveValue = medium;
               doesNotWork = false;
             } else if (sentiment == 1) {
@@ -149,9 +160,10 @@ class _PostScreenState extends State<PostScreen> {
       if (mounted) {
         setState(() {
           isAnalyzingRealTime = false;
-          // Default to neutral on error
+          // Default to neutral on error (allow posting)
           moveValue = medium;
           doesNotWork = false;
+          currentBlockReason = "Analysis service unavailable - posting allowed";
         });
       }
       return <String, dynamic>{}; // Return empty map for error case
@@ -176,6 +188,9 @@ class _PostScreenState extends State<PostScreen> {
     
     if (doesNotWork) {
       if (currentBlockReason != null && currentBlockReason!.isNotEmpty) {
+        if (currentBlockReason!.contains("unavailable")) {
+          return "Content moderation offline - posting allowed";
+        }
         return "Content blocked: $currentBlockReason";
       }
       return "Content violates guidelines - please rephrase";
@@ -585,6 +600,20 @@ class _PostScreenState extends State<PostScreen> {
 
                                       print(
                                           "Sentiment analysis result: $analysis");
+                                      
+                                      // DETAILED DEBUG LOGGING
+                                      print("=== CONTENT MODERATION DEBUG ===");
+                                      print("Content being analyzed: '$postContent'");
+                                      print("Image URLs: $imageUrls");
+                                      print("Video URLs: $videoUrls");
+                                      print("Full analysis response: ${analysis.toString()}");
+                                      if (analysis.containsKey('detailed_analysis')) {
+                                        print("Detailed analysis: ${analysis['detailed_analysis']}");
+                                      }
+                                      if (analysis.containsKey('block_reason')) {
+                                        print("Block reason: ${analysis['block_reason']}");
+                                      }
+                                      print("================================");
 
                                       int sentiment =
                                           analysis["sentiment"] as int;

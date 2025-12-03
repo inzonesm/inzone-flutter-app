@@ -508,6 +508,17 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                             profileImageUrl: profileImageUrl,
                             showHue: false,
                             onTap: (postId) {},
+                            onDeleted: (postId) {
+                              setState(() {
+                                _posts.removeWhere((p) => p.id == postId);
+                              });
+                            },
+                            onUpdated: (updatedPost) {
+                              setState(() {
+                                final idx = _posts.indexWhere((p) => p.id == updatedPost.id);
+                                if (idx != -1) _posts[idx] = updatedPost;
+                              });
+                            },
                             inProfile: true,
                           );
                         }),
@@ -573,6 +584,18 @@ class _PersonalFeedScreenState extends State<PersonalFeedScreen> {
         post: post,
         showHue: false,
         onTap: (postId) {},
+        onDeleted: (postId) {
+          setState(() {
+            posts.removeWhere((pc) => pc.post.id == postId);
+          });
+        },
+        onUpdated: (updatedPost) {
+          setState(() {
+            for (var pc in posts) {
+              if (pc.post.id == updatedPost.id) pc.post = updatedPost;
+            }
+          });
+        },
         inProfile: true,
       ));
     }

@@ -324,7 +324,21 @@ class InZonePost {
       }
     } catch (e) {}
 
-    String userReference = json['user_document_id'] ?? 'unknown';
+    // Debug: Check what user reference fields are available
+    debugPrint('🔍 Post JSON keys: ${json.keys.toList()}');
+    debugPrint('🔍 user_document_id: ${json['user_document_id']}');
+    debugPrint('🔍 UserDocumentId: ${json['UserDocumentId']}');
+    debugPrint('🔍 userDocumentId: ${json['userDocumentId']}');
+    debugPrint('🔍 user_reference: ${json['user_reference']}');
+    
+    String userReference = json['user_document_id'] ?? 
+                          json['UserDocumentId'] ?? 
+                          json['userDocumentId'] ?? 
+                          json['user_reference'] ??
+                          'unknown';
+                          
+    debugPrint('🔍 Final userReference: $userReference');
+    
     String mainCategory =
         json['category'] is List && (json['category'] as List).isNotEmpty
             ? json['category'][0]

@@ -3,11 +3,11 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/foundation.dart';
+import '../config/api_config.dart';
 
 /// AI Engagement Service for InZone
 /// Manages automatic AI character engagement in the background
 class AIEngagementService {
-  static const String _apiBaseUrl = 'https://inzoneapi-912424781531.us-central1.run.app';
   static const String _lastRunKey = 'ai_engagement_last_run';
   static const String _enabledKey = 'ai_engagement_enabled';
   
@@ -160,7 +160,7 @@ class AIEngagementService {
   static Future<Map<String, dynamic>> _callEngagementAPI() async {
     const int maxRetries = 3;
     int attempt = 0;
-    final url = Uri.parse('$_apiBaseUrl/api/ai/schedule-engagement-auto');
+    final url = Uri.parse(ApiConfig.endpoint('/api/ai/schedule-engagement-auto'));
 
     while (attempt < maxRetries) {
       try {
@@ -222,7 +222,7 @@ class AIEngagementService {
     try {
       debugPrint('🚀 Triggering IMMEDIATE AI DM response for user: $userId, AI: $aiCharacterId');
       
-      final url = Uri.parse('$_apiBaseUrl/api/ai/dm-auto-responder');
+      final url = Uri.parse(ApiConfig.endpoint('/api/ai/dm-auto-responder'));
       
       // Use shorter timeout for real-time feel, with retry logic
       final response = await http.post(
@@ -294,7 +294,7 @@ class AIEngagementService {
   /// Monitor and respond to pending DMs (24/7 monitoring)
   static Future<Map<String, dynamic>> monitorAndRespondDMs() async {
     try {
-      final url = Uri.parse('$_apiBaseUrl/api/ai/monitor-dms');
+      final url = Uri.parse(ApiConfig.endpoint('/api/ai/monitor-dms'));
       
       final response = await http.post(
         url,
@@ -330,7 +330,7 @@ class AIEngagementService {
   /// Get engagement status from backend
   static Future<Map<String, dynamic>> getEngagementStatus() async {
     try {
-      final url = Uri.parse('$_apiBaseUrl/api/ai/engagement-status');
+      final url = Uri.parse(ApiConfig.endpoint('/api/ai/engagement-status'));
       
       final response = await http.get(
         url,
@@ -360,7 +360,7 @@ class AIEngagementService {
   static Future<Map<String, dynamic>> triggerManualEngagement({int? limit}) async {
     const int maxRetries = 3;
     int attempt = 0;
-    final url = Uri.parse('$_apiBaseUrl/api/ai/schedule-engagement-auto');
+    final url = Uri.parse(ApiConfig.endpoint('/api/ai/schedule-engagement-auto'));
 
     debugPrint('🎯 Manually triggering AI engagement');
 
