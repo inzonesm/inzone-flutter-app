@@ -45,9 +45,6 @@ class PostCard extends StatefulWidget {
   final Function(String)? onDeleted; // Callback for when post is deleted
   final Function(InZonePost)? onUpdated; // Callback for when post is updated
   
-  // 🔥 ADMIN MODE TOGGLE - Set to true for testing edit/delete on all posts
-  static bool _tempAdminMode = true;
-
   InZonePost getPost() {
     return post;
   }
@@ -104,47 +101,66 @@ class _PostCardState extends State<PostCard>
 
   bool isLiked = false;
   
-  // 🔥 ADMIN EDIT: Local override for post text content
+  // Local override for post text content during editing
   String? _editedTextContent;
   
-  // 🔥 Get current text content (edited version if available, otherwise original)
+  // Get current text content (edited version if available, otherwise original)
   String get _currentTextContent => _editedTextContent ?? widget.post.textContent;
   
-  // 🔥 Check if current user owns this post OR admin mode is enabled
+  // Check if current user owns this post
   bool _isPostOwner() {
-    // Admin mode override - allows testing edit/delete on ALL posts
-    if (PostCard._tempAdminMode) {
-      print('🔥 ADMIN MODE: Granting edit/delete access to all posts');
-      return true;
-    }
-    
-    // Normal ownership check
     final currentUser = FirebaseAuth.instance.currentUser;
     if (currentUser == null) return false;
+    
+    // Direct approach: Extract user ID from post ID pattern
+    // Post IDs follow pattern: post_USERID_timestamp
+    final postIdStr = widget.post.id.toString();
+    if (postIdStr.contains('post_')) {
+      final parts = postIdStr.split('_');
+      if (parts.length >= 2) {
+        final userIdFromPostId = parts[1];
+        return currentUser.uid == userIdFromPostId;
+      }
+    }
+    
+    // Fallback: Check userReference field
     return currentUser.uid == widget.post.userReference;
   }
   
-  // 🔥 Delete post functionality
+  // Delete post functionality
   Future<void> _deletePost() async {
     try {
-      print('🔥 ${PostCard._tempAdminMode ? "ADMIN " : ""}Attempting to delete post: ${widget.post.id}');
+      print('Attempting to delete post: ${widget.post.id}');
       
-      // For now, show success message (this would be replaced with actual API call)
-      ToastService.showToast(
-        context,
-        backgroundColor: Colors.red,
-        message: PostCard._tempAdminMode 
-            ? 'ADMIN: Post deletion simulated (${widget.post.id})' 
-            : 'Post deleted successfully',
-        leading: const Icon(Icons.delete, color: Colors.white),
+      // Call the backend API to delete the post
+      bool deleteSuccess = await InZoneDatabase.deletePost(
+        postId: widget.post.id,
       );
       
-      // Call onDeleted callback if provided
-      if (widget.onDeleted != null) {
-        widget.onDeleted!(widget.post.id);
+      if (deleteSuccess) {
+        ToastService.showToast(
+          context,
+          backgroundColor: Colors.red,
+          message: 'Post deleted successfully',
+          leading: const Icon(Icons.delete, color: Colors.white),
+        );
+        
+        // Call onDeleted callback if provided
+        if (widget.onDeleted != null) {
+          widget.onDeleted!(widget.post.id);
+        }
+        
+        print('Post deletion completed successfully');
+      } else {
+        // Backend deletion failed
+        ToastService.showToast(
+          context,
+          backgroundColor: Colors.red,
+          message: 'Failed to delete post from server',
+          leading: const Icon(Icons.error, color: Colors.white),
+        );
+        print('❌ Backend deletion failed for post: ${widget.post.id}');
       }
-      
-      print('🔥 ${PostCard._tempAdminMode ? "ADMIN " : ""}Post deletion completed');
       
     } catch (e) {
       print('❌ Error deleting post: $e');
@@ -157,7 +173,7 @@ class _PostCardState extends State<PostCard>
     }
   }
   
-  // 🔥 Show edit post dialog
+  // Show edit post dialog
   void _showEditDialog() {
     final TextEditingController editController = TextEditingController(text: _currentTextContent);
     
@@ -165,39 +181,16 @@ class _PostCardState extends State<PostCard>
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: Text(PostCard._tempAdminMode ? '🔥 ADMIN EDIT POST' : 'Edit Post'),
+          title: const Text('Edit Post'),
           content: SizedBox(
             width: double.maxFinite,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (PostCard._tempAdminMode) 
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    margin: const EdgeInsets.only(bottom: 16),
-                    decoration: BoxDecoration(
-                      color: Colors.orange.withOpacity(0.1),
-                      border: Border.all(color: Colors.orange),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      '🔥 ADMIN MODE: Editing Post ID: ${widget.post.id}',
-                      style: const TextStyle(
-                        color: Colors.orange,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ),
-                TextField(
-                  controller: editController,
-                  maxLines: 5,
-                  decoration: const InputDecoration(
-                    hintText: 'Edit your post content...',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-              ],
+            child: TextField(
+              controller: editController,
+              maxLines: 5,
+              decoration: const InputDecoration(
+                hintText: 'Edit your post content...',
+                border: OutlineInputBorder(),
+              ),
             ),
           ),
           actions: [
@@ -211,9 +204,9 @@ class _PostCardState extends State<PostCard>
                 _updatePost(editController.text.trim());
               },
               style: TextButton.styleFrom(
-                foregroundColor: PostCard._tempAdminMode ? Colors.orange : Colors.blue,
+                foregroundColor: Colors.blue,
               ),
-              child: Text(PostCard._tempAdminMode ? '🔥 ADMIN SAVE' : 'Save Changes'),
+              child: const Text('Save Changes'),
             ),
           ],
         );
@@ -221,7 +214,7 @@ class _PostCardState extends State<PostCard>
     );
   }
   
-  // 🔥 Update post content
+  // Update post content
   Future<void> _updatePost(String newText) async {
     if (newText.isEmpty) {
       ToastService.showToast(
@@ -244,17 +237,15 @@ class _PostCardState extends State<PostCard>
     }
     
     try {
-      print('🔥 ${PostCard._tempAdminMode ? "ADMIN " : ""}Updating post: ${widget.post.id}');
-      print('🔥 Old text: "$_currentTextContent"');
-      print('🔥 New text: "$newText"');
+      print('Updating post: ${widget.post.id}');
+      print('Old text: "$_currentTextContent"');
+      print('New text: "$newText"');
       
       // Show loading toast
       ToastService.showToast(
         context,
         backgroundColor: Colors.blue,
-        message: PostCard._tempAdminMode 
-            ? 'ADMIN: Saving changes...' 
-            : 'Saving changes...',
+        message: 'Saving changes...',
         leading: const Icon(Icons.sync, color: Colors.white),
       );
       
@@ -268,26 +259,37 @@ class _PostCardState extends State<PostCard>
         // Update local state to override the original text content
         setState(() {
           _editedTextContent = newText;
-          // Also update the original post object's text content
-          widget.post.textContent = newText;
         });
         
-        // Call onUpdated callback if provided to update parent widgets
+        // Create a new post object with updated content for parent widgets
         if (widget.onUpdated != null) {
-          widget.onUpdated!(widget.post);
+          final updatedPost = InZonePost(
+            category: widget.post.category,
+            userName: widget.post.userName,
+            comments: widget.post.comments,
+            datePosted: widget.post.datePosted,
+            likes: widget.post.likes,
+            id: widget.post.id,
+            imageContent: widget.post.imageContent,
+            videoContent: widget.post.videoContent,
+            textContent: newText, // Updated text content
+            userReference: widget.post.userReference,
+            mainCategory: widget.post.mainCategory,
+            isAi: widget.post.isAi,
+            characterInfo: widget.post.characterInfo,
+          );
+          widget.onUpdated!(updatedPost);
         }
         
         // Show success message
         ToastService.showToast(
           context,
           backgroundColor: Colors.green,
-          message: PostCard._tempAdminMode 
-              ? 'ADMIN: Post updated successfully!' 
-              : 'Post updated successfully!',
+          message: 'Post updated successfully!',
           leading: const Icon(Icons.check_circle, color: Colors.white),
         );
         
-        print('🔥 ${PostCard._tempAdminMode ? "ADMIN " : ""}Post update completed successfully');
+        print('Post update completed successfully');
       } else {
         // Backend update failed
         ToastService.showToast(
@@ -1440,12 +1442,11 @@ class _PostCardState extends State<PostCard>
       context: context,
       builder: (context) => Container(
         decoration: BoxDecoration(
-          color: PostCard._tempAdminMode ? const Color(0xFF2A1810) : Theme.of(context).cardColor,
+          color: Theme.of(context).cardColor,
           borderRadius: const BorderRadius.only(
             topRight: Radius.circular(30),
             topLeft: Radius.circular(30),
           ),
-          border: PostCard._tempAdminMode ? Border.all(color: Colors.orange, width: 2) : null,
         ),
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
         child: Column(
@@ -1458,89 +1459,65 @@ class _PostCardState extends State<PostCard>
                   width: 50,
                   height: 5,
                   decoration: BoxDecoration(
-                    color: PostCard._tempAdminMode ? Colors.orange : Theme.of(context).dividerColor,
+                    color: Theme.of(context).dividerColor,
                     borderRadius: BorderRadius.circular(10),
                   ),
                 ),
               ),
             ),
             
-            // 🔥 ADMIN MODE BANNER
-            if (PostCard._tempAdminMode)
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(12),
-                margin: const EdgeInsets.only(bottom: 15),
-                decoration: BoxDecoration(
-                  color: Colors.orange.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.orange),
-                ),
-                child: const Text(
-                  '🔥 ADMIN MODE: EDIT/DELETE ALL POSTS 🔥',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: Colors.orange,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
-                  ),
-                ),
-              ),
-            
             const SizedBox(height: 15),
             
-            // 🔥 ADMIN/OWNER EDIT OPTIONS
+            // OWNER EDIT/DELETE OPTIONS
             if (isOwner) ...[
               ListTile(
                 leading: Icon(
                   FeatherIcons.edit,
-                  color: PostCard._tempAdminMode ? Colors.orange : Theme.of(context).iconTheme.color,
+                  color: Theme.of(context).iconTheme.color,
                   size: 28,
                 ),
                 title: Text(
-                  PostCard._tempAdminMode ? '🔥 ADMIN EDIT' : 'Edit Post',
+                  'Edit Post',
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w500,
-                    color: PostCard._tempAdminMode ? Colors.orange : Theme.of(context).textTheme.bodyLarge?.color,
+                    color: Theme.of(context).textTheme.bodyLarge?.color,
                   ),
                 ),
                 onTap: () {
                   Navigator.pop(context);
-                  print('🔥 ${PostCard._tempAdminMode ? "ADMIN " : ""}Edit tapped for post: ${widget.post.id}');
+                  print('Edit tapped for post: ${widget.post.id}');
                   
                   // Show direct edit dialog instead of navigating to post screen
                   _showEditDialog();
                 },
               ),
               ListTile(
-                leading: Icon(
+                leading: const Icon(
                   FeatherIcons.trash2,
-                  color: PostCard._tempAdminMode ? Colors.orange : Colors.red,
+                  color: Colors.red,
                   size: 28,
                 ),
-                title: Text(
-                  PostCard._tempAdminMode ? '🔥 ADMIN DELETE' : 'Delete Post',
+                title: const Text(
+                  'Delete Post',
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w500,
-                    color: PostCard._tempAdminMode ? Colors.orange : Colors.red,
+                    color: Colors.red,
                   ),
                 ),
                 onTap: () {
                   Navigator.pop(context);
-                  print('🔥 ${PostCard._tempAdminMode ? "ADMIN " : ""}Delete tapped for post: ${widget.post.id}');
+                  print('Delete tapped for post: ${widget.post.id}');
                   
                   // Show confirmation dialog for delete
                   showDialog(
                     context: context,
                     builder: (BuildContext context) {
                       return AlertDialog(
-                        title: Text(PostCard._tempAdminMode ? '🔥 ADMIN DELETE' : 'Delete Post'),
-                        content: Text(
-                          PostCard._tempAdminMode 
-                              ? 'Admin Mode: Are you sure you want to delete this post?\n\nPost ID: ${widget.post.id}'
-                              : 'Are you sure you want to delete this post? This action cannot be undone.'
+                        title: const Text('Delete Post'),
+                        content: const Text(
+                          'Are you sure you want to delete this post? This action cannot be undone.'
                         ),
                         actions: [
                           TextButton(
@@ -1555,7 +1532,7 @@ class _PostCardState extends State<PostCard>
                             style: TextButton.styleFrom(
                               foregroundColor: Colors.red,
                             ),
-                            child: Text(PostCard._tempAdminMode ? '🔥 ADMIN DELETE' : 'Delete'),
+                            child: const Text('Delete'),
                           ),
                         ],
                       );
@@ -3042,9 +3019,6 @@ class _PostCardState extends State<PostCard>
                                 commentsList.map<CommentClass>((comment) {
                               final commentIndex =
                                   commentsList.indexOf(comment);
-                              print("FULL COMMENT DATA: $comment");
-                              print(
-                                  "COMMENT AUTHOR DATA: ${comment['author']}");
                               return CommentClass(
                                 author:
                                     comment['author'] ?? comment['name'] ?? '',
