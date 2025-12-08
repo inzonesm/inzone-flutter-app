@@ -84,8 +84,8 @@ class RewardAdService {
   }
 
   /// Set up paid event listener for impression-level ad revenue tracking
-  /// This sends ad_impression events with revenue to Firebase Analytics
-  /// which then exports to BigQuery for influencer attribution
+  /// This uses Firebase Analytics logAdImpression() which automatically
+  /// populates BigQuery's native ad_revenue_in_usd field
   void _setPaidEventListener(RewardedAd ad) {
     ad.onPaidEvent = (ad, valueMicros, precision, currencyCode) async {
       try {
@@ -97,21 +97,18 @@ class RewardAdService {
           return;
         }
         
-        // Log ad impression with revenue to Firebase Analytics
-        await _analytics.logEvent(
-          name: 'ad_impression',
-          parameters: {
-            'ad_platform': 'admob',
-            'ad_format': 'rewarded',
-            'ad_unit_id': _rewardAdUnitId,
-            'value': valueMicros,  // Revenue in micros
-            'currency': currencyCode,
-            'precision_type': precision.toString(),
-            'user_id': user.uid,  // Must have authenticated user ID
-          },
+        // Use Firebase Analytics logAdImpression() for proper BigQuery integration
+        // This populates the native ad_revenue_in_usd field in BigQuery
+        await _analytics.logAdImpression(
+          adPlatform: 'admob',
+          adSource: 'AdMob',
+          adFormat: 'rewarded',
+          adUnitName: _rewardAdUnitId,
+          value: valueMicros / 1000000.0,  // Convert micros to currency units
+          currency: currencyCode,
         );
         
-        debugPrint('💰 Ad impression tracked: ${valueMicros / 1000000} $currencyCode for user ${user.uid}');
+        debugPrint('💰 Ad impression tracked via logAdImpression: ${valueMicros / 1000000} $currencyCode for user ${user.uid}');
       } catch (e) {
         debugPrint('Error tracking ad impression: $e');
       }
