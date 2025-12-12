@@ -220,6 +220,17 @@ class MonetizationService {
 
   // Generate referral code
   Future<Map<String, dynamic>> generateReferralCode() async {
+    // Mock for debug mode
+    if (kDebugMode) {
+      await Future.delayed(const Duration(milliseconds: 500));
+      return {
+        'success': true,
+        'data': {
+          'referral_code': 'DEBUG-REF-CODE-1234',
+        },
+      };
+    }
+
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) throw Exception('User not logged in');
 
@@ -261,6 +272,24 @@ class MonetizationService {
 
   // Get referral stats
   Future<Map<String, dynamic>> getReferralStats() async {
+    // Mock for debug mode
+    if (kDebugMode) {
+      await Future.delayed(const Duration(milliseconds: 500));
+      return {
+        'success': true,
+        'data': {
+          'referral_history': [
+            {
+              'name': 'Test User',
+              'photo_url': '',
+              'date': DateTime.now().toUtc().toString().split(' ')[0],
+              'phone': '1234567890', // normalized phone number (digits only)
+            },
+          ],
+        },
+      };
+    }
+
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) throw Exception('User not logged in');
 
