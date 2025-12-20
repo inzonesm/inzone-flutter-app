@@ -9,6 +9,23 @@ import 'package:in_app_purchase_storekit/in_app_purchase_storekit.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class MonetizationService {
+
+    // Add referral history to backend
+    Future<void> addReferralHistory(Map<String, dynamic> referral) async {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) throw Exception('User not logged in');
+      final response = await http.post(
+        Uri.parse('${baseUrl}user/add-referral-history'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({
+          'UserDocumentId': user.uid,
+          'Referral': referral,
+        }),
+      );
+      if (response.statusCode != 200) {
+        throw Exception('Failed to add referral history');
+      }
+    }
   // Product IDs
   static final String _subscriptionId =
       Platform.isIOS ? 'InCashGold' : '2025incashgold';
@@ -220,16 +237,7 @@ class MonetizationService {
 
   // Generate referral code
   Future<Map<String, dynamic>> generateReferralCode() async {
-    // Mock for debug mode
-    if (kDebugMode) {
-      await Future.delayed(const Duration(milliseconds: 500));
-      return {
-        'success': true,
-        'data': {
-          'referral_code': 'DEBUG-REF-CODE-1234',
-        },
-      };
-    }
+    // Always use production code, never mock debug code
 
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) throw Exception('User not logged in');
@@ -272,23 +280,7 @@ class MonetizationService {
 
   // Get referral stats
   Future<Map<String, dynamic>> getReferralStats() async {
-    // Mock for debug mode
-    if (kDebugMode) {
-      await Future.delayed(const Duration(milliseconds: 500));
-      return {
-        'success': true,
-        'data': {
-          'referral_history': [
-            {
-              'name': 'Test User',
-              'photo_url': '',
-              'date': DateTime.now().toUtc().toString().split(' ')[0],
-              'phone': '1234567890', // normalized phone number (digits only)
-            },
-          ],
-        },
-      };
-    }
+    // Always use production code, never mock debug code
 
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) throw Exception('User not logged in');

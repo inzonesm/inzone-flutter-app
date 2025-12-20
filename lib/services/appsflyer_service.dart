@@ -77,7 +77,7 @@ class AppsFlyerService {
     final AppsFlyerOptions appsFlyerOptions = AppsFlyerOptions(
       afDevKey: "GouQRMcXkXP2CMBgZfHdfB",
       appId: "6478089068",
-      showDebug: true,
+      showDebug: false, // Set to false for production
       timeToWaitForATTUserAuthorization: 60, // For iOS 14.5+
     );
 
