@@ -31,7 +31,9 @@ target 'Runner' do
   use_frameworks!
   use_modular_headers!
 
+
   flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
+
 
 
   target 'RunnerTests' do
@@ -45,6 +47,7 @@ post_install do |installer|
     target.build_configurations.each do |config|
       config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] ||= [
         '$(inherited)',
+        'PERMISSION_CONTACTS=1',
         'PERMISSION_MICROPHONE=1',
       ]
     end
