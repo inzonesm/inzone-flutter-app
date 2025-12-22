@@ -41,46 +41,22 @@ class VideoAspectRatioNotification extends Notification {
   VideoAspectRatioNotification(this.aspectRatio);
 }
 
-final Map<String, Player> _cachedPlayers = {};
-final Map<String, VideoController> _cachedControllers = {};
-final Map<String, bool> _cachedInitStatus = {};
-
-final List<String> _cacheQueue = [];
-const int _maxCacheSize = 1; // Reduced from 3 to 1 for performance
+// Track all active players for pausing others when a new video plays
+final Map<String, Player> _activePlayers = {};
 
 // Track currently playing video
 String? _currentlyPlayingVideoUrl;
 
-void _cleanupCache() {
-  while (_cacheQueue.length > _maxCacheSize) {
-    String oldestUrl = _cacheQueue.removeAt(0);
-    final player = _cachedPlayers.remove(oldestUrl);
-    final controller = _cachedControllers.remove(oldestUrl);
-    _cachedInitStatus.remove(oldestUrl);
-
-    try {
-      player?.dispose();
-    } catch (e) {
-      debugPrint('Error disposing cached player: $e');
-    }
-
-    debugPrint('Cleaned up cached player for: $oldestUrl');
-  }
-}
-
 void disposeAllVideoCache() {
   try {
-    for (final player in _cachedPlayers.values) {
+    for (final player in _activePlayers.values) {
       player.dispose();
     }
-    _cachedPlayers.clear();
-    _cachedControllers.clear();
-    _cachedInitStatus.clear();
-    _cacheQueue.clear();
+    _activePlayers.clear();
     _currentlyPlayingVideoUrl = null;
-    debugPrint('All video cache disposed');
+    debugPrint('All video players disposed');
   } catch (e) {
-    debugPrint('Error disposing all video cache: $e');
+    debugPrint('Error disposing all video players: $e');
   }
 }
 
@@ -90,7 +66,7 @@ void _pauseOtherVideos(String currentVideoUrl) {
 
   // Pause the previously playing video
   if (_currentlyPlayingVideoUrl != null) {
-    final previousPlayer = _cachedPlayers[_currentlyPlayingVideoUrl];
+    final previousPlayer = _activePlayers[_currentlyPlayingVideoUrl];
     if (previousPlayer != null && previousPlayer.state.playing) {
       previousPlayer.pause();
       debugPrint('Paused previous video: $_currentlyPlayingVideoUrl');
@@ -172,52 +148,13 @@ class _VideoWidgetState extends State<VideoWidget> with WidgetsBindingObserver {
     // Register this object as an observer for app lifecycle changes
     WidgetsBinding.instance.addObserver(this);
 
-    if (_cachedPlayers.containsKey(widget.videoUrl) &&
-        _cachedControllers.containsKey(widget.videoUrl) &&
-        _cachedInitStatus[widget.videoUrl] == true) {
-      debugPrint('Using cached player for URL: ${widget.videoUrl}');
-
-      _cacheQueue.remove(widget.videoUrl);
-      _cacheQueue.add(widget.videoUrl);
-
-      _mediaKitPlayer = _cachedPlayers[widget.videoUrl];
-      _mediaKitVideoController = _cachedControllers[widget.videoUrl];
-      _isInitialized = true;
-      _isLoading = false;
-
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted && _mediaKitPlayer != null) {
-          final videoWidth = _mediaKitPlayer!.state.width?.toDouble();
-          final videoHeight = _mediaKitPlayer!.state.height?.toDouble();
-
-          if (videoWidth != null &&
-              videoHeight != null &&
-              videoWidth > 0 &&
-              videoHeight > 0 &&
-              widget.onAspectRatioUpdated != null) {
-            final aspectRatio = videoWidth / videoHeight;
-            widget.onAspectRatioUpdated!(aspectRatio);
-          }
-        }
-      });
-
-      if (_mediaKitPlayer != null) {
-        _mediaKitPlayer!.setVolume(VideoMuteManager.isMuted ? 0 : 100);
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted && _mediaKitPlayer != null) {
-            _pauseOtherVideos(widget.videoUrl);
-            _mediaKitPlayer!.play();
-          }
-        });
+    // Defer initialization to avoid blocking the UI
+    // Always create fresh player instances to avoid corruption from reusing cached controllers
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _initializeVideo();
       }
-    } else {
-      // Defer initialization to avoid blocking the UI
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
-          _initializeVideo();
-        }
-      });
-    }
+    });
 
     _loadingTimeoutTimer = Timer(const Duration(seconds: 15), () {
       if (mounted && _isLoading) {
@@ -390,9 +327,8 @@ class _VideoWidgetState extends State<VideoWidget> with WidgetsBindingObserver {
     debugPrint('Starting MediaKit Player initialization: $videoPath');
 
     try {
-      // Dispose any existing MediaKit player if not cached
-      if (_mediaKitPlayer != null &&
-          !_cachedPlayers.containsKey(widget.videoUrl)) {
+      // Dispose any existing MediaKit player before creating a new one
+      if (_mediaKitPlayer != null) {
         await _mediaKitPlayer!.dispose();
         _mediaKitPlayer = null;
         _mediaKitVideoController = null;
@@ -451,18 +387,6 @@ class _VideoWidgetState extends State<VideoWidget> with WidgetsBindingObserver {
               widget.onAspectRatioUpdated!(aspectRatio);
             }
 
-            if (!_cachedPlayers.containsKey(widget.videoUrl)) {
-              _cachedPlayers[widget.videoUrl] = _mediaKitPlayer!;
-              _cachedControllers[widget.videoUrl] = _mediaKitVideoController!;
-              _cachedInitStatus[widget.videoUrl] = true;
-
-              _cacheQueue.add(widget.videoUrl);
-
-              _cleanupCache();
-
-              debugPrint('Player cached for URL: ${widget.videoUrl}');
-            }
-
             // Cancel subscription after dimensions are set
             _positionSubscription?.cancel();
           }
@@ -496,21 +420,12 @@ class _VideoWidgetState extends State<VideoWidget> with WidgetsBindingObserver {
 
       debugPrint('MediaKit Player opened successfully');
 
+      // Register this player in active players map for pausing other videos
+      _activePlayers[widget.videoUrl] = _mediaKitPlayer!;
+
       // Enable autoplay - start playing automatically when initialized
       _pauseOtherVideos(widget.videoUrl);
       _mediaKitPlayer!.play();
-
-      if (!_cachedPlayers.containsKey(widget.videoUrl)) {
-        _cachedPlayers[widget.videoUrl] = _mediaKitPlayer!;
-        _cachedControllers[widget.videoUrl] = _mediaKitVideoController!;
-        _cachedInitStatus[widget.videoUrl] = true;
-
-        _cacheQueue.add(widget.videoUrl);
-
-        _cleanupCache();
-
-        debugPrint('Player cached for URL: ${widget.videoUrl}');
-      }
 
       if (mounted) {
         setState(() {
@@ -1045,9 +960,16 @@ class _VideoWidgetState extends State<VideoWidget> with WidgetsBindingObserver {
       );
     }
 
-    // Only dispose players that are not cached to avoid double disposal
-    if (_mediaKitPlayer != null &&
-        !_cachedPlayers.containsValue(_mediaKitPlayer)) {
+    // Remove from active players map before disposing
+    _activePlayers.remove(widget.videoUrl);
+    
+    // Clear currently playing reference if this was the playing video
+    if (_currentlyPlayingVideoUrl == widget.videoUrl) {
+      _currentlyPlayingVideoUrl = null;
+    }
+
+    // Always dispose the player when widget is disposed
+    if (_mediaKitPlayer != null) {
       try {
         _mediaKitPlayer!.dispose();
       } catch (e) {
