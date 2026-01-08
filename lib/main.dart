@@ -4,7 +4,6 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:firebase_remote_config/firebase_remote_config.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
-import 'package:shadcn_ui/shadcn_ui.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:inzone/config/default_firebase_options.dart';
@@ -41,10 +40,10 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
-
+  
   print('📱 Background message received: ${message.notification?.title}');
   print('📱 Background message data: ${message.data}');
-
+  
   // Handle the background message here if needed
   // Note: You cannot update UI from background handler
 }
@@ -201,6 +200,7 @@ void main() async {
   FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
   MobileAds.instance.initialize();
 
+
   // Initialize SharedPreferences
   SharedPreferences prefs = await SharedPreferences.getInstance();
 
@@ -305,7 +305,7 @@ class _MyAppState extends State<MyApp> {
       if (user != null && mounted) {
         // User just signed in, set influencer_id user property
         _setInfluencerIdProperty(user.uid);
-
+        
         // Handle any pending push notification
         Future.delayed(const Duration(milliseconds: 500), () async {
           await NotificationEventService.handlePendingInitialMessage();
@@ -395,11 +395,11 @@ class _MyAppState extends State<MyApp> {
           .collection('humanUsers')
           .doc(userId)
           .get();
-
+      
       if (userDoc.exists) {
         final userData = userDoc.data();
         final referrerId = userData?['referred_by'] as String?;
-
+        
         if (referrerId != null && referrerId.isNotEmpty) {
           await FirebaseAnalytics.instance.setUserProperty(
             name: 'influencer_id',
@@ -425,33 +425,13 @@ class _MyAppState extends State<MyApp> {
     // Get the ThemeManager from the Provider
     final themeManager = Provider.of<ThemeManager>(context);
 
-    // return MaterialApp.router(
-    //   debugShowCheckedModeBanner: false,
-    //   title: 'Inzone',
-    //   theme: themeManager.getLightTheme(),
-    //   darkTheme: themeManager.getDarkTheme(),
-    //   themeMode: themeManager.themeMode,
-    //   routerConfig: AppRouter.router,
-    // );
-
-    return ShadApp.custom(
-      themeMode: ThemeMode.dark,
-      darkTheme: ShadThemeData(
-        brightness: Brightness.dark,
-        colorScheme: const ShadSlateColorScheme.dark(),
-      ),
-      appBuilder: (context) {
-        return MaterialApp.router(
-          debugShowCheckedModeBanner: false,
-          title: 'Inzone',
-          theme: themeManager.getLightTheme(),
-          themeMode: themeManager.themeMode,
-          routerConfig: AppRouter.router,
-          builder: (context, child) {
-            return ShadAppBuilder(child: child!);
-          },
-        );
-      },
+    return MaterialApp.router(
+      debugShowCheckedModeBanner: false,
+      title: 'Inzone',
+      theme: themeManager.getLightTheme(),
+      darkTheme: themeManager.getDarkTheme(),
+      themeMode: themeManager.themeMode,
+      routerConfig: AppRouter.router,
     );
   }
 }
