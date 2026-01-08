@@ -1,3 +1,4 @@
+import 'package:shadcn_ui/shadcn_ui.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_feather_icons/flutter_feather_icons.dart';
@@ -113,6 +114,16 @@ class ProfileAppbar extends StatelessWidget {
                   //   ),
                   // ),
                   const SizedBox(height: 8),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    child: ShadButton.destructive(
+                      child: const Text('Primary'),
+                      onPressed: () {
+                        debugPrint('Shad button pressed');
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 5),
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 24),
                     child: Text(
