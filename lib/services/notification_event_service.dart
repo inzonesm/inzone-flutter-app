@@ -1,7 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'dart:io';
@@ -10,9 +9,9 @@ import 'package:inzone/router/app_router.dart';
 import 'package:inzone/router/routes.dart';
 import 'package:inzone/data/group_data.dart';
 import 'package:inzone/services/notification_badge_service.dart';
+import 'package:inzone/config/api_config.dart';
 
 class NotificationEventService {
-  static const String _apiUrl = 'https://inzoneapi-912424781531.us-central1.run.app';
   
   // Firebase messaging instance
   static final FirebaseMessaging _firebaseMessaging = FirebaseMessaging.instance;
@@ -560,7 +559,7 @@ class NotificationEventService {
       print('🌐 Registering token with backend for user: $userId');
       
       final response = await http.post(
-        Uri.parse('$_apiUrl/api/notifications/register-token'),
+        Uri.parse(ApiConfig.endpoint('/api/notifications/register-token')),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'userId': userId,
@@ -646,7 +645,7 @@ class NotificationEventService {
       
       // Send push notification via backend
       final response = await http.post(
-        Uri.parse('$_apiUrl/api/notifications/send-push'),
+        Uri.parse(ApiConfig.endpoint('/api/notifications/send-push')),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'userId': actualUserId,
@@ -706,7 +705,7 @@ class NotificationEventService {
       final uniqueMessageId = messageId ?? 'msg_${DateTime.now().millisecondsSinceEpoch}_${senderId.hashCode}_${content.hashCode}';
       
       final response = await http.post(
-        Uri.parse('$_apiUrl/api/notifications/events/group-message'),
+        Uri.parse(ApiConfig.endpoint('/api/notifications/events/group-message')),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'groupId': groupId,
@@ -720,8 +719,20 @@ class NotificationEventService {
       if (response.statusCode == 200) {
         print('✅ Group message notification event sent');
         
-        // Send push notifications to group participants (except sender)
-        await _sendGroupMessagePushNotifications(groupId, content, senderId);
+        // Check if backend wants us to skip push (it handles via queue with quiet hours)
+        try {
+          final responseData = jsonDecode(response.body);
+          final skipPush = responseData['skipPushNotifications'] ?? false;
+          
+          if (!skipPush) {
+            // Send push notifications to group participants (except sender)
+            await _sendGroupMessagePushNotifications(groupId, content, senderId);
+          } else {
+            print('⏰ Backend handling push via queue system (respects quiet hours)');
+          }
+        } catch (e) {
+          print('⚠️ Could not parse response: $e');
+        }
       } else {
         print('❌ Failed to send group message event: ${response.statusCode}');
       }
@@ -788,7 +799,7 @@ class NotificationEventService {
       final uniqueMessageId = messageId ?? 'mention_${DateTime.now().millisecondsSinceEpoch}_${senderId.hashCode}_${mentionedUserId.hashCode}';
       
       final response = await http.post(
-        Uri.parse('$_apiUrl/api/notifications/events/group-mention'),
+        Uri.parse(ApiConfig.endpoint('/api/notifications/events/group-mention')),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'groupId': groupId,
@@ -863,7 +874,7 @@ class NotificationEventService {
   static Future<void> onDirectMessage(String chatId, String content, String senderId, String receiverId) async {
     try {
       final response = await http.post(
-        Uri.parse('$_apiUrl/api/notifications/events/direct-message'),
+        Uri.parse(ApiConfig.endpoint('/api/notifications/events/direct-message')),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'chatId': chatId,
@@ -877,8 +888,24 @@ class NotificationEventService {
       if (response.statusCode == 200) {
         print('✅ Direct message notification event sent');
         
-        // Send push notification to receiver with sender name
-        await _sendDirectMessagePushNotification(chatId, content, senderId, receiverId);
+        // Check if backend says we should send push notification
+        try {
+          final responseData = jsonDecode(response.body);
+          final shouldPush = responseData['shouldPush'] ?? true;
+          final inQuietState = responseData['inQuietState'] ?? false;
+          
+          if (inQuietState) {
+            print('⏰ Receiver is in quiet state, skipping push notification (will be in digest)');
+          }
+          
+          // Only send push notification if backend says so (not in quiet hours)
+          if (shouldPush) {
+            await _sendDirectMessagePushNotification(chatId, content, senderId, receiverId);
+          }
+        } catch (e) {
+          print('⚠️ Could not parse response, sending push notification anyway: $e');
+          await _sendDirectMessagePushNotification(chatId, content, senderId, receiverId);
+        }
       }
     } catch (e) {
       print('❌ Error sending direct message event: $e');
@@ -891,7 +918,7 @@ class NotificationEventService {
       print('🤖 Triggering AI auto-response notification: AI $aiId -> User $receiverId');
       
       final response = await http.post(
-        Uri.parse('$_apiUrl/api/notifications/events/ai-auto-response'),
+        Uri.parse(ApiConfig.endpoint('/api/notifications/events/ai-auto-response')),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'chatId': chatId,
@@ -1001,7 +1028,7 @@ class NotificationEventService {
   }) async {
     try {
       final response = await http.post(
-        Uri.parse('$_apiUrl/api/notifications/events/post-engagement'),
+        Uri.parse(ApiConfig.endpoint('/api/notifications/events/post-engagement')),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'postId': postId,
@@ -1109,7 +1136,7 @@ class NotificationEventService {
     
     try {
       final response = await http.post(
-        Uri.parse('$_apiUrl/api/notifications/events/user-follow'),
+        Uri.parse(ApiConfig.endpoint('/api/notifications/events/user-follow')),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'followerId': followerId,
@@ -1184,7 +1211,7 @@ class NotificationEventService {
   }) async {
     try {
       final response = await http.post(
-        Uri.parse('$_apiUrl/api/notifications/events/system'),
+        Uri.parse(ApiConfig.endpoint('/api/notifications/events/system')),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'userId': userId,
@@ -1211,7 +1238,7 @@ class NotificationEventService {
   }) async {
     try {
       final response = await http.post(
-        Uri.parse('$_apiUrl/api/notifications/events/rare-offer'),
+        Uri.parse(ApiConfig.endpoint('/api/notifications/events/rare-offer')),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'userId': userId,
@@ -1308,7 +1335,7 @@ class NotificationEventService {
   static Future<void> queueAINudge(String userId, String characterId, String lastChatId) async {
     try {
       final response = await http.post(
-        Uri.parse('$_apiUrl/api/notifications/events/ai-nudge'),
+        Uri.parse(ApiConfig.endpoint('/api/notifications/events/ai-nudge')),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'userId': userId,
