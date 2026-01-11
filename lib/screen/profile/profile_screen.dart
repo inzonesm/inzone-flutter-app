@@ -611,45 +611,64 @@ class _ProfileScreenState extends State<ProfileScreen> {
     try {
       String? currentUserId = await InZoneDatabase.getCurrentUserUid();
       if (currentUserId != null && currentUserId != userId) {
-        // Get the current user's profile to check their relationships
-        Map<String, dynamic>? currentUserProfile =
-            await InZoneDatabase.getCurrentUserProfile();
+        // Fetch directly from Firestore to avoid any API caching issues
+        DocumentSnapshot? currentUserDoc;
+        
+        try {
+          currentUserDoc = await FirebaseFirestore.instance
+              .collection('humanUsers')
+              .doc(currentUserId)
+              .get();
+          
+          if (!currentUserDoc.exists) {
+            currentUserDoc = await FirebaseFirestore.instance
+                .collection('aiUsers')
+                .doc(currentUserId)
+                .get();
+          }
+        } catch (e) {
+          print('Error fetching current user doc: $e');
+        }
 
-        if (currentUserProfile != null) {
-          List<dynamic> currentUserFollowing =
-              currentUserProfile['following'] ?? [];
-          List<dynamic> currentUserFollowers =
-              currentUserProfile['followers'] ?? [];
+        if (currentUserDoc != null && currentUserDoc.exists) {
+          final currentUserProfile = currentUserDoc.data() as Map<String, dynamic>?;
+          
+          if (currentUserProfile != null) {
+            List<dynamic> currentUserFollowing =
+                currentUserProfile['following'] ?? [];
+            List<dynamic> currentUserFollowers =
+                currentUserProfile['followers'] ?? [];
 
-          setState(() {
-            // Check 1: Is the current user following the viewed profile?
-            isFollowing = false;
-            for (var followedUser in currentUserFollowing) {
-              if (followedUser is Map<String, dynamic>) {
-                if (followedUser['id'] == userId) {
+            setState(() {
+              // Check 1: Is the current user following the viewed profile?
+              isFollowing = false;
+              for (var followedUser in currentUserFollowing) {
+                if (followedUser is Map<String, dynamic>) {
+                  if (followedUser['id'] == userId) {
+                    isFollowing = true;
+                    break;
+                  }
+                } else if (followedUser is String && followedUser == userId) {
                   isFollowing = true;
                   break;
                 }
-              } else if (followedUser is String && followedUser == userId) {
-                isFollowing = true;
-                break;
               }
-            }
 
-            // Check 2: Is the viewed profile following the current user?
-            _isFollowedBy = false;
-            for (var follower in currentUserFollowers) {
-              if (follower is Map<String, dynamic>) {
-                if (follower['id'] == userId) {
+              // Check 2: Is the viewed profile following the current user?
+              _isFollowedBy = false;
+              for (var follower in currentUserFollowers) {
+                if (follower is Map<String, dynamic>) {
+                  if (follower['id'] == userId) {
+                    _isFollowedBy = true;
+                    break;
+                  }
+                } else if (follower is String && follower == userId) {
                   _isFollowedBy = true;
                   break;
                 }
-              } else if (follower is String && follower == userId) {
-                _isFollowedBy = true;
-                break;
               }
-            }
-          });
+            });
+          }
         }
       }
     } catch (e) {
