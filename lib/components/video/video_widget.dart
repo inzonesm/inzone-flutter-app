@@ -1,9 +1,11 @@
 import 'dart:async';
+import 'dart:io' show Platform;
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
+import 'package:video_player/video_player.dart' as vp;
 import 'package:visibility_detector/visibility_detector.dart';
 import 'package:inzone/services/appsflyer_service.dart';
 import 'package:youtube_player_flutter/youtube_player_flutter.dart';
@@ -100,6 +102,12 @@ class VideoWidget extends StatefulWidget {
 }
 
 class _VideoWidgetState extends State<VideoWidget> with WidgetsBindingObserver {
+  // Use standard video_player on Android for better compatibility
+  static final bool _useAndroidVideoPlayer = Platform.isAndroid;
+  
+  // Android video_player controller
+  vp.VideoPlayerController? _androidController;
+  
   Player? _mediaKitPlayer;
   VideoController? _mediaKitVideoController;
   bool _isInitialized = false;
@@ -169,7 +177,13 @@ class _VideoWidgetState extends State<VideoWidget> with WidgetsBindingObserver {
 
     // Subscribe to global mute state changes
     _muteSubscription = VideoMuteManager.muteStateStream.listen((isMuted) {
-      if (_mediaKitPlayer != null && mounted) {
+      // Handle Android video player
+      if (_useAndroidVideoPlayer && _androidController != null && mounted) {
+        _androidController!.setVolume(isMuted ? 0 : 1.0);
+        setState(() {}); // Trigger rebuild to update UI
+      }
+      // Handle MediaKit player
+      else if (_mediaKitPlayer != null && mounted) {
         _mediaKitPlayer!.setVolume(isMuted ? 0 : 100);
         setState(() {}); // Trigger rebuild to update UI
       }
@@ -188,7 +202,9 @@ class _VideoWidgetState extends State<VideoWidget> with WidgetsBindingObserver {
     });
 
     // Apply current global mute state
-    if (_mediaKitPlayer != null) {
+    if (_useAndroidVideoPlayer && _androidController != null) {
+      _androidController!.setVolume(VideoMuteManager.isMuted ? 0 : 1.0);
+    } else if (_mediaKitPlayer != null) {
       _mediaKitPlayer!.setVolume(VideoMuteManager.isMuted ? 0 : 100);
     }
   }
@@ -213,7 +229,9 @@ class _VideoWidgetState extends State<VideoWidget> with WidgetsBindingObserver {
       }
 
       // Pause video when app goes to background
-      if (_mediaKitPlayer != null && _mediaKitPlayer!.state.playing) {
+      if (_useAndroidVideoPlayer && _androidController != null && _androidController!.value.isPlaying) {
+        _androidController!.pause();
+      } else if (_mediaKitPlayer != null && _mediaKitPlayer!.state.playing) {
         _mediaKitPlayer!.pause();
       }
       if (_isYouTube) {
@@ -303,8 +321,74 @@ class _VideoWidgetState extends State<VideoWidget> with WidgetsBindingObserver {
       }
     }
 
-    // Initialize MediaKit player for non-YouTube video types
-    await _initializeMediaKitPlayer(mediaUrl);
+    // Initialize video player - use standard video_player on Android for better compatibility
+    if (_useAndroidVideoPlayer) {
+      await _initializeAndroidVideoPlayer(mediaUrl);
+    } else {
+      await _initializeMediaKitPlayer(mediaUrl);
+    }
+  }
+
+  Future<void> _initializeAndroidVideoPlayer(String videoPath) async {
+    debugPrint('Starting Android VideoPlayer initialization: $videoPath');
+
+    try {
+      // Dispose any existing controller
+      if (_androidController != null) {
+        await _androidController!.dispose();
+        _androidController = null;
+      }
+
+      // Create the video player controller
+      _androidController = vp.VideoPlayerController.networkUrl(Uri.parse(videoPath));
+
+      // Set volume based on global mute state
+      await _androidController!.setVolume(VideoMuteManager.isMuted ? 0 : 1.0);
+
+      // Initialize the controller
+      await _androidController!.initialize();
+
+      // Set up listener for aspect ratio
+      if (_androidController!.value.isInitialized) {
+        final aspectRatio = _androidController!.value.aspectRatio;
+        if (widget.onAspectRatioUpdated != null) {
+          widget.onAspectRatioUpdated!(aspectRatio);
+        }
+      }
+
+      // Set up position tracking timer
+      _trackingTimer = Timer.periodic(const Duration(milliseconds: 500), (_) {
+        if (mounted && _androidController != null && _androidController!.value.isInitialized) {
+          final position = _androidController!.value.position;
+          _updateWatchTime(position);
+          _trackVideoProgress(position);
+        }
+      });
+
+      debugPrint('Android VideoPlayer opened successfully');
+
+      // Auto-play when visible
+      if (_isVisible) {
+        await _androidController!.play();
+      }
+
+      if (mounted) {
+        setState(() {
+          _isInitialized = true;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('❌ Error initializing Android VideoPlayer: $e');
+      if (mounted) {
+        setState(() {
+          _isPlayable = false;
+          _isLoading = false;
+          _errorMessage =
+              'Video loading error: ${e.toString().substring(0, math.min(100, e.toString().length))}';
+        });
+      }
+    }
   }
 
   bool _isYoutubeUrl(String url) {
@@ -341,8 +425,13 @@ class _VideoWidgetState extends State<VideoWidget> with WidgetsBindingObserver {
       await _mediaKitPlayer!.setVolume(VideoMuteManager.isMuted ? 0 : 100);
 
       // Create video controller with the proper configuration for the platform
+      // Use AndroidVideoControllerConfiguration for better Android/emulator compatibility
       _mediaKitVideoController = VideoController(
         _mediaKitPlayer!,
+        configuration: VideoControllerConfiguration(
+          // Enable software rendering on Android for better emulator compatibility
+          enableHardwareAcceleration: !Platform.isAndroid,
+        ),
       );
 
       // Create a completer for tracking MediaKit initialization
@@ -446,6 +535,168 @@ class _VideoWidgetState extends State<VideoWidget> with WidgetsBindingObserver {
     }
   }
 
+  Widget _buildAndroidVideoPlayer(BuildContext context) {
+    // Show loading state
+    if (_isLoading) {
+      return Container(
+        color: Colors.black,
+        child: const Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    // Show error state
+    if (!_isPlayable || !_isInitialized || _androidController == null) {
+      return Container(
+        color: Colors.grey[300],
+        child: Center(
+          child: Text(
+            _errorMessage,
+            style: const TextStyle(color: Colors.red),
+            textAlign: TextAlign.center,
+          ),
+        ),
+      );
+    }
+
+    final aspectRatio = _androidController!.value.aspectRatio;
+    final isPlaying = _androidController!.value.isPlaying;
+
+    Widget videoWidget = AspectRatio(
+      aspectRatio: aspectRatio > 0 ? aspectRatio : 9 / 16,
+      child: Stack(
+        children: [
+          // The video player
+          vp.VideoPlayer(_androidController!),
+
+          // Custom overlay for capturing tap to pause/play
+          Positioned.fill(
+            child: GestureDetector(
+              onTap: () {
+                if (_androidController != null) {
+                  setState(() {
+                    _showPlayPauseButton = true;
+                  });
+
+                  if (_androidController!.value.isPlaying) {
+                    _androidController!.pause();
+                    _trackVideoPause();
+                  } else {
+                    _androidController!.play();
+                    _trackVideoStart();
+                    // Ensure volume is set when manually playing
+                    if (!VideoMuteManager.isMuted) {
+                      _androidController!.setVolume(1.0);
+                    }
+                    _startHideControlsTimer();
+                  }
+                }
+              },
+              child: Container(color: Colors.transparent),
+            ),
+          ),
+
+          // Play/Pause button in the center
+          Positioned.fill(
+            child: AnimatedOpacity(
+              opacity: !isPlaying ? 1.0 : 0.0,
+              duration: const Duration(milliseconds: 300),
+              child: Center(
+                child: GestureDetector(
+                  onTap: () {
+                    if (_androidController != null) {
+                      if (_androidController!.value.isPlaying) {
+                        _androidController!.pause();
+                        _trackVideoPause();
+                      } else {
+                        _androidController!.play();
+                        _trackVideoStart();
+                        if (!VideoMuteManager.isMuted) {
+                          _androidController!.setVolume(1.0);
+                        }
+                      }
+                      setState(() {});
+                    }
+                  },
+                  child: Container(
+                    width: 70,
+                    height: 70,
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.6),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      isPlaying ? Icons.pause : Icons.play_arrow,
+                      color: Colors.white,
+                      size: 40,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+
+          // Mute button overlay
+          Positioned(
+            bottom: 60,
+            right: 8,
+            child: GestureDetector(
+              onTap: () {
+                VideoMuteManager.toggleMute();
+              },
+              child: Container(
+                width: 50,
+                height: 50,
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.6),
+                  borderRadius: BorderRadius.circular(22),
+                ),
+                child: Icon(
+                  VideoMuteManager.isMuted ? Icons.volume_off : Icons.volume_up,
+                  color: Colors.white,
+                  size: 20,
+                ),
+              ),
+            ),
+          ),
+
+          // Progress bar at the bottom
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: vp.VideoProgressIndicator(
+              _androidController!,
+              allowScrubbing: true,
+              colors: vp.VideoProgressColors(
+                playedColor: Colors.white,
+                bufferedColor: Colors.white.withOpacity(0.5),
+                backgroundColor: Colors.grey.withOpacity(0.3),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    return VisibilityDetector(
+      key: Key('video-android-${widget.videoUrl}'),
+      onVisibilityChanged: (visibilityInfo) {
+        final isVisible = visibilityInfo.visibleFraction > 0.5;
+        if (_isVisible != isVisible) {
+          _isVisible = isVisible;
+          if (_androidController != null && _androidController!.value.isInitialized) {
+            if (isVisible) {
+              _androidController!.play();
+            } else {
+              _androidController!.pause();
+            }
+          }
+        }
+      },
+      child: videoWidget,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_isYouTube) {
@@ -530,6 +781,11 @@ class _VideoWidgetState extends State<VideoWidget> with WidgetsBindingObserver {
         },
         child: yt,
       );
+    }
+
+    // Use Android video player path
+    if (_useAndroidVideoPlayer) {
+      return _buildAndroidVideoPlayer(context);
     }
 
     // Calculate aspect ratio from the player state
@@ -968,18 +1224,35 @@ class _VideoWidgetState extends State<VideoWidget> with WidgetsBindingObserver {
       _currentlyPlayingVideoUrl = null;
     }
 
-    // Always dispose the player when widget is disposed
-    if (_mediaKitPlayer != null) {
+    // Dispose Android video player
+    if (_androidController != null) {
       try {
-        _mediaKitPlayer!.dispose();
+        _androidController!.dispose();
       } catch (e) {
-        debugPrint('Error disposing media player: $e');
+        debugPrint('Error disposing Android video player: $e');
       }
+      _androidController = null;
     }
 
-    // Clear references to prevent memory leaks
-    _mediaKitPlayer = null;
-    _mediaKitVideoController = null;
+    // Safely dispose the MediaKit player - stop first to prevent callback crashes on Android
+    if (_mediaKitPlayer != null) {
+      final playerToDispose = _mediaKitPlayer;
+      _mediaKitPlayer = null;
+      _mediaKitVideoController = null;
+      
+      // Stop playback first, then dispose asynchronously to prevent
+      // "Callback invoked after it has been deleted" crash on Android
+      Future.microtask(() async {
+        try {
+          await playerToDispose!.stop();
+          // Small delay to allow native side to clean up
+          await Future.delayed(const Duration(milliseconds: 100));
+          await playerToDispose.dispose();
+        } catch (e) {
+          debugPrint('Error disposing media player: $e');
+        }
+      });
+    }
 
     // Remove YouTube listener before disposing
     if (_ytListener != null && _ytController != null) {
