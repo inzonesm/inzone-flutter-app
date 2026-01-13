@@ -422,6 +422,17 @@ class _MyAppState extends State<MyApp> {
 
   @override
   Widget build(BuildContext context) {
+    // final themeManager = Provider.of<ThemeManager>(context);
+
+    // return MaterialApp.router(
+    //   debugShowCheckedModeBanner: false,
+    //   title: 'Inzone',
+    //   theme: themeManager.getLightTheme(),
+    //   darkTheme: themeManager.getDarkTheme(),
+    //   themeMode: themeManager.themeMode,
+    //   routerConfig: AppRouter.router,
+    // );
+
     return ShadApp.custom(
       themeMode: ThemeMode.light,
       darkTheme: ShadThemeData(
