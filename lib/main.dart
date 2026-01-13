@@ -433,23 +433,20 @@ class _MyAppState extends State<MyApp> {
     //   routerConfig: AppRouter.router,
     // );
 
-    return ShadApp.custom(
-      themeMode: ThemeMode.light,
-      darkTheme: ShadThemeData(
-        brightness: Brightness.dark,
-        colorScheme: const ShadSlateColorScheme.dark(),
-      ),
-      appBuilder: (context) {
-        return MaterialApp.router(
-          debugShowCheckedModeBanner: false,
-          title: 'Inzone',
-          theme: Theme.of(context),
-          routerConfig: AppRouter.router,
-          builder: (context, child) {
-            return ShadAppBuilder(child: child!);
-          },
-        );
-      },
-    );
+    return ShadApp(
+        theme: ShadThemeData(
+            brightness: Brightness.light,
+            radius: BorderRadius.circular(24.0),
+            colorScheme: const ShadBlueColorScheme.light()),
+        builder: (context, child) {
+          return MaterialApp.router(
+            debugShowCheckedModeBanner: false,
+            theme: Theme.of(context), // IMPORTANT
+            routerConfig: AppRouter.router,
+            builder: (context, child) {
+              return ShadAppBuilder(child: child!);
+            },
+          );
+        });
   }
 }

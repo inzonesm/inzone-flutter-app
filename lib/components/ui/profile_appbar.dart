@@ -116,7 +116,7 @@ class ProfileAppbar extends StatelessWidget {
                   const SizedBox(height: 8),
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 24),
-                    child: ShadButton.destructive(
+                    child: ShadButton(
                       child: const Text('Primary'),
                       onPressed: () {
                         debugPrint('Shad button pressed');
