@@ -123,6 +123,27 @@ class ProfileAppbar extends StatelessWidget {
                       },
                     ),
                   ),
+                  const SizedBox(height: 8),
+                  Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 24),
+                      child: ShadButton(
+                        onPressed: () {
+                          debugPrint('Gradient button pressed');
+                        },
+                        gradient: const LinearGradient(colors: [
+                          Colors.cyan,
+                          Colors.indigo,
+                        ]),
+                        shadows: [
+                          BoxShadow(
+                            color: Colors.blue.withOpacity(.4),
+                            spreadRadius: 4,
+                            blurRadius: 10,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                        child: const Text('Gradient with Shadow'),
+                      )),
                   const SizedBox(height: 5),
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 24),
