@@ -324,21 +324,10 @@ class NotificationEventService {
       if (settings.authorizationStatus == AuthorizationStatus.authorized ||
           settings.authorizationStatus == AuthorizationStatus.provisional) {
         
-        // Configure FCM message handlers
+        // Configure FCM message handlers (quick, no network)
         await _configureFCM();
         
-        // Wait a bit to ensure user authentication is complete
-        await Future.delayed(const Duration(seconds: 2));
-        
-        // On iOS, wait a bit more for APNS to be properly initialized
-        if (Platform.isIOS) {
-          await Future.delayed(const Duration(seconds: 3));
-        }
-        
-        // Register FCM token when app starts
-        await _registerFCMToken();
-        
-        // Listen for token refresh
+        // Listen for token refresh (set up listener immediately, doesn't block)
         _firebaseMessaging.onTokenRefresh.listen((newToken) {
           print('🔄 FCM Token refreshed: ${newToken.substring(0, 20)}...');
           final user = FirebaseAuth.instance.currentUser;
@@ -347,6 +336,10 @@ class NotificationEventService {
           }
         });
         
+        // Defer FCM token registration - don't block app startup
+        // The delays for auth and APNS are handled asynchronously
+        _deferredFCMTokenRegistration();
+        
         print('✅ Push notifications initialized');
       } else {
         print('❌ Notification permissions denied');
@@ -354,6 +347,27 @@ class NotificationEventService {
     } catch (e) {
       print('❌ Error initializing push notifications: $e');
     }
+  }
+  
+  /// Deferred FCM token registration - runs after app startup
+  static void _deferredFCMTokenRegistration() {
+    Future(() async {
+      try {
+        // Wait for user authentication to complete
+        await Future.delayed(const Duration(seconds: 2));
+        
+        // On iOS, wait a bit more for APNS to be properly initialized
+        if (Platform.isIOS) {
+          await Future.delayed(const Duration(seconds: 3));
+        }
+        
+        // Register FCM token
+        await _registerFCMToken();
+        print('✅ Deferred FCM token registration complete');
+      } catch (e) {
+        print('⚠️ Deferred FCM token registration failed: $e');
+      }
+    });
   }
 
   /// Configure Firebase Cloud Messaging handlers
