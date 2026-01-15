@@ -91,76 +91,135 @@ class _FollowersFollowingScreenState extends State<FollowersFollowingScreen> {
 
       print('Debug - User profile data from Firebase: $userProfile');
 
+      // Get the profile owner's username for comparison
+      final profileOwnerUsername = userProfile?['username']?.toString()?.toLowerCase() ?? '';
+      print('Debug - Profile owner username: $profileOwnerUsername');
+
       // Process followers data
       List<Map<String, dynamic>> formattedFollowers = [];
       if (userProfile != null && userProfile.containsKey('followers')) {
         final followersList = userProfile['followers'] as List<dynamic>? ?? [];
         print('Debug - Followers list from Firebase: $followersList');
 
+        // Create a map to store fetch results by ID
+        Map<String, Map<String, dynamic>> fetchResultsMap = {};
+        List<Future<void>> fetchFutures = [];
+        
         for (var follower in followersList) {
           if (follower is Map<String, dynamic>) {
             String id = follower['id'] ?? '';
             String? username = follower['username']?.toString();
+            final usernameLower = username?.toLowerCase() ?? '';
+            String type = follower['type'] ?? 'human';
 
-            if ((username == null || username.isEmpty) && id.isNotEmpty) {
-              try {
-                final profile = await InZoneDatabase.getUserProfile(id);
-                if (profile != null) {
-                  username = profile['username']?.toString() ??
-                      profile['Name']?.toString();
-                }
-              } catch (e) {
-                // ignore and fallback to Unknown
-              }
+            // Only fetch from Firestore if username is invalid or matches the profile owner's username
+            bool shouldFetch = username == null || 
+                               username.isEmpty || 
+                               usernameLower == 'unknown' || 
+                               usernameLower == 'user' ||
+                               usernameLower == profileOwnerUsername;
+
+            if (shouldFetch && id.isNotEmpty) {
+              // Create a future to fetch the username
+              fetchFutures.add(
+                Future(() async {
+                  String? fetchedUsername;
+                  try {
+                    // Use the type field to query the correct collection directly
+                    final collectionName = type == 'ai' ? 'aiUsers' : 'humanUsers';
+                    DocumentSnapshot userDoc = await FirebaseFirestore.instance
+                        .collection(collectionName)
+                        .doc(id)
+                        .get();
+
+                    if (userDoc.exists) {
+                      final userData = userDoc.data() as Map<String, dynamic>?;
+                      fetchedUsername = userData?['username']?.toString() ??
+                          userData?['name']?.toString();
+                    }
+                  } catch (e) {
+                    print('Error fetching follower username for $id: $e');
+                  }
+                  
+                  // Store result in map
+                  fetchResultsMap[id] = {
+                    'id': id,
+                    'username': fetchedUsername ?? id,
+                    'type': type
+                  };
+                })
+              );
+            } else {
+              // Username is valid, add immediately to map
+              fetchResultsMap[id] = {
+                'id': id,
+                'username': username ?? id,
+                'type': type
+              };
             }
-
-            formattedFollowers.add({
-              'id': id,
-              'username': username ?? 'Unknown',
-              'type': follower['type'] ?? 'human'
-            });
           } else if (follower is String) {
-            // Legacy format - just an ID, try to get the user's profile
-            try {
-              // Try to get user data from Firebase
-              DocumentSnapshot followerDoc = await FirebaseFirestore.instance
-                  .collection('humanUsers')
-                  .doc(follower)
-                  .get();
+            // Legacy format - fetch in parallel
+            fetchFutures.add(
+              Future(() async {
+                String? fetchedUsername;
+                String fetchedType = 'human';
+                try {
+                  // Try humanUsers first
+                  DocumentSnapshot followerDoc = await FirebaseFirestore.instance
+                      .collection('humanUsers')
+                      .doc(follower)
+                      .get();
 
-              if (followerDoc.exists) {
-                final followerData = followerDoc.data() as Map<String, dynamic>?;
-                formattedFollowers.add({
-                  'id': follower,
-                  'username': followerData?['username'] ??
-                      followerData?['Username'] ?? 'Unknown',
-                  'type': 'human'
-                });
-              } else {
-                // Try aiUsers collection
-                followerDoc = await FirebaseFirestore.instance
-                    .collection('aiUsers')
-                    .doc(follower)
-                    .get();
+                  if (followerDoc.exists) {
+                    final followerData = followerDoc.data() as Map<String, dynamic>?;
+                    fetchedUsername = followerData?['username'] ??
+                        followerData?['Username'] ?? follower;
+                    fetchedType = 'human';
+                  } else {
+                    // Try aiUsers
+                    followerDoc = await FirebaseFirestore.instance
+                        .collection('aiUsers')
+                        .doc(follower)
+                        .get();
 
-                if (followerDoc.exists) {
-                  final followerData = followerDoc.data() as Map<String, dynamic>?;
-                  formattedFollowers.add({
-                    'id': follower,
-                    'username': followerData?['username'] ??
-                        followerData?['Username'] ?? 'Unknown',
-                    'type': 'ai'
-                  });
-                } else {
-                  // Fallback with just the ID
-                  formattedFollowers.add({'id': follower, 'username': 'Unknown', 'type': 'human'});
+                    if (followerDoc.exists) {
+                      final followerData = followerDoc.data() as Map<String, dynamic>?;
+                      fetchedUsername = followerData?['username'] ??
+                          followerData?['Username'] ?? follower;
+                      fetchedType = 'ai';
+                    }
+                  }
+                } catch (e) {
+                  print('Error fetching follower profile for $follower: $e');
                 }
-              }
-            } catch (e) {
-              print('Error fetching follower profile for $follower: $e');
-              // Fallback with just the ID
-              formattedFollowers.add({'id': follower, 'username': 'Unknown', 'type': 'human'});
-            }
+                
+                // Store result in map
+                fetchResultsMap[follower] = {
+                  'id': follower,
+                  'username': fetchedUsername ?? follower,
+                  'type': fetchedType
+                };
+              })
+            );
+          }
+        }
+
+        // Wait for all fetches to complete in parallel
+        if (fetchFutures.isNotEmpty) {
+          await Future.wait(fetchFutures);
+        }
+        
+        // Convert map to list in the original order
+        for (var follower in followersList) {
+          String id;
+          if (follower is Map<String, dynamic>) {
+            id = follower['id'] ?? '';
+          } else {
+            id = follower.toString();
+          }
+          
+          if (fetchResultsMap.containsKey(id)) {
+            formattedFollowers.add(fetchResultsMap[id]!);
           }
         }
       }
@@ -171,78 +230,125 @@ class _FollowersFollowingScreenState extends State<FollowersFollowingScreen> {
         final followingList = userProfile['following'] as List<dynamic>? ?? [];
         print('Debug - Following list from Firebase: $followingList');
 
+        // Create a map to store fetch results by ID
+        Map<String, Map<String, dynamic>> fetchResultsMap = {}; 
+        List<Future<void>> fetchFutures = [];
+        
         for (var follow in followingList) {
           if (follow is Map<String, dynamic>) {
-            // Ensure we show the canonical username for the followed user.
             String id = follow['id'] ?? follow['uid'] ?? '';
             String? username = follow['username']?.toString();
+            final usernameLower = username?.toLowerCase() ?? '';
+            String type = follow['type'] ?? 'human';
 
-            // If we have an id, try to fetch the latest profile (this will
-            // correct cases where the stored username was the follower's name).
-            if (id.isNotEmpty) {
-              try {
-                final profile = await InZoneDatabase.getUserProfile(id);
-                if (profile != null) {
-                  // Prefer normalized username or name from the profile
-                  username = profile['username']?.toString() ??
-                      profile['name']?.toString() ?? username;
-                }
-              } catch (e) {
-                // ignore and fall back to the value already present in the map
-              }
+            // Only fetch from Firestore if username is invalid or matches the profile owner's username
+            bool shouldFetch = username == null || 
+                               username.isEmpty || 
+                               usernameLower == 'unknown' || 
+                               usernameLower == 'user' ||
+                               usernameLower == profileOwnerUsername;
+
+            if (shouldFetch && id.isNotEmpty) {
+              // Create a future to fetch the username
+              fetchFutures.add(
+                Future(() async {
+                  String? fetchedUsername;
+                  try {
+                    // Use the type field to query the correct collection directly
+                    final collectionName = type == 'ai' ? 'aiUsers' : 'humanUsers';
+                    DocumentSnapshot userDoc = await FirebaseFirestore.instance
+                        .collection(collectionName)
+                        .doc(id)
+                        .get();
+
+                    if (userDoc.exists) {
+                      final userData = userDoc.data() as Map<String, dynamic>?;
+                      fetchedUsername = userData?['username']?.toString() ??
+                          userData?['name']?.toString();
+                    }
+                  } catch (e) {
+                    print('Error fetching following username for $id: $e');
+                  }
+                  
+                  // Store result in map
+                  fetchResultsMap[id] = {
+                    'id': id,
+                    'username': fetchedUsername ?? id,
+                    'type': type
+                  };
+                })
+              );
+            } else {
+              // Username is valid, add immediately to map
+              fetchResultsMap[id] = {
+                'id': id,
+                'username': username ?? id,
+                'type': type
+              };
             }
-
-            formattedFollowing.add({
-              'id': id,
-              'username': username ?? 'Unknown',
-              'type': follow['type'] ?? 'human'
-            });
           } else if (follow is String) {
-            // Legacy format - just an ID, try to get the user's profile
-            try {
-              // Try to get user data from Firebase
-              DocumentSnapshot followDoc = await FirebaseFirestore.instance
-                  .collection('humanUsers')
-                  .doc(follow)
-                  .get();
+            // Legacy format - fetch in parallel
+            fetchFutures.add(
+              Future(() async {
+                String? fetchedUsername;
+                String fetchedType = 'human';
+                try {
+                  // Try humanUsers first
+                  DocumentSnapshot followDoc = await FirebaseFirestore.instance
+                      .collection('humanUsers')
+                      .doc(follow)
+                      .get();
 
-              if (followDoc.exists) {
-                final followData = followDoc.data() as Map<String, dynamic>?;
-                formattedFollowing.add({
-                  'id': follow,
-                  'username': followData?['username'] ??
-                      followData?['Username'] ??
-                      'Unknown',
-                  'type': 'human'
-                });
-              } else {
-                // Try aiUsers collection
-                followDoc = await FirebaseFirestore.instance
-                    .collection('aiUsers')
-                    .doc(follow)
-                    .get();
+                  if (followDoc.exists) {
+                    final followData = followDoc.data() as Map<String, dynamic>?;
+                    fetchedUsername = followData?['username'] ??
+                        followData?['Username'] ?? follow;
+                    fetchedType = 'human';
+                  } else {
+                    // Try aiUsers
+                    followDoc = await FirebaseFirestore.instance
+                        .collection('aiUsers')
+                        .doc(follow)
+                        .get();
 
-                if (followDoc.exists) {
-                  final followData = followDoc.data() as Map<String, dynamic>?;
-                  formattedFollowing.add({
-                    'id': follow,
-                    'username': followData?['username'] ??
-                        followData?['Username'] ??
-                        'Unknown',
-                    'type': 'ai'
-                  });
-                } else {
-                  // Fallback with just the ID
-                  formattedFollowing.add(
-                      {'id': follow, 'username': 'Unknown', 'type': 'human'});
+                    if (followDoc.exists) {
+                      final followData = followDoc.data() as Map<String, dynamic>?;
+                      fetchedUsername = followData?['username'] ??
+                          followData?['Username'] ?? follow;
+                      fetchedType = 'ai';
+                    }
+                  }
+                } catch (e) {
+                  print('Error fetching follow profile for $follow: $e');
                 }
-              }
-            } catch (e) {
-              print('Error fetching follow profile for $follow: $e');
-              // Fallback with just the ID
-              formattedFollowing
-                  .add({'id': follow, 'username': 'Unknown', 'type': 'human'});
-            }
+                
+                // Store result in map
+                fetchResultsMap[follow] = {
+                  'id': follow,
+                  'username': fetchedUsername ?? follow,
+                  'type': fetchedType
+                };
+              })
+            );
+          }
+        }
+
+        // Wait for all fetches to complete in parallel
+        if (fetchFutures.isNotEmpty) {
+          await Future.wait(fetchFutures);
+        }
+        
+        // Convert map to list in the original order
+        for (var follow in followingList) {
+          String id;
+          if (follow is Map<String, dynamic>) {
+            id = follow['id'] ?? follow['uid'] ?? '';
+          } else {
+            id = follow.toString();
+          }
+          
+          if (fetchResultsMap.containsKey(id)) {
+            formattedFollowing.add(fetchResultsMap[id]!);
           }
         }
       }
@@ -255,9 +361,11 @@ class _FollowersFollowingScreenState extends State<FollowersFollowingScreen> {
           "followers": formattedFollowers,
           "following": formattedFollowing
         };
+        isLoading = false; // Set loading to false immediately
       });
 
-      await _loadUserProfileImages();
+      // Load images in background without blocking UI
+      _loadUserProfileImages();
     } catch (e) {
       print('Error fetching followers/following: $e');
       ToastService.showToast(
@@ -270,7 +378,7 @@ class _FollowersFollowingScreenState extends State<FollowersFollowingScreen> {
         ),
         message: 'Failed to load followers/following: $e',
       );
-    } finally {
+      
       if (mounted) {
         setState(() {
           isLoading = false;
