@@ -32,6 +32,60 @@ import 'package:inzone/services/ai_engagement_service.dart';
 // Key for storing first launch status in SharedPreferences
 const String FIRST_LAUNCH_KEY = 'is_first_launch';
 
+/// Performance timing utility for measuring initialization times
+class InitTimer {
+  static final Stopwatch _totalTimer = Stopwatch();
+  static final Map<String, int> _timings = {};
+  
+  static void startTotal() {
+    _totalTimer.reset();
+    _totalTimer.start();
+    print('\n⏱️ ===== INITIALIZATION TIMING START =====');
+  }
+  
+  static Future<T> measure<T>(String label, Future<T> Function() operation) async {
+    final stopwatch = Stopwatch()..start();
+    try {
+      final result = await operation();
+      stopwatch.stop();
+      _timings[label] = stopwatch.elapsedMilliseconds;
+      print('⏱️ [$label] ${stopwatch.elapsedMilliseconds}ms');
+      return result;
+    } catch (e) {
+      stopwatch.stop();
+      _timings[label] = stopwatch.elapsedMilliseconds;
+      print('⏱️ [$label] ${stopwatch.elapsedMilliseconds}ms (FAILED: $e)');
+      rethrow;
+    }
+  }
+  
+  static void measureSync(String label, void Function() operation) {
+    final stopwatch = Stopwatch()..start();
+    operation();
+    stopwatch.stop();
+    _timings[label] = stopwatch.elapsedMilliseconds;
+    print('⏱️ [$label] ${stopwatch.elapsedMilliseconds}ms');
+  }
+  
+  static void printSummary() {
+    _totalTimer.stop();
+    print('\n⏱️ ===== INITIALIZATION TIMING SUMMARY =====');
+    
+    // Sort by duration descending
+    final sorted = _timings.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    
+    for (final entry in sorted) {
+      final bar = '█' * (entry.value ~/ 50).clamp(0, 40);
+      print('⏱️ ${entry.value.toString().padLeft(5)}ms | ${entry.key.padRight(30)} $bar');
+    }
+    
+    print('⏱️ ─────────────────────────────────────────');
+    print('⏱️ TOTAL: ${_totalTimer.elapsedMilliseconds}ms');
+    print('⏱️ =========================================\n');
+  }
+}
+
 /// Firebase Cloud Messaging background message handler
 /// This must be a top-level function (not inside a class)
 @pragma('vm:entry-point')
@@ -56,8 +110,8 @@ Future<void> setupRemoteConfig() async {
   });
 
   await remoteConfig.setConfigSettings(RemoteConfigSettings(
-    fetchTimeout: const Duration(minutes: 1),
-    minimumFetchInterval: Duration.zero,
+    fetchTimeout: const Duration(seconds: 10),
+    minimumFetchInterval: const Duration(hours: 12),
   ));
 
   try {
@@ -196,78 +250,101 @@ Future<void> requestTrackingPermission() async {
 }
 
 void main() async {
+  InitTimer.startTotal();
+  
+  InitTimer.measureSync('WidgetsBinding', () {
+    WidgetsFlutterBinding.ensureInitialized();
+  });
+  
   WidgetsBinding widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
   FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
-  MobileAds.instance.initialize();
+  
+  // Start non-blocking initializations early
+  InitTimer.measureSync('MobileAds.init (fire & forget)', () {
+    MobileAds.instance.initialize();
+  });
+  
+  InitTimer.measureSync('MediaKit.ensureInitialized', () {
+    MediaKit.ensureInitialized();
+  });
 
+  // Run SharedPreferences and Firebase init in parallel
+  late SharedPreferences prefs;
+  await InitTimer.measure('SharedPrefs + Firebase (parallel)', () async {
+    final initFutures = await Future.wait([
+      InitTimer.measure('  └─ SharedPreferences', () => SharedPreferences.getInstance()),
+      InitTimer.measure('  └─ Firebase.initializeApp', () => Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform)),
+    ]);
+    prefs = initFutures[0] as SharedPreferences;
+  });
 
-  // Initialize SharedPreferences
-  SharedPreferences prefs = await SharedPreferences.getInstance();
-
-  // prefs.clear();
-
-  MediaKit.ensureInitialized();
-
-  // Firebase initialization
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
-
-  // Register FCM background message handler
+  // Register FCM background message handler (must be after Firebase init)
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
-  // Initialize notification service
-  try {
-    await NotificationService.initialize();
-    print('✅ Notification service initialized');
-  } catch (e) {
-    print('⚠️ Failed to initialize notification service: $e');
-  }
+  // Run these in parallel - they're independent of each other
+  await InitTimer.measure('Notifications + RemoteConfig + Session (parallel)', () async {
+    await Future.wait([
+      InitTimer.measure('  └─ NotificationService.init', () async {
+        try {
+          await NotificationService.initialize();
+          print('✅ Notification service initialized');
+        } catch (e) {
+          print('⚠️ Failed to initialize notification service: $e');
+        }
+      }),
+      InitTimer.measure('  └─ NotificationEventService.init', () async {
+        try {
+          await NotificationEventService.initializePushNotifications();
+          print('✅ Push notifications initialized');
+        } catch (e) {
+          print('⚠️ Failed to initialize push notifications: $e');
+        }
+      }),
+      InitTimer.measure('  └─ setupRemoteConfig', () => setupRemoteConfig()),
+      InitTimer.measure('  └─ validateFirebaseSession', () => validateFirebaseSession()),
+    ]);
+  });
 
-  // Initialize push notifications for event service
-  try {
-    await NotificationEventService.initializePushNotifications();
-    print('✅ Push notifications initialized');
-  } catch (e) {
-    print('⚠️ Failed to initialize push notifications: $e');
-  }
+  // Check for force update (needs remote config to be ready)
+  bool needsUpdate = await InitTimer.measure('checkForceUpdateRequired', () => checkForceUpdateRequired());
 
-  // Setup Firebase Remote Config
-  await setupRemoteConfig();
+  // Request tracking permission (shows UI dialog - do this while other things load)
+  // Run tracking and AppsFlyer in parallel
+  await InitTimer.measure('Tracking + AppsFlyer (parallel)', () async {
+    await Future.wait([
+      InitTimer.measure('  └─ requestTrackingPermission', () => requestTrackingPermission()),
+      InitTimer.measure('  └─ AppsFlyer.init', () async {
+        final appsFlyerService = AppsFlyerService();
+        await appsFlyerService.initialize();
+        String? advertisingId = await appsFlyerService.getAdvertisingId();
+        print("The advertising ID is $advertisingId");
+      }),
+    ]);
+  });
 
-  // Check for force update BEFORE initializing the app
-  bool needsUpdate = await checkForceUpdateRequired();
+  // Initialize RevenueCat (depends on Firebase Auth being ready)
+  await InitTimer.measure('initPlatformState (RevenueCat)', () => initPlatformState());
 
-  // Firebase auth check
-  await validateFirebaseSession();
+  // Print timing summary before UI starts
+  InitTimer.printSummary();
 
-  // Request tracking permission and get IDFA if authorized
-  await requestTrackingPermission();
+  // These don't need to block app startup - run async
+  FirebaseAnalytics.instance.setAnalyticsCollectionEnabled(true).then((_) {
+    print("✅ Firebase Analytics initialized for ad revenue tracking");
+  });
 
-  // Initialize AppsFlyerService
-  final appsFlyerService = AppsFlyerService();
-  await appsFlyerService.initialize();
-  await initPlatformState();
-  String? advertisingId = await appsFlyerService.getAdvertisingId();
-  print("The advertising ID is $advertisingId");
-
-  // Initialize Firebase Analytics for ad revenue tracking
-  final FirebaseAnalytics analytics = FirebaseAnalytics.instance;
-  await analytics.setAnalyticsCollectionEnabled(true);
-  print("✅ Firebase Analytics initialized for ad revenue tracking");
-
-  // Warm up Cloud Run container to improve app performance
-  // This runs asynchronously and doesn't block app startup
+  // Warm up Cloud Run container (already async)
   InZoneDatabase.warmUpCloudRun();
 
-  // Initialize AI engagement service for background operations
-  try {
-    await AIEngagementService.initialize();
-    print("✅ AI Engagement Service initialized successfully");
-  } catch (e) {
-    print("⚠️ AI Engagement Service initialization failed: $e");
-    // Don't block app startup if AI service fails
-  }
+  // Defer AI engagement service - initialize after app is running
+  Future.delayed(const Duration(seconds: 1), () async {
+    try {
+      await AIEngagementService.initialize();
+      print("✅ AI Engagement Service initialized successfully");
+    } catch (e) {
+      print("⚠️ AI Engagement Service initialization failed: $e");
+    }
+  });
 
   // // TESTING: Uncomment the line below to test all analytics
   // await appsFlyerService.testAllAnalytics();
