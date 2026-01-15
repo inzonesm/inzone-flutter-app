@@ -465,32 +465,46 @@ class NotificationService {
 
   /// Update user notification preferences with backend API
   static Future<void> updateNotificationPreferences(Map<String, dynamic> prefs) async {
+    print('🔵 NotificationService.updateNotificationPreferences called');
     try {
       final user = FirebaseAuth.instance.currentUser;
-      if (user != null) {
-        // Update backend API
-        await _updatePreferencesWithBackend(user.uid, prefs);
-        
-        // Also update Firestore for backup
-        await FirebaseFirestore.instance
-            .collection('humanUsers')
-            .doc(user.uid)
-            .update({
-          'notificationPrefs': prefs,
-          'timezone': DateTime.now().timeZoneName,
-        });
-        print('✅ Notification preferences updated');
+      if (user == null) {
+        print('❌ No user logged in');
+        return;
       }
+      
+      print('🔵 User ID: ${user.uid}');
+      print('🔵 Saving to Firestore immediately...');
+      
+      // Save to Firestore FIRST (fast, local priority)
+      await FirebaseFirestore.instance
+          .collection('humanUsers')
+          .doc(user.uid)
+          .set({
+        'notificationPrefs': prefs,
+        'timezone': DateTime.now().timeZoneName,
+      }, SetOptions(merge: true));
+      
+      print('✅ Notification preferences saved to Firestore');
+      
+      // Update backend API in background (non-blocking, fire-and-forget)
+      _updatePreferencesWithBackend(user.uid, prefs).catchError((e) {
+        print('⚠️ Background backend update failed (non-critical): $e');
+      });
+      
     } catch (e) {
       print('❌ Error updating notification preferences: $e');
+      rethrow;
     }
   }
 
-  /// Update preferences with backend API
+  /// Update preferences with backend API (background, non-blocking)
   static Future<void> _updatePreferencesWithBackend(String userId, Map<String, dynamic> preferences) async {
     try {
+      final endpoint = ApiConfig.endpoint('/api/notifications/preferences');
+      
       final response = await http.post(
-        Uri.parse(ApiConfig.endpoint('/api/notifications/preferences')),
+        Uri.parse(endpoint),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'userId': userId,
@@ -499,12 +513,13 @@ class NotificationService {
       );
 
       if (response.statusCode == 200) {
-        print('✅ Notification preferences updated with backend');
+        print('✅ Backend sync completed');
       } else {
-        print('❌ Failed to update preferences with backend: ${response.body}');
+        print('⚠️ Backend sync returned ${response.statusCode}: ${response.body}');
       }
     } catch (e) {
-      print('❌ Error updating preferences with backend: $e');
+      print('⚠️ Backend sync error: $e');
+      // Don't rethrow - this is background sync, shouldn't fail the main operation
     }
   }
 
