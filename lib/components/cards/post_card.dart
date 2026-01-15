@@ -788,18 +788,78 @@ class _PostCardState extends State<PostCard>
                     ? widget.post.userReference
                     : null;
                 if (authorId != null && authorId != userId) {
-                  // Fire the server-side notification pipeline (best-effort)
+                  // FIRST: Resolve the author ID to a proper Firebase UID
+                  // The post's author reference can be in multiple forms
+                  // (doc id, username, or stored uid), so try several lookups.
+                  String? resolvedAuthorUid;
+                  String resolvedAuthorUsername = authorId; // default fallback
+                  
                   try {
-                    await NotificationEventService.onPostEngagement(
-                      // await NotificationService.sendPostEngagementNotification(
-                      postId: widget.post.id,
-                      type: 'like',
-                      userId: userId,
-                      postAuthorId: authorId,
-                    );
+                    final humanUsersRef = FirebaseFirestore.instance.collection('humanUsers');
+                    DocumentSnapshot? authorDoc;
+                    
+                    // 1) Try doc(id)
+                    final byId = await humanUsersRef.doc(authorId).get();
+                    if (byId.exists) {
+                      authorDoc = byId;
+                    } else {
+                      // 2) Try username == authorId
+                      final q1 = await humanUsersRef
+                          .where('username', isEqualTo: authorId)
+                          .limit(1)
+                          .get();
+                      if (q1.docs.isNotEmpty) {
+                        authorDoc = q1.docs.first;
+                      } else {
+                        // 3) Try uid == authorId
+                        final q2 = await humanUsersRef
+                            .where('uid', isEqualTo: authorId)
+                            .limit(1)
+                            .get();
+                        if (q2.docs.isNotEmpty) {
+                          authorDoc = q2.docs.first;
+                        } else {
+                          // 4) Try legacy user_document_id field
+                          final q3 = await humanUsersRef
+                              .where('user_document_id', isEqualTo: authorId)
+                              .limit(1)
+                              .get();
+                          if (q3.docs.isNotEmpty) {
+                            authorDoc = q3.docs.first;
+                          }
+                        }
+                      }
+                    }
+
+                    if (authorDoc != null && authorDoc.exists) {
+                      final data = authorDoc.data() as Map<String, dynamic>;
+                      resolvedAuthorUid = data['uid'] ?? authorDoc.id;
+                      resolvedAuthorUsername = data['username'] ??
+                          data['name'] ??
+                          resolvedAuthorUsername;
+                      debugPrint(
+                          'Resolved author "$authorId" -> uid: $resolvedAuthorUid username: $resolvedAuthorUsername');
+                    } else {
+                      debugPrint(
+                          'Could not resolve authorId "$authorId" to humanUsers doc - skipping notification');
+                    }
                   } catch (e) {
-                    debugPrint('NotificationEventService failed: $e');
-                    // debugPrint('NotificationService failed: $e');
+                    debugPrint('Error resolving author for notification: $e');
+                  }
+                  
+                  // Only send notification if we successfully resolved to a UID
+                  if (resolvedAuthorUid != null && resolvedAuthorUid != userId) {
+                    // Fire the server-side notification pipeline (best-effort)
+                    try {
+                      await NotificationEventService.onPostEngagement(
+                        postId: widget.post.id,
+                        type: 'like',
+                        userId: userId,
+                        postAuthorId: resolvedAuthorUid, // Use resolved UID
+                      );
+                    } catch (e) {
+                      debugPrint('NotificationEventService failed: $e');
+                    }
                   }
 
                   try {
@@ -876,20 +936,51 @@ class _PostCardState extends State<PostCard>
                           .get();
 
                       if (query.docs.isEmpty) {
-                        // Prefer the username from the likeEntry if available, then
-                        // FirebaseAuth displayName, then AppsFlyer id.
-                        final likerNameFromEntry =
-                            likeEntry['username'] as String?;
-                        final likerName = (likerNameFromEntry != null &&
-                                likerNameFromEntry.isNotEmpty)
-                            ? likerNameFromEntry
-                            : (FirebaseAuth.instance.currentUser?.displayName ??
-                                userId);
+                        // Get the liker's username properly from likeEntry or fetch from Firestore
+                        String likerName = likeEntry['username'] as String? ?? '';
+                        
+                        if (likerName.isEmpty) {
+                          // Fetch from humanUsers collection
+                          try {
+                            final likerDoc = await FirebaseFirestore.instance
+                                .collection('humanUsers')
+                                .doc(currentUid)
+                                .get();
+                            
+                            if (likerDoc.exists) {
+                              final likerData = likerDoc.data()!;
+                              likerName = likerData['username'] ?? 
+                                         likerData['name'] ?? 
+                                         likerData['displayName'] ?? 
+                                         'Someone';
+                            } else {
+                              // Try querying by uid field
+                              final likerQuery = await FirebaseFirestore.instance
+                                  .collection('humanUsers')
+                                  .where('uid', isEqualTo: currentUid)
+                                  .limit(1)
+                                  .get();
+                              
+                              if (likerQuery.docs.isNotEmpty) {
+                                final likerData = likerQuery.docs.first.data();
+                                likerName = likerData['username'] ?? 
+                                           likerData['name'] ?? 
+                                           likerData['displayName'] ?? 
+                                           'Someone';
+                              } else {
+                                likerName = 'Someone';
+                              }
+                            }
+                          } catch (e) {
+                            debugPrint('Error fetching liker username: $e');
+                            likerName = 'Someone';
+                          }
+                        }
 
                         final added = await notifRef.add({
                           'userId': resolvedAuthorUid,
-                          'type': 'engagement',
-                          'title': 'Post Engagement',
+                          'type': 'post_like',
+                          'title': '$likerName liked your post',
                           'body': '$likerName liked your post',
                           'isRead': false,
                           'createdAt': FieldValue.serverTimestamp(),
