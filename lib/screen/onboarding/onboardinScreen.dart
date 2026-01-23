@@ -78,22 +78,26 @@ class _OnboardPageState extends State<OnboardPage>
     },
     'group': {
       'title': 'Join the Conversation',
-      'subtitle': 'Chat about live games with pro athletes, favorite movies with the stars, or throw down your hottest music takes with the artists.',
+      'subtitle':
+          'Chat about live games with pro athletes, favorite movies with the stars, or throw down your hottest music takes with the artists.',
       'highlights': ['pro athletes', 'stars', 'artists']
     },
     'msg': {
       'title': 'Chat with Anyone',
-      'subtitle': 'Amazing one-on-one chats and group conversations. Chat with your favorite personas on anything from math homework to summer plans.',
+      'subtitle':
+          'Amazing one-on-one chats and group conversations. Chat with your favorite personas on anything from math homework to summer plans.',
       'highlights': ['one-on-one chats', 'favorite personas']
     },
     'post': {
       'title': 'Share & Earn',
-      'subtitle': 'Share your amazing content and earn real cash when other users tip your creativity.',
+      'subtitle':
+          'Share your amazing content and earn real cash when other users tip your creativity.',
       'highlights': ['earn real cash', 'tip your creativity']
     },
     'ai': {
       'title': 'Create AI Characters',
-      'subtitle': 'Contribute to the community by creating amazing characters and avatars.',
+      'subtitle':
+          'Contribute to the community by creating amazing characters and avatars.',
       'highlights': ['amazing characters', 'avatars']
     },
   };
@@ -143,7 +147,8 @@ class _OnboardPageState extends State<OnboardPage>
   }
 
   // Helper method to build text with highlighted keywords
-  Widget _buildHighlightedText(String text, List<String> highlights, bool isDarkMode) {
+  Widget _buildHighlightedText(
+      String text, List<String> highlights, bool isDarkMode) {
     if (highlights.isEmpty) {
       return Text(
         text,
@@ -158,20 +163,21 @@ class _OnboardPageState extends State<OnboardPage>
 
     List<TextSpan> spans = [];
     String remainingText = text;
-    
+
     while (remainingText.isNotEmpty) {
       String? foundHighlight;
       int earliestIndex = remainingText.length;
-      
+
       // Find the earliest highlight in the remaining text
       for (String highlight in highlights) {
-        int index = remainingText.toLowerCase().indexOf(highlight.toLowerCase());
+        int index =
+            remainingText.toLowerCase().indexOf(highlight.toLowerCase());
         if (index != -1 && index < earliestIndex) {
           earliestIndex = index;
           foundHighlight = highlight;
         }
       }
-      
+
       if (foundHighlight != null && earliestIndex < remainingText.length) {
         // Add text before the highlight
         if (earliestIndex > 0) {
@@ -184,20 +190,24 @@ class _OnboardPageState extends State<OnboardPage>
             ),
           ));
         }
-        
+
         // Add the highlighted text
         spans.add(TextSpan(
-          text: remainingText.substring(earliestIndex, earliestIndex + foundHighlight.length),
+          text: remainingText.substring(
+              earliestIndex, earliestIndex + foundHighlight.length),
           style: TextStyle(
             fontSize: 16,
-            color: isDarkMode ? Colors.blueAccent.shade200 : Colors.blueAccent.shade700,
+            color: isDarkMode
+                ? Colors.blueAccent.shade200
+                : Colors.blueAccent.shade700,
             fontWeight: FontWeight.bold,
             height: 1.4,
           ),
         ));
-        
+
         // Update remaining text
-        remainingText = remainingText.substring(earliestIndex + foundHighlight.length);
+        remainingText =
+            remainingText.substring(earliestIndex + foundHighlight.length);
       } else {
         // No more highlights, add the rest of the text
         spans.add(TextSpan(
@@ -211,7 +221,7 @@ class _OnboardPageState extends State<OnboardPage>
         break;
       }
     }
-    
+
     return RichText(
       text: TextSpan(children: spans),
       textAlign: TextAlign.center,
@@ -333,8 +343,12 @@ class _OnboardPageState extends State<OnboardPage>
                         // Subtitle with highlights
                         Flexible(
                           child: _buildHighlightedText(
-                            _content[_screenKeys[_currentPage]]?['subtitle'] ?? '',
-                            List<String>.from(_content[_screenKeys[_currentPage]]?['highlights'] ?? []),
+                            _content[_screenKeys[_currentPage]]?['subtitle'] ??
+                                '',
+                            List<String>.from(
+                                _content[_screenKeys[_currentPage]]
+                                        ?['highlights'] ??
+                                    []),
                             isDarkMode,
                           ),
                         ),
@@ -407,6 +421,30 @@ class _OnboardPageState extends State<OnboardPage>
                 }),
               ),
             ),
+            // Left nav at top
+            Positioned(
+                top: 40,
+                left: 20,
+                child: InkWell(
+                  onTap: () => {_goToPreviousPage()},
+                  child: Padding(
+                    padding: const EdgeInsets.all(8),
+                    child: Image.asset('assets/auth/logo.png',
+                        width: 24, height: 24),
+                  ),
+                )),
+            // Right nav at top
+            Positioned(
+                top: 40,
+                right: 20,
+                child: InkWell(
+                  onTap: () => {_goToNextPage()},
+                  child: Padding(
+                    padding: const EdgeInsets.all(8),
+                    child: Image.asset('assets/auth/logo.png',
+                        width: 24, height: 24),
+                  ),
+                )),
           ],
         ),
       ),
