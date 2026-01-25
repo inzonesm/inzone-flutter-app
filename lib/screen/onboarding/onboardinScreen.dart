@@ -422,29 +422,21 @@ class _OnboardPageState extends State<OnboardPage>
               ),
             ),
             // Left nav at top
-            Positioned(
-                top: 40,
-                left: 20,
-                child: InkWell(
-                  onTap: () => {_goToPreviousPage()},
-                  child: Padding(
-                    padding: const EdgeInsets.all(8),
-                    child: Image.asset('assets/auth/logo.png',
-                        width: 24, height: 24),
-                  ),
-                )),
-            // Right nav at top
-            Positioned(
-                top: 40,
-                right: 20,
-                child: InkWell(
-                  onTap: () => {_goToNextPage()},
-                  child: Padding(
-                    padding: const EdgeInsets.all(8),
-                    child: Image.asset('assets/auth/logo.png',
-                        width: 24, height: 24),
-                  ),
-                )),
+            if (_currentPage > 0)
+              Positioned(
+                  top: 40,
+                  left: 20,
+                  child: InkWell(
+                    onTap: () => {_goToPreviousPage()},
+                    child: const Padding(
+                        padding: EdgeInsets.all(8),
+                        child: Icon(
+                          Icons.arrow_back,
+                          color: Colors.black,
+                          size: 20.0,
+                          semanticLabel: 'Back',
+                        )),
+                  )),
           ],
         ),
       ),
