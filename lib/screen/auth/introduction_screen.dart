@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:inzone/auth/auth_work.dart';
 import 'package:inzone/router/routes.dart';
+import 'package:inzone/router/app_router.dart';
 import 'package:inzone/screen/auth/profile_screen.dart';
 import 'package:inzone/screen/auth/signin_login_screen.dart';
 import 'package:inzone/theme/app_colors.dart';
@@ -134,143 +135,159 @@ class _IntroductionScreenState extends State<IntroductionScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Theme.of(context).canvasColor,
-      body: ColorfulSafeArea(
-        bottom: false,
-        child: Column(
-          children: [
-            const Spacer(),
-            SizedBox(
-              height: MediaQuery.of(context).size.height * 0.25,
-              width: MediaQuery.of(context).size.height * 0.25,
-              child: Hero(
-                tag: 'logo',
-                child: Image.asset(
-                  'assets/auth/logo.png',
-                  fit: BoxFit.cover,
-                ),
-              ),
-            ),
-            const Spacer(),
-            Align(
-              alignment: Alignment.bottomCenter,
+        backgroundColor: Theme.of(context).canvasColor,
+        body: GestureDetector(
+            onHorizontalDragEnd: (details) {
+              if (details.primaryVelocity! > 0) {
+                AppRouter.router.push(Routes.home);
+              }
+            },
+            child: ColorfulSafeArea(
+              bottom: false,
               child: Column(
-                mainAxisAlignment: MainAxisAlignment.end,
                 children: [
-                  appleLoginButton(context, _handleAppleLogin),
-                  const SizedBox(height: 12),
-                  googleLoginButton(context, _handleGoogleLogin),
-                  const SizedBox(height: 12),
-                  GestureDetector(
-                    onTap: () {
-                      Navigator.of(context).push(
-                        PageRouteBuilder(
-                          pageBuilder:
-                              (context, animation, secondaryAnimation) =>
-                                  const SignInLoginScreen(),
-                          transitionsBuilder:
-                              (context, animation, secondaryAnimation, child) {
-                            return FadeTransition(
-                              opacity: animation,
-                              child: child,
-                            );
-                          },
-                          transitionDuration: const Duration(milliseconds: 400),
-                        ),
-                      );
-                    },
-                    child: Text(
-                      'or use e-mail',
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                            color:
-                                Theme.of(context).brightness == Brightness.dark
-                                    ? Colors.white
-                                    : Colors.black,
-                            fontSize: 14,
-                          ),
+                  const Spacer(),
+                  SizedBox(
+                    height: MediaQuery.of(context).size.height * 0.25,
+                    width: MediaQuery.of(context).size.height * 0.25,
+                    child: Hero(
+                      tag: 'logo',
+                      child: Image.asset(
+                        'assets/auth/logo.png',
+                        fit: BoxFit.cover,
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 12),
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 30),
-                    child: RichText(
-                      textAlign: TextAlign.center,
-                      text: TextSpan(
-                        style: Theme.of(context)
-                            .textTheme
-                            .bodySmall
-                            ?.copyWith(fontSize: 8),
-                        children: [
-                          const TextSpan(
-                              text: "By continuing, you are agreeing to our "),
-                          TextSpan(
-                            text: "Terms of Service",
-                            style:
-                                Theme.of(context).textTheme.bodySmall?.copyWith(
-                                      fontSize: 8,
-                                      decoration: TextDecoration.underline,
-                                      decorationColor: AppColors.mediumGrey,
-                                    ),
-                            recognizer: TapGestureRecognizer()
-                              ..onTap = () {
-                                try {
-                                  _launchInBrowser(
-                                      "https://inzone.ai/terms-conditions");
-                                } catch (e) {
-                                  ToastService.showToast(
-                                    context,
-                                    backgroundColor:
-                                        Theme.of(context).canvasColor,
-                                    shadowColor: Colors.transparent,
-                                    leading: const Icon(
-                                      Icons.error_outline,
-                                      color: Colors.redAccent,
-                                    ),
-                                    message: 'Error launching browser: $e',
+                  const Spacer(),
+                  Align(
+                    alignment: Alignment.bottomCenter,
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        appleLoginButton(context, _handleAppleLogin),
+                        const SizedBox(height: 12),
+                        googleLoginButton(context, _handleGoogleLogin),
+                        const SizedBox(height: 12),
+                        GestureDetector(
+                          onTap: () {
+                            Navigator.of(context).push(
+                              PageRouteBuilder(
+                                pageBuilder:
+                                    (context, animation, secondaryAnimation) =>
+                                        const SignInLoginScreen(),
+                                transitionsBuilder: (context, animation,
+                                    secondaryAnimation, child) {
+                                  return FadeTransition(
+                                    opacity: animation,
+                                    child: child,
                                   );
-                                }
-                              },
+                                },
+                                transitionDuration:
+                                    const Duration(milliseconds: 400),
+                              ),
+                            );
+                          },
+                          child: Text(
+                            'or use e-mail',
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleLarge
+                                ?.copyWith(
+                                  color: Theme.of(context).brightness ==
+                                          Brightness.dark
+                                      ? Colors.white
+                                      : Colors.black,
+                                  fontSize: 14,
+                                ),
                           ),
-                          const TextSpan(text: " and "),
-                          TextSpan(
-                            text: "Privacy Policy",
-                            style:
-                                Theme.of(context).textTheme.bodySmall?.copyWith(
-                                      fontSize: 8,
-                                      decoration: TextDecoration.underline,
-                                      decorationColor: AppColors.mediumGrey,
-                                    ),
-                            recognizer: TapGestureRecognizer()
-                              ..onTap = () {
-                                try {
-                                  _launchInBrowser(
-                                      "https://inzone.ai/privacy-policy");
-                                } catch (e) {
-                                  ToastService.showToast(
-                                    context,
-                                    backgroundColor:
-                                        Theme.of(context).canvasColor,
-                                    shadowColor: Colors.transparent,
-                                    leading: const Icon(
-                                      Icons.error_outline,
-                                      color: Colors.redAccent,
-                                    ),
-                                    message: 'Error launching browser: $e',
-                                  );
-                                }
-                              },
+                        ),
+                        const SizedBox(height: 12),
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 30),
+                          child: RichText(
+                            textAlign: TextAlign.center,
+                            text: TextSpan(
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodySmall
+                                  ?.copyWith(fontSize: 8),
+                              children: [
+                                const TextSpan(
+                                    text:
+                                        "By continuing, you are agreeing to our "),
+                                TextSpan(
+                                  text: "Terms of Service",
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .bodySmall
+                                      ?.copyWith(
+                                        fontSize: 8,
+                                        decoration: TextDecoration.underline,
+                                        decorationColor: AppColors.mediumGrey,
+                                      ),
+                                  recognizer: TapGestureRecognizer()
+                                    ..onTap = () {
+                                      try {
+                                        _launchInBrowser(
+                                            "https://inzone.ai/terms-conditions");
+                                      } catch (e) {
+                                        ToastService.showToast(
+                                          context,
+                                          backgroundColor:
+                                              Theme.of(context).canvasColor,
+                                          shadowColor: Colors.transparent,
+                                          leading: const Icon(
+                                            Icons.error_outline,
+                                            color: Colors.redAccent,
+                                          ),
+                                          message:
+                                              'Error launching browser: $e',
+                                        );
+                                      }
+                                    },
+                                ),
+                                const TextSpan(text: " and "),
+                                TextSpan(
+                                  text: "Privacy Policy",
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .bodySmall
+                                      ?.copyWith(
+                                        fontSize: 8,
+                                        decoration: TextDecoration.underline,
+                                        decorationColor: AppColors.mediumGrey,
+                                      ),
+                                  recognizer: TapGestureRecognizer()
+                                    ..onTap = () {
+                                      try {
+                                        _launchInBrowser(
+                                            "https://inzone.ai/privacy-policy");
+                                      } catch (e) {
+                                        ToastService.showToast(
+                                          context,
+                                          backgroundColor:
+                                              Theme.of(context).canvasColor,
+                                          shadowColor: Colors.transparent,
+                                          leading: const Icon(
+                                            Icons.error_outline,
+                                            color: Colors.redAccent,
+                                          ),
+                                          message:
+                                              'Error launching browser: $e',
+                                        );
+                                      }
+                                    },
+                                ),
+                              ],
+                            ),
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
               ),
-            ),
-          ],
-        ),
-      ),
-    );
+            )));
   }
 
   Widget appleLoginButton(BuildContext context, VoidCallback onPressed) {
