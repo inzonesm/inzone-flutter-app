@@ -94,7 +94,7 @@ class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
     ];
 
     // Add scroll listener to handle navbar visibility
-    _homeScrollController.addListener(_handleScroll);
+    // _homeScrollController.addListener(_handleScroll);
 
     // Check app open count and request review if needed
     _checkAndRequestReview();
@@ -102,7 +102,7 @@ class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
 
   @override
   void dispose() {
-    _homeScrollController.removeListener(_handleScroll);
+    // _homeScrollController.removeListener(_handleScroll);
     _homeScrollController.dispose();
     _rootFocusNode.dispose();
     _rotationController.dispose();
