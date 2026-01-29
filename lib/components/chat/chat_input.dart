@@ -65,6 +65,11 @@ class _ChatInputState extends State<ChatInput> {
                 child: Container(
                   constraints: const BoxConstraints(maxHeight: 100),
                   child: TextFormField(
+                    onTap: () {
+                      if (_isTextEmpty && !widget.isGroupChat) {
+                        debugPrint('chat disabled');
+                      }
+                    },
                     scrollController: widget.scrollController,
                     cursorColor: Theme.of(context).brightness == Brightness.dark
                         ? Colors.grey.shade400

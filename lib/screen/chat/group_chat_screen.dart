@@ -991,7 +991,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
             ChatInput(
               controller: _msgController,
               onSend: _sendMessage,
-              isGroupChat: true,
+              isGroupChat: false,
             ),
           ],
         ),
@@ -1408,9 +1408,12 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                               // Make the entire ListTile tappable for user profiles
                               onTap: () {
                                 // Only navigate if it's a regular user (not AI)
-                                if (participant.type == 'user' && participant.uid.isNotEmpty) {
-                                  Navigator.pop(context); // Close the dialog first
-                                  context.push(Routes.regularProfilePath(participant.uid));
+                                if (participant.type == 'user' &&
+                                    participant.uid.isNotEmpty) {
+                                  Navigator.pop(
+                                      context); // Close the dialog first
+                                  context.push(Routes.regularProfilePath(
+                                      participant.uid));
                                 }
                               },
                               leading: CircleAvatar(
