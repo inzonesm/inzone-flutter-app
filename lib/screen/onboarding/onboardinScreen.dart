@@ -422,10 +422,48 @@ class _OnboardPageState extends State<OnboardPage>
               ),
             ),
 
-            // Left nav at top
+            // New nav at bottom
+            Positioned(
+              bottom: 0,
+              left: 0,
+              right: 0,
+              child: Container(
+                  padding: const EdgeInsets.all(16),
+                  color: (isDarkMode
+                      ? Colors.black.withAlpha(240)
+                      : Colors.white.withAlpha(240)),
+                  height: 55,
+                  child: const Text('')),
+            ),
+            // Page indicator dots
+            Positioned(
+              bottom: 30,
+              left: 0,
+              right: 0,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(_screenKeys.length, (index) {
+                  return AnimatedContainer(
+                    duration: const Duration(milliseconds: 300),
+                    margin: const EdgeInsets.symmetric(horizontal: 4),
+                    width: _currentPage == index ? 16 : 8,
+                    height: 8,
+                    decoration: BoxDecoration(
+                      color: _currentPage == index
+                          ? (isDarkMode ? Colors.white : Colors.black)
+                          : (isDarkMode
+                              ? Colors.grey.withOpacity(0.4)
+                              : Colors.grey.withOpacity(0.6)),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  );
+                }),
+              ),
+            ),
+            // Left nav arrow
             if (_currentPage > 0)
               Positioned(
-                  top: 40,
+                  bottom: 15,
                   left: 20,
                   child: InkWell(
                     onTap: () => {_goToPreviousPage()},
@@ -436,6 +474,22 @@ class _OnboardPageState extends State<OnboardPage>
                           color: (isDarkMode ? Colors.white : Colors.black),
                           size: 20.0,
                           semanticLabel: 'Back',
+                        )),
+                  )),
+            // Right nav arrow
+            if (_currentPage < _screenKeys.length - 1)
+              Positioned(
+                  bottom: 15,
+                  right: 20,
+                  child: InkWell(
+                    onTap: () => {_goToNextPage()},
+                    child: Padding(
+                        padding: const EdgeInsets.all(8),
+                        child: Icon(
+                          Icons.arrow_forward,
+                          color: (isDarkMode ? Colors.white : Colors.black),
+                          size: 20.0,
+                          semanticLabel: 'Forward',
                         )),
                   )),
           ],
