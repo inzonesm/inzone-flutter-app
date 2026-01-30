@@ -421,6 +421,7 @@ class _OnboardPageState extends State<OnboardPage>
                 }),
               ),
             ),
+
             // Left nav at top
             if (_currentPage > 0)
               Positioned(
@@ -428,11 +429,11 @@ class _OnboardPageState extends State<OnboardPage>
                   left: 20,
                   child: InkWell(
                     onTap: () => {_goToPreviousPage()},
-                    child: const Padding(
-                        padding: EdgeInsets.all(8),
+                    child: Padding(
+                        padding: const EdgeInsets.all(8),
                         child: Icon(
                           Icons.arrow_back,
-                          color: Colors.black,
+                          color: (isDarkMode ? Colors.white : Colors.black),
                           size: 20.0,
                           semanticLabel: 'Back',
                         )),
