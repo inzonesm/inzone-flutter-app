@@ -1151,17 +1151,43 @@ class HomeScreenState extends State<HomeScreen> {
                     ],
                   ),
                 ),
-          const Positioned(
-              right: 16,
-              bottom: 116,
-              child: Text(
-                'DEBUG',
-                style: TextStyle(
-                  color: Colors.red,
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
+          Positioned(
+              right: 5,
+              bottom: 125,
+              child: Container(
+                width: 300,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.black,
+                  borderRadius: BorderRadius.circular(8),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Colors.black26,
+                      blurRadius: 8,
+                      offset: Offset(0, 4),
+                    ),
+                  ],
                 ),
-              )),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 24,
+                      height: 24,
+                      decoration: const BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Colors.blue,
+                      ),
+                      child: const Icon(
+                        CupertinoIcons.chat_bubble_text,
+                        size: 16,
+                        color: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    const Text('Hey, Im Yuji!')
+                  ],
+                ),
+              ))
         ]),
       ),
     );
