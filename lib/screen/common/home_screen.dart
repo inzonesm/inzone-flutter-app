@@ -1,3 +1,4 @@
+import 'package:go_router/go_router.dart';
 import 'package:colorful_safe_area/colorful_safe_area.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
@@ -14,6 +15,7 @@ import 'package:inzone/screen/notifications/notification_center_screen.dart';
 import 'package:inzone/services/notification_badge_service.dart';
 import 'package:inzone/services/inzone_database.dart';
 import 'package:inzone/screen/common/search_explore_screen.dart';
+import 'package:inzone/screen/chat/all_chats_screen.dart';
 import 'package:toasty_box/toast_service.dart';
 import 'package:pull_to_refresh_flutter3/pull_to_refresh_flutter3.dart';
 import 'package:inzone/services/appsflyer_service.dart';
@@ -1185,48 +1187,58 @@ class HomeScreenState extends State<HomeScreen> {
                       ),
                     ],
                   ),
-                  child: Row(
-                    children: [
-                      Container(
-                        decoration: const BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: Colors.white,
-                        ),
-                        padding: const EdgeInsets.all(2.0), // White padding
-                        child: ClipOval(
-                          child: Image.network(
-                            avatars[0].profilePicture,
-                            fit: BoxFit.cover,
-                            width: 48,
-                            height: 48,
-                            errorBuilder: (context, error, stackTrace) {
-                              return Center(
-                                child: Text(
-                                  avatars[0].name.isNotEmpty
-                                      ? avatars[0]
-                                          .name
-                                          .substring(0, 1)
-                                          .toUpperCase()
-                                      : "?",
-                                  style: const TextStyle(
-                                    fontSize: 28,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              );
-                            },
+                  child: InkWell(
+                      onTap: () {
+                        context.pushNamed('chat',
+                            extra: ChatUser(
+                                name: avatars[0].name,
+                                email: avatars[0].id,
+                                chatId: null,
+                                isHuman: false,
+                                profilePictureURL: avatars[0].profilePicture));
+                      },
+                      child: Row(
+                        children: [
+                          Container(
+                            decoration: const BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: Colors.white,
+                            ),
+                            padding: const EdgeInsets.all(2.0), // White padding
+                            child: ClipOval(
+                              child: Image.network(
+                                avatars[0].profilePicture,
+                                fit: BoxFit.cover,
+                                width: 48,
+                                height: 48,
+                                errorBuilder: (context, error, stackTrace) {
+                                  return Center(
+                                    child: Text(
+                                      avatars[0].name.isNotEmpty
+                                          ? avatars[0]
+                                              .name
+                                              .substring(0, 1)
+                                              .toUpperCase()
+                                          : "?",
+                                      style: const TextStyle(
+                                        fontSize: 28,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
                           ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      SizedBox(
-                          width: 220,
-                          child: Text(
-                            "Hey, I'm ${avatars[0].name}! Let's chat, you can ask me anything.",
-                            maxLines: 2,
-                          ))
-                    ],
-                  ),
+                          const SizedBox(width: 12),
+                          SizedBox(
+                              width: 220,
+                              child: Text(
+                                "Hey, I'm ${avatars[0].name}! Let's chat, you can ask me anything.",
+                                maxLines: 2,
+                              ))
+                        ],
+                      )),
                 ))
         ]),
       ),
