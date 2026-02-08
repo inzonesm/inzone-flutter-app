@@ -62,6 +62,10 @@ class HomeScreenState extends State<HomeScreen> {
   final Set<String> _viewedPosts =
       {}; // Track posts whose view count has been incremented
 
+  // Avatar popup
+  bool avatarPopup = false;
+  Timer? _avatarTimer;
+
   @override
   void initState() {
     super.initState();
@@ -79,6 +83,13 @@ class HomeScreenState extends State<HomeScreen> {
         deviceModel: _getPlatform(),
       );
     }
+
+    _avatarTimer = Timer(const Duration(seconds: 10), () {
+      if (!mounted) return;
+      setState(() {
+        avatarPopup = true;
+      });
+    });
   }
 
   String _getPlatform() {
@@ -116,6 +127,8 @@ class HomeScreenState extends State<HomeScreen> {
       "timeSpent": timeSpent.inSeconds,
       "pageOpenedCount": pageOpened,
     });
+
+    _avatarTimer?.cancel();
     super.dispose();
   }
 
@@ -1151,43 +1164,44 @@ class HomeScreenState extends State<HomeScreen> {
                     ],
                   ),
                 ),
-          Positioned(
-              right: 5,
-              bottom: 125,
-              child: Container(
-                width: 300,
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.black,
-                  borderRadius: BorderRadius.circular(8),
-                  boxShadow: const [
-                    BoxShadow(
-                      color: Colors.black26,
-                      blurRadius: 8,
-                      offset: Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 24,
-                      height: 24,
-                      decoration: const BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: Colors.blue,
+          if (avatarPopup)
+            Positioned(
+                right: 5,
+                bottom: 125,
+                child: Container(
+                  width: 300,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.black,
+                    borderRadius: BorderRadius.circular(8),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Colors.black26,
+                        blurRadius: 8,
+                        offset: Offset(0, 4),
                       ),
-                      child: const Icon(
-                        CupertinoIcons.chat_bubble_text,
-                        size: 16,
-                        color: Colors.white,
+                    ],
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 24,
+                        height: 24,
+                        decoration: const BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Colors.blue,
+                        ),
+                        child: const Icon(
+                          CupertinoIcons.chat_bubble_text,
+                          size: 16,
+                          color: Colors.white,
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 12),
-                    const Text('Hey, Im Yuji!')
-                  ],
-                ),
-              ))
+                      const SizedBox(width: 12),
+                      const Text('Hey, Im Yuji!')
+                    ],
+                  ),
+                ))
         ]),
       ),
     );
