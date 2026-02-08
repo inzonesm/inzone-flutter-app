@@ -38,6 +38,7 @@ class HomeScreenState extends State<HomeScreen> {
   List<String> categoriesList = [];
   bool isLoading = true;
   bool isLoadingMore = false;
+  List<InZoneAvatar> avatars = [];
   List<AvatarCard> avatarCards = [];
   List<AvatarStoryComponent> avatarStoryComponents = [];
 
@@ -233,6 +234,7 @@ class HomeScreenState extends State<HomeScreen> {
         posts.clear();
         originalPosts.clear();
         categoriesList.clear();
+        avatars.clear();
         avatarCards.clear();
         avatarStoryComponents.clear();
         hasMorePosts = true;
@@ -584,10 +586,11 @@ class HomeScreenState extends State<HomeScreen> {
   }
 
   void _processAvatars(List<dynamic> fetchedCharacters) {
+    avatars.clear();
     avatarCards.clear();
     avatarStoryComponents.clear();
     try {
-      List<InZoneAvatar> avatars = [];
+      avatars = [];
 
       for (var characterData in fetchedCharacters) {
         InZoneAvatar avatar = InZoneAvatar.fromDirectJson(characterData);
@@ -1164,12 +1167,12 @@ class HomeScreenState extends State<HomeScreen> {
                     ],
                   ),
                 ),
-          if (avatarPopup)
+          if (avatarPopup && avatars.isNotEmpty)
             Positioned(
                 right: 5,
                 bottom: 125,
                 child: Container(
-                  width: 300,
+                  width: 320,
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
                     color: Colors.black,
@@ -1185,20 +1188,43 @@ class HomeScreenState extends State<HomeScreen> {
                   child: Row(
                     children: [
                       Container(
-                        width: 24,
-                        height: 24,
                         decoration: const BoxDecoration(
                           shape: BoxShape.circle,
-                          color: Colors.blue,
-                        ),
-                        child: const Icon(
-                          CupertinoIcons.chat_bubble_text,
-                          size: 16,
                           color: Colors.white,
+                        ),
+                        padding: const EdgeInsets.all(2.0), // White padding
+                        child: ClipOval(
+                          child: Image.network(
+                            avatars[0].profilePicture,
+                            fit: BoxFit.cover,
+                            width: 48,
+                            height: 48,
+                            errorBuilder: (context, error, stackTrace) {
+                              return Center(
+                                child: Text(
+                                  avatars[0].name.isNotEmpty
+                                      ? avatars[0]
+                                          .name
+                                          .substring(0, 1)
+                                          .toUpperCase()
+                                      : "?",
+                                  style: const TextStyle(
+                                    fontSize: 28,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
                         ),
                       ),
                       const SizedBox(width: 12),
-                      const Text('Hey, Im Yuji!')
+                      SizedBox(
+                          width: 220,
+                          child: Text(
+                            "Hey, I'm ${avatars[0].name}! Let's chat, you can ask me anything.",
+                            maxLines: 2,
+                          ))
                     ],
                   ),
                 ))
