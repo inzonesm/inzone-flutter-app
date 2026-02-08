@@ -43,12 +43,12 @@ class HomeScreenState extends State<HomeScreen> {
 
   late DateTime _startTime;
   int pageOpened = 0;
-  int _currentPage = 1;  // Start from page 1 (backend pagination starts at 1)
+  int _currentPage = 1; // Start from page 1 (backend pagination starts at 1)
   final int _pageSize = 10; //
   bool hasMorePosts = true;
   String? selectedCategory; // Track the currently selected category
   int reloadCount = 0; // Track number of reloads
-  int _currentVisibleIndex = 0; // Track current visible card index
+  final int _currentVisibleIndex = 0; // Track current visible card index
   Timer? _scrollThrottleTimer;
 
   // Scroll tracking variables
@@ -132,7 +132,8 @@ class HomeScreenState extends State<HomeScreen> {
               _scrollController.position.maxScrollExtent - 200 &&
           !isLoadingMore &&
           hasMorePosts) {
-        print('🎯 Scroll trigger: Near bottom (within 200px), loading more posts...');
+        print(
+            '🎯 Scroll trigger: Near bottom (within 200px), loading more posts...');
         _loadMorePosts();
       }
     });
@@ -215,7 +216,7 @@ class HomeScreenState extends State<HomeScreen> {
 
     if (isRefresh) {
       setState(() {
-        _currentPage = 1;  // Reset to page 1 for new batch
+        _currentPage = 1; // Reset to page 1 for new batch
         posts.clear();
         originalPosts.clear();
         categoriesList.clear();
@@ -234,15 +235,18 @@ class HomeScreenState extends State<HomeScreen> {
 
     try {
       // Collect currently loaded post IDs to exclude from backend
-      List<String> currentPostIds = posts.map((post) =>
-        post['id']?.toString() ?? post['_id']?.toString() ?? ''
-      ).where((id) => id.isNotEmpty).toList();
+      List<String> currentPostIds = posts
+          .map(
+              (post) => post['id']?.toString() ?? post['_id']?.toString() ?? '')
+          .where((id) => id.isNotEmpty)
+          .toList();
 
       // CONSISTENT PAGINATION: Always use page 1 for fresh batch
       // _currentPage tracks client-side pagination within the batch
       final response = await InZoneDatabase.getFeed(
         page: 1,
-        batchNumber: reloadCount, // NEW: Pass batch number to get different recommendations
+        batchNumber:
+            reloadCount, // NEW: Pass batch number to get different recommendations
         excludeIds: currentPostIds, // Exclude already-loaded posts
       );
 
@@ -253,9 +257,11 @@ class HomeScreenState extends State<HomeScreen> {
           List<dynamic> newPosts = response['posts'] ?? [];
 
           // Check for duplicates before adding
-          Set<String> existingIds = posts.map((post) =>
-            post['id']?.toString() ?? post['_id']?.toString() ?? ''
-          ).where((id) => id.isNotEmpty).toSet();
+          Set<String> existingIds = posts
+              .map((post) =>
+                  post['id']?.toString() ?? post['_id']?.toString() ?? '')
+              .where((id) => id.isNotEmpty)
+              .toSet();
 
           List<dynamic> uniqueNewPosts = newPosts.where((post) {
             String id = post['id']?.toString() ?? post['_id']?.toString() ?? '';
@@ -263,7 +269,8 @@ class HomeScreenState extends State<HomeScreen> {
           }).toList();
 
           if (uniqueNewPosts.length != newPosts.length) {
-            print('⚠️ WARNING: Filtered out ${newPosts.length - uniqueNewPosts.length} duplicate posts!');
+            print(
+                '⚠️ WARNING: Filtered out ${newPosts.length - uniqueNewPosts.length} duplicate posts!');
           }
 
           setState(() {
@@ -282,11 +289,15 @@ class HomeScreenState extends State<HomeScreen> {
             hasMorePosts = true; // Always true for infinite scroll
           });
 
-          print('✅ LOADED Initial Page 1 of Batch $reloadCount: ${newPosts.length} posts (Total now: ${posts.length})');
+          print(
+              '✅ LOADED Initial Page 1 of Batch $reloadCount: ${newPosts.length} posts (Total now: ${posts.length})');
           // Show first 3 post IDs for verification
           for (int i = 0; i < newPosts.length.clamp(0, 3); i++) {
-            String id = newPosts[i]['id']?.toString() ?? newPosts[i]['_id']?.toString() ?? 'unknown';
-            print('   Post ${i + 1}: ${id.length >= 8 ? id.substring(0, 8) : id}...');
+            String id = newPosts[i]['id']?.toString() ??
+                newPosts[i]['_id']?.toString() ??
+                'unknown';
+            print(
+                '   Post ${i + 1}: ${id.length >= 8 ? id.substring(0, 8) : id}...');
           }
         } else {
           setState(() {
@@ -334,21 +345,25 @@ class HomeScreenState extends State<HomeScreen> {
       isLoadingMore = true;
     });
 
-    print('📄 _loadMorePosts: Requesting page ${_currentPage + 1} of batch $reloadCount');
-    print('   Current state: ${posts.length} posts loaded, _currentPage=$_currentPage');
+    print(
+        '📄 _loadMorePosts: Requesting page ${_currentPage + 1} of batch $reloadCount');
+    print(
+        '   Current state: ${posts.length} posts loaded, _currentPage=$_currentPage');
 
     try {
       // Collect currently loaded post IDs to exclude from backend
-      List<String> currentPostIds = posts.map((post) =>
-        post['id']?.toString() ?? post['_id']?.toString() ?? ''
-      ).where((id) => id.isNotEmpty).toList();
+      List<String> currentPostIds = posts
+          .map(
+              (post) => post['id']?.toString() ?? post['_id']?.toString() ?? '')
+          .where((id) => id.isNotEmpty)
+          .toList();
 
       // PAGINATION FIX: Keep same batch, just load next page
       // page: _currentPage + 1 = next page in current batch
       // batchNumber: reloadCount = stay in same batch
       final response = await InZoneDatabase.getFeed(
         page: _currentPage + 1,
-        batchNumber: reloadCount,  // Keep same batch for consistent pagination
+        batchNumber: reloadCount, // Keep same batch for consistent pagination
         excludeIds: currentPostIds, // Exclude already-loaded posts
       );
 
@@ -358,22 +373,26 @@ class HomeScreenState extends State<HomeScreen> {
         if (response.containsKey('posts')) {
           List<dynamic> newPosts = response['posts'] ?? [];
 
-          print('📥 Received ${newPosts.length} posts for page ${_currentPage + 1}');
+          print(
+              '📥 Received ${newPosts.length} posts for page ${_currentPage + 1}');
 
           if (newPosts.isEmpty) {
             // Reached end of current batch (all 3 pages loaded)
             // Now fetch a NEW batch for infinite scroll
-            print('📱 Reached end of batch (page ${_currentPage + 1}), fetching new batch...');
+            print(
+                '📱 Reached end of batch (page ${_currentPage + 1}), fetching new batch...');
             print('   Total posts so far: ${posts.length}');
-            
+
             try {
               // Increment batch number to get new recommendations
               reloadCount++;
 
               // Collect currently loaded post IDs to exclude from backend
-              List<String> currentPostIds = posts.map((post) =>
-                post['id']?.toString() ?? post['_id']?.toString() ?? ''
-              ).where((id) => id.isNotEmpty).toList();
+              List<String> currentPostIds = posts
+                  .map((post) =>
+                      post['id']?.toString() ?? post['_id']?.toString() ?? '')
+                  .where((id) => id.isNotEmpty)
+                  .toList();
 
               // Fetch NEW batch, starting from page 1
               final freshResponse = await InZoneDatabase.getFeed(
@@ -381,25 +400,31 @@ class HomeScreenState extends State<HomeScreen> {
                 batchNumber: reloadCount, // NEW batch number
                 excludeIds: currentPostIds, // Exclude already-loaded posts
               );
-              
+
               if (!mounted) return;
-              
+
               if (freshResponse != null && freshResponse.containsKey('posts')) {
                 List<dynamic> freshPosts = freshResponse['posts'] ?? [];
-                
+
                 if (freshPosts.isNotEmpty) {
                   // Check for duplicates before adding new batch
-                  Set<String> existingIds = posts.map((post) =>
-                    post['id']?.toString() ?? post['_id']?.toString() ?? ''
-                  ).where((id) => id.isNotEmpty).toSet();
+                  Set<String> existingIds = posts
+                      .map((post) =>
+                          post['id']?.toString() ??
+                          post['_id']?.toString() ??
+                          '')
+                      .where((id) => id.isNotEmpty)
+                      .toSet();
 
                   List<dynamic> uniqueFreshPosts = freshPosts.where((post) {
-                    String id = post['id']?.toString() ?? post['_id']?.toString() ?? '';
+                    String id =
+                        post['id']?.toString() ?? post['_id']?.toString() ?? '';
                     return id.isNotEmpty && !existingIds.contains(id);
                   }).toList();
 
                   if (uniqueFreshPosts.length != freshPosts.length) {
-                    print('⚠️ WARNING: Filtered out ${freshPosts.length - uniqueFreshPosts.length} duplicate posts in new batch!');
+                    print(
+                        '⚠️ WARNING: Filtered out ${freshPosts.length - uniqueFreshPosts.length} duplicate posts in new batch!');
                   }
 
                   setState(() {
@@ -413,7 +438,8 @@ class HomeScreenState extends State<HomeScreen> {
                     // Extract categories from fresh posts
                     for (var post in freshPosts) {
                       String category = _extractCategoryFromPost(post);
-                      if (category.isNotEmpty && !categoriesList.contains(category)) {
+                      if (category.isNotEmpty &&
+                          !categoriesList.contains(category)) {
                         categoriesList.add(category);
                       }
                     }
@@ -422,11 +448,15 @@ class HomeScreenState extends State<HomeScreen> {
                     hasMorePosts = true;
                   });
 
-                  print('✅ LOADED NEW Batch $reloadCount, Page 1: ${freshPosts.length} posts (Total now: ${posts.length})');
+                  print(
+                      '✅ LOADED NEW Batch $reloadCount, Page 1: ${freshPosts.length} posts (Total now: ${posts.length})');
                   // Show first 3 post IDs for verification
                   for (int i = 0; i < freshPosts.length.clamp(0, 3); i++) {
-                    String id = freshPosts[i]['id']?.toString() ?? freshPosts[i]['_id']?.toString() ?? 'unknown';
-                    print('   Post ${posts.length - freshPosts.length + i + 1}: ${id.length >= 8 ? id.substring(0, 8) : id}...');
+                    String id = freshPosts[i]['id']?.toString() ??
+                        freshPosts[i]['_id']?.toString() ??
+                        'unknown';
+                    print(
+                        '   Post ${posts.length - freshPosts.length + i + 1}: ${id.length >= 8 ? id.substring(0, 8) : id}...');
                   }
                 } else {
                   print('⚠️ New batch was empty');
@@ -451,9 +481,11 @@ class HomeScreenState extends State<HomeScreen> {
 
           // Successfully loaded next page in current batch
           // Check for duplicates before adding
-          Set<String> existingIds = posts.map((post) =>
-            post['id']?.toString() ?? post['_id']?.toString() ?? ''
-          ).where((id) => id.isNotEmpty).toSet();
+          Set<String> existingIds = posts
+              .map((post) =>
+                  post['id']?.toString() ?? post['_id']?.toString() ?? '')
+              .where((id) => id.isNotEmpty)
+              .toSet();
 
           List<dynamic> uniqueNewPosts = newPosts.where((post) {
             String id = post['id']?.toString() ?? post['_id']?.toString() ?? '';
@@ -461,12 +493,14 @@ class HomeScreenState extends State<HomeScreen> {
           }).toList();
 
           if (uniqueNewPosts.length != newPosts.length) {
-            print('⚠️ WARNING: Filtered out ${newPosts.length - uniqueNewPosts.length} duplicate posts in _loadMorePosts!');
+            print(
+                '⚠️ WARNING: Filtered out ${newPosts.length - uniqueNewPosts.length} duplicate posts in _loadMorePosts!');
           }
 
           // Check if we got any unique posts after filtering
           if (uniqueNewPosts.isEmpty) {
-            print('⚠️ All posts were duplicates after filtering. No new posts to add.');
+            print(
+                '⚠️ All posts were duplicates after filtering. No new posts to add.');
             setState(() {
               isLoadingMore = false;
               // Don't stop pagination - just skip this page
@@ -495,11 +529,15 @@ class HomeScreenState extends State<HomeScreen> {
             hasMorePosts = true;
           });
 
-          print('✅ LOADED Page ${_currentPage} of Batch $reloadCount: ${newPosts.length} posts (Total now: ${posts.length})');
+          print(
+              '✅ LOADED Page $_currentPage of Batch $reloadCount: ${newPosts.length} posts (Total now: ${posts.length})');
           // Show first 3 post IDs for verification
           for (int i = 0; i < newPosts.length.clamp(0, 3); i++) {
-            String id = newPosts[i]['id']?.toString() ?? newPosts[i]['_id']?.toString() ?? 'unknown';
-            print('   Post ${posts.length - newPosts.length + i + 1}: ${id.length >= 8 ? id.substring(0, 8) : id}...');
+            String id = newPosts[i]['id']?.toString() ??
+                newPosts[i]['_id']?.toString() ??
+                'unknown';
+            print(
+                '   Post ${posts.length - newPosts.length + i + 1}: ${id.length >= 8 ? id.substring(0, 8) : id}...');
           }
         } else {
           // No posts in response
@@ -692,11 +730,14 @@ class HomeScreenState extends State<HomeScreen> {
       var postData = actualPost['post'];
       if (postData is Map && postData.containsKey('text_content')) {
         String textContent = postData['text_content']?.toString() ?? '';
-        postContentPreview = textContent.length > 30 ? textContent.substring(0, 30) : textContent;
+        postContentPreview = textContent.length > 30
+            ? textContent.substring(0, 30)
+            : textContent;
       }
     }
 
-    print('📺 DISPLAY Post #${actualPostIndex + 1}/${posts.length} | ListViewIdx: $index | ID: ${postId.length >= 8 ? postId.substring(0, 8) : postId}... | Type: $postType | Preview: "$postContentPreview${postContentPreview.isNotEmpty ? "..." : ""}"');
+    print(
+        '📺 DISPLAY Post #${actualPostIndex + 1}/${posts.length} | ListViewIdx: $index | ID: ${postId.length >= 8 ? postId.substring(0, 8) : postId}... | Type: $postType | Preview: "$postContentPreview${postContentPreview.isNotEmpty ? "..." : ""}"');
 
     if (postId.isNotEmpty &&
         postType != 'unknown' &&
@@ -758,20 +799,25 @@ class HomeScreenState extends State<HomeScreen> {
             inProfile: false,
             onDeleted: (postId) {
               setState(() {
-                posts.removeWhere((p) => (p is Map && p['id'] == postId) || (p is InZonePost && p.id == postId));
-                feedItems.removeWhere((w) => w is PostCard && (w as PostCard).post.id == postId);
+                posts.removeWhere((p) =>
+                    (p is Map && p['id'] == postId) ||
+                    (p is InZonePost && p.id == postId));
+                feedItems
+                    .removeWhere((w) => w is PostCard && (w).post.id == postId);
               });
             },
             onUpdated: (updatedPost) {
               setState(() {
                 for (int i = 0; i < posts.length; i++) {
                   final p = posts[i];
-                  if ((p is Map && p['id'] == updatedPost.id) || (p is InZonePost && p.id == updatedPost.id)) {
+                  if ((p is Map && p['id'] == updatedPost.id) ||
+                      (p is InZonePost && p.id == updatedPost.id)) {
                     posts[i] = updatedPost;
                   }
                 }
                 for (var w in feedItems) {
-                  if (w is PostCard && w.post.id == updatedPost.id) w.post = updatedPost;
+                  if (w is PostCard && w.post.id == updatedPost.id)
+                    w.post = updatedPost;
                 }
               });
             },
@@ -801,20 +847,25 @@ class HomeScreenState extends State<HomeScreen> {
             inProfile: false,
             onDeleted: (postId) {
               setState(() {
-                posts.removeWhere((p) => (p is Map && p['id'] == postId) || (p is InZonePost && p.id == postId));
-                feedItems.removeWhere((w) => w is PostCard && (w as PostCard).post.id == postId);
+                posts.removeWhere((p) =>
+                    (p is Map && p['id'] == postId) ||
+                    (p is InZonePost && p.id == postId));
+                feedItems
+                    .removeWhere((w) => w is PostCard && (w).post.id == postId);
               });
             },
             onUpdated: (updatedPost) {
               setState(() {
                 for (int i = 0; i < posts.length; i++) {
                   final p = posts[i];
-                  if ((p is Map && p['id'] == updatedPost.id) || (p is InZonePost && p.id == updatedPost.id)) {
+                  if ((p is Map && p['id'] == updatedPost.id) ||
+                      (p is InZonePost && p.id == updatedPost.id)) {
                     posts[i] = updatedPost;
                   }
                 }
                 for (var w in feedItems) {
-                  if (w is PostCard && w.post.id == updatedPost.id) w.post = updatedPost;
+                  if (w is PostCard && w.post.id == updatedPost.id)
+                    w.post = updatedPost;
                 }
               });
             },
@@ -844,20 +895,25 @@ class HomeScreenState extends State<HomeScreen> {
             inProfile: false,
             onDeleted: (postId) {
               setState(() {
-                posts.removeWhere((p) => (p is Map && p['id'] == postId) || (p is InZonePost && p.id == postId));
-                feedItems.removeWhere((w) => w is PostCard && (w as PostCard).post.id == postId);
+                posts.removeWhere((p) =>
+                    (p is Map && p['id'] == postId) ||
+                    (p is InZonePost && p.id == postId));
+                feedItems
+                    .removeWhere((w) => w is PostCard && (w).post.id == postId);
               });
             },
             onUpdated: (updatedPost) {
               setState(() {
                 for (int i = 0; i < posts.length; i++) {
                   final p = posts[i];
-                  if ((p is Map && p['id'] == updatedPost.id) || (p is InZonePost && p.id == updatedPost.id)) {
+                  if ((p is Map && p['id'] == updatedPost.id) ||
+                      (p is InZonePost && p.id == updatedPost.id)) {
                     posts[i] = updatedPost;
                   }
                 }
                 for (var w in feedItems) {
-                  if (w is PostCard && w.post.id == updatedPost.id) w.post = updatedPost;
+                  if (w is PostCard && w.post.id == updatedPost.id)
+                    w.post = updatedPost;
                 }
               });
             },
@@ -886,204 +942,227 @@ class HomeScreenState extends State<HomeScreen> {
         right: false,
         top: true,
         bottom: false,
-        child: isLoading
-            ? SingleChildScrollView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                child: Column(
-                  children: [
-                    StreamBuilder<int>(
-                      stream: NotificationBadgeService.getUnreadNotificationCount(),
-                      builder: (context, snapshot) {
-                        final notificationCount = snapshot.data ?? 0;
-                        return CustomAppBar(
-                          isHome: true,
-                          isDebug: false, // Changed to false to show notification button
-                          userPoints: "100",
-                          profileImageUrl: null,
-                          notificationCount: notificationCount, // Real-time unread count
-                          onNotificationTap: () {
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (context) =>
-                                    const NotificationCenterScreen(),
-                              ),
-                            );
-                          },
-                          onSearchTap: () {
-                        try {
-                          // context.push(Routes.searchExplore);
-                          Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (context) => const SearchExploreScreen(),
-                            ),
-                          );
-                        } catch (e) {
-                          print('Error navigating to search: $e');
-                          ToastService.showToast(
-                            context,
-                            backgroundColor: Theme.of(context).canvasColor,
-                            shadowColor: Colors.transparent,
-                            leading: const Icon(
-                              Icons
-                                  .error_outline, // or Icons.check_circle, Icons.warning_amber_rounded, etc.
-                              color: Colors
-                                  .redAccent, // or Colors.greenAccent, Colors.orange
-                            ),
-                            message: 'Cannot navigate to search: $e',
-                          );
-                        }
-                      },
-                      onProfileTap: () {},
-                      onPointsTap: () {},
-                    );
-                      },
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.only(top: 0.0, bottom: 35.0),
-                      child: CategoryLoading(context),
-                    ),
-                    ...List<Widget>.generate(
-                        5, (index) => PostLoading(context)),
-                  ],
-                ),
-              )
-            : SmartRefresher(
-                enablePullDown: true,
-                controller: _refreshController,
-                onRefresh: _onRefresh,
-                // Use AlwaysScrollableScrollPhysics for consistent behavior
-                physics: const AlwaysScrollableScrollPhysics(),
-                header: ClassicHeader(
-                  releaseIcon: refreshIcon(),
-                  refreshingIcon: refreshIcon(),
-                  completeIcon: refreshIcon(),
-                  idleIcon: refreshIcon(),
-                  failedIcon: refreshIcon(),
-                  refreshingText: "",
-                  releaseText: "",
-                  completeText: "",
-                  idleText: "",
-                  failedText: "",
-                ),
-                child: CustomScrollView(
-                  controller: _scrollController,
-                  // Use AlwaysScrollableScrollPhysics for consistency
+        child: Stack(children: [
+          isLoading
+              ? SingleChildScrollView(
                   physics: const AlwaysScrollableScrollPhysics(),
-                  // Cache extent to prebuild the next ~3 cards (assuming ~200px per card)
-                  cacheExtent: 600.0,
-                  slivers: [
-                    SliverPersistentHeader(
-                      floating: true,
-                      pinned: false,
-                      delegate: CustomAppBarDelegate(
-                        child: StreamBuilder<int>(
-                          stream: NotificationBadgeService.getUnreadNotificationCount(),
-                          builder: (context, snapshot) {
-                            final notificationCount = snapshot.data ?? 0;
-                            return CustomAppBar(
-                              isHome: true,
-                              isDebug: false, // Changed to false to show notification button
-                              userPoints: "100",
-                              profileImageUrl: null,
-                              notificationCount: notificationCount, // Real-time unread count
-                          onNotificationTap: () {
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (context) =>
-                                    const NotificationCenterScreen(),
-                              ),
-                            );
-                          },
-                          onSearchTap: () {
-                            try {
-                              // context.push(Routes.searchExplore);
-
+                  child: Column(
+                    children: [
+                      StreamBuilder<int>(
+                        stream: NotificationBadgeService
+                            .getUnreadNotificationCount(),
+                        builder: (context, snapshot) {
+                          final notificationCount = snapshot.data ?? 0;
+                          return CustomAppBar(
+                            isHome: true,
+                            isDebug:
+                                false, // Changed to false to show notification button
+                            userPoints: "100",
+                            profileImageUrl: null,
+                            notificationCount:
+                                notificationCount, // Real-time unread count
+                            onNotificationTap: () {
                               Navigator.of(context).push(
                                 MaterialPageRoute(
                                   builder: (context) =>
-                                      const SearchExploreScreen(),
+                                      const NotificationCenterScreen(),
                                 ),
                               );
-                            } catch (e) {
-                              print('Error navigating to search: $e');
-                              ToastService.showToast(
-                                context,
-                                backgroundColor: Theme.of(context).canvasColor,
-                                shadowColor: Colors.transparent,
-                                leading: const Icon(
-                                  Icons
-                                      .error_outline, // or Icons.check_circle, Icons.warning_amber_rounded, etc.
-                                  color: Colors
-                                      .redAccent, // or Colors.greenAccent, Colors.orange
-                                ),
-                                message: "Error navigating to search: $e",
+                            },
+                            onSearchTap: () {
+                              try {
+                                // context.push(Routes.searchExplore);
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (context) =>
+                                        const SearchExploreScreen(),
+                                  ),
+                                );
+                              } catch (e) {
+                                print('Error navigating to search: $e');
+                                ToastService.showToast(
+                                  context,
+                                  backgroundColor:
+                                      Theme.of(context).canvasColor,
+                                  shadowColor: Colors.transparent,
+                                  leading: const Icon(
+                                    Icons
+                                        .error_outline, // or Icons.check_circle, Icons.warning_amber_rounded, etc.
+                                    color: Colors
+                                        .redAccent, // or Colors.greenAccent, Colors.orange
+                                  ),
+                                  message: 'Cannot navigate to search: $e',
+                                );
+                              }
+                            },
+                            onProfileTap: () {},
+                            onPointsTap: () {},
+                          );
+                        },
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.only(top: 0.0, bottom: 35.0),
+                        child: CategoryLoading(context),
+                      ),
+                      ...List<Widget>.generate(
+                          5, (index) => PostLoading(context)),
+                    ],
+                  ),
+                )
+              : SmartRefresher(
+                  enablePullDown: true,
+                  controller: _refreshController,
+                  onRefresh: _onRefresh,
+                  // Use AlwaysScrollableScrollPhysics for consistent behavior
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  header: ClassicHeader(
+                    releaseIcon: refreshIcon(),
+                    refreshingIcon: refreshIcon(),
+                    completeIcon: refreshIcon(),
+                    idleIcon: refreshIcon(),
+                    failedIcon: refreshIcon(),
+                    refreshingText: "",
+                    releaseText: "",
+                    completeText: "",
+                    idleText: "",
+                    failedText: "",
+                  ),
+                  child: CustomScrollView(
+                    controller: _scrollController,
+                    // Use AlwaysScrollableScrollPhysics for consistency
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    // Cache extent to prebuild the next ~3 cards (assuming ~200px per card)
+                    cacheExtent: 600.0,
+                    slivers: [
+                      SliverPersistentHeader(
+                        floating: true,
+                        pinned: false,
+                        delegate: CustomAppBarDelegate(
+                          child: StreamBuilder<int>(
+                            stream: NotificationBadgeService
+                                .getUnreadNotificationCount(),
+                            builder: (context, snapshot) {
+                              final notificationCount = snapshot.data ?? 0;
+                              return CustomAppBar(
+                                isHome: true,
+                                isDebug:
+                                    false, // Changed to false to show notification button
+                                userPoints: "100",
+                                profileImageUrl: null,
+                                notificationCount:
+                                    notificationCount, // Real-time unread count
+                                onNotificationTap: () {
+                                  Navigator.of(context).push(
+                                    MaterialPageRoute(
+                                      builder: (context) =>
+                                          const NotificationCenterScreen(),
+                                    ),
+                                  );
+                                },
+                                onSearchTap: () {
+                                  try {
+                                    // context.push(Routes.searchExplore);
+
+                                    Navigator.of(context).push(
+                                      MaterialPageRoute(
+                                        builder: (context) =>
+                                            const SearchExploreScreen(),
+                                      ),
+                                    );
+                                  } catch (e) {
+                                    print('Error navigating to search: $e');
+                                    ToastService.showToast(
+                                      context,
+                                      backgroundColor:
+                                          Theme.of(context).canvasColor,
+                                      shadowColor: Colors.transparent,
+                                      leading: const Icon(
+                                        Icons
+                                            .error_outline, // or Icons.check_circle, Icons.warning_amber_rounded, etc.
+                                        color: Colors
+                                            .redAccent, // or Colors.greenAccent, Colors.orange
+                                      ),
+                                      message: "Error navigating to search: $e",
+                                    );
+                                  }
+                                },
+                                onProfileTap: () {},
+                                onPointsTap: () {},
                               );
-                            }
-                          },
-                          onProfileTap: () {},
-                          onPointsTap: () {},
-                        );
-                          },
+                            },
+                          ),
                         ),
                       ),
-                    ),
-                    SliverToBoxAdapter(
-                      child: avatarStoryComponents.isNotEmpty
-                          ? _buildAvatarStories()
-                          : const SizedBox.shrink(),
-                    ),
-                    SliverList(
-                      delegate: SliverChildBuilderDelegate(
-                        (context, index) {
-                          // Calculate total items including ads
-                          int totalItemsWithAds =
-                              posts.length + (posts.length ~/ 10);
-
-                          if (index == totalItemsWithAds && isLoadingMore) {
-                            // Show loading indicator at the bottom
-                            return Container(
-                              padding: const EdgeInsets.symmetric(vertical: 20),
-                              child: const Center(
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2.5,
-                                ),
-                              ),
-                            );
-                          } else if (index ==
-                              totalItemsWithAds + (isLoadingMore ? 1 : 0)) {
-                            // Bottom padding for navigation bar
-                            return const SizedBox(height: 100);
-                          }
-
-                          // If within range, build the post widget
-                          if (index < totalItemsWithAds) {
-                            return Padding(
-                              key: ValueKey('post_$index'),
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 16.0, vertical: 0),
-                              child: _buildPostWidget(null, index),
-                            );
-                          }
-
-                          return const SizedBox.shrink(); // Safety fallback
-                        },
-                        childCount: posts.isEmpty
-                            ? 1 // Just show bottom padding if no posts
-                            : posts.length +
-                                (posts.length ~/ 10) +
-                                (isLoadingMore ? 1 : 0) +
-                                1, // +ads +loading +bottom padding
-                        // Enable automatic keep alives to maintain built widgets
-                        addAutomaticKeepAlives: true,
-                        // Enable repaint boundaries for better performance
-                        addRepaintBoundaries: true,
-                        // Prebuild next 3 items by setting semantic index
-                        addSemanticIndexes: true,
+                      SliverToBoxAdapter(
+                        child: avatarStoryComponents.isNotEmpty
+                            ? _buildAvatarStories()
+                            : const SizedBox.shrink(),
                       ),
-                    ),
-                  ],
+                      SliverList(
+                        delegate: SliverChildBuilderDelegate(
+                          (context, index) {
+                            // Calculate total items including ads
+                            int totalItemsWithAds =
+                                posts.length + (posts.length ~/ 10);
+
+                            if (index == totalItemsWithAds && isLoadingMore) {
+                              // Show loading indicator at the bottom
+                              return Container(
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 20),
+                                child: const Center(
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2.5,
+                                  ),
+                                ),
+                              );
+                            } else if (index ==
+                                totalItemsWithAds + (isLoadingMore ? 1 : 0)) {
+                              // Bottom padding for navigation bar
+                              return const SizedBox(height: 100);
+                            }
+
+                            // If within range, build the post widget
+                            if (index < totalItemsWithAds) {
+                              return Padding(
+                                key: ValueKey('post_$index'),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 16.0, vertical: 0),
+                                child: _buildPostWidget(null, index),
+                              );
+                            }
+
+                            return const SizedBox.shrink(); // Safety fallback
+                          },
+                          childCount: posts.isEmpty
+                              ? 1 // Just show bottom padding if no posts
+                              : posts.length +
+                                  (posts.length ~/ 10) +
+                                  (isLoadingMore ? 1 : 0) +
+                                  1, // +ads +loading +bottom padding
+                          // Enable automatic keep alives to maintain built widgets
+                          addAutomaticKeepAlives: true,
+                          // Enable repaint boundaries for better performance
+                          addRepaintBoundaries: true,
+                          // Prebuild next 3 items by setting semantic index
+                          addSemanticIndexes: true,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
+          const Positioned(
+              right: 16,
+              bottom: 116,
+              child: Text(
+                'DEBUG',
+                style: TextStyle(
+                  color: Colors.red,
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                ),
+              )),
+        ]),
       ),
     );
   }
