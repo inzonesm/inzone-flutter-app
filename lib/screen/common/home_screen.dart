@@ -953,6 +953,7 @@ class HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
       body: ColorfulSafeArea(
         topColor: Theme.of(context).canvasColor,
@@ -1177,7 +1178,7 @@ class HomeScreenState extends State<HomeScreen> {
                   width: 320,
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: Colors.black,
+                    color: isDarkMode ? Colors.black : Colors.white,
                     borderRadius: BorderRadius.circular(8),
                     boxShadow: const [
                       BoxShadow(
