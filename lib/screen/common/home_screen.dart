@@ -21,6 +21,7 @@ import 'package:pull_to_refresh_flutter3/pull_to_refresh_flutter3.dart';
 import 'package:inzone/services/appsflyer_service.dart';
 import 'dart:async';
 import 'dart:io';
+import 'dart:math';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key, this.controller});
@@ -43,6 +44,8 @@ class HomeScreenState extends State<HomeScreen> {
   List<InZoneAvatar> avatars = [];
   List<AvatarCard> avatarCards = [];
   List<AvatarStoryComponent> avatarStoryComponents = [];
+  InZoneAvatar? popupAvatar;
+  Timer? _avatarTimer;
 
   late DateTime _startTime;
   int pageOpened = 0;
@@ -65,10 +68,6 @@ class HomeScreenState extends State<HomeScreen> {
   final Set<String> _viewedPosts =
       {}; // Track posts whose view count has been incremented
 
-  // Avatar popup
-  bool avatarPopup = false;
-  Timer? _avatarTimer;
-
   @override
   void initState() {
     super.initState();
@@ -87,10 +86,14 @@ class HomeScreenState extends State<HomeScreen> {
       );
     }
 
+    // Assign popup avatar
     _avatarTimer = Timer(const Duration(seconds: 10), () {
       if (!mounted) return;
       setState(() {
-        avatarPopup = true;
+        if (avatars.isNotEmpty) {
+          final random = Random();
+          popupAvatar = avatars[random.nextInt(avatars.length)];
+        }
       });
     });
   }
@@ -1170,7 +1173,7 @@ class HomeScreenState extends State<HomeScreen> {
                     ],
                   ),
                 ),
-          if (avatarPopup && avatars.isNotEmpty)
+          if (popupAvatar != null)
             Positioned(
                 right: 5,
                 bottom: 125,
@@ -1189,14 +1192,19 @@ class HomeScreenState extends State<HomeScreen> {
                     ],
                   ),
                   child: InkWell(
-                      onTap: () {
-                        context.pushNamed('chat',
+                      onTap: () async {
+                        await context.pushNamed('chat',
                             extra: ChatUser(
-                                name: avatars[0].name,
-                                email: avatars[0].id,
+                                name: popupAvatar!.name,
+                                email: popupAvatar!.id,
                                 chatId: null,
                                 isHuman: false,
-                                profilePictureURL: avatars[0].profilePicture));
+                                profilePictureURL:
+                                    popupAvatar!.profilePicture));
+
+                        setState(() {
+                          popupAvatar = null;
+                        });
                       },
                       child: Row(
                         children: [
@@ -1208,16 +1216,15 @@ class HomeScreenState extends State<HomeScreen> {
                             padding: const EdgeInsets.all(2.0), // White padding
                             child: ClipOval(
                               child: Image.network(
-                                avatars[0].profilePicture,
+                                popupAvatar!.profilePicture,
                                 fit: BoxFit.cover,
                                 width: 48,
                                 height: 48,
                                 errorBuilder: (context, error, stackTrace) {
                                   return Center(
                                     child: Text(
-                                      avatars[0].name.isNotEmpty
-                                          ? avatars[0]
-                                              .name
+                                      popupAvatar!.name.isNotEmpty
+                                          ? popupAvatar!.name
                                               .substring(0, 1)
                                               .toUpperCase()
                                           : "?",
@@ -1235,7 +1242,7 @@ class HomeScreenState extends State<HomeScreen> {
                           SizedBox(
                               width: 220,
                               child: Text(
-                                "Hey, I'm ${avatars[0].name}! Let's chat, you can ask me anything.",
+                                "Hey, I'm ${popupAvatar!.name}! Let's chat, you can ask me anything.",
                                 maxLines: 2,
                               ))
                         ],
