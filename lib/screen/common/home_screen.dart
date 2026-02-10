@@ -969,92 +969,114 @@ class HomeScreenState extends State<HomeScreen> {
       switchOutCurve: Curves.easeInCubic,
       transitionBuilder: (child, animation) {
         final slide = Tween<Offset>(
-          begin: const Offset(0, 0.08),
+          begin: const Offset(0, 0.25), // noticeable
           end: Offset.zero,
-        ).animate(animation);
+        ).animate(
+            CurvedAnimation(parent: animation, curve: Curves.easeOutCubic));
+
+        final scale = Tween<double>(
+          begin: 0.92,
+          end: 1.0,
+        ).animate(
+            CurvedAnimation(parent: animation, curve: Curves.easeOutBack));
 
         return FadeTransition(
           opacity: animation,
           child: SlideTransition(
             position: slide,
-            child: child,
+            child: ScaleTransition(
+              scale: scale,
+              child: child,
+            ),
           ),
         );
       },
       child: a == null
           ? const SizedBox(key: ValueKey('no_popup'))
-          : Container(
-              key: const ValueKey('popup'),
-              width: 320,
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: isDarkMode ? Colors.black : Colors.white,
-                borderRadius: BorderRadius.circular(8),
-                boxShadow: const [
-                  BoxShadow(
-                    color: Colors.black26,
-                    blurRadius: 8,
-                    offset: Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: InkWell(
-                onTap: () async {
-                  // Use captured 'a' (safe)
-                  await context.pushNamed(
-                    'chat',
-                    extra: ChatUser(
-                      name: a.name,
-                      email: a.id,
-                      chatId: null,
-                      isHuman: false,
-                      profilePictureURL: a.profilePicture,
-                    ),
-                  );
-
-                  if (!mounted) return;
-                  setState(() => popupAvatar = null);
-                  _startAvatarTimer();
-                },
-                child: Row(
-                  children: [
-                    Container(
-                      decoration: const BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: Colors.white,
-                      ),
-                      padding: const EdgeInsets.all(2.0),
-                      child: ClipOval(
-                        child: Image.network(
-                          a.profilePicture,
-                          fit: BoxFit.cover,
-                          width: 48,
-                          height: 48,
-                          errorBuilder: (context, error, stackTrace) {
-                            return Center(
-                              child: Text(
-                                a.name.isNotEmpty
-                                    ? a.name.substring(0, 1).toUpperCase()
-                                    : "?",
-                                style: const TextStyle(
-                                  fontSize: 28,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    SizedBox(
-                      width: 220,
-                      child: Text(
-                        "Hey, I'm ${a.name}! Let's chat, you can ask me anything.",
-                        maxLines: 2,
-                      ),
+          : Dismissible(
+              key: ValueKey('popup_${a.id}'), // unique key per avatar
+              direction: DismissDirection.horizontal,
+              dismissThresholds: const {
+                DismissDirection.startToEnd: 0.25,
+                DismissDirection.endToStart: 0.25,
+              },
+              onDismissed: (_) {
+                if (!mounted) return;
+                setState(() => popupAvatar = null);
+                _startAvatarTimer();
+              },
+              child: Container(
+                key: const ValueKey('popup'),
+                width: 320,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: isDarkMode ? Colors.black : Colors.white,
+                  borderRadius: BorderRadius.circular(8),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Colors.black26,
+                      blurRadius: 8,
+                      offset: Offset(0, 4),
                     ),
                   ],
+                ),
+                child: InkWell(
+                  onTap: () async {
+                    await context.pushNamed(
+                      'chat',
+                      extra: ChatUser(
+                        name: a.name,
+                        email: a.id,
+                        chatId: null,
+                        isHuman: false,
+                        profilePictureURL: a.profilePicture,
+                      ),
+                    );
+
+                    if (!mounted) return;
+                    setState(() => popupAvatar = null);
+                    _startAvatarTimer();
+                  },
+                  child: Row(
+                    children: [
+                      Container(
+                        decoration: const BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Colors.white,
+                        ),
+                        padding: const EdgeInsets.all(2.0),
+                        child: ClipOval(
+                          child: Image.network(
+                            a.profilePicture,
+                            fit: BoxFit.cover,
+                            width: 48,
+                            height: 48,
+                            errorBuilder: (context, error, stackTrace) {
+                              return Center(
+                                child: Text(
+                                  a.name.isNotEmpty
+                                      ? a.name.substring(0, 1).toUpperCase()
+                                      : "?",
+                                  style: const TextStyle(
+                                    fontSize: 28,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      SizedBox(
+                        width: 220,
+                        child: Text(
+                          "Hey, I'm ${a.name}! Let's chat, you can ask me anything.",
+                          maxLines: 2,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -1063,7 +1085,6 @@ class HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
       body: ColorfulSafeArea(
         topColor: Theme.of(context).canvasColor,
