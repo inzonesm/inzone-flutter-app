@@ -75,6 +75,7 @@ class HomeScreenState extends State<HomeScreen> {
     _startTime = DateTime.now().toUtc();
     loadFeed();
     loadAvatars();
+    _startAvatarTimer();
     _scrollController.addListener(_onScroll);
 
     // Track session start
@@ -85,15 +86,17 @@ class HomeScreenState extends State<HomeScreen> {
         deviceModel: _getPlatform(),
       );
     }
+  }
 
-    // Assign popup avatar
-    _avatarTimer = Timer(const Duration(seconds: 10), () {
-      if (!mounted) return;
+  void _startAvatarTimer() {
+    _avatarTimer?.cancel();
+
+    _avatarTimer = Timer(const Duration(seconds: 30), () {
+      if (!mounted || avatars.isEmpty) return;
+
+      final random = Random();
       setState(() {
-        if (avatars.isNotEmpty) {
-          final random = Random();
-          popupAvatar = avatars[random.nextInt(avatars.length)];
-        }
+        popupAvatar = avatars[random.nextInt(avatars.length)];
       });
     });
   }
@@ -1205,6 +1208,7 @@ class HomeScreenState extends State<HomeScreen> {
                         setState(() {
                           popupAvatar = null;
                         });
+                        _startAvatarTimer();
                       },
                       child: Row(
                         children: [
