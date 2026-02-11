@@ -1041,7 +1041,6 @@ class HomeScreenState extends State<HomeScreen> {
 
                     if (!mounted) return;
                     setState(() => popupAvatar = null);
-                    _startAvatarTimer();
                   },
                   child: Row(
                     children: [
