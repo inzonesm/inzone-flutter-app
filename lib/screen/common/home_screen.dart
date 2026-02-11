@@ -1010,8 +1010,14 @@ class HomeScreenState extends State<HomeScreen> {
                 width: 320,
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: isDarkMode ? Colors.black : Colors.white,
+                  color: Theme.of(context).cardColor,
                   borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: isDarkMode
+                        ? const Color(0xFFEF6D38)
+                        : const Color(0x23232338),
+                    width: 1,
+                  ),
                   boxShadow: const [
                     BoxShadow(
                       color: Colors.black26,
