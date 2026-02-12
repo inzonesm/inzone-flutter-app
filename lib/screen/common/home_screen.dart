@@ -1015,7 +1015,7 @@ class HomeScreenState extends State<HomeScreen> {
                   border: Border.all(
                     color: isDarkMode
                         ? const Color(0xFFEF6D38)
-                        : const Color(0x23232338),
+                        : const Color(0xFFEF6D38),
                     width: 1,
                   ),
                   boxShadow: const [
