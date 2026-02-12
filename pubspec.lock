@@ -647,7 +647,7 @@ packages:
     source: hosted
     version: "1.3.0"
   flutter_inappwebview:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: flutter_inappwebview
       sha256: "80092d13d3e29b6227e25b67973c67c7210bd5e35c4b747ca908e31eb71a46d5"
@@ -1081,7 +1081,7 @@ packages:
     source: hosted
     version: "1.4.0"
   in_app_purchase_storekit:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: in_app_purchase_storekit
       sha256: aedbeea5beae10af3e5c380b65049842715b2bb014983e2a48b9006473f33cd9
@@ -2134,7 +2134,7 @@ packages:
     source: hosted
     version: "1.1.1"
   webview_flutter:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: webview_flutter
       sha256: c3e4fe614b1c814950ad07186007eff2f2e5dd2935eba7b9a9a1af8e5885f1ba

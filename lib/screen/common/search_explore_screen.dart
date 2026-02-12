@@ -1,7 +1,5 @@
 import 'package:colorful_safe_area/colorful_safe_area.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_feather_icons/flutter_feather_icons.dart';
-import 'package:go_router/go_router.dart';
 import 'package:inzone/components/cards/post_card.dart';
 import 'package:inzone/components/profile/avatar_card.dart';
 import 'package:inzone/components/profile/avatar_story_component.dart';
@@ -9,10 +7,8 @@ import 'package:inzone/components/posts/shimmering.dart';
 import 'package:inzone/data/inzone_avatar.dart';
 import 'package:inzone/data/inzone_post.dart';
 import 'package:inzone/services/inzone_database.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:async';
-import 'package:inzone/router/routes.dart';
 import 'package:inzone/screen/common/characters_screen.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';

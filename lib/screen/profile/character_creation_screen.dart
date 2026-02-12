@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:inzone/services/inzone_database.dart';
 import 'package:inzone/services/shared_preferences_helper_class.dart';
@@ -362,9 +361,7 @@ class _CharacterCreationScreenState extends State<CharacterCreationScreen> {
                                       });
 
                                       // Generate image if not already done
-                                      if (url == null) {
-                                        url = await InZoneDatabase.generateImage(descriptionController.text);
-                                      }
+                                      url ??= await InZoneDatabase.generateImage(descriptionController.text);
 
                                       // Create character with popularity field
                                       if (url != null) {

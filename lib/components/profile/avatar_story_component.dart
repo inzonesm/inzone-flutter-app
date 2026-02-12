@@ -2,12 +2,9 @@ import 'dart:math';
 import 'dart:developer' as log;
 
 import 'package:flutter/material.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:go_router/go_router.dart';
 import 'package:inzone/screen/chat/all_chats_screen.dart';
-import 'package:inzone/screen/chat/chat_screen.dart';
 import 'package:inzone/data/inzone_avatar.dart';
-import 'package:inzone/router/routes.dart';
 
 class AvatarStoryComponent extends StatefulWidget {
   InZoneAvatar avatar;
@@ -175,59 +172,40 @@ class _AvatarCardState extends State<AvatarStoryComponent> {
               //     : null,
               // ),
               child: Padding(
-                  padding: const EdgeInsets.all(2.0), // Border thickness
-                  child: Stack(
-                    clipBehavior: Clip.none,
-                    children: [
-                      Container(
-                        decoration: const BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: Colors.white,
-                        ),
-                        padding: const EdgeInsets.all(2.0), // White padding
-                        child: ClipOval(
-                          child: Image.network(
-                            widget.avatar.profilePicture,
-                            fit: BoxFit.cover,
-                            width: 78,
-                            height: 78,
-                            errorBuilder: (context, error, stackTrace) {
-                              return Center(
-                                child: Text(
-                                  widget.avatar.name.isNotEmpty
-                                      ? widget.avatar.name
-                                          .substring(0, 1)
-                                          .toUpperCase()
-                                      : "?",
-                                  style: const TextStyle(
-                                    fontSize: 28,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
-                        ),
+                padding: const EdgeInsets.all(2.0), // Border thickness
+                child: Container(
+                  decoration: const BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Colors.white,
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(2.0), // White padding
+                    child: ClipOval(
+                      child: Image.network(
+                        widget.avatar.profilePicture,
+                        fit: BoxFit.cover,
+                        width: 78,
+                        height: 78,
+                        errorBuilder: (context, error, stackTrace) {
+                          return Center(
+                            child: Text(
+                              widget.avatar.name.isNotEmpty
+                                  ? widget.avatar.name
+                                      .substring(0, 1)
+                                      .toUpperCase()
+                                  : "?",
+                              style: const TextStyle(
+                                fontSize: 28,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          );
+                        },
                       ),
-                      Positioned(
-                        top: -2,
-                        right: -2,
-                        child: Container(
-                          width: 24,
-                          height: 24,
-                          decoration: const BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: Colors.blue,
-                          ),
-                          child: const Icon(
-                            CupertinoIcons.chat_bubble_text,
-                            size: 16,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
-                    ],
-                  )),
+                    ),
+                  ),
+                ),
+              ),
             ),
             const SizedBox(height: 4),
             // Username with ellipsis

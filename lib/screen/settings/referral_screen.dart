@@ -1,21 +1,16 @@
 import 'dart:io';
 
-import 'package:cloud_functions/cloud_functions.dart';
 import 'package:colorful_safe_area/colorful_safe_area.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_native_contact_picker/flutter_native_contact_picker.dart';
 import 'package:flutter_native_contact_picker/model/contact.dart';
-import 'package:inzone/components/ui/appbar.dart';
 import 'package:inzone/components/ui/button.dart';
 import 'package:inzone/services/monetization_service.dart';
 import 'package:inzone/screen/settings/referral_tile.dart';
 import 'package:toasty_box/toast_service.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'package:go_router/go_router.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:inzone/services/appsflyer_service.dart';
 import 'package:flutter_feather_icons/flutter_feather_icons.dart';

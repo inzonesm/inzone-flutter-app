@@ -6,7 +6,6 @@ import 'package:http/http.dart' as http;
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
 import 'package:in_app_purchase_storekit/in_app_purchase_storekit.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 
 class MonetizationService {
   // Product IDs

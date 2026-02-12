@@ -1,6 +1,5 @@
 import 'dart:io';
 import 'package:colorful_safe_area/colorful_safe_area.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:inzone/components/ui/appbar.dart';
 import 'package:inzone/screen/profile/edit_field_screen.dart';
@@ -313,8 +312,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                         fit: BoxFit.cover,
                                         loadingBuilder:
                                             (context, child, loadingProgress) {
-                                          if (loadingProgress == null)
+                                          if (loadingProgress == null) {
                                             return child;
+                                          }
                                           return Stack(
                                             children: [
                                               Opacity(

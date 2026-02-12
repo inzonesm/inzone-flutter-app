@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_feather_icons/flutter_feather_icons.dart';
 import 'package:inzone/components/ui/inzone_searchbar.dart';
 import 'package:inzone/services/inzone_database.dart';
-import 'package:inzone/screen/profile/profile_screen.dart';
 import 'package:inzone/router/routes.dart';
 import 'package:go_router/go_router.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';

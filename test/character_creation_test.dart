@@ -5,7 +5,7 @@ import 'package:inzone/screen/profile/character_creation_screen.dart';
 void main() {
   testWidgets('Character creation validation shows error messages', (WidgetTester tester) async {
     await tester.pumpWidget(
-      MaterialApp(
+      const MaterialApp(
         home: Scaffold(
           body: CharacterCreationScreen(),
         ),

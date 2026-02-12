@@ -1,22 +1,15 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/cupertino.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_feather_icons/flutter_feather_icons.dart';
 import 'package:inzone/components/cards/post_card.dart';
 import 'package:inzone/components/profile/avatar_card.dart';
-import 'package:inzone/components/profile/user_posts_tab.dart';
 import 'package:inzone/components/ui/profile_appbar.dart';
 import 'package:inzone/components/posts/shimmering.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:inzone/data/inzone_avatar.dart';
 import 'package:inzone/data/inzone_post.dart';
 import 'package:inzone/router/routes.dart';
-import 'package:inzone/screen/settings/settings_screen.dart';
 import 'package:inzone/services/inzone_database.dart';
-import 'package:inzone/theme/app_colors.dart';
 import 'package:go_router/go_router.dart';
-import 'package:inzone/router/routes.dart';
 import 'package:inzone/screen/chat/all_chats_screen.dart';
 import 'package:pull_to_refresh_flutter3/pull_to_refresh_flutter3.dart';
 

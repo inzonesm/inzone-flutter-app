@@ -92,7 +92,7 @@ class _FollowersFollowingScreenState extends State<FollowersFollowingScreen> {
       print('Debug - User profile data from Firebase: $userProfile');
 
       // Get the profile owner's username for comparison
-      final profileOwnerUsername = userProfile?['username']?.toString()?.toLowerCase() ?? '';
+      final profileOwnerUsername = userProfile?['username']?.toString().toLowerCase() ?? '';
       print('Debug - Profile owner username: $profileOwnerUsername');
 
       // Process followers data

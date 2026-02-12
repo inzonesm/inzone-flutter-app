@@ -8,7 +8,6 @@ import 'dart:io' show Platform;
 import 'package:url_launcher/url_launcher.dart';
 import 'package:go_router/go_router.dart';
 import 'package:inzone/router/routes.dart';
-import 'package:inzone/router/app_router.dart';
 import 'package:purchases_flutter/models/store_transaction.dart'
     show StoreTransaction;
 import 'package:purchases_flutter/purchases_flutter.dart' show Purchases;

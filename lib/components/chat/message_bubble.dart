@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:intl/intl.dart';
 import 'package:inzone/config/custom_icons.dart';
-import 'package:inzone/theme/app_colors.dart';
 import 'package:inzone/theme/light_theme.dart';
 
 class MessageBubble extends StatelessWidget {

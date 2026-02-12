@@ -17,7 +17,6 @@ import 'package:iconify_flutter/icons/ph.dart';
 import 'package:iconify_flutter/icons/heroicons_solid.dart';
 import 'package:in_app_review/in_app_review.dart';
 import 'package:toasty_box/toast_service.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
@@ -94,7 +93,7 @@ class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
     ];
 
     // Add scroll listener to handle navbar visibility
-    // _homeScrollController.addListener(_handleScroll);
+    _homeScrollController.addListener(_handleScroll);
 
     // Check app open count and request review if needed
     _checkAndRequestReview();
@@ -102,7 +101,7 @@ class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
 
   @override
   void dispose() {
-    // _homeScrollController.removeListener(_handleScroll);
+    _homeScrollController.removeListener(_handleScroll);
     _homeScrollController.dispose();
     _rootFocusNode.dispose();
     _rotationController.dispose();

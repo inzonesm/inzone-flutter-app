@@ -1,15 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 
 class TopicSelectorWidget extends StatefulWidget {
   final String topic;
   final void Function(String topic) callBack;
-  final bool
-      isSelected; // Add this parameter to receive selection state from parent
+  final bool isSelected; // Add this parameter to receive selection state from parent
 
   const TopicSelectorWidget({
-    super.key,
-    required this.topic,
+    super.key, 
+    required this.topic, 
     required this.callBack,
     this.isSelected = false, // Default to false
   });
@@ -60,15 +58,12 @@ class _TopicSelectorWidgetState extends State<TopicSelectorWidget> {
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
         margin: const EdgeInsets.symmetric(horizontal: 5, vertical: 5),
         decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(30),
-            color: widget.isSelected
-                ? selectedBackgroundColor
-                : unselectedBackgroundColor,
-            border: Border.all(
-                color: widget.isSelected
-                    ? selectedBorderColor
-                    : Colors.transparent,
-                width: 1.5)),
+          borderRadius: BorderRadius.circular(30),
+          color: widget.isSelected ? selectedBackgroundColor : unselectedBackgroundColor,
+          border: widget.isSelected
+              ? Border.all(color: selectedBorderColor, width: 1.5)
+              : null,
+        ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -84,10 +79,8 @@ class _TopicSelectorWidgetState extends State<TopicSelectorWidget> {
             Text(
               replaceAndCapitalize(widget.topic),
               style: TextStyle(
-                color:
-                    widget.isSelected ? selectedTextColor : unselectedTextColor,
-                fontWeight: FontWeight
-                    .normal, // widget.isSelected ? FontWeight.bold : FontWeight.normal,
+                color: widget.isSelected ? selectedTextColor : unselectedTextColor,
+                fontWeight: widget.isSelected ? FontWeight.bold : FontWeight.normal,
                 fontSize: 16,
               ),
             ),

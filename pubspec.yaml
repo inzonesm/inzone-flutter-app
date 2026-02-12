@@ -111,6 +111,9 @@ dependencies:
   app_links: ^6.4.1 
 
 
+  webview_flutter: any
+  flutter_inappwebview: any
+  in_app_purchase_storekit: any
 dev_dependencies:
   flutter_test:
     sdk: flutter

@@ -94,7 +94,9 @@ class _VoiceScreenState extends State<VoiceScreen>
         isRecording ||
         _isProcessing ||
         _isMuted ||
-        _isPlayingResponse) return;
+        _isPlayingResponse) {
+      return;
+    }
 
     if (mounted) {
       setState(() {

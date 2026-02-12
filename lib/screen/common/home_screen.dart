@@ -1,6 +1,5 @@
 import 'package:colorful_safe_area/colorful_safe_area.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:inzone/components/cards/post_card.dart';
 import 'package:inzone/components/cards/repost_card.dart';
@@ -48,7 +47,7 @@ class HomeScreenState extends State<HomeScreen> {
   bool hasMorePosts = true;
   String? selectedCategory; // Track the currently selected category
   int reloadCount = 0; // Track number of reloads
-  int _currentVisibleIndex = 0; // Track current visible card index
+  final int _currentVisibleIndex = 0; // Track current visible card index
   Timer? _scrollThrottleTimer;
 
   // Scroll tracking variables
@@ -495,7 +494,7 @@ class HomeScreenState extends State<HomeScreen> {
             hasMorePosts = true;
           });
 
-          print('✅ LOADED Page ${_currentPage} of Batch $reloadCount: ${newPosts.length} posts (Total now: ${posts.length})');
+          print('✅ LOADED Page $_currentPage of Batch $reloadCount: ${newPosts.length} posts (Total now: ${posts.length})');
           // Show first 3 post IDs for verification
           for (int i = 0; i < newPosts.length.clamp(0, 3); i++) {
             String id = newPosts[i]['id']?.toString() ?? newPosts[i]['_id']?.toString() ?? 'unknown';
@@ -759,7 +758,7 @@ class HomeScreenState extends State<HomeScreen> {
             onDeleted: (postId) {
               setState(() {
                 posts.removeWhere((p) => (p is Map && p['id'] == postId) || (p is InZonePost && p.id == postId));
-                feedItems.removeWhere((w) => w is PostCard && (w as PostCard).post.id == postId);
+                feedItems.removeWhere((w) => w is PostCard && (w).post.id == postId);
               });
             },
             onUpdated: (updatedPost) {
@@ -802,7 +801,7 @@ class HomeScreenState extends State<HomeScreen> {
             onDeleted: (postId) {
               setState(() {
                 posts.removeWhere((p) => (p is Map && p['id'] == postId) || (p is InZonePost && p.id == postId));
-                feedItems.removeWhere((w) => w is PostCard && (w as PostCard).post.id == postId);
+                feedItems.removeWhere((w) => w is PostCard && (w).post.id == postId);
               });
             },
             onUpdated: (updatedPost) {
@@ -845,7 +844,7 @@ class HomeScreenState extends State<HomeScreen> {
             onDeleted: (postId) {
               setState(() {
                 posts.removeWhere((p) => (p is Map && p['id'] == postId) || (p is InZonePost && p.id == postId));
-                feedItems.removeWhere((w) => w is PostCard && (w as PostCard).post.id == postId);
+                feedItems.removeWhere((w) => w is PostCard && (w).post.id == postId);
               });
             },
             onUpdated: (updatedPost) {

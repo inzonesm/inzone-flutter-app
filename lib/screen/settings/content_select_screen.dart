@@ -2,10 +2,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:colorful_safe_area/colorful_safe_area.dart';
 import 'package:flutter/material.dart';
 import 'package:inzone/components/settings/topic_selector_widget.dart';
-import 'package:inzone/components/ui/appbar.dart';
 import 'package:go_router/go_router.dart';
 import 'package:inzone/components/ui/button.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:toasty_box/toast_service.dart';
 import 'package:inzone/services/inzone_database.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -47,7 +45,7 @@ class _ContentSelectionSettingsScreenState
             .collection('humanUsers')
             .doc(user.uid)
             .get();
-
+        
         if (userDoc.exists) {
           final data = userDoc.data();
           final interests = data?['user_interests'] as List?;
@@ -56,8 +54,7 @@ class _ContentSelectionSettingsScreenState
               selectedTopics.clear();
               selectedTopics.addAll(List<String>.from(interests));
             });
-            print(
-                '✅ Loaded ${selectedTopics.length} user interests: $interests');
+            print('✅ Loaded ${selectedTopics.length} user interests: $interests');
           } else {
             print('ℹ️  No interests found for user');
           }
@@ -141,9 +138,8 @@ class _ContentSelectionSettingsScreenState
       print('   Selected topics: $selectedTopics');
 
       // Call the backend to update interests
-      final success =
-          await InZoneDatabase.updateUserInterests(user.uid, selectedTopics);
-
+      final success = await InZoneDatabase.updateUserInterests(user.uid, selectedTopics);
+      
       if (success) {
         ToastService.showToast(
           context,
@@ -445,14 +441,67 @@ class _ContentSelectionSettingsScreenState
                           ],
                         ),
                       ),
-                      Wrap(
-                          children: topics
-                              .map((topic) => TopicSelectorWidget(
-                                    topic: topic,
-                                    callBack: addToList,
-                                    isSelected: selectedTopics.contains(topic),
-                                  ))
-                              .toList()),
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: topics.length <= 4
+                            // Single row layout for 4 or fewer topics
+                            ? Row(
+                                children: topics
+                                    .map((topic) => TopicSelectorWidget(
+                                          topic: topic,
+                                          callBack: addToList,
+                                          isSelected: selectedTopics.contains(topic),
+                                        ))
+                                    .toList(),
+                              )
+                            // Two-row layout for more than 4 topics
+                            : SizedBox(
+                                height: 110, // Height for 2 rows of topics
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    // First row
+                                    Expanded(
+                                      child: Row(
+                                        children: topics
+                                            .sublist(
+                                                0,
+                                                (topics.length / 2).ceil() >
+                                                        topics.length
+                                                    ? topics.length
+                                                    : (topics.length / 2)
+                                                        .ceil())
+                                            .map((topic) => TopicSelectorWidget(
+                                                  topic: topic,
+                                                  callBack: addToList,
+                                                  isSelected: selectedTopics.contains(topic),
+                                                ))
+                                            .toList(),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 5),
+                                    // Second row
+                                    Expanded(
+                                      child: Row(
+                                        children: topics.length >
+                                                (topics.length / 2).ceil()
+                                            ? topics
+                                                .sublist(
+                                                    (topics.length / 2).ceil())
+                                                .map((topic) =>
+                                                    TopicSelectorWidget(
+                                                      topic: topic,
+                                                      callBack: addToList,
+                                                      isSelected: selectedTopics.contains(topic),
+                                                    ))
+                                                .toList()
+                                            : [],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                      ),
                       const SizedBox(height: 10),
                     ],
                   );

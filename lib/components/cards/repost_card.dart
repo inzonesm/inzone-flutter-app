@@ -7,7 +7,6 @@ import 'package:flutter_feather_icons/flutter_feather_icons.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:inzone/screen/chat/all_chats_screen.dart';
-import 'package:inzone/screen/chat/chat_screen.dart';
 import 'package:inzone/config/custom_icons.dart';
 import 'package:inzone/data/comment_class.dart';
 import 'package:inzone/data/inzone_avatar.dart';
@@ -126,9 +125,7 @@ class _RepostCardState extends State<RepostCard>
               const SizedBox(
                 height: 10,
               ),
-              widget.post.textContent == null
-                  ? const SizedBox()
-                  : Align(
+              Align(
                       alignment: Alignment.centerLeft,
                       child: Text(
                         widget.post.textContent,

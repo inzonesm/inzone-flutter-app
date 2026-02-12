@@ -8,7 +8,6 @@ import 'package:flutter_feather_icons/flutter_feather_icons.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:inzone/router/routes.dart';
-import 'package:inzone/theme/app_colors.dart';
 import 'package:toasty_box/toast_service.dart';
 
 class ProfileScreen extends StatefulWidget {

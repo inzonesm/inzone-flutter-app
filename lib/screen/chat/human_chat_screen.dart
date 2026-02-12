@@ -1,18 +1,14 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:inzone/components/chat/chat_app_bar.dart';
 import 'package:inzone/components/chat/chat_input.dart';
 import 'package:inzone/components/chat/date_header.dart';
 import 'package:inzone/components/chat/message_bubble.dart';
 import 'package:inzone/services/inzone_database.dart';
 import 'package:inzone/services/notification_event_service.dart';
-import 'package:inzone/services/notification_service.dart';
 import 'package:inzone/services/ai_engagement_service.dart';
-import 'package:inzone/theme/light_theme.dart';
 import 'package:intl/intl.dart';
-import 'package:flutter/foundation.dart';
 import 'package:go_router/go_router.dart';
 import 'package:toasty_box/toast_service.dart';
 

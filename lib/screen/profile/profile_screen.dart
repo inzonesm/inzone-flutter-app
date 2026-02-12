@@ -1,16 +1,10 @@
-import 'package:cached_network_image/cached_network_image.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_feather_icons/flutter_feather_icons.dart';
-import 'package:inzone/components/profile/user_posts_tab.dart';
-import 'package:inzone/components/profile/followers_following_tab.dart';
 import 'package:inzone/components/ui/profile_appbar.dart';
 import 'package:inzone/components/cards/post_card.dart';
 import 'package:inzone/components/posts/shimmering.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:inzone/screen/chat/chat_screen.dart';
-import 'package:inzone/screen/chat/human_chat_screen.dart';
 import 'package:inzone/screen/chat/all_chats_screen.dart'; // For ChatUser class
 import 'package:inzone/services/inzone_database.dart';
 import 'package:go_router/go_router.dart';

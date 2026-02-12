@@ -1,15 +1,12 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:inzone/components/chat/chat_app_bar.dart';
 import 'package:inzone/components/chat/chat_input.dart';
 import 'package:inzone/components/chat/message_bubble.dart';
-import 'package:inzone/config/custom_icons.dart';
 import 'package:inzone/services/inzone_database.dart';
 import 'package:inzone/screen/chat/all_chats_screen.dart';
-import 'package:inzone/screen/chat/post_chat_screen.dart';
-import 'package:inzone/theme/light_theme.dart'; // Import for ChatTheme extension
+// Import for ChatTheme extension
 import 'package:go_router/go_router.dart';
 import 'package:inzone/router/routes.dart';
 import 'package:inzone/services/appsflyer_service.dart';

@@ -8,7 +8,6 @@ import 'package:inzone/data/inzone_avatar.dart';
 import 'package:inzone/services/inzone_database.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:go_router/go_router.dart';
-import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 
 import 'package:inzone/data/inzone_post.dart';
@@ -129,7 +128,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
         onDeleted: (postId) {
           setState(() {
             posts.removeWhere((pc) => pc.post.id == postId);
-            finalHomeScreen.removeWhere((w) => w is PostCard && (w as PostCard).post.id == postId);
+            finalHomeScreen.removeWhere((w) => w is PostCard && (w).post.id == postId);
           });
         },
         onUpdated: (updatedPost) {

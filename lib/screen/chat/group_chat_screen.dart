@@ -3,9 +3,7 @@ import 'dart:io';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_feather_icons/flutter_feather_icons.dart';
-import 'package:get/get_connect/http/src/utils/utils.dart';
 import 'package:inzone/router/routes.dart';
-import 'package:inzone/screen/chat/sample_chat.dart';
 import 'package:inzone/services/inzone_database.dart';
 import 'package:inzone/services/monetization_service.dart';
 import 'package:inzone/components/chat/chat_input.dart';
@@ -17,16 +15,13 @@ import 'package:inzone/services/group_chat_service.dart';
 import 'package:intl/intl.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:inzone/theme/light_theme.dart'; // Import for ChatTheme extension
-import 'package:flutter/services.dart';
+// Import for ChatTheme extension
 import 'package:go_router/go_router.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
-import 'package:purchases_ui_flutter/paywall_result.dart';
 import 'package:purchases_ui_flutter/purchases_ui_flutter.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:toasty_box/toast_service.dart';
 import 'package:inzone/services/appsflyer_service.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 // Group Chat Session Tracker
 class GroupChatSessionTracker {
@@ -1888,8 +1883,9 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
           if (existingReasons is String) existingReasons = [existingReasons];
 
           List<dynamic> existingReporters = existingReport['reporters'] ?? [];
-          if (existingReporters is String)
+          if (existingReporters is String) {
             existingReporters = [existingReporters];
+          }
 
           List<dynamic> existingDates = existingReport['dates'] ?? [];
 

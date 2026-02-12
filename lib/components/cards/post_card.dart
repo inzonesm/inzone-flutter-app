@@ -3520,7 +3520,6 @@ class _DynamicPageView extends StatefulWidget {
   final PageController controller;
 
   const _DynamicPageView({
-    super.key,
     required this.images,
     required this.videos,
     required this.controller,

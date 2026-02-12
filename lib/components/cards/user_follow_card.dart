@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_feather_icons/flutter_feather_icons.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:inzone/theme/app_colors.dart';
-import 'package:inzone/services/inzone_database.dart';
 
 class UserFollowCard extends StatelessWidget {
   final String userId;
