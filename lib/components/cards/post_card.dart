@@ -1727,30 +1727,18 @@ class _PostCardState extends State<PostCard>
           _showTipDialog(context);
         }
       },
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 15),
-        child: Row(
-          children: [
-            if (!title.contains("Report")) const SizedBox(width: 4),
-            if (title.contains("Report") && title != "Report this post")
-              const SizedBox(width: 5),
-            Icon(
-              icon,
-              size: 28,
-            ),
-            const SizedBox(width: 16),
-            Padding(
-              padding: const EdgeInsets.only(top: 4),
-              child: Text(
-                title,
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w500,
-                  color: Theme.of(context).textTheme.bodyLarge?.color,
-                ),
-              ),
-            ),
-          ],
+      child: ListTile(
+        leading: Icon(
+          icon,
+          size: 28,
+        ),
+        title: Text(
+          title,
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.w500,
+            color: Theme.of(context).textTheme.bodyLarge?.color,
+          ),
         ),
       ),
     );
