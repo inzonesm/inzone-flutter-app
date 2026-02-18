@@ -30,6 +30,7 @@ class Routes {
 
   // Feature routes
   static const String post = '/post';
+  static const String editPost = '/edit-post';
   static const String create3dModelIntro = '/3d-model/intro';
   static const String create3dModel = '/3d-model';
   static const String create3dModelSelect = '/3d-model/select';
@@ -56,7 +57,7 @@ class Routes {
   static const String privacyPolicy = '/settings/privacy-policy';
   static const String termsConditions = '/settings/terms-conditions';
   static const String unityWebGame = '/settings/unity-web-game';
-  
+
   // Notification routes
   static const String notificationCenter = '/notifications/center';
   static const String notificationSettings = '/notifications/settings';
