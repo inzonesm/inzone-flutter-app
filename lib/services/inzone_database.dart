@@ -19,7 +19,8 @@ class InZoneDatabase {
   static Future<void> warmUpCloudRun() async {
     try {
       // Send a lightweight request to warm up the Cloud Run container
-      const String warmUpUrl = 'https://inzoneapi-912424781531.us-central1.run.app/health';
+      const String warmUpUrl =
+          'https://inzoneapi-912424781531.us-central1.run.app/health';
 
       // Make a simple GET request with a short timeout
       final response = await http.get(
@@ -37,14 +38,16 @@ class InZoneDatabase {
         },
       );
 
-      print('Cloud Run warm-up request completed with status: ${response.statusCode}');
+      print(
+          'Cloud Run warm-up request completed with status: ${response.statusCode}');
     } catch (e) {
       // Silently handle errors - warm-up is not critical for app functionality
       print('Cloud Run warm-up failed (non-critical): $e');
     }
   }
 
-  static Future<dynamic> getFeed({int? page, int? batchNumber, List<String>? excludeIds}) async {
+  static Future<dynamic> getFeed(
+      {int? page, int? batchNumber, List<String>? excludeIds}) async {
     // Throttle API requests to prevent overloading
     if (_lastFeedApiCallTime != null) {
       final timeSinceLastCall =
@@ -80,14 +83,16 @@ class InZoneDatabase {
       };
 
       // Make the POST request with timeout
-      final response = await http.post(
+      final response = await http
+          .post(
         Uri.parse(url),
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
         },
         body: jsonEncode(requestBody),
-      ).timeout(const Duration(seconds: 15), onTimeout: () {
+      )
+          .timeout(const Duration(seconds: 15), onTimeout: () {
         // Return a timeout response
         throw TimeoutException('The request took too long to complete');
       });
@@ -97,7 +102,8 @@ class InZoneDatabase {
         final jsonData = jsonDecode(response.body);
 
         // Extract posts from response
-        if (jsonData['success'] == true && jsonData.containsKey('recommendations')) {
+        if (jsonData['success'] == true &&
+            jsonData.containsKey('recommendations')) {
           // Backend already handles pagination - just use the posts directly!
           List<dynamic> pagePosts = jsonData['recommendations'];
 
@@ -109,7 +115,8 @@ class InZoneDatabase {
           // Each batch has poolSize posts (usually 30), divided into pages of 10
           bool hasMore = (currentPage * postsPerPage) < poolSize;
 
-          print('✅ getFeed: Received ${pagePosts.length} posts for page $currentPage of batch $batchNumber');
+          print(
+              '✅ getFeed: Received ${pagePosts.length} posts for page $currentPage of batch $batchNumber');
           print('   Pool size: $poolSize, Has more: $hasMore');
 
           // Return in the same format as old endpoint for compatibility
@@ -668,7 +675,8 @@ class InZoneDatabase {
             "sentiment": -2, // Special code for blocked content
             "category": "Blocked",
             "blocked": true,
-            "block_reason": sentimentResponse["block_reason"] ?? "Content violates guidelines",
+            "block_reason": sentimentResponse["block_reason"] ??
+                "Content violates guidelines",
           };
         }
 
@@ -694,7 +702,7 @@ class InZoneDatabase {
           "blocked": false,
         };
       }
-      
+
       // FALLBACK: If sentiment analysis fails, allow posting with neutral sentiment
       print("Sentiment analysis failed, using fallback (neutral sentiment)");
       return {
@@ -713,7 +721,8 @@ class InZoneDatabase {
   }
 
   // Backward compatibility method for text-only sentiment analysis
-  static Future<Map<String, dynamic>> analyzeSentimentTextOnly(String content) async {
+  static Future<Map<String, dynamic>> analyzeSentimentTextOnly(
+      String content) async {
     return analyzeSentiment(content);
   }
 
@@ -1070,53 +1079,66 @@ class InZoneDatabase {
 
           // Check overall assessment
           if (sentimentData.containsKey('overall_assessment')) {
-            Map<String, dynamic> overallAssessment = sentimentData['overall_assessment'];
-            hasInappropriateContent = overallAssessment['inappropriate_content_detected'] ?? false;
+            Map<String, dynamic> overallAssessment =
+                sentimentData['overall_assessment'];
+            hasInappropriateContent =
+                overallAssessment['inappropriate_content_detected'] ?? false;
 
             if (hasInappropriateContent) {
               List<String> reasons = [];
 
               // Collect reasons from different analysis types
               if (sentimentData.containsKey('urban_dictionary_check')) {
-                Map<String, dynamic> urbanCheck = sentimentData['urban_dictionary_check'];
+                Map<String, dynamic> urbanCheck =
+                    sentimentData['urban_dictionary_check'];
                 if (urbanCheck['has_negative_slang'] == true) {
-                  List<dynamic> flaggedTerms = urbanCheck['flagged_terms'] ?? [];
+                  List<dynamic> flaggedTerms =
+                      urbanCheck['flagged_terms'] ?? [];
                   if (flaggedTerms.isNotEmpty) {
-                    reasons.add("Contains inappropriate slang: ${flaggedTerms.join(', ')}");
+                    reasons.add(
+                        "Contains inappropriate slang: ${flaggedTerms.join(', ')}");
                   }
                 }
               }
 
               if (sentimentData.containsKey('text_analysis')) {
-                Map<String, dynamic> textAnalysis = sentimentData['text_analysis'];
+                Map<String, dynamic> textAnalysis =
+                    sentimentData['text_analysis'];
                 if (textAnalysis.containsKey('HarmfulContent')) {
-                  Map<String, dynamic> harmfulContent = textAnalysis['HarmfulContent'];
+                  Map<String, dynamic> harmfulContent =
+                      textAnalysis['HarmfulContent'];
                   if (harmfulContent['detected'] == true) {
-                    reasons.add("Harmful content detected: ${harmfulContent['reasoning'] ?? 'Inappropriate content'}");
+                    reasons.add(
+                        "Harmful content detected: ${harmfulContent['reasoning'] ?? 'Inappropriate content'}");
                   }
                 }
               }
 
               if (sentimentData.containsKey('image_analysis')) {
-                Map<String, dynamic> imageAnalysis = sentimentData['image_analysis'];
+                Map<String, dynamic> imageAnalysis =
+                    sentimentData['image_analysis'];
                 if (imageAnalysis['has_inappropriate_content'] == true) {
                   reasons.add("Inappropriate image content detected");
                 }
               }
 
               if (sentimentData.containsKey('video_analysis')) {
-                Map<String, dynamic> videoAnalysis = sentimentData['video_analysis'];
+                Map<String, dynamic> videoAnalysis =
+                    sentimentData['video_analysis'];
                 if (videoAnalysis['has_inappropriate_content'] == true) {
                   reasons.add("Inappropriate video content detected");
                 }
               }
 
-              blockReason = reasons.isNotEmpty ? reasons.join('; ') : "Content violates community guidelines";
+              blockReason = reasons.isNotEmpty
+                  ? reasons.join('; ')
+                  : "Content violates community guidelines";
             }
           }
 
           // For backward compatibility, also check individual text analysis
-          if (!hasInappropriateContent && sentimentData.containsKey('text_analysis')) {
+          if (!hasInappropriateContent &&
+              sentimentData.containsKey('text_analysis')) {
             Map<String, dynamic> textAnalysis = sentimentData['text_analysis'];
 
             // Validate required keys for text analysis
@@ -1131,7 +1153,8 @@ class InZoneDatabase {
 
             if (requiredKeys.every((key) => textAnalysis.containsKey(key))) {
               // Get the OverallSentiment value as string
-              String overallSentiment = textAnalysis['OverallSentiment'].toString();
+              String overallSentiment =
+                  textAnalysis['OverallSentiment'].toString();
 
               // Convert string sentiment to our three categories
               int sentimentCategory;
@@ -1146,17 +1169,21 @@ class InZoneDatabase {
                   sentimentCategory = 0;
                   break;
                 default:
-                  sentimentCategory = 0; // Default to neutral for unknown values
+                  sentimentCategory =
+                      0; // Default to neutral for unknown values
               }
 
               return {
-                "sentiment": hasInappropriateContent ? -2 : sentimentCategory, // -2 indicates blocked content
+                "sentiment": hasInappropriateContent
+                    ? -2
+                    : sentimentCategory, // -2 indicates blocked content
                 "category": textAnalysis['Categories'].isNotEmpty
                     ? textAnalysis['Categories'][0]
                     : "Entertainment",
                 "blocked": hasInappropriateContent,
                 "block_reason": blockReason,
-                "detailed_analysis": sentimentData, // Include full analysis for debugging
+                "detailed_analysis":
+                    sentimentData, // Include full analysis for debugging
               };
             }
           }
@@ -1174,9 +1201,11 @@ class InZoneDatabase {
 
           return null; // Invalid response format
         } else if (responseData.containsKey('error')) {
-          String errorCode = responseData.containsKey('code') ? responseData['code'] : 'UNKNOWN';
+          String errorCode = responseData.containsKey('code')
+              ? responseData['code']
+              : 'UNKNOWN';
           print("Sentiment API Error [$errorCode]: ${responseData['error']}");
-          
+
           // For specific API errors, return null to trigger fallback
           if (errorCode == 'SENTIMENT_FORMAT_ERROR') {
             print("OpenAI integration error detected - using fallback");
@@ -1185,7 +1214,8 @@ class InZoneDatabase {
         }
         return null;
       } else {
-        print("HTTP ${response.statusCode}: Sentiment analysis service unavailable");
+        print(
+            "HTTP ${response.statusCode}: Sentiment analysis service unavailable");
         return null;
       }
     } catch (e) {
@@ -1254,7 +1284,8 @@ class InZoneDatabase {
   }
 
   static Future<void> createCharacter(
-      String name, String bio, String profilePictureUrl, {int popularity = 0}) async {
+      String name, String bio, String profilePictureUrl,
+      {int popularity = 0}) async {
     const String url =
         'https://us-central1-inzonebackend.cloudfunctions.net/api/ai/create-character';
 
@@ -1609,7 +1640,8 @@ class InZoneDatabase {
   }
 
   // Helper method to update user interests
-  static Future<bool> updateUserInterests(String userId, List<String> interests) async {
+  static Future<bool> updateUserInterests(
+      String userId, List<String> interests) async {
     final String url = ApiConfig.endpoint('/user/update-interests');
     print('🔍 Updating interests, URL: $url'); // Debug log
     print('   Interests: $interests');
@@ -1633,7 +1665,8 @@ class InZoneDatabase {
         print('✓ Interests updated successfully');
         return responseData["success"] == true;
       } else {
-        print('Failed to update interests. Status code: ${response.statusCode}');
+        print(
+            'Failed to update interests. Status code: ${response.statusCode}');
         return false;
       }
     } catch (e) {
@@ -1659,12 +1692,15 @@ class InZoneDatabase {
     final String url = ApiConfig.endpoint('/feed/track-view');
 
     try {
-      await http.post(
-        Uri.parse(url),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'user_id': userId, 'post_id': postId}),
-      ).timeout(const Duration(seconds: 5));
-      print('✅ View tracked for post: ${postId.length >= 8 ? postId.substring(0, 8) : postId}...');
+      await http
+          .post(
+            Uri.parse(url),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({'user_id': userId, 'post_id': postId}),
+          )
+          .timeout(const Duration(seconds: 5));
+      print(
+          '✅ View tracked for post: ${postId.length >= 8 ? postId.substring(0, 8) : postId}...');
     } catch (e) {
       print('Error tracking view: $e');
       // Remove from tracked set on error so it can be retried
@@ -1677,11 +1713,13 @@ class InZoneDatabase {
     final String url = ApiConfig.endpoint('/feed/track-like');
 
     try {
-      await http.post(
-        Uri.parse(url),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'user_id': userId, 'post_id': postId}),
-      ).timeout(const Duration(seconds: 5));
+      await http
+          .post(
+            Uri.parse(url),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({'user_id': userId, 'post_id': postId}),
+          )
+          .timeout(const Duration(seconds: 5));
     } catch (e) {
       print('Error tracking like: $e');
     }
@@ -1692,11 +1730,13 @@ class InZoneDatabase {
     final String url = ApiConfig.endpoint('/feed/track-comment');
 
     try {
-      await http.post(
-        Uri.parse(url),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'user_id': userId, 'post_id': postId}),
-      ).timeout(const Duration(seconds: 5));
+      await http
+          .post(
+            Uri.parse(url),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({'user_id': userId, 'post_id': postId}),
+          )
+          .timeout(const Duration(seconds: 5));
     } catch (e) {
       print('Error tracking comment: $e');
     }
@@ -1707,11 +1747,13 @@ class InZoneDatabase {
     final String url = ApiConfig.endpoint('/feed/track-share');
 
     try {
-      await http.post(
-        Uri.parse(url),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'user_id': userId, 'post_id': postId}),
-      ).timeout(const Duration(seconds: 5));
+      await http
+          .post(
+            Uri.parse(url),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({'user_id': userId, 'post_id': postId}),
+          )
+          .timeout(const Duration(seconds: 5));
     } catch (e) {
       print('Error tracking share: $e');
     }
@@ -1721,9 +1763,10 @@ class InZoneDatabase {
     required String postId,
     String? content,
     String? imageUrl,
+    List<String>? imageUrls,
+    List<String>? videoUrls,
   }) async {
-    const String url =
-        'https://inzoneapi-912424781531.us-central1.run.app/feed/update-post';
+    String url = ApiConfig.endpoint('/feed/update-post');
 
     // Build the request body with the required postId
     Map<String, dynamic> requestBody = {
@@ -1733,6 +1776,8 @@ class InZoneDatabase {
     // Add optional fields if they are provided
     if (content != null) requestBody["Content"] = content;
     if (imageUrl != null) requestBody["ImageUrl"] = imageUrl;
+    if (imageUrls != null) requestBody["ImageContent"] = imageUrls;
+    if (videoUrls != null) requestBody["VideoContent"] = videoUrls;
 
     try {
       final http.Response response = await http.post(
@@ -2189,7 +2234,7 @@ class InZoneDatabase {
     print('   UserId: $userId');
     print('   ProfileData: $profileData');
     print('   ApiConfig.baseUrl: ${ApiConfig.baseUrl}');
-    
+
     try {
       // Verify the user is still authenticated
       User? currentUser = FirebaseAuth.instance.currentUser;
