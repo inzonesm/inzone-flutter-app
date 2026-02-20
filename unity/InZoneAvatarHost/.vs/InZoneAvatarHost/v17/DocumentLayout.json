@@ -1,13 +1,13 @@
 {
   "Version": 1,
-  "WorkspaceRootPath": "C:\\Users\\Sisilia Sinaga\\Documents\\InZoneAvatarHost\\",
+  "WorkspaceRootPath": "C:\\Users\\Sisilia Sinaga\\Documents\\InzoneMaster\\inzone-flutter-app\\unity\\InZoneAvatarHost\\",
   "Documents": [
     {
-      "AbsoluteMoniker": "D:0:0:{87DAB47D-97DC-2842-4FB6-84ED7BD62225}|Assembly-CSharp.csproj|c:\\users\\sisilia sinaga\\documents\\inzoneavatarhost\\assets\\flutterbridge.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "AbsoluteMoniker": "D:0:0:{87DAB47D-97DC-2842-4FB6-84ED7BD62225}|Assembly-CSharp.csproj|c:\\users\\sisilia sinaga\\documents\\inzonemaster\\inzone-flutter-app\\unity\\inzoneavatarhost\\assets\\flutterbridge.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
       "RelativeMoniker": "D:0:0:{87DAB47D-97DC-2842-4FB6-84ED7BD62225}|Assembly-CSharp.csproj|solutionrelative:assets\\flutterbridge.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{87DAB47D-97DC-2842-4FB6-84ED7BD62225}|Assembly-CSharp.csproj|c:\\users\\sisilia sinaga\\documents\\inzoneavatarhost\\assets\\avatarscenemanager.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "AbsoluteMoniker": "D:0:0:{87DAB47D-97DC-2842-4FB6-84ED7BD62225}|Assembly-CSharp.csproj|C:\\Users\\Sisilia Sinaga\\Documents\\InzoneMaster\\inzone-flutter-app\\unity\\InZoneAvatarHost\\assets\\avatarscenemanager.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
       "RelativeMoniker": "D:0:0:{87DAB47D-97DC-2842-4FB6-84ED7BD62225}|Assembly-CSharp.csproj|solutionrelative:assets\\avatarscenemanager.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     }
   ],
@@ -24,9 +24,9 @@
               "$type": "Document",
               "DocumentIndex": 0,
               "Title": "FlutterBridge.cs",
-              "DocumentMoniker": "C:\\Users\\Sisilia Sinaga\\Documents\\InZoneAvatarHost\\Assets\\FlutterBridge.cs",
+              "DocumentMoniker": "C:\\Users\\Sisilia Sinaga\\Documents\\InzoneMaster\\inzone-flutter-app\\unity\\InZoneAvatarHost\\Assets\\FlutterBridge.cs",
               "RelativeDocumentMoniker": "Assets\\FlutterBridge.cs",
-              "ToolTip": "C:\\Users\\Sisilia Sinaga\\Documents\\InZoneAvatarHost\\Assets\\FlutterBridge.cs",
+              "ToolTip": "C:\\Users\\Sisilia Sinaga\\Documents\\InzoneMaster\\inzone-flutter-app\\unity\\InZoneAvatarHost\\Assets\\FlutterBridge.cs",
               "RelativeToolTip": "Assets\\FlutterBridge.cs",
               "ViewState": "AgIAABIAAAAAAAAAAAAYwCcAAABLAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
@@ -37,14 +37,13 @@
               "$type": "Document",
               "DocumentIndex": 1,
               "Title": "AvatarSceneManager.cs",
-              "DocumentMoniker": "C:\\Users\\Sisilia Sinaga\\Documents\\InZoneAvatarHost\\Assets\\AvatarSceneManager.cs",
+              "DocumentMoniker": "C:\\Users\\Sisilia Sinaga\\Documents\\InzoneMaster\\inzone-flutter-app\\unity\\InZoneAvatarHost\\Assets\\AvatarSceneManager.cs",
               "RelativeDocumentMoniker": "Assets\\AvatarSceneManager.cs",
-              "ToolTip": "C:\\Users\\Sisilia Sinaga\\Documents\\InZoneAvatarHost\\Assets\\AvatarSceneManager.cs",
+              "ToolTip": "C:\\Users\\Sisilia Sinaga\\Documents\\InzoneMaster\\inzone-flutter-app\\unity\\InZoneAvatarHost\\Assets\\AvatarSceneManager.cs",
               "RelativeToolTip": "Assets\\AvatarSceneManager.cs",
               "ViewState": "AgIAAEQAAAAAAAAAAAAgwFkAAAA8AAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-12-18T09:56:08.474Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-12-18T09:56:08.474Z"
             }
           ]
         }
