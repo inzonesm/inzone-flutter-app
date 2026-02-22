@@ -1240,7 +1240,7 @@ class _PostCardState extends State<PostCard>
             minHeight: imageSuccess ? 350 : 130,
           ),
           width: MediaQuery.of(context).size.width - 30,
-          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 10),
+          // padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 10),
           decoration: BoxDecoration(
               boxShadow: [
                 BoxShadow(
