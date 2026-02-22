@@ -1403,127 +1403,134 @@ class _PostCardState extends State<PostCard>
                       ),
                     ),
                   if (totalMediaCount > 1) const SizedBox(height: 10),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceAround,
-                    children: [
-                      GestureDetector(
-                        onTap: handleLike, // Toggle like/unlike when tapped
-                        child: SizedBox(
-                          height: 22,
-                          width: 22,
-                          child: SvgPicture.asset(
-                            isLiked
-                                ? CustomIcons.like
-                                : CustomIcons
-                                    .notlike, // Show correct icon based on state
+                  Padding(
+                    padding: const EdgeInsets.only(
+                      bottom: 10,
+                      left: 10,
+                      right: 10,
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      children: [
+                        GestureDetector(
+                          onTap: handleLike, // Toggle like/unlike when tapped
+                          child: SizedBox(
+                            height: 22,
+                            width: 22,
+                            child: SvgPicture.asset(
+                              isLiked
+                                  ? CustomIcons.like
+                                  : CustomIcons
+                                      .notlike, // Show correct icon based on state
+                            ),
                           ),
                         ),
-                      ),
-                      const SizedBox(
-                        width: 10,
-                      ),
-                      // InkWell(
-                      //     onTap: () {
-                      //       filterSheetModel();
-                      //     },
-                      //     child: SizedBox(height: 35, width: 35, child: SvgPicture.asset(CustomIcons.comment))),
-                      // if (isCommentPresentbool == true)
-                      GestureDetector(
-                          behavior: HitTestBehavior.opaque,
-                          onTap: () {
-                            filterSheetModel();
-                          },
-                          child: isCommentPresentbool
-                              ? SizedBox(
-                                  height: 25,
-                                  width: 25,
-                                  child: SvgPicture.asset(
-                                    CustomIcons
-                                        .comment, // Show correct icon based on state
-                                  ),
-                                )
-                              : SizedBox(
-                                  height: 25,
-                                  width: 25,
-                                  child: SvgPicture.asset(
-                                    CustomIcons
-                                        .uncomment, // Show correct icon based on state
-                                  ),
-                                )),
-                      const Spacer(),
-                      if (!widget.post.isAi &&
-                          widget.showHue &&
-                          !isCharacterPost)
-                        Padding(
-                          padding: const EdgeInsets.only(right: 10),
-                          child: Container(
-                            width: 10,
-                            height: 10,
+                        const SizedBox(
+                          width: 10,
+                        ),
+                        // InkWell(
+                        //     onTap: () {
+                        //       filterSheetModel();
+                        //     },
+                        //     child: SizedBox(height: 35, width: 35, child: SvgPicture.asset(CustomIcons.comment))),
+                        // if (isCommentPresentbool == true)
+                        GestureDetector(
+                            behavior: HitTestBehavior.opaque,
+                            onTap: () {
+                              filterSheetModel();
+                            },
+                            child: isCommentPresentbool
+                                ? SizedBox(
+                                    height: 25,
+                                    width: 25,
+                                    child: SvgPicture.asset(
+                                      CustomIcons
+                                          .comment, // Show correct icon based on state
+                                    ),
+                                  )
+                                : SizedBox(
+                                    height: 25,
+                                    width: 25,
+                                    child: SvgPicture.asset(
+                                      CustomIcons
+                                          .uncomment, // Show correct icon based on state
+                                    ),
+                                  )),
+                        const Spacer(),
+                        if (!widget.post.isAi &&
+                            widget.showHue &&
+                            !isCharacterPost)
+                          Padding(
+                            padding: const EdgeInsets.only(right: 10),
+                            child: Container(
+                              width: 10,
+                              height: 10,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF2196F3).withOpacity(0.1),
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                          ),
+
+                        if (isCharacterPost)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 4),
                             decoration: BoxDecoration(
                               color: const Color(0xFF2196F3).withOpacity(0.1),
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                        ),
-
-                      if (isCharacterPost)
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF2196F3).withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: const Color(0xFF2196F3).withOpacity(0.3),
-                              width: 1,
-                            ),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                "made by ${widget.post.userName}",
-                                style: TextStyle(
-                                  color:
-                                      const Color(0xFF2196F3).withOpacity(0.8),
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w500,
-                                ),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: const Color(0xFF2196F3).withOpacity(0.3),
+                                width: 1,
                               ),
-                            ],
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  "made by ${widget.post.userName}",
+                                  style: TextStyle(
+                                    color: const Color(0xFF2196F3)
+                                        .withOpacity(0.8),
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
 
-                      // if (isCommentPresentbool == false)
-                      //   InkWell(
-                      //       onTap: () {
-                      //         filterSheetModel();
-                      //       },
-                      //       child: SizedBox(
-                      //           height: 35,
-                      //           width: 35,
-                      //           child: Image.asset(CustomIcons.uncomment))),
-                      // GestureDetector(
-                      //     onTap: () {
-                      //       // Navigator.push(context,
-                      //       //     MaterialPageRoute(builder: (context) {
-                      //       //   return CommentScreen();
-                      //       // }));
-                      //       // showSlidingBottomSheet(context,
-                      //       //     builder: (context) => SlidingSheetDialog(
-                      //       //       cornerRadius: 30,
-                      //       //       snapSpec: const SnapSpec(snappings: [0.7, 0.9]),
-                      //       //       builder: (context, state) {
-                      //       //
-                      //       //         // return CommentPage(
-                      //       //         //   post: widget.post,
-                      //       //         // );
-                      //       //       },
-                      //       //     ));
-                      //     },
-                      //     child: SvgPicture.asset(CustomIcons.send)),
-                    ],
-                  ),
+                        // if (isCommentPresentbool == false)
+                        //   InkWell(
+                        //       onTap: () {
+                        //         filterSheetModel();
+                        //       },
+                        //       child: SizedBox(
+                        //           height: 35,
+                        //           width: 35,
+                        //           child: Image.asset(CustomIcons.uncomment))),
+                        // GestureDetector(
+                        //     onTap: () {
+                        //       // Navigator.push(context,
+                        //       //     MaterialPageRoute(builder: (context) {
+                        //       //   return CommentScreen();
+                        //       // }));
+                        //       // showSlidingBottomSheet(context,
+                        //       //     builder: (context) => SlidingSheetDialog(
+                        //       //       cornerRadius: 30,
+                        //       //       snapSpec: const SnapSpec(snappings: [0.7, 0.9]),
+                        //       //       builder: (context, state) {
+                        //       //
+                        //       //         // return CommentPage(
+                        //       //         //   post: widget.post,
+                        //       //         // );
+                        //       //       },
+                        //       //     ));
+                        //     },
+                        //     child: SvgPicture.asset(CustomIcons.send)),
+                      ],
+                    ),
+                  )
                 ],
               )
             ],
