@@ -1291,7 +1291,6 @@ class _PostCardState extends State<PostCard>
                     ),
                     // Image.asset(post.profilePicturePath),
                     // RandomAvatar(widget.post.userName, height: 40, width: 40),
-
                     const SizedBox(
                       width: 10,
                     ),
@@ -1355,11 +1354,11 @@ class _PostCardState extends State<PostCard>
                   ],
                 ),
               ),
-              // Post header with profile picture, username, and options button
               _currentTextContent.isEmpty
                   ? const SizedBox()
                   : Padding(
-                      padding: const EdgeInsets.only(top: 10),
+                      padding:
+                          const EdgeInsets.only(top: 10, left: 10, right: 10),
                       child: Align(
                         alignment: Alignment.centerLeft,
                         child: Text(
@@ -1375,7 +1374,7 @@ class _PostCardState extends State<PostCard>
                       ),
                     ),
               (validImages.isNotEmpty || validVideos.isNotEmpty)
-                  ? const SizedBox(height: 30)
+                  ? const SizedBox(height: 25)
                   : const SizedBox(height: 10),
               (validImages.isNotEmpty || validVideos.isNotEmpty)
                   ? _DynamicPageView(
@@ -3657,10 +3656,10 @@ class _DynamicPageViewState extends State<_DynamicPageView> {
           // Remove animation, use fixed height instead of AnimatedContainer
           height: _currentHeight,
           decoration: BoxDecoration(
-            color: Theme.of(context).cardColor,
-            borderRadius: BorderRadius.circular(12),
+            color: Theme.of(context).hoverColor,
+            // borderRadius: BorderRadius.circular(12),
           ),
-          clipBehavior: Clip.hardEdge,
+          clipBehavior: Clip.none,
           child: PageView.builder(
             controller: widget.controller,
             itemCount: totalItems,
@@ -3719,7 +3718,7 @@ class _DynamicPageViewState extends State<_DynamicPageView> {
                         }
                       },
                       child: ClipRRect(
-                        borderRadius: BorderRadius.circular(12),
+                        // borderRadius: BorderRadius.circular(12),
                         child: GestureDetector(
                           onTap: () {
                             Navigator.of(context).push(
@@ -3824,7 +3823,7 @@ class _DynamicPageViewState extends State<_DynamicPageView> {
 
                     // Once visible, build the actual video widget.
                     return ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
+                      // borderRadius: BorderRadius.circular(12),
                       child: _VideoWidgetWrapper(
                         videoUrl: videoUrl,
                         maxWidth: width,
