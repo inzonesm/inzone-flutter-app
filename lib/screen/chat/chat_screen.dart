@@ -222,6 +222,7 @@ class _ChatScreenState extends State<ChatScreen> {
       backgroundColor: Theme.of(context).canvasColor,
       appBar: ChatAppBar(
         title: widget.userData.name ?? "  ",
+        subtitle: !widget.userData.isHuman ? "This is not a real person" : "",
         avatarId: widget.userData.name ?? "  ",
         avatarUrl: widget.userData.profilePictureURL,
         onBack: () {
@@ -251,26 +252,26 @@ class _ChatScreenState extends State<ChatScreen> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       mainAxisSize: MainAxisSize.max,
                       children: [
-                        const Text(
-                          "Remember: This is not a real person",
-                          style: TextStyle(color: Colors.blue),
-                        ),
-                        const SizedBox(height: 20),
-                        widget.userData.profilePictureURL == null
-                            ? const Icon(Icons.account_circle, size: 200)
-                            : Padding(
-                                padding:
-                                    const EdgeInsets.only(right: 5.0, left: 5),
-                                child: ClipRRect(
-                                  borderRadius: BorderRadius.circular(200.0),
-                                  child: CachedNetworkImage(
-                                      imageUrl:
-                                          widget.userData.profilePictureURL!,
-                                      fit: BoxFit.fitWidth,
-                                      width: MediaQuery.of(context).size.width -
-                                          60),
-                                ),
-                              ),
+                        // const Text(
+                        //   "Remember: This is not a real person",
+                        //   style: TextStyle(color: Colors.blue),
+                        // ),
+                        // const SizedBox(height: 20),
+                        // widget.userData.profilePictureURL == null
+                        //     ? const Icon(Icons.account_circle, size: 200)
+                        //     : Padding(
+                        //         padding:
+                        //             const EdgeInsets.only(right: 5.0, left: 5),
+                        //         child: ClipRRect(
+                        //           borderRadius: BorderRadius.circular(200.0),
+                        //           child: CachedNetworkImage(
+                        //               imageUrl:
+                        //                   widget.userData.profilePictureURL!,
+                        //               fit: BoxFit.fitWidth,
+                        //               width: MediaQuery.of(context).size.width -
+                        //                   60),
+                        //         ),
+                        //       ),
                         const SizedBox(height: 20),
                         getMessages()
                       ],

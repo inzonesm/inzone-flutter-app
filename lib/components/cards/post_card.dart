@@ -44,7 +44,7 @@ class PostCard extends StatefulWidget {
   final bool autoExpandReplies; // Auto-expand replies section
   final Function(String)? onDeleted; // Callback for when post is deleted
   final Function(InZonePost)? onUpdated; // Callback for when post is updated
-  
+
   InZonePost getPost() {
     return post;
   }
@@ -88,10 +88,10 @@ class _PostCardState extends State<PostCard>
 
   // Add this variable to track influencer status
   bool _isInfluencer = false;
-  
+
   // Target comment highlighting for navigation
   String? _highlightedCommentId;
-  
+
   // Map to store GlobalKeys for each comment for precise scrolling
   final Map<String, GlobalKey> _commentKeys = {};
 
@@ -100,18 +100,19 @@ class _PostCardState extends State<PostCard>
   final String _iosAdUnitId = 'ca-app-pub-4474122990542651~2508616366';
 
   bool isLiked = false;
-  
+
   // Local override for post text content during editing
   String? _editedTextContent;
-  
+
   // Get current text content (edited version if available, otherwise original)
-  String get _currentTextContent => _editedTextContent ?? widget.post.textContent;
-  
+  String get _currentTextContent =>
+      _editedTextContent ?? widget.post.textContent;
+
   // Check if current user owns this post
   bool _isPostOwner() {
     final currentUser = FirebaseAuth.instance.currentUser;
     if (currentUser == null) return false;
-    
+
     // Direct approach: Extract user ID from post ID pattern
     // Post IDs follow pattern: post_USERID_timestamp
     final postIdStr = widget.post.id.toString();
@@ -122,11 +123,11 @@ class _PostCardState extends State<PostCard>
         return currentUser.uid == userIdFromPostId;
       }
     }
-    
+
     // Fallback: Check userReference field
     return currentUser.uid == widget.post.userReference;
   }
-  
+
   // Delete post functionality
   Future<void> _deletePost() async {
     try {
@@ -136,7 +137,7 @@ class _PostCardState extends State<PostCard>
         postId: widget.post.id,
         content: deletedContent,
       );
-      
+
       if (deleteSuccess) {
         ToastService.showToast(
           context,
@@ -144,12 +145,12 @@ class _PostCardState extends State<PostCard>
           message: 'Post deleted successfully',
           leading: const Icon(Icons.delete, color: Colors.white),
         );
-        
+
         // Call onDeleted callback if provided
         if (widget.onDeleted != null) {
           widget.onDeleted!(widget.post.id);
         }
-        
+
         print('Post deletion completed successfully');
       } else {
         // Backend deletion failed
@@ -161,7 +162,6 @@ class _PostCardState extends State<PostCard>
         );
         print('❌ Backend deletion failed for post: ${widget.post.id}');
       }
-      
     } catch (e) {
       print('❌ Error deleting post: $e');
       ToastService.showToast(
@@ -172,11 +172,12 @@ class _PostCardState extends State<PostCard>
       );
     }
   }
-  
+
   // Show edit post dialog
   void _showEditDialog() {
-    final TextEditingController editController = TextEditingController(text: _currentTextContent);
-    
+    final TextEditingController editController =
+        TextEditingController(text: _currentTextContent);
+
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -213,7 +214,7 @@ class _PostCardState extends State<PostCard>
       },
     );
   }
-  
+
   // Update post content
   Future<void> _updatePost(String newText) async {
     if (newText.isEmpty) {
@@ -225,7 +226,7 @@ class _PostCardState extends State<PostCard>
       );
       return;
     }
-    
+
     if (newText == _currentTextContent) {
       ToastService.showToast(
         context,
@@ -235,12 +236,12 @@ class _PostCardState extends State<PostCard>
       );
       return;
     }
-    
+
     try {
       print('Updating post: ${widget.post.id}');
       print('Old text: "$_currentTextContent"');
       print('New text: "$newText"');
-      
+
       // Show loading toast
       ToastService.showToast(
         context,
@@ -248,19 +249,19 @@ class _PostCardState extends State<PostCard>
         message: 'Saving changes...',
         leading: const Icon(Icons.sync, color: Colors.white),
       );
-      
+
       // Call the backend API to update the post
       bool updateSuccess = await InZoneDatabase.updatePost(
         postId: widget.post.id,
         content: newText,
       );
-      
+
       if (updateSuccess) {
         // Update local state to override the original text content
         setState(() {
           _editedTextContent = newText;
         });
-        
+
         // Create a new post object with updated content for parent widgets
         if (widget.onUpdated != null) {
           final updatedPost = InZonePost(
@@ -280,7 +281,7 @@ class _PostCardState extends State<PostCard>
           );
           widget.onUpdated!(updatedPost);
         }
-        
+
         // Show success message
         ToastService.showToast(
           context,
@@ -288,7 +289,7 @@ class _PostCardState extends State<PostCard>
           message: 'Post updated successfully!',
           leading: const Icon(Icons.check_circle, color: Colors.white),
         );
-        
+
         print('Post update completed successfully');
       } else {
         // Backend update failed
@@ -300,7 +301,6 @@ class _PostCardState extends State<PostCard>
         );
         print('❌ Backend update failed for post: ${widget.post.id}');
       }
-      
     } catch (e) {
       print('❌ Error updating post: $e');
       ToastService.showToast(
@@ -498,7 +498,7 @@ class _PostCardState extends State<PostCard>
     if (widget.autoOpenComments) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         filterSheetModel();
-        
+
         // Handle auto-expanding replies and navigating to specific comments/replies
         if (widget.autoExpandReplies && widget.targetCommentId != null) {
           // Auto-expand replies for the target comment
@@ -507,7 +507,7 @@ class _PostCardState extends State<PostCard>
           });
           _expandedRepliesNotifier.value = Set.from(_expandedReplies);
         }
-        
+
         // If there's a target reply, just expand and navigate (don't start replying)
         if (widget.targetReplyId != null && widget.targetCommentId != null) {
           // Longer delay to ensure comments are fully loaded
@@ -520,11 +520,11 @@ class _PostCardState extends State<PostCard>
                 showReplyComposer = false;
                 type = '';
               });
-              
+
               // Clear reactive notifiers to prevent reply interface
               _replyComposerNotifier.value = false;
               _selectedCommentNotifier.value = null;
-              
+
               // Scroll to the target comment with multiple attempts
               _scrollToCommentWithRetry(widget.targetCommentId!, 3);
             }
@@ -793,11 +793,12 @@ class _PostCardState extends State<PostCard>
                   // (doc id, username, or stored uid), so try several lookups.
                   String? resolvedAuthorUid;
                   String resolvedAuthorUsername = authorId; // default fallback
-                  
+
                   try {
-                    final humanUsersRef = FirebaseFirestore.instance.collection('humanUsers');
+                    final humanUsersRef =
+                        FirebaseFirestore.instance.collection('humanUsers');
                     DocumentSnapshot? authorDoc;
-                    
+
                     // 1) Try doc(id)
                     final byId = await humanUsersRef.doc(authorId).get();
                     if (byId.exists) {
@@ -846,9 +847,10 @@ class _PostCardState extends State<PostCard>
                   } catch (e) {
                     debugPrint('Error resolving author for notification: $e');
                   }
-                  
+
                   // Only send notification if we successfully resolved to a UID
-                  if (resolvedAuthorUid != null && resolvedAuthorUid != userId) {
+                  if (resolvedAuthorUid != null &&
+                      resolvedAuthorUid != userId) {
                     // Fire the server-side notification pipeline (best-effort)
                     try {
                       await NotificationEventService.onPostEngagement(
@@ -869,7 +871,8 @@ class _PostCardState extends State<PostCard>
                     // Try to resolve the canonical human user document for the
                     // author. The post's author reference can be in multiple forms
                     // (doc id, username, or stored uid), so try several lookups.
-                    final humanUsersRef = FirebaseFirestore.instance.collection('humanUsers');
+                    final humanUsersRef =
+                        FirebaseFirestore.instance.collection('humanUsers');
                     DocumentSnapshot? authorDoc;
                     String? resolvedAuthorUid;
                     String resolvedAuthorUsername =
@@ -937,8 +940,9 @@ class _PostCardState extends State<PostCard>
 
                       if (query.docs.isEmpty) {
                         // Get the liker's username properly from likeEntry or fetch from Firestore
-                        String likerName = likeEntry['username'] as String? ?? '';
-                        
+                        String likerName =
+                            likeEntry['username'] as String? ?? '';
+
                         if (likerName.isEmpty) {
                           // Fetch from humanUsers collection
                           try {
@@ -946,27 +950,28 @@ class _PostCardState extends State<PostCard>
                                 .collection('humanUsers')
                                 .doc(currentUid)
                                 .get();
-                            
+
                             if (likerDoc.exists) {
                               final likerData = likerDoc.data()!;
-                              likerName = likerData['username'] ?? 
-                                         likerData['name'] ?? 
-                                         likerData['displayName'] ?? 
-                                         'Someone';
+                              likerName = likerData['username'] ??
+                                  likerData['name'] ??
+                                  likerData['displayName'] ??
+                                  'Someone';
                             } else {
                               // Try querying by uid field
-                              final likerQuery = await FirebaseFirestore.instance
+                              final likerQuery = await FirebaseFirestore
+                                  .instance
                                   .collection('humanUsers')
                                   .where('uid', isEqualTo: currentUid)
                                   .limit(1)
                                   .get();
-                              
+
                               if (likerQuery.docs.isNotEmpty) {
                                 final likerData = likerQuery.docs.first.data();
-                                likerName = likerData['username'] ?? 
-                                           likerData['name'] ?? 
-                                           likerData['displayName'] ?? 
-                                           'Someone';
+                                likerName = likerData['username'] ??
+                                    likerData['name'] ??
+                                    likerData['displayName'] ??
+                                    'Someone';
                               } else {
                                 likerName = 'Someone';
                               }
@@ -1240,7 +1245,7 @@ class _PostCardState extends State<PostCard>
             minHeight: imageSuccess ? 350 : 130,
           ),
           width: MediaQuery.of(context).size.width - 30,
-          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 10),
+          // padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 10),
           decoration: BoxDecoration(
               boxShadow: [
                 BoxShadow(
@@ -1265,91 +1270,95 @@ class _PostCardState extends State<PostCard>
           child: Column(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              Row(
-                children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(20),
-                    child: imageUrl != null && imageUrl.isNotEmpty
-                        ? CachedNetworkImage(
-                            imageUrl: imageUrl,
-                            width: 40,
-                            height: 40,
-                            fit: BoxFit.cover,
-                            placeholder: (context, url) => const SizedBox(),
-                            errorWidget: (context, url, error) =>
-                                const Icon(Icons.account_circle, size: 40),
-                          )
-                        : const Icon(Icons.account_circle, size: 40),
-                  ),
-                  // Image.asset(post.profilePicturePath),
-                  // RandomAvatar(widget.post.userName, height: 40, width: 40),
-
-                  const SizedBox(
-                    width: 10,
-                  ),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        GestureDetector(
-                          onTap: () {
-                            if (widget.inProfile == true) {
-                              return;
-                            } else {
-                              if (widget.post.isAi || isCharacterPost) {
-                                print(widget.post.userName);
-                                context.push(
-                                    Routes.aiProfilePath(widget.post.userName));
+              Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                child: Row(
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(20),
+                      child: imageUrl != null && imageUrl.isNotEmpty
+                          ? CachedNetworkImage(
+                              imageUrl: imageUrl,
+                              width: 40,
+                              height: 40,
+                              fit: BoxFit.cover,
+                              placeholder: (context, url) => const SizedBox(),
+                              errorWidget: (context, url, error) =>
+                                  const Icon(Icons.account_circle, size: 40),
+                            )
+                          : const Icon(Icons.account_circle, size: 40),
+                    ),
+                    // Image.asset(post.profilePicturePath),
+                    // RandomAvatar(widget.post.userName, height: 40, width: 40),
+                    const SizedBox(
+                      width: 10,
+                    ),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          GestureDetector(
+                            onTap: () {
+                              if (widget.inProfile == true) {
+                                return;
                               } else {
-                                context.push(Routes.regularProfilePath(
-                                    widget.post.userReference));
+                                if (widget.post.isAi || isCharacterPost) {
+                                  print(widget.post.userName);
+                                  context.push(Routes.aiProfilePath(
+                                      widget.post.userName));
+                                } else {
+                                  context.push(Routes.regularProfilePath(
+                                      widget.post.userReference));
+                                }
                               }
-                            }
-                          },
-                          child: SizedBox(
-                            width: 230,
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  mainName,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    color: Theme.of(context)
-                                        .textTheme
-                                        .titleLarge
-                                        ?.color,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 20,
+                            },
+                            child: SizedBox(
+                              width: 230,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    mainName,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      color: Theme.of(context)
+                                          .textTheme
+                                          .titleLarge
+                                          ?.color,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 20,
+                                    ),
                                   ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
                           ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  // const Spacer(),
-                  GestureDetector(
-                    onTap: () {
-                      _showOptionsBottomSheet(context);
-                      HapticFeedback.lightImpact();
-                    },
-                    child: Padding(
-                      padding: const EdgeInsets.all(15),
-                      child: Icon(
-                        Icons.more_horiz,
-                        color: Theme.of(context).iconTheme.color,
+                        ],
                       ),
                     ),
-                  ),
-                ],
+                    // const Spacer(),
+                    GestureDetector(
+                      onTap: () {
+                        _showOptionsBottomSheet(context);
+                        HapticFeedback.lightImpact();
+                      },
+                      child: Padding(
+                        padding: const EdgeInsets.all(15),
+                        child: Icon(
+                          Icons.more_horiz,
+                          color: Theme.of(context).iconTheme.color,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
               _currentTextContent.isEmpty
                   ? const SizedBox()
                   : Padding(
-                      padding: const EdgeInsets.only(top: 10),
+                      padding:
+                          const EdgeInsets.only(top: 10, left: 10, right: 10),
                       child: Align(
                         alignment: Alignment.centerLeft,
                         child: Text(
@@ -1365,7 +1374,7 @@ class _PostCardState extends State<PostCard>
                       ),
                     ),
               (validImages.isNotEmpty || validVideos.isNotEmpty)
-                  ? const SizedBox(height: 30)
+                  ? const SizedBox(height: 25)
                   : const SizedBox(height: 10),
               (validImages.isNotEmpty || validVideos.isNotEmpty)
                   ? _DynamicPageView(
@@ -1394,127 +1403,134 @@ class _PostCardState extends State<PostCard>
                       ),
                     ),
                   if (totalMediaCount > 1) const SizedBox(height: 10),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceAround,
-                    children: [
-                      GestureDetector(
-                        onTap: handleLike, // Toggle like/unlike when tapped
-                        child: SizedBox(
-                          height: 22,
-                          width: 22,
-                          child: SvgPicture.asset(
-                            isLiked
-                                ? CustomIcons.like
-                                : CustomIcons
-                                    .notlike, // Show correct icon based on state
+                  Padding(
+                    padding: const EdgeInsets.only(
+                      bottom: 10,
+                      left: 10,
+                      right: 10,
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      children: [
+                        GestureDetector(
+                          onTap: handleLike, // Toggle like/unlike when tapped
+                          child: SizedBox(
+                            height: 22,
+                            width: 22,
+                            child: SvgPicture.asset(
+                              isLiked
+                                  ? CustomIcons.like
+                                  : CustomIcons
+                                      .notlike, // Show correct icon based on state
+                            ),
                           ),
                         ),
-                      ),
-                      const SizedBox(
-                        width: 10,
-                      ),
-                      // InkWell(
-                      //     onTap: () {
-                      //       filterSheetModel();
-                      //     },
-                      //     child: SizedBox(height: 35, width: 35, child: SvgPicture.asset(CustomIcons.comment))),
-                      // if (isCommentPresentbool == true)
-                      GestureDetector(
-                          behavior: HitTestBehavior.opaque,
-                          onTap: () {
-                            filterSheetModel();
-                          },
-                          child: isCommentPresentbool
-                              ? SizedBox(
-                                  height: 25,
-                                  width: 25,
-                                  child: SvgPicture.asset(
-                                    CustomIcons
-                                        .comment, // Show correct icon based on state
-                                  ),
-                                )
-                              : SizedBox(
-                                  height: 25,
-                                  width: 25,
-                                  child: SvgPicture.asset(
-                                    CustomIcons
-                                        .uncomment, // Show correct icon based on state
-                                  ),
-                                )),
-                      const Spacer(),
-                      if (!widget.post.isAi &&
-                          widget.showHue &&
-                          !isCharacterPost)
-                        Padding(
-                          padding: const EdgeInsets.only(right: 10),
-                          child: Container(
-                            width: 10,
-                            height: 10,
+                        const SizedBox(
+                          width: 10,
+                        ),
+                        // InkWell(
+                        //     onTap: () {
+                        //       filterSheetModel();
+                        //     },
+                        //     child: SizedBox(height: 35, width: 35, child: SvgPicture.asset(CustomIcons.comment))),
+                        // if (isCommentPresentbool == true)
+                        GestureDetector(
+                            behavior: HitTestBehavior.opaque,
+                            onTap: () {
+                              filterSheetModel();
+                            },
+                            child: isCommentPresentbool
+                                ? SizedBox(
+                                    height: 25,
+                                    width: 25,
+                                    child: SvgPicture.asset(
+                                      CustomIcons
+                                          .comment, // Show correct icon based on state
+                                    ),
+                                  )
+                                : SizedBox(
+                                    height: 25,
+                                    width: 25,
+                                    child: SvgPicture.asset(
+                                      CustomIcons
+                                          .uncomment, // Show correct icon based on state
+                                    ),
+                                  )),
+                        const Spacer(),
+                        if (!widget.post.isAi &&
+                            widget.showHue &&
+                            !isCharacterPost)
+                          Padding(
+                            padding: const EdgeInsets.only(right: 10),
+                            child: Container(
+                              width: 10,
+                              height: 10,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF2196F3).withOpacity(0.1),
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                          ),
+
+                        if (isCharacterPost)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 4),
                             decoration: BoxDecoration(
                               color: const Color(0xFF2196F3).withOpacity(0.1),
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                        ),
-
-                      if (isCharacterPost)
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF2196F3).withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: const Color(0xFF2196F3).withOpacity(0.3),
-                              width: 1,
-                            ),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                "made by ${widget.post.userName}",
-                                style: TextStyle(
-                                  color:
-                                      const Color(0xFF2196F3).withOpacity(0.8),
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w500,
-                                ),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: const Color(0xFF2196F3).withOpacity(0.3),
+                                width: 1,
                               ),
-                            ],
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  "made by ${widget.post.userName}",
+                                  style: TextStyle(
+                                    color: const Color(0xFF2196F3)
+                                        .withOpacity(0.8),
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
 
-                      // if (isCommentPresentbool == false)
-                      //   InkWell(
-                      //       onTap: () {
-                      //         filterSheetModel();
-                      //       },
-                      //       child: SizedBox(
-                      //           height: 35,
-                      //           width: 35,
-                      //           child: Image.asset(CustomIcons.uncomment))),
-                      // GestureDetector(
-                      //     onTap: () {
-                      //       // Navigator.push(context,
-                      //       //     MaterialPageRoute(builder: (context) {
-                      //       //   return CommentScreen();
-                      //       // }));
-                      //       // showSlidingBottomSheet(context,
-                      //       //     builder: (context) => SlidingSheetDialog(
-                      //       //       cornerRadius: 30,
-                      //       //       snapSpec: const SnapSpec(snappings: [0.7, 0.9]),
-                      //       //       builder: (context, state) {
-                      //       //
-                      //       //         // return CommentPage(
-                      //       //         //   post: widget.post,
-                      //       //         // );
-                      //       //       },
-                      //       //     ));
-                      //     },
-                      //     child: SvgPicture.asset(CustomIcons.send)),
-                    ],
-                  ),
+                        // if (isCommentPresentbool == false)
+                        //   InkWell(
+                        //       onTap: () {
+                        //         filterSheetModel();
+                        //       },
+                        //       child: SizedBox(
+                        //           height: 35,
+                        //           width: 35,
+                        //           child: Image.asset(CustomIcons.uncomment))),
+                        // GestureDetector(
+                        //     onTap: () {
+                        //       // Navigator.push(context,
+                        //       //     MaterialPageRoute(builder: (context) {
+                        //       //   return CommentScreen();
+                        //       // }));
+                        //       // showSlidingBottomSheet(context,
+                        //       //     builder: (context) => SlidingSheetDialog(
+                        //       //       cornerRadius: 30,
+                        //       //       snapSpec: const SnapSpec(snappings: [0.7, 0.9]),
+                        //       //       builder: (context, state) {
+                        //       //
+                        //       //         // return CommentPage(
+                        //       //         //   post: widget.post,
+                        //       //         // );
+                        //       //       },
+                        //       //     ));
+                        //     },
+                        //     child: SvgPicture.asset(CustomIcons.send)),
+                      ],
+                    ),
+                  )
                 ],
               )
             ],
@@ -1526,7 +1542,7 @@ class _PostCardState extends State<PostCard>
 
   void _showOptionsBottomSheet(BuildContext context) {
     final bool isOwner = _isPostOwner();
-    
+
     showModalBottomSheet(
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
@@ -1556,9 +1572,9 @@ class _PostCardState extends State<PostCard>
                 ),
               ),
             ),
-            
+
             const SizedBox(height: 15),
-            
+
             // OWNER EDIT/DELETE OPTIONS
             if (isOwner) ...[
               ListTile(
@@ -1578,7 +1594,7 @@ class _PostCardState extends State<PostCard>
                 onTap: () {
                   Navigator.pop(context);
                   print('Edit tapped for post: ${widget.post.id}');
-                  
+
                   // Show direct edit dialog instead of navigating to post screen
                   _showEditDialog();
                 },
@@ -1600,7 +1616,7 @@ class _PostCardState extends State<PostCard>
                 onTap: () {
                   Navigator.pop(context);
                   print('Delete tapped for post: ${widget.post.id}');
-                  
+
                   // Show confirmation dialog for delete
                   showDialog(
                     context: context,
@@ -1608,8 +1624,7 @@ class _PostCardState extends State<PostCard>
                       return AlertDialog(
                         title: const Text('Delete Post'),
                         content: const Text(
-                          'Are you sure you want to delete this post? This action cannot be undone.'
-                        ),
+                            'Are you sure you want to delete this post? This action cannot be undone.'),
                         actions: [
                           TextButton(
                             onPressed: () => Navigator.pop(context),
@@ -1633,7 +1648,7 @@ class _PostCardState extends State<PostCard>
               ),
               const Divider(),
             ],
-            
+
             _optionItem(
               FeatherIcons.alertCircle,
               "Report this post",
@@ -1697,8 +1712,7 @@ class _PostCardState extends State<PostCard>
         } else if (value == "dont_show") {
           // Show reason input dialog for user
           _showReportUserDialog(context);
-        }
-        else if (value == "tip") {
+        } else if (value == "tip") {
           // Show tip dialog
           _showTipDialog(context);
         }
@@ -2558,7 +2572,7 @@ class _PostCardState extends State<PostCard>
             ? widget.post.userReference
             : null,
       );
-      
+
       // Track comment for Gorse recommendation engine
       InZoneDatabase.trackPostComment(userId, widget.post.id);
     }
@@ -2730,26 +2744,26 @@ class _PostCardState extends State<PostCard>
   void _scrollToCommentWithRetry(String commentId, int attemptsLeft) {
     print('=== _scrollToCommentWithRetry called ===');
     print('Target commentId: $commentId, attempts left: $attemptsLeft');
-    
+
     if (attemptsLeft <= 0 || !mounted) {
       print('Max attempts reached or widget unmounted');
       return;
     }
-    
+
     // Set highlighting for the target comment
     setState(() {
       _highlightedCommentId = commentId;
     });
-    
+
     // First, try to find the comment using its GlobalKey
     final commentKey = _getCommentKey(commentId);
-    
+
     Future.delayed(const Duration(milliseconds: 500), () {
       if (mounted) {
         _scrollToCommentByKey(commentKey, commentId, attemptsLeft);
       }
     });
-    
+
     // Clear highlighting after a delay
     Future.delayed(const Duration(seconds: 3), () {
       if (mounted) {
@@ -2759,65 +2773,68 @@ class _PostCardState extends State<PostCard>
       }
     });
   }
-  
+
   // Try to scroll to comment using its GlobalKey
-  void _scrollToCommentByKey(GlobalKey commentKey, String commentId, int attemptsLeft) {
+  void _scrollToCommentByKey(
+      GlobalKey commentKey, String commentId, int attemptsLeft) {
     print('=== _scrollToCommentByKey called ===');
     print('Looking for comment: $commentId');
-    
+
     if (!mounted || !_scrollController.hasClients) {
       print('Controller not available');
       return;
     }
-    
+
     // Try to get the RenderBox for the comment
-    final RenderBox? renderBox = commentKey.currentContext?.findRenderObject() as RenderBox?;
-    
+    final RenderBox? renderBox =
+        commentKey.currentContext?.findRenderObject() as RenderBox?;
+
     if (renderBox != null) {
       // Found the comment! Calculate its position
       final position = renderBox.localToGlobal(Offset.zero);
       final commentPosition = position.dy;
-      
+
       // Get the current scroll position and calculate target
       final currentScroll = _scrollController.offset;
       final screenHeight = MediaQuery.of(context).size.height;
-      
+
       // Calculate target scroll position to center the comment
       final targetScroll = currentScroll + commentPosition - (screenHeight / 3);
-      
+
       print('Found comment at position: $commentPosition');
       print('Scrolling to: $targetScroll');
-      
+
       _scrollController.animateTo(
         targetScroll.clamp(0.0, _scrollController.position.maxScrollExtent),
         duration: const Duration(milliseconds: 800),
         curve: Curves.easeInOut,
       );
-      
     } else {
       print('Comment not found in UI, using fallback method');
       // Fallback to the previous method if we can't find the specific comment
       _fallbackScrollMethod(commentId, attemptsLeft);
     }
   }
-  
+
   // Fallback method when we can't find the comment by key
   void _fallbackScrollMethod(String commentId, int attemptsLeft) {
     print('=== Using fallback scroll method ===');
-    
+
     if (!mounted || !_scrollController.hasClients) {
       return;
     }
-    
+
     // Scroll to comments section first
     final double maxScroll = _scrollController.position.maxScrollExtent;
     final double targetPosition = maxScroll * 0.85;
-    
-    _scrollController.animateTo(
+
+    _scrollController
+        .animateTo(
       targetPosition,
       duration: const Duration(milliseconds: 600),
       curve: Curves.easeInOut,
-    ).then((_) {
+    )
+        .then((_) {
       // Try again after a delay if we have attempts left
       if (attemptsLeft > 1 && mounted) {
         Future.delayed(const Duration(milliseconds: 1000), () {
@@ -2828,7 +2845,7 @@ class _PostCardState extends State<PostCard>
       }
     });
   }
-  
+
   // Add reply to a comment
   void _addReply() async {
     print('=== _addReply called ===');
@@ -2865,10 +2882,10 @@ class _PostCardState extends State<PostCard>
       if (!postSnapshot.exists) return;
 
       List<dynamic> currentComments = postSnapshot['comments'] ?? [];
-      
+
       // Create new reply with proper ID
       final replyId = DateTime.now().millisecondsSinceEpoch.toString();
-      
+
       Map<String, dynamic> newReply = {
         'id': replyId,
         'author': FirebaseAuth.instance.currentUser!.displayName ?? 'Anonymous',
@@ -2892,7 +2909,8 @@ class _PostCardState extends State<PostCard>
       // Trigger notification for comment reply
       try {
         final response = await http.post(
-          Uri.parse('https://inzoneapi-912424781531.us-central1.run.app/api/notifications/events/comment-reply'),
+          Uri.parse(
+              'https://inzoneapi-912424781531.us-central1.run.app/api/notifications/events/comment-reply'),
           headers: {'Content-Type': 'application/json'},
           body: jsonEncode({
             'postId': widget.post.id.toString(),
@@ -2902,11 +2920,12 @@ class _PostCardState extends State<PostCard>
             'replyId': replyId,
           }),
         );
-        
+
         if (response.statusCode == 200) {
           print('✅ Comment reply notification sent successfully');
         } else {
-          print('❌ Failed to send comment reply notification: ${response.statusCode}');
+          print(
+              '❌ Failed to send comment reply notification: ${response.statusCode}');
         }
       } catch (e) {
         print('❌ Error sending comment reply notification: $e');
@@ -3216,29 +3235,33 @@ class _PostCardState extends State<PostCard>
                                   itemBuilder:
                                       (BuildContext context, int index) {
                                     final comment = reactiveComments[index];
-                                    final replyCount = repliesMap[comment.id]?.length ?? 0; // Calculate reply count outside
-                                return AnimatedContainer(
-                                  duration: const Duration(seconds: 1),
-                                  child: Padding(
-                                    padding: EdgeInsets.symmetric(
-                                        horizontal: 0.0, 
-                                        vertical: comment.isReply 
-                                            ? 0.0 // No padding for replies
-                                            : (replyCount > 0 && expandedSet.contains(comment.id))
-                                                ? 2.0 // Reduced padding for parent comments with expanded replies
-                                                : 10.0), // Normal padding for parent comments without replies
-                                    child: FutureBuilder<DocumentSnapshot>(
-                                      future: comment.userId.isNotEmpty
-                                          ? FirebaseFirestore.instance
-                                              .collection('humanUsers')
-                                              .doc(comment.userId)
-                                              .get()
-                                          : null,
-                                      builder: (BuildContext context,
-                                          AsyncSnapshot<DocumentSnapshot>
-                                              snapshot) {
-                                        String username = comment.author;
-                                        String profilePicUrl = '';
+                                    final replyCount =
+                                        repliesMap[comment.id]?.length ??
+                                            0; // Calculate reply count outside
+                                    return AnimatedContainer(
+                                      duration: const Duration(seconds: 1),
+                                      child: Padding(
+                                        padding: EdgeInsets.symmetric(
+                                            horizontal: 0.0,
+                                            vertical: comment.isReply
+                                                ? 0.0 // No padding for replies
+                                                : (replyCount > 0 &&
+                                                        expandedSet.contains(
+                                                            comment.id))
+                                                    ? 2.0 // Reduced padding for parent comments with expanded replies
+                                                    : 10.0), // Normal padding for parent comments without replies
+                                        child: FutureBuilder<DocumentSnapshot>(
+                                          future: comment.userId.isNotEmpty
+                                              ? FirebaseFirestore.instance
+                                                  .collection('humanUsers')
+                                                  .doc(comment.userId)
+                                                  .get()
+                                              : null,
+                                          builder: (BuildContext context,
+                                              AsyncSnapshot<DocumentSnapshot>
+                                                  snapshot) {
+                                            String username = comment.author;
+                                            String profilePicUrl = '';
 
                                             if (snapshot.hasData &&
                                                 snapshot.data != null &&
@@ -3639,10 +3662,10 @@ class _DynamicPageViewState extends State<_DynamicPageView> {
           // Remove animation, use fixed height instead of AnimatedContainer
           height: _currentHeight,
           decoration: BoxDecoration(
-            color: Theme.of(context).cardColor,
-            borderRadius: BorderRadius.circular(12),
+            color: Theme.of(context).hoverColor,
+            // borderRadius: BorderRadius.circular(12),
           ),
-          clipBehavior: Clip.hardEdge,
+          clipBehavior: Clip.none,
           child: PageView.builder(
             controller: widget.controller,
             itemCount: totalItems,
@@ -3701,7 +3724,7 @@ class _DynamicPageViewState extends State<_DynamicPageView> {
                         }
                       },
                       child: ClipRRect(
-                        borderRadius: BorderRadius.circular(12),
+                        // borderRadius: BorderRadius.circular(12),
                         child: GestureDetector(
                           onTap: () {
                             Navigator.of(context).push(
@@ -3806,7 +3829,7 @@ class _DynamicPageViewState extends State<_DynamicPageView> {
 
                     // Once visible, build the actual video widget.
                     return ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
+                      // borderRadius: BorderRadius.circular(12),
                       child: _VideoWidgetWrapper(
                         videoUrl: videoUrl,
                         maxWidth: width,
