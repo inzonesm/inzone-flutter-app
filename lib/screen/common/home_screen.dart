@@ -1282,7 +1282,7 @@ class HomeScreenState extends State<HomeScreen> {
                               return Padding(
                                 key: ValueKey('post_$index'),
                                 padding: const EdgeInsets.symmetric(
-                                    horizontal: 16.0, vertical: 0),
+                                    horizontal: 4.0, vertical: 0),
                                 child: _buildPostWidget(null, index),
                               );
                             }
