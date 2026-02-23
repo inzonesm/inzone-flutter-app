@@ -2417,6 +2417,64 @@ class InZoneDatabase {
       return false;
     }
   }
+  static Future<void> saveConversationMessage({
+    required String aiUsername,
+    required String text,
+    required String speaker, // "user" or "ai"
+  }) async {
+    try {
+      final String? uid = await getCurrentUserUid();
+      if (uid == null) return;
+
+      // Deterministic doc id so both parties write to the same document
+      final String docId = '${uid}_$aiUsername';
+
+      final messageEntry = {
+        'speaker': speaker,
+        'text': text,
+        'timestamp': DateTime.now().millisecondsSinceEpoch,
+      };
+
+      final docRef =
+          FirebaseFirestore.instance.collection('aiChatHistory').doc(docId);
+
+      // Use set with merge so the doc is created on the first message
+      await docRef.set({
+        'userId': uid,
+        'aiUsername': aiUsername,
+        'updatedAt': FieldValue.serverTimestamp(),
+        'messages': FieldValue.arrayUnion([messageEntry]),
+      }, SetOptions(merge: true));
+    } catch (e) {
+      print('Error saving conversation message: $e');
+    }
+  }
+
+  /// Loads the full conversation history from Firestore for a given AI.
+  static Future<List<Map<String, dynamic>>?> loadConversationMessages(
+      String aiUsername) async {
+    try {
+      final String? uid = await getCurrentUserUid();
+      if (uid == null) return null;
+
+      final String docId = '${uid}_$aiUsername';
+      final doc = await FirebaseFirestore.instance
+          .collection('aiChatHistory')
+          .doc(docId)
+          .get();
+
+      if (doc.exists && doc.data() != null) {
+        final data = doc.data()!;
+        if (data.containsKey('messages')) {
+          return List<Map<String, dynamic>>.from(data['messages']);
+        }
+      }
+      return null;
+    } catch (e) {
+      print('Error loading conversation messages: $e');
+      return null;
+    }
+  }
 }
 
 class LikedPostsPreferences {
