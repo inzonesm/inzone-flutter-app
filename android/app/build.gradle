@@ -29,7 +29,7 @@ if (flutterVersionName == null) {
 android {
     namespace = "com.aadeshkheria.inzone"
     compileSdk = 36
-    ndkVersion = "28.0.12674087"
+    ndkVersion = "28.2.13676358"
 
     compileOptions {
         // Flag to enable support for the new language APIs

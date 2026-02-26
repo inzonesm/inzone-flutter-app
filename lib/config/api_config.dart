@@ -6,6 +6,8 @@ class ApiConfig {
   static const bool useLocalBackend = false; // 🔧 Changed to true for local testing
   
   static const String localBackendUrl = 'http://127.0.0.1:8080'; // For Android emulator
+  // static const String localBackendUrl = 'http://172.30.1.54:8080'; // For Android emulator
+
   // static const String localBackendUrl = 'http://localhost:5000'; // For iOS simulator
   
   static const String productionBackendUrl = 
