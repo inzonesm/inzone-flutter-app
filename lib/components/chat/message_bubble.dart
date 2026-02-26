@@ -54,6 +54,14 @@ class MessageBubble extends StatelessWidget {
                       vertical: 0,
                     ),
                     decoration: BoxDecoration(
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.2),
+                          blurRadius: 1,
+                          spreadRadius: 0.5,
+                          offset: const Offset(1, 1), // horizontal, vertical
+                        ),
+                      ],
                       color: isMe
                           ? Theme.of(context).myChatBubbleColor
                           : Theme.of(context).otherChatBubbleColor,
