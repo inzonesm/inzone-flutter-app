@@ -3663,7 +3663,7 @@ class _DynamicPageViewState extends State<_DynamicPageView> {
           // Remove animation, use fixed height instead of AnimatedContainer
           height: _currentHeight,
           decoration: BoxDecoration(
-            color: Theme.of(context).hoverColor,
+            color: Theme.of(context).primaryColor,
             // borderRadius: BorderRadius.circular(12),
           ),
           clipBehavior: Clip.none,
@@ -3745,7 +3745,7 @@ class _DynamicPageViewState extends State<_DynamicPageView> {
                           },
                           child: Image(
                             image: cachedImage!,
-                            fit: BoxFit.contain,
+                            fit: BoxFit.fill,
                             color: null,
                             colorBlendMode: BlendMode.srcOver,
                             filterQuality: FilterQuality.high,
