@@ -124,7 +124,9 @@ class _ChatScreenState extends State<ChatScreen> {
 
     // Start AI character session tracking
     AIChatSessionTracker.startSession(_characterId);
-
+    // Load previous conversation from Firebase
+    _loadPreviousMessages();
+    
     // Track AI character interaction start
     final userId = FirebaseAuth.instance.currentUser?.uid;
     if (userId != null) {
@@ -136,7 +138,24 @@ class _ChatScreenState extends State<ChatScreen> {
       });
     }
   }
+  Future<void> _loadPreviousMessages() async {
+    final aiUsername = widget.userData.email;
+    if (aiUsername == null) return;
 
+    final messages =
+        await InZoneDatabase.loadConversationMessages(aiUsername);
+    if (messages != null && messages.isNotEmpty && mounted) {
+      for (final msg in messages) {
+        final isMe = msg['speaker'] == 'user';
+        addMessage(msg['text'] ?? '', isMe, persist: false);
+      }
+      // Scroll to bottom after loading history
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) scrollToEnd();
+      });
+    }
+  }
+  
   @override
   void dispose() {
     // End AI character session tracking
@@ -183,7 +202,7 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
-  addMessage(text, isMe) {
+  addMessage(text, isMe, {bool persist = true}) {
     if (!mounted) return;
     setState(() {
       messageCards.add(
@@ -217,6 +236,13 @@ class _ChatScreenState extends State<ChatScreen> {
         _interactionTypes.add('ai_response');
       }
     });
+    if (persist && widget.userData.email != null) {
+      InZoneDatabase.saveConversationMessage(
+        aiUsername: widget.userData.email!,
+        text: text,
+        speaker: isMe ? 'user' : 'ai',
+      );
+    }
   }
 
   @override
