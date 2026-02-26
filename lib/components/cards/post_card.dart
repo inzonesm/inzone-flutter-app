@@ -3980,33 +3980,33 @@ class _VideoWidgetWrapperState extends State<_VideoWidgetWrapper> {
             },
           ),
           // Add fullscreen button overlay
-          Positioned(
-            bottom: 8,
-            right: 8,
-            child: Container(
-              decoration: BoxDecoration(
-                color: Colors.black.withOpacity(0.6),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: IconButton(
-                icon: const Icon(
-                  Icons.fullscreen,
-                  color: Colors.white,
-                  size: 20,
-                ),
-                onPressed: () {
-                  // Open fullscreen video viewer
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (context) =>
-                          _FullScreenVideoViewer(videoUrl: widget.videoUrl),
-                      fullscreenDialog: true,
-                    ),
-                  );
-                },
-              ),
-            ),
-          ),
+          // Positioned(
+          //   bottom: 8,
+          //   right: 8,
+          //   child: Container(
+          //     decoration: BoxDecoration(
+          //       color: Colors.black.withOpacity(0.6),
+          //       borderRadius: BorderRadius.circular(20),
+          //     ),
+          //     child: IconButton(
+          //       icon: const Icon(
+          //         Icons.fullscreen,
+          //         color: Colors.white,
+          //         size: 20,
+          //       ),
+          //       onPressed: () {
+          //         // Open fullscreen video viewer
+          //         Navigator.of(context).push(
+          //           MaterialPageRoute(
+          //             builder: (context) =>
+          //                 _FullScreenVideoViewer(videoUrl: widget.videoUrl),
+          //             fullscreenDialog: true,
+          //           ),
+          //         );
+          //       },
+          //     ),
+          //   ),
+          // ),
         ],
       ),
     );
