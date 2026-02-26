@@ -1357,8 +1357,7 @@ class _PostCardState extends State<PostCard>
               _currentTextContent.isEmpty
                   ? const SizedBox()
                   : Padding(
-                      padding:
-                          const EdgeInsets.only(top: 10, left: 10, right: 10),
+                      padding: const EdgeInsets.only(left: 10, right: 10),
                       child: Align(
                         alignment: Alignment.centerLeft,
                         child: Text(
@@ -1373,9 +1372,7 @@ class _PostCardState extends State<PostCard>
                         ),
                       ),
                     ),
-              (validImages.isNotEmpty || validVideos.isNotEmpty)
-                  ? const SizedBox(height: 25)
-                  : const SizedBox(height: 10),
+              const SizedBox(height: 10),
               (validImages.isNotEmpty || validVideos.isNotEmpty)
                   ? _DynamicPageView(
                       images: validImages,
