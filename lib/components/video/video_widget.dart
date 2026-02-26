@@ -43,8 +43,10 @@ class VideoAspectRatioNotification extends Notification {
   VideoAspectRatioNotification(this.aspectRatio);
 }
 
-// Track all active players for pausing others when a new video plays
-final Map<String, Player> _activePlayers = {};
+// Track all active players (and their VideoControllers) for pausing others
+// when a new video plays and for safe bulk disposal.
+final Map<String, ({Player player, VideoController? controller})>
+    _activePlayers = {};
 
 // Track currently playing video
 String? _currentlyPlayingVideoUrl;
@@ -97,9 +99,12 @@ Future<void> _safeDisposeMediaKitPlayer(
 void disposeAllVideoCache() {
   try {
     for (final entry in _activePlayers.entries) {
-      final player = entry.value;
+      final player = entry.value.player;
+      final controller = entry.value.controller;
       // Fire-and-forget: dispose each player safely in a microtask.
-      Future.microtask(() => _safeDisposeMediaKitPlayer(player));
+      // CRITICAL: pass the VideoController so it stays alive during
+      // mpv's mp_shutdown_clients → FFI callback chain.
+      Future.microtask(() => _safeDisposeMediaKitPlayer(player, controller));
     }
     _activePlayers.clear();
     _currentlyPlayingVideoUrl = null;
@@ -115,9 +120,9 @@ void _pauseOtherVideos(String currentVideoUrl) {
 
   // Pause the previously playing video
   if (_currentlyPlayingVideoUrl != null) {
-    final previousPlayer = _activePlayers[_currentlyPlayingVideoUrl];
-    if (previousPlayer != null && previousPlayer.state.playing) {
-      previousPlayer.pause();
+    final previousEntry = _activePlayers[_currentlyPlayingVideoUrl];
+    if (previousEntry != null && previousEntry.player.state.playing) {
+      previousEntry.player.pause();
       debugPrint('Paused previous video: $_currentlyPlayingVideoUrl');
     }
   }
@@ -566,7 +571,10 @@ class _VideoWidgetState extends State<VideoWidget> with WidgetsBindingObserver {
       debugPrint('MediaKit Player opened successfully');
 
       // Register this player in active players map for pausing other videos
-      _activePlayers[widget.videoUrl] = _mediaKitPlayer!;
+      _activePlayers[widget.videoUrl] = (
+        player: _mediaKitPlayer!,
+        controller: _mediaKitVideoController,
+      );
 
       // Enable autoplay - start playing automatically when initialized
       _pauseOtherVideos(widget.videoUrl);
