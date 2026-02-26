@@ -56,10 +56,11 @@ class MessageBubble extends StatelessWidget {
                     decoration: BoxDecoration(
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.2),
-                          blurRadius: 1,
+                          color: Colors.black.withOpacity(0.1),
+                          blurRadius: 0.5,
                           spreadRadius: 0.5,
-                          offset: const Offset(1, 1), // horizontal, vertical
+                          offset:
+                              const Offset(0.5, 0.5), // horizontal, vertical
                         ),
                       ],
                       color: isMe
