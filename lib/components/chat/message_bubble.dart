@@ -48,80 +48,74 @@ class MessageBubble extends StatelessWidget {
                   isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
               children: [
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-                  margin: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 0,
-                  ),
-                  decoration: BoxDecoration(
-                    color: isMe
-                        ? Theme.of(context).myChatBubbleColor
-                        : Theme.of(context).otherChatBubbleColor,
-                    borderRadius: BorderRadius.only(
-                      topLeft: const Radius.circular(8),
-                      topRight: const Radius.circular(8),
-                      bottomRight: isMe
-                          ? const Radius.circular(0)
-                          : const Radius.circular(8),
-                      bottomLeft: isMe
-                          ? const Radius.circular(8)
-                          : const Radius.circular(0),
+                    padding: const EdgeInsets.only(left: 8, right: 8, top: 4),
+                    margin: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 0,
                     ),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: isMe
-                        ? CrossAxisAlignment.end
-                        : CrossAxisAlignment.start,
-                    children: [
-                      if (!isMe && senderName != null)
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 0.0),
-                          child: GestureDetector(
-                            onTap: onSenderTap,
-                            child: Text(
-                              senderName!,
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                                color: Theme.of(context)
-                                    .textTheme
-                                    .bodySmall
-                                    ?.color,
+                    decoration: BoxDecoration(
+                      color: isMe
+                          ? Theme.of(context).myChatBubbleColor
+                          : Theme.of(context).otherChatBubbleColor,
+                      borderRadius: BorderRadius.only(
+                        topLeft: const Radius.circular(8),
+                        topRight: const Radius.circular(8),
+                        bottomRight: isMe
+                            ? const Radius.circular(0)
+                            : const Radius.circular(8),
+                        bottomLeft: isMe
+                            ? const Radius.circular(8)
+                            : const Radius.circular(0),
+                      ),
+                    ),
+                    child: IntrinsicWidth(
+                      child: Column(
+                        crossAxisAlignment: isMe
+                            ? CrossAxisAlignment.end
+                            : CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (!isMe && senderName != null)
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 0.0),
+                              child: GestureDetector(
+                                onTap: onSenderTap,
+                                child: Text(
+                                  senderName!,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: Theme.of(context)
+                                        .textTheme
+                                        .bodySmall
+                                        ?.color,
+                                  ),
+                                ),
                               ),
                             ),
-                          ),
-                        ),
-                      Text(
-                        message,
-                        style: TextStyle(
-                          color: isMe
-                              ? Theme.of(context).myChatTextColor
-                              : Theme.of(context).otherChatTextColor,
-                        ),
-                      ),
-                      if (timestamp != null)
-                        Text(_formatTimestamp(timestamp!),
-                            textAlign: TextAlign.right,
+                          Text(
+                            message,
                             style: TextStyle(
-                              fontSize: 10,
-                              color:
-                                  Theme.of(context).textTheme.bodySmall?.color,
-                            ))
-                    ],
-                  ),
-                ),
-                // if (timestamp != null)
-                //   Padding(
-                //     padding: const EdgeInsets.only(top: 2, right: 10, left: 10),
-                //     child: Text(
-                //       _formatTimestamp(timestamp!),
-                //       style: TextStyle(
-                //         fontSize: 10,
-                //         color: Theme.of(context).textTheme.bodySmall?.color,
-                //       ),
-                //     ),
-                //   ),
+                              color: isMe
+                                  ? Theme.of(context).myChatTextColor
+                                  : Theme.of(context).otherChatTextColor,
+                            ),
+                          ),
+                          if (timestamp != null)
+                            Align(
+                                alignment: Alignment.centerRight,
+                                child: Text(_formatTimestamp(timestamp!),
+                                    textAlign: TextAlign.right,
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      color: isMe
+                                          ? Theme.of(context).myChatTextColor
+                                          : Theme.of(context)
+                                              .otherChatTextColor,
+                                    )))
+                        ],
+                      ),
+                    )),
                 const SizedBox(
                   height: 5,
                 ),
