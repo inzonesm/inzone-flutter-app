@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:inzone/screen/chat/all_chats_screen.dart';
 import 'package:inzone/screen/chat/chat_screen.dart';
 import 'package:inzone/data/inzone_avatar.dart';
+import 'package:inzone/services/inzone_database.dart';
 import 'package:inzone/theme/app_colors.dart';
 
 class AvatarCard extends StatefulWidget {
@@ -20,12 +21,22 @@ class _AvatarCardState extends State<AvatarCard> {
   bool isDownvoted = false;
   int voteCount = 23;
   int comments = 23;
+  String? _lastMessage;
 
   @override
   void initState() {
     super.initState();
     voteCount = getRandomNumber(0, 999);
     comments = getRandomNumber(0, 300);
+    _loadLastMessage();
+  }
+
+  Future<void> _loadLastMessage() async {
+    final msg = await InZoneDatabase.getAvatarChatLastMessage(
+        widget.avatar.username);
+    if (msg != null && mounted) {
+      setState(() => _lastMessage = msg);
+    }
   }
 
   int getRandomNumber(int min, int max) {
@@ -136,33 +147,63 @@ class _AvatarCardState extends State<AvatarCard> {
                         overflow: TextOverflow.ellipsis,
                       ),
                       const SizedBox(height: 10),
-//gretting
-                      SizedBox(
-                        height: 65,
-                        child: widget.avatar.greeting?.isNotEmpty == true
-                            ? Container(
-                                width: double.infinity,
-                                decoration: BoxDecoration(
-                                  color:
-                                      theme.colorScheme.surfaceContainerHighest,
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 10, vertical: 6),
-                                margin: const EdgeInsets.only(bottom: 12),
-                                child: Text(
-                                  '"${widget.avatar.greeting!}"',
-                                  style: TextStyle(
-                                    fontStyle: FontStyle.italic,
-                                    fontSize: 13,
-                                    color: theme.textTheme.bodyMedium?.color,
+// Last message preview or greeting bubble
+                      Builder(builder: (_) {
+                        final bubbleText = _lastMessage ??
+                            (widget.avatar.greeting?.isNotEmpty == true
+                                ? widget.avatar.greeting
+                                : null);
+                        final isHistory = _lastMessage != null;
+                        return SizedBox(
+                          height: 65,
+                          child: bubbleText != null
+                              ? Container(
+                                  width: double.infinity,
+                                  decoration: BoxDecoration(
+                                    color: theme
+                                        .colorScheme.surfaceContainerHighest,
+                                    borderRadius: BorderRadius.circular(8),
                                   ),
-                                  maxLines: 3,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              )
-                            : const SizedBox.shrink(),
-                      ),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 10, vertical: 6),
+                                  margin: const EdgeInsets.only(bottom: 12),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      if (isHistory)
+                                        Text(
+                                          'Last message',
+                                          style: TextStyle(
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w600,
+                                            color: theme
+                                                .colorScheme.primary
+                                                .withValues(alpha: 0.8),
+                                          ),
+                                        ),
+                                      Text(
+                                        isHistory
+                                            ? bubbleText
+                                            : '"$bubbleText"',
+                                        style: TextStyle(
+                                          fontStyle: isHistory
+                                              ? FontStyle.normal
+                                              : FontStyle.italic,
+                                          fontSize: 12,
+                                          color:
+                                              theme.textTheme.bodyMedium?.color,
+                                        ),
+                                        maxLines: isHistory ? 2 : 3,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ],
+                                  ),
+                                )
+                              : const SizedBox.shrink(),
+                        );
+                      }),
 
                       // Bio
                       SizedBox(
@@ -245,11 +286,12 @@ class _AvatarCardState extends State<AvatarCard> {
                                 return ChatScreen(
                                   userData: ChatUser(
                                     name: widget.avatar.name,
-                                    email: widget.avatar.id,
+                                    email: widget.avatar.username,
                                     chatId: null,
                                     isHuman: false,
                                     profilePictureURL:
                                         widget.avatar.profilePicture,
+                                    greeting: widget.avatar.greeting,
                                   ),
                                 );
                               }));

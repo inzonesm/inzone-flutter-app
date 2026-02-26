@@ -198,7 +198,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     return ChatScreen(
                       userData: ChatUser(
                         name: name,
-                        email: targetUserId,
+                        email: username,
                         chatId: null,
                         isHuman: false,
                         profilePictureURL: profileImageUrl,

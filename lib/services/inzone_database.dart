@@ -2483,15 +2483,89 @@ class InZoneDatabase {
       final docRef =
           FirebaseFirestore.instance.collection('aiChatHistory').doc(docId);
 
-      // Use set with merge so the doc is created on the first message
+      // Use set with merge so the doc is created on the first message.
+      // Also keep a top-level lastMessageText for cheap reads in card previews.
       await docRef.set({
         'userId': uid,
         'aiUsername': aiUsername,
         'updatedAt': FieldValue.serverTimestamp(),
+        'lastMessageText': text,
+        'lastMessageSpeaker': speaker,
         'messages': FieldValue.arrayUnion([messageEntry]),
       }, SetOptions(merge: true));
     } catch (e) {
       print('Error saving conversation message: $e');
+    }
+  }
+
+  /// Saves avatar display metadata (name, profile picture) to the chat doc so
+  /// the chat list can render it without loading the full messages array.
+  static Future<void> initAvatarChatRecord({
+    required String aiUsername,
+    required String avatarName,
+    String? avatarProfilePicture,
+  }) async {
+    try {
+      final String? uid = await getCurrentUserUid();
+      if (uid == null) return;
+
+      final docRef = FirebaseFirestore.instance
+          .collection('aiChatHistory')
+          .doc('${uid}_$aiUsername');
+
+      final Map<String, dynamic> data = {
+        'userId': uid,
+        'aiUsername': aiUsername,
+        'avatarName': avatarName,
+        'updatedAt': FieldValue.serverTimestamp(),
+      };
+      if (avatarProfilePicture != null && avatarProfilePicture.isNotEmpty) {
+        data['avatarProfilePicture'] = avatarProfilePicture;
+      }
+      await docRef.set(data, SetOptions(merge: true));
+    } catch (e) {
+      print('Error initialising avatar chat record: $e');
+    }
+  }
+
+  /// Returns all AI avatar conversations stored locally in aiChatHistory.
+  /// Used to populate the Individual Chats list with avatars chatted via the card.
+  static Future<List<Map<String, dynamic>>> getAvatarChatsFromHistory() async {
+    try {
+      final String? uid = await getCurrentUserUid();
+      if (uid == null) return [];
+
+      final snapshot = await FirebaseFirestore.instance
+          .collection('aiChatHistory')
+          .where('userId', isEqualTo: uid)
+          .orderBy('updatedAt', descending: true)
+          .get();
+
+      return snapshot.docs.map((doc) => doc.data()).toList();
+    } catch (e) {
+      print('Error fetching avatar chats from history: $e');
+      return [];
+    }
+  }
+
+  /// Returns just the last message preview for a single avatar chat doc.
+  static Future<String?> getAvatarChatLastMessage(String aiUsername) async {
+    try {
+      final String? uid = await getCurrentUserUid();
+      if (uid == null) return null;
+
+      final doc = await FirebaseFirestore.instance
+          .collection('aiChatHistory')
+          .doc('${uid}_$aiUsername')
+          .get();
+
+      if (doc.exists && doc.data() != null) {
+        return doc.data()!['lastMessageText'] as String?;
+      }
+      return null;
+    } catch (e) {
+      print('Error fetching last avatar message: $e');
+      return null;
     }
   }
 
