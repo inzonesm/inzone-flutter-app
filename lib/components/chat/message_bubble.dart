@@ -100,6 +100,14 @@ class MessageBubble extends StatelessWidget {
                               : Theme.of(context).otherChatTextColor,
                         ),
                       ),
+                      if (timestamp != null)
+                        Text(_formatTimestamp(timestamp!),
+                            textAlign: TextAlign.right,
+                            style: TextStyle(
+                              fontSize: 10,
+                              color:
+                                  Theme.of(context).textTheme.bodySmall?.color,
+                            ))
                     ],
                   ),
                 ),
@@ -141,14 +149,13 @@ class MessageBubble extends StatelessWidget {
   }
 
   String _formatTimestamp(DateTime dateTime) {
-    final now = DateTime.now().toUtc();
-    final today = DateTime(now.year, now.month, now.day);
-    final messageDate = DateTime(dateTime.year, dateTime.month, dateTime.day);
+    // final now = DateTime.now().toUtc();
+    // final today = DateTime(now.year, now.month, now.day);
+    // final messageDate = DateTime(dateTime.year, dateTime.month, dateTime.day);
 
-    if (messageDate == today) {
-      return DateFormat('h:mm a').format(dateTime.toLocal());
-    } else {
-      return DateFormat('MMM d, h:mm a').format(dateTime.toLocal());
-    }
+    // if (messageDate == today) {
+    return DateFormat('h:mm a').format(dateTime.toLocal());
+    // } else {
+    // return DateFormat('MMM d, h:mm a').format(dateTime.toLocal());
   }
 }
