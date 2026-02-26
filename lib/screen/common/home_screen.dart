@@ -92,7 +92,7 @@ class HomeScreenState extends State<HomeScreen> {
     _avatarTimer?.cancel();
 
     _avatarTimer = Timer(const Duration(seconds: 30), () {
-      if (!mounted || avatars.isEmpty) return;
+      if (!mounted || avatars.isEmpty || popupAvatar != null) return;
 
       final random = Random();
       setState(() {
@@ -1003,7 +1003,6 @@ class HomeScreenState extends State<HomeScreen> {
               onDismissed: (_) {
                 if (!mounted) return;
                 setState(() => popupAvatar = null);
-                _startAvatarTimer();
               },
               child: Container(
                 key: const ValueKey('popup'),
@@ -1282,7 +1281,7 @@ class HomeScreenState extends State<HomeScreen> {
                               return Padding(
                                 key: ValueKey('post_$index'),
                                 padding: const EdgeInsets.symmetric(
-                                    horizontal: 16.0, vertical: 0),
+                                    horizontal: 4.0, vertical: 0),
                                 child: _buildPostWidget(null, index),
                               );
                             }

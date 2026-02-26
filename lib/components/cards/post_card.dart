@@ -1357,8 +1357,7 @@ class _PostCardState extends State<PostCard>
               _currentTextContent.isEmpty
                   ? const SizedBox()
                   : Padding(
-                      padding:
-                          const EdgeInsets.only(top: 10, left: 10, right: 10),
+                      padding: const EdgeInsets.only(left: 10, right: 10),
                       child: Align(
                         alignment: Alignment.centerLeft,
                         child: Text(
@@ -1373,9 +1372,7 @@ class _PostCardState extends State<PostCard>
                         ),
                       ),
                     ),
-              (validImages.isNotEmpty || validVideos.isNotEmpty)
-                  ? const SizedBox(height: 25)
-                  : const SizedBox(height: 10),
+              const SizedBox(height: 10),
               (validImages.isNotEmpty || validVideos.isNotEmpty)
                   ? _DynamicPageView(
                       images: validImages,
@@ -3745,7 +3742,7 @@ class _DynamicPageViewState extends State<_DynamicPageView> {
                           },
                           child: Image(
                             image: cachedImage!,
-                            fit: BoxFit.contain,
+                            fit: BoxFit.fill,
                             color: null,
                             colorBlendMode: BlendMode.srcOver,
                             filterQuality: FilterQuality.high,
@@ -3980,33 +3977,33 @@ class _VideoWidgetWrapperState extends State<_VideoWidgetWrapper> {
             },
           ),
           // Add fullscreen button overlay
-          Positioned(
-            bottom: 8,
-            right: 8,
-            child: Container(
-              decoration: BoxDecoration(
-                color: Colors.black.withOpacity(0.6),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: IconButton(
-                icon: const Icon(
-                  Icons.fullscreen,
-                  color: Colors.white,
-                  size: 20,
-                ),
-                onPressed: () {
-                  // Open fullscreen video viewer
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (context) =>
-                          _FullScreenVideoViewer(videoUrl: widget.videoUrl),
-                      fullscreenDialog: true,
-                    ),
-                  );
-                },
-              ),
-            ),
-          ),
+          // Positioned(
+          //   bottom: 8,
+          //   right: 8,
+          //   child: Container(
+          //     decoration: BoxDecoration(
+          //       color: Colors.black.withOpacity(0.6),
+          //       borderRadius: BorderRadius.circular(20),
+          //     ),
+          //     child: IconButton(
+          //       icon: const Icon(
+          //         Icons.fullscreen,
+          //         color: Colors.white,
+          //         size: 20,
+          //       ),
+          //       onPressed: () {
+          //         // Open fullscreen video viewer
+          //         Navigator.of(context).push(
+          //           MaterialPageRoute(
+          //             builder: (context) =>
+          //                 _FullScreenVideoViewer(videoUrl: widget.videoUrl),
+          //             fullscreenDialog: true,
+          //           ),
+          //         );
+          //       },
+          //     ),
+          //   ),
+          // ),
         ],
       ),
     );
