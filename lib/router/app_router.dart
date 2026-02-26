@@ -25,6 +25,8 @@ import 'package:inzone/screen/profile/edit_profile_screen.dart';
 import 'package:inzone/screen/profile/edit_field_screen.dart';
 import 'package:inzone/screen/profile/followers_following_screen.dart';
 import 'package:inzone/screen/post/post_screen.dart';
+import 'package:inzone/screen/post/edit_post_screen.dart';
+import 'package:inzone/data/inzone_post.dart';
 import 'package:inzone/screen/chat/group_chat_screen.dart';
 import 'package:inzone/screen/chat/chat_screen.dart';
 import 'package:inzone/screen/chat/human_chat_screen.dart';
@@ -294,6 +296,18 @@ class AppRouter {
           fullscreenDialog: true,
           child: const PostScreen(),
         ),
+      ),
+      GoRoute(
+        path: Routes.editPost,
+        parentNavigatorKey: rootNavigatorKey,
+        pageBuilder: (context, state) {
+          final post = state.extra as InZonePost;
+          return CupertinoPage(
+            key: state.pageKey,
+            fullscreenDialog: true,
+            child: EditPostScreen(post: post),
+          );
+        },
       ),
 
       /* --------- 3d Model Routes --------- */

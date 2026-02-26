@@ -173,6 +173,27 @@ class _PostCardState extends State<PostCard>
     }
   }
 
+  // Navigate to full edit post screen
+  void _navigateToEditPost() async {
+    final result = await context.push<InZonePost>(
+      Routes.editPost,
+      extra: widget.post,
+    );
+
+    if (result != null && mounted) {
+      // Update local state with the edited post
+      setState(() {
+        _editedTextContent = result.textContent;
+        widget.post = result;
+      });
+
+      // Notify parent widgets
+      if (widget.onUpdated != null) {
+        widget.onUpdated!(result);
+      }
+    }
+  }
+
   // Show edit post dialog
   void _showEditDialog() {
     final TextEditingController editController =
@@ -1592,6 +1613,8 @@ class _PostCardState extends State<PostCard>
                   Navigator.pop(context);
                   print('Edit tapped for post: ${widget.post.id}');
 
+                  // Navigate to the full edit post screen
+                  _navigateToEditPost();
                   // Show direct edit dialog instead of navigating to post screen
                   _showEditDialog();
                 },
@@ -1714,30 +1737,18 @@ class _PostCardState extends State<PostCard>
           _showTipDialog(context);
         }
       },
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 15),
-        child: Row(
-          children: [
-            if (!title.contains("Report")) const SizedBox(width: 4),
-            if (title.contains("Report") && title != "Report this post")
-              const SizedBox(width: 5),
-            Icon(
-              icon,
-              size: 28,
-            ),
-            const SizedBox(width: 16),
-            Padding(
-              padding: const EdgeInsets.only(top: 4),
-              child: Text(
-                title,
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w500,
-                  color: Theme.of(context).textTheme.bodyLarge?.color,
-                ),
-              ),
-            ),
-          ],
+      child: ListTile(
+        leading: Icon(
+          icon,
+          size: 28,
+        ),
+        title: Text(
+          title,
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.w500,
+            color: Theme.of(context).textTheme.bodyLarge?.color,
+          ),
         ),
       ),
     );
