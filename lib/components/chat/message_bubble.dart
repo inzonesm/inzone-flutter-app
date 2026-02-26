@@ -12,7 +12,8 @@ class MessageBubble extends StatelessWidget {
   final String? senderName;
   final Widget? senderAvatar;
   final VoidCallback? onShare;
-  final VoidCallback? onSenderTap; // New callback for tapping sender avatar/name
+  final VoidCallback?
+      onSenderTap; // New callback for tapping sender avatar/name
 
   const MessageBubble({
     super.key,
@@ -51,20 +52,20 @@ class MessageBubble extends StatelessWidget {
                       const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
                   margin: const EdgeInsets.symmetric(
                     horizontal: 10,
-                    vertical: 4,
+                    vertical: 0,
                   ),
                   decoration: BoxDecoration(
                     color: isMe
                         ? Theme.of(context).myChatBubbleColor
                         : Theme.of(context).otherChatBubbleColor,
                     borderRadius: BorderRadius.only(
-                      topLeft: const Radius.circular(18),
-                      topRight: const Radius.circular(18),
+                      topLeft: const Radius.circular(8),
+                      topRight: const Radius.circular(8),
                       bottomRight: isMe
                           ? const Radius.circular(0)
-                          : const Radius.circular(18),
+                          : const Radius.circular(8),
                       bottomLeft: isMe
-                          ? const Radius.circular(18)
+                          ? const Radius.circular(8)
                           : const Radius.circular(0),
                     ),
                   ),
@@ -75,7 +76,7 @@ class MessageBubble extends StatelessWidget {
                     children: [
                       if (!isMe && senderName != null)
                         Padding(
-                          padding: const EdgeInsets.only(bottom: 6.0),
+                          padding: const EdgeInsets.only(bottom: 0.0),
                           child: GestureDetector(
                             onTap: onSenderTap,
                             child: Text(
@@ -83,8 +84,10 @@ class MessageBubble extends StatelessWidget {
                               style: TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w600,
-                                color:
-                                    Theme.of(context).textTheme.bodySmall?.color,
+                                color: Theme.of(context)
+                                    .textTheme
+                                    .bodySmall
+                                    ?.color,
                               ),
                             ),
                           ),
@@ -112,7 +115,7 @@ class MessageBubble extends StatelessWidget {
                 //     ),
                 //   ),
                 const SizedBox(
-                  height: 10,
+                  height: 5,
                 ),
               ],
             ),
