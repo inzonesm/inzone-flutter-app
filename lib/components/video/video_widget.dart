@@ -49,14 +49,61 @@ final Map<String, Player> _activePlayers = {};
 // Track currently playing video
 String? _currentlyPlayingVideoUrl;
 
+/// Safely disposes a MediaKit Player on iOS without crashing.
+///
+/// The crash occurs because mpv's native `core_thread` calls
+/// `mp_shutdown_clients` → `send_event` → `append_event` during disposal,
+/// which invokes FFI callbacks registered by the [VideoController].
+/// If the [VideoController] has been garbage-collected before `dispose()`
+/// completes, the Dart VM hits a `DLRT_GetFfiCallbackMetadata` assertion
+/// failure and crashes.
+///
+/// To prevent this we:
+/// 1. Keep a strong reference to the [VideoController] until disposal is done.
+/// 2. Pause & stop the player to minimize in-flight events.
+/// 3. Wait for mpv's threads to quiesce.
+/// 4. Only then call `dispose()`, and release the controller reference after.
+Future<void> _safeDisposeMediaKitPlayer(
+  Player player, [
+  VideoController? videoController,
+]) async {
+  try {
+    // Halt playback to stop new events from being generated.
+    try {
+      await player.pause();
+    } catch (_) {}
+    try {
+      await player.stop();
+    } catch (_) {}
+
+    // Give mpv's native threads time to finish processing queued events.
+    await Future.delayed(const Duration(milliseconds: 300));
+
+    // Dispose the player. This triggers mp_shutdown_clients on the native
+    // core_thread. The VideoController (and its FFI callbacks) MUST still
+    // be alive at this point — holding `videoController` in this scope
+    // prevents the GC from collecting it.
+    await player.dispose();
+
+    // Keep the VideoController reference alive a bit longer so the GC
+    // doesn't collect it while mpv's pthread is still unwinding.
+    await Future.delayed(const Duration(milliseconds: 200));
+  } catch (e) {
+    debugPrint('Error in _safeDisposeMediaKitPlayer: $e');
+  }
+  // `videoController` goes out of scope here → safe for GC now.
+}
+
 void disposeAllVideoCache() {
   try {
-    for (final player in _activePlayers.values) {
-      player.dispose();
+    for (final entry in _activePlayers.entries) {
+      final player = entry.value;
+      // Fire-and-forget: dispose each player safely in a microtask.
+      Future.microtask(() => _safeDisposeMediaKitPlayer(player));
     }
     _activePlayers.clear();
     _currentlyPlayingVideoUrl = null;
-    debugPrint('All video players disposed');
+    debugPrint('All video players disposal initiated');
   } catch (e) {
     debugPrint('Error disposing all video players: $e');
   }
@@ -104,10 +151,10 @@ class VideoWidget extends StatefulWidget {
 class _VideoWidgetState extends State<VideoWidget> with WidgetsBindingObserver {
   // Use standard video_player on Android for better compatibility
   static final bool _useAndroidVideoPlayer = Platform.isAndroid;
-  
+
   // Android video_player controller
   vp.VideoPlayerController? _androidController;
-  
+
   Player? _mediaKitPlayer;
   VideoController? _mediaKitVideoController;
   bool _isInitialized = false;
@@ -229,7 +276,9 @@ class _VideoWidgetState extends State<VideoWidget> with WidgetsBindingObserver {
       }
 
       // Pause video when app goes to background
-      if (_useAndroidVideoPlayer && _androidController != null && _androidController!.value.isPlaying) {
+      if (_useAndroidVideoPlayer &&
+          _androidController != null &&
+          _androidController!.value.isPlaying) {
         _androidController!.pause();
       } else if (_mediaKitPlayer != null && _mediaKitPlayer!.state.playing) {
         _mediaKitPlayer!.pause();
@@ -340,7 +389,8 @@ class _VideoWidgetState extends State<VideoWidget> with WidgetsBindingObserver {
       }
 
       // Create the video player controller
-      _androidController = vp.VideoPlayerController.networkUrl(Uri.parse(videoPath));
+      _androidController =
+          vp.VideoPlayerController.networkUrl(Uri.parse(videoPath));
 
       // Set volume based on global mute state
       await _androidController!.setVolume(VideoMuteManager.isMuted ? 0 : 1.0);
@@ -358,7 +408,9 @@ class _VideoWidgetState extends State<VideoWidget> with WidgetsBindingObserver {
 
       // Set up position tracking timer
       _trackingTimer = Timer.periodic(const Duration(milliseconds: 500), (_) {
-        if (mounted && _androidController != null && _androidController!.value.isInitialized) {
+        if (mounted &&
+            _androidController != null &&
+            _androidController!.value.isInitialized) {
           final position = _androidController!.value.position;
           _updateWatchTime(position);
           _trackVideoProgress(position);
@@ -411,11 +463,15 @@ class _VideoWidgetState extends State<VideoWidget> with WidgetsBindingObserver {
     debugPrint('Starting MediaKit Player initialization: $videoPath');
 
     try {
-      // Dispose any existing MediaKit player before creating a new one
+      // Dispose any existing MediaKit player before creating a new one.
+      // CRITICAL: pass the VideoController so it stays alive during native
+      // mpv shutdown — prevents DLRT_GetFfiCallbackMetadata crash on iOS.
       if (_mediaKitPlayer != null) {
-        await _mediaKitPlayer!.dispose();
+        final oldPlayer = _mediaKitPlayer!;
+        final oldController = _mediaKitVideoController;
         _mediaKitPlayer = null;
         _mediaKitVideoController = null;
+        await _safeDisposeMediaKitPlayer(oldPlayer, oldController);
       }
 
       // Initialize the player with configuration for showing controls
@@ -684,7 +740,8 @@ class _VideoWidgetState extends State<VideoWidget> with WidgetsBindingObserver {
         final isVisible = visibilityInfo.visibleFraction > 0.5;
         if (_isVisible != isVisible) {
           _isVisible = isVisible;
-          if (_androidController != null && _androidController!.value.isInitialized) {
+          if (_androidController != null &&
+              _androidController!.value.isInitialized) {
             if (isVisible) {
               _androidController!.play();
             } else {
@@ -1218,7 +1275,7 @@ class _VideoWidgetState extends State<VideoWidget> with WidgetsBindingObserver {
 
     // Remove from active players map before disposing
     _activePlayers.remove(widget.videoUrl);
-    
+
     // Clear currently playing reference if this was the playing video
     if (_currentlyPlayingVideoUrl == widget.videoUrl) {
       _currentlyPlayingVideoUrl = null;
@@ -1234,24 +1291,20 @@ class _VideoWidgetState extends State<VideoWidget> with WidgetsBindingObserver {
       _androidController = null;
     }
 
-    // Safely dispose the MediaKit player - stop first to prevent callback crashes on Android
+    // Safely dispose the MediaKit player asynchronously.
+    // CRITICAL: capture the VideoController reference so it is NOT
+    // garbage-collected while mpv's native core_thread is still sending
+    // events via FFI callbacks during mp_shutdown_clients.
     if (_mediaKitPlayer != null) {
-      final playerToDispose = _mediaKitPlayer;
+      final playerToDispose = _mediaKitPlayer!;
+      final controllerToKeepAlive = _mediaKitVideoController;
       _mediaKitPlayer = null;
       _mediaKitVideoController = null;
-      
-      // Stop playback first, then dispose asynchronously to prevent
-      // "Callback invoked after it has been deleted" crash on Android
-      Future.microtask(() async {
-        try {
-          await playerToDispose!.stop();
-          // Small delay to allow native side to clean up
-          await Future.delayed(const Duration(milliseconds: 100));
-          await playerToDispose.dispose();
-        } catch (e) {
-          debugPrint('Error disposing media player: $e');
-        }
-      });
+
+      Future.microtask(
+        () =>
+            _safeDisposeMediaKitPlayer(playerToDispose, controllerToKeepAlive),
+      );
     }
 
     // Remove YouTube listener before disposing
