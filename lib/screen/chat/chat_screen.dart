@@ -102,17 +102,16 @@ class _ChatScreenState extends State<ChatScreen> {
 
   // Function to scroll to the end of the column
   void scrollToEnd() {
-    setState(() {
-      _mainScrollController.animateTo(
-        _mainScrollController.position.maxScrollExtent + 100,
-        duration:
-            const Duration(milliseconds: 300), // You can adjust the duration
-        curve: Curves.easeOut, // You can adjust the curve
-      );
-    });
+    if (!_mainScrollController.hasClients) return;
+    _mainScrollController.animateTo(
+      _mainScrollController.position.maxScrollExtent + 100,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeOut,
+    );
   }
 
   bool isUploading = false;
+  bool _isLoadingHistory = true;
   List<Widget> messageCards = [];
   List<Set> chatHistory = [];
 
@@ -126,7 +125,7 @@ class _ChatScreenState extends State<ChatScreen> {
     AIChatSessionTracker.startSession(_characterId);
     // Load previous conversation from Firebase
     _loadPreviousMessages();
-    
+
     // Track AI character interaction start
     final userId = FirebaseAuth.instance.currentUser?.uid;
     if (userId != null) {
@@ -138,21 +137,53 @@ class _ChatScreenState extends State<ChatScreen> {
       });
     }
   }
+
   Future<void> _loadPreviousMessages() async {
     final aiUsername = widget.userData.email;
-    if (aiUsername == null) return;
+    if (aiUsername == null) {
+      _showGreetingIfNeeded();
+      if (mounted) setState(() => _isLoadingHistory = false);
+      return;
+    }
 
-    final messages =
-        await InZoneDatabase.loadConversationMessages(aiUsername);
-    if (messages != null && messages.isNotEmpty && mounted) {
+    // Persist avatar metadata so the chat list can display it without loading
+    // the full message array.
+    InZoneDatabase.initAvatarChatRecord(
+      aiUsername: aiUsername,
+      avatarName: widget.userData.name ?? aiUsername,
+      avatarProfilePicture: widget.userData.profilePictureURL,
+    );
+
+    final messages = await InZoneDatabase.loadConversationMessages(aiUsername);
+    if (!mounted) return;
+
+    if (messages != null && messages.isNotEmpty) {
+      // Sort by timestamp to ensure correct order
+      messages.sort((a, b) {
+        final ta = (a['timestamp'] as int?) ?? 0;
+        final tb = (b['timestamp'] as int?) ?? 0;
+        return ta.compareTo(tb);
+      });
       for (final msg in messages) {
         final isMe = msg['speaker'] == 'user';
         addMessage(msg['text'] ?? '', isMe, persist: false);
       }
-      // Scroll to bottom after loading history
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) scrollToEnd();
       });
+    } else {
+      _showGreetingIfNeeded();
+    }
+
+    if (mounted) setState(() => _isLoadingHistory = false);
+  }
+
+  void _showGreetingIfNeeded() {
+    final greeting = widget.userData.greeting;
+    if (greeting != null && greeting.isNotEmpty) {
+      // Show greeting as AI message but don't persist it — it's always shown
+      // on a fresh conversation so we don't double-save it
+      addMessage(greeting, false, persist: false);
     }
   }
   
@@ -245,6 +276,32 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
+  Widget _typingIndicator() {
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Padding(
+        padding: const EdgeInsets.only(left: 16, top: 4, bottom: 4),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.surfaceContainerHighest,
+            borderRadius: BorderRadius.circular(18),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: const [
+              _DotPulse(delay: 0),
+              SizedBox(width: 4),
+              _DotPulse(delay: 150),
+              SizedBox(width: 4),
+              _DotPulse(delay: 300),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -275,37 +332,21 @@ class _ChatScreenState extends State<ChatScreen> {
                   onTap: () {
                     FocusScope.of(context).unfocus();
                   },
-                  child: SingleChildScrollView(
-                    controller: _mainScrollController,
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      mainAxisSize: MainAxisSize.max,
-                      children: [
-                        // const Text(
-                        //   "Remember: This is not a real person",
-                        //   style: TextStyle(color: Colors.blue),
-                        // ),
-                        // const SizedBox(height: 20),
-                        // widget.userData.profilePictureURL == null
-                        //     ? const Icon(Icons.account_circle, size: 200)
-                        //     : Padding(
-                        //         padding:
-                        //             const EdgeInsets.only(right: 5.0, left: 5),
-                        //         child: ClipRRect(
-                        //           borderRadius: BorderRadius.circular(200.0),
-                        //           child: CachedNetworkImage(
-                        //               imageUrl:
-                        //                   widget.userData.profilePictureURL!,
-                        //               fit: BoxFit.fitWidth,
-                        //               width: MediaQuery.of(context).size.width -
-                        //                   60),
-                        //         ),
-                        //       ),
-                        const SizedBox(height: 20),
-                        getMessages()
-                      ],
-                    ),
-                  ),
+                  child: _isLoadingHistory
+                      ? const Center(child: CircularProgressIndicator())
+                      : SingleChildScrollView(
+                          controller: _mainScrollController,
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            mainAxisSize: MainAxisSize.max,
+                            children: [
+                              const SizedBox(height: 20),
+                              getMessages(),
+                              if (_isSending) _typingIndicator(),
+                              const SizedBox(height: 8),
+                            ],
+                          ),
+                        ),
                 ),
               ),
               ChatInput(
@@ -401,6 +442,59 @@ class _ChatScreenState extends State<ChatScreen> {
                 },
               ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _DotPulse extends StatefulWidget {
+  final int delay;
+  const _DotPulse({required this.delay});
+
+  @override
+  State<_DotPulse> createState() => _DotPulseState();
+}
+
+class _DotPulseState extends State<_DotPulse>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _anim;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 600),
+    );
+    _anim = Tween<double>(begin: 0, end: -6).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+    );
+    Future.delayed(Duration(milliseconds: widget.delay), () {
+      if (mounted) _controller.repeat(reverse: true);
+    });
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _anim,
+      builder: (_, __) => Transform.translate(
+        offset: Offset(0, _anim.value),
+        child: Container(
+          width: 8,
+          height: 8,
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+            shape: BoxShape.circle,
           ),
         ),
       ),
