@@ -75,9 +75,11 @@ class _ChatInputState extends State<ChatInput> {
                     onFieldSubmitted:
                         _isTextEmpty ? null : (_) => widget.onSend(),
                     textInputAction: TextInputAction.send,
+                    style: const TextStyle(fontSize: 14, height: 1.2),
                     decoration: InputDecoration(
-                      contentPadding:
-                          const EdgeInsets.only(left: 20, right: 10),
+                      isDense: true,
+                      contentPadding: const EdgeInsets.only(
+                          left: 10, right: 10, top: 10, bottom: 10),
                       border: InputBorder.none,
                       hintText: widget.hintText,
                       hintStyle: TextStyle(
@@ -96,20 +98,19 @@ class _ChatInputState extends State<ChatInput> {
                         borderSide: const BorderSide(
                           color: Colors.transparent,
                         ),
-                        borderRadius: BorderRadius.circular(30),
+                        borderRadius: BorderRadius.circular(10),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderSide: const BorderSide(
                           color: Colors.transparent,
                         ),
-                        borderRadius: BorderRadius.circular(30),
+                        borderRadius: BorderRadius.circular(10),
                       ),
                     ),
                   ),
                 ),
               ),
             ),
-            const SizedBox(width: 10),
             if (!widget.isGroupChat)
               MaterialButton(
                 minWidth: 45,
@@ -135,8 +136,8 @@ class _ChatInputState extends State<ChatInput> {
               ),
             if (widget.isGroupChat)
               MaterialButton(
-                minWidth: 45,
-                height: 50,
+                minWidth: 25,
+                height: 25,
                 elevation: 0,
                 color: Theme.of(context).brightness == Brightness.dark
                     ? Colors.grey.shade800
@@ -147,7 +148,7 @@ class _ChatInputState extends State<ChatInput> {
                   child: Icon(
                     FeatherIcons.arrowUp,
                     color: Colors.white,
-                    size: 20,
+                    size: 15,
                   ),
                 ),
               ),
