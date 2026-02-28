@@ -3,11 +3,13 @@ import 'package:flutter/material.dart';
 class AppbarIcon extends StatelessWidget {
   final VoidCallback? onTap;
   final IconData icon;
+  final int? badgeCount;
 
   const AppbarIcon({
     super.key,
     required this.icon,
     this.onTap,
+    this.badgeCount,
   });
 
   @override
@@ -21,12 +23,48 @@ class AppbarIcon extends StatelessWidget {
         customBorder: const CircleBorder(),
         onTap: onTap,
         child: SizedBox(
-          width: 48,
-          height: 48,
-          child: Icon(
-            icon,
-            size: 24,
-            color: theme.iconTheme.color,
+          width: 36,
+          height: 36,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              Icon(
+                icon,
+                size: 20,
+                color: theme.iconTheme.color,
+              ),
+              if (badgeCount != null && badgeCount! > 0)
+                Positioned(
+                  right: 0,
+                  top: 0,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 5,
+                      vertical: 2,
+                    ),
+                    decoration: const BoxDecoration(
+                      color: Colors.red,
+                      shape: BoxShape.rectangle,
+                      borderRadius: BorderRadius.all(
+                        Radius.circular(10),
+                      ),
+                    ),
+                    constraints: const BoxConstraints(
+                      minWidth: 16,
+                      minHeight: 16,
+                    ),
+                    child: Text(
+                      badgeCount! > 99 ? '99+' : badgeCount.toString(),
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
           ),
         ),
       ),
