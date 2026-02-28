@@ -1240,7 +1240,14 @@ class HomeScreenState extends State<HomeScreen> {
                                     );
                                   }
                                 },
-                                onProfileTap: () {},
+                                onProfileTap: () {
+                                  Navigator.of(context).push(
+                                    MaterialPageRoute(
+                                      builder: (_) =>
+                                          const SearchExploreScreen(),
+                                    ),
+                                  );
+                                },
                                 onPointsTap: () {},
                               );
                             },

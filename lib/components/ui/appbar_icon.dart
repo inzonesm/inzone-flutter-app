@@ -50,15 +50,15 @@ class AppbarIcon extends StatelessWidget {
                       ),
                     ),
                     constraints: const BoxConstraints(
-                      minWidth: 16,
-                      minHeight: 16,
+                      minWidth: 10,
+                      minHeight: 10,
                     ),
                     child: Text(
                       badgeCount! > 99 ? '99+' : badgeCount.toString(),
                       textAlign: TextAlign.center,
                       style: const TextStyle(
                         color: Colors.white,
-                        fontSize: 10,
+                        fontSize: 9,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
