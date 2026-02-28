@@ -274,8 +274,8 @@ class _CustomAppBarState extends State<CustomAppBar> {
                         !widget.isChat &&
                         !widget.isSettings)
                       AppbarIcon(
-                          icon: Icons.notifications,
-                          onTap: widget.onNotificationTap,
+                          icon: Icons.person,
+                          onTap: widget.onProfileTap,
                           badgeCount: widget.notificationCount),
                   if (widget.isGroup && widget.onSearchTap != null)
                     GestureDetector(
