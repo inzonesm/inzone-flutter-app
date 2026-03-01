@@ -84,7 +84,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
             Icons.error,
             color: Colors.redAccent,
           ),
-          message: 'Unable to open the link. Please check your internet connection.',
+          message:
+              'Unable to open the link. Please check your internet connection.',
         );
       }
     }
@@ -125,7 +126,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
               Icons.error,
               color: Colors.redAccent,
             ),
-            message: 'Unable to load subscription service. Please restart the app.',
+            message:
+                'Unable to load subscription service. Please restart the app.',
           );
         }
         return;
@@ -138,8 +140,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
           paywallResult == PaywallResult.restored) {
         // Retrieve the latest customer information
         final customerInfo = await Purchases.getCustomerInfo();
-        final transactions =
-            List<StoreTransaction>.from(customerInfo.nonSubscriptionTransactions);
+        final transactions = List<StoreTransaction>.from(
+            customerInfo.nonSubscriptionTransactions);
         if (transactions.isNotEmpty) {
           // Sort transactions by purchase date in descending order
           print(transactions);
@@ -193,7 +195,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     productId, platform, receiptData);
               }
             }
-            
+
             // Show success message
             if (mounted) {
               ToastService.showToast(
@@ -242,18 +244,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
       }
     } catch (e) {
       print('Error presenting paywall: $e');
-      
+
       // Check for specific error types
-      String errorMessage = 'Unable to open subscription page. Please try again later.';
-      
-      if (e.toString().contains('PAYWALLS_MISSING_WRONG_ACTIVITY') || 
+      String errorMessage =
+          'Unable to open subscription page. Please try again later.';
+
+      if (e.toString().contains('PAYWALLS_MISSING_WRONG_ACTIVITY') ||
           e.toString().contains('FlutterFragmentActivity')) {
-        errorMessage = 'App configuration error. Please update and restart the app.';
-      } else if (e.toString().contains('network') || 
-                 e.toString().contains('connection')) {
+        errorMessage =
+            'App configuration error. Please update and restart the app.';
+      } else if (e.toString().contains('network') ||
+          e.toString().contains('connection')) {
         errorMessage = 'Network error. Please check your internet connection.';
       }
-      
+
       if (mounted) {
         ToastService.showToast(
           context,
@@ -523,6 +527,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   List<String> otherTitleList = [
+    "Push Notifications",
     "Referral Program",
     "Contact Us",
     // "Unity Game Test",
@@ -532,6 +537,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     "LogOut"
   ];
   List<String> otherSubtitleList = [
+    "Manage your notification preferences",
     "Invite friends and earn rewards",
     "Get help or ask us any questions",
     // "Test Unity web game integration",
@@ -542,6 +548,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
   ];
   List<VoidCallback> otherOnPressedList(BuildContext context) {
     return [
+      () {
+        try {
+          context.push(Routes.notificationSettings);
+        } catch (e) {
+          ToastService.showToast(
+            context,
+            backgroundColor: Theme.of(context).canvasColor,
+            shadowColor: Colors.transparent,
+            leading: const Icon(
+              Icons.error,
+              color: Colors.redAccent,
+            ),
+            message: 'Error navigating to user profile: $e',
+          );
+        }
+      },
       () {
         try {
           context.push(Routes.referral);
