@@ -8,6 +8,7 @@ import 'package:inzone/screen/chat/all_chats_screen.dart';
 import 'package:inzone/screen/chat/chat_screen.dart';
 import 'package:inzone/data/inzone_avatar.dart';
 import 'package:inzone/router/routes.dart';
+import 'package:inzone/services/inzone_database.dart';
 
 class AvatarStoryComponent extends StatefulWidget {
   InZoneAvatar avatar;
@@ -24,7 +25,7 @@ class _AvatarCardState extends State<AvatarStoryComponent> {
   bool isDownvoted = false;
   int voteCount = 23;
   int comments = 23;
-  bool hasUnseenStory = true; // Track if story is seen
+  bool hasNewMessage = false;
   late List<Color> gradientColors;
 
   @override
@@ -32,10 +33,18 @@ class _AvatarCardState extends State<AvatarStoryComponent> {
     super.initState();
     voteCount = getRandomNumber(0, 999);
     comments = getRandomNumber(0, 300);
-    // Randomize if has unseen story
-    hasUnseenStory = Random().nextBool();
-    // Generate unique colors based on avatar ID or name
     gradientColors = _generateUniqueGradient();
+    _checkUnread();
+  }
+
+  Future<void> _checkUnread() async {
+    final unread = await InZoneDatabase.hasUnreadAIMessage(
+        widget.avatar.username.isNotEmpty
+            ? widget.avatar.username
+            : widget.avatar.id);
+    if (mounted && unread) {
+      setState(() => hasNewMessage = true);
+    }
   }
 
   int getRandomNumber(int min, int max) {
@@ -90,10 +99,10 @@ class _AvatarCardState extends State<AvatarStoryComponent> {
             isHuman: false,
             profilePictureURL: widget.avatar.profilePicture));
 
-    // Mark story as seen when clicked
-    if (hasUnseenStory) {
+    // Mark as read when clicked
+    if (hasNewMessage) {
       setState(() {
-        hasUnseenStory = false;
+        hasNewMessage = false;
       });
     }
   }
@@ -209,23 +218,24 @@ class _AvatarCardState extends State<AvatarStoryComponent> {
                           ),
                         ),
                       ),
-                      Positioned(
-                        top: -2,
-                        right: -2,
-                        child: Container(
-                          width: 24,
-                          height: 24,
-                          decoration: const BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: Colors.blue,
-                          ),
-                          child: const Icon(
-                            CupertinoIcons.chat_bubble_text,
-                            size: 16,
-                            color: Colors.white,
+                      if (hasNewMessage)
+                        Positioned(
+                          top: -2,
+                          right: -2,
+                          child: Container(
+                            width: 24,
+                            height: 24,
+                            decoration: const BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: Colors.blue,
+                            ),
+                            child: const Icon(
+                              CupertinoIcons.chat_bubble_text,
+                              size: 16,
+                              color: Colors.white,
+                            ),
                           ),
                         ),
-                      ),
                     ],
                   )),
             ),

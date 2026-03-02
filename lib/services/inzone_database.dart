@@ -294,6 +294,40 @@ class InZoneDatabase {
     }
   }
 
+  /// Generates an AI follow-up message based on existing conversation history.
+  /// Used for the avatar card bubble to show a contextual teaser.
+  static Future<String?> generateFollowUp(String aiUsername) async {
+    final messages = await loadConversationMessages(aiUsername);
+    if (messages == null || messages.isEmpty) return null;
+
+    // Build chat history in the same format sendMessageToAI uses
+    final chatHistory = messages.map((m) {
+      return [m['text'] ?? '', m['speaker'] == 'user' ? 'user' : 'ai'];
+    }).toList();
+
+    // Send a follow-up prompt through the same AI endpoint
+    final response = await sendMessageToAI(
+      '[Follow up on our previous conversation with a short, friendly message to re-engage me.]',
+      aiUsername,
+      null,
+      chatHistory.map((e) => e.toSet()).toList(),
+    );
+
+    return response;
+  }
+
+  /// Generates an in-character greeting for an avatar the user has never
+  /// chatted with, based on the avatar's personality and traits.
+  static Future<String?> generateGreeting(String aiUsername) async {
+    final response = await sendMessageToAI(
+      '[Introduce yourself with a short, friendly first message. Stay in character.]',
+      aiUsername,
+      null,
+      [], // no history — this is a brand-new conversation
+    );
+    return response;
+  }
+
   static Future<String?> startConversation(String aiUsername) async {
     // String url =
     //     'https://us-central1-inzonebackend.cloudfunctions.net/api/ai/chat';
@@ -2566,6 +2600,57 @@ class InZoneDatabase {
     } catch (e) {
       print('Error fetching last avatar message: $e');
       return null;
+    }
+  }
+
+  /// Returns a map of aiUsername → lastUpdated timestamp (milliseconds) for
+  /// all conversations the current user has had.
+  static Future<Map<String, int>> getChatTimestamps() async {
+    try {
+      final String? uid = await getCurrentUserUid();
+      if (uid == null) return {};
+
+      final query = await FirebaseFirestore.instance
+          .collection('aiChatHistory')
+          .where('userId', isEqualTo: uid)
+          .get();
+
+      final Map<String, int> timestamps = {};
+      for (final doc in query.docs) {
+        final data = doc.data();
+        final aiUsername = data['aiUsername'] as String?;
+        if (aiUsername == null) continue;
+        final updatedAt = data['updatedAt'];
+        if (updatedAt is Timestamp) {
+          timestamps[aiUsername] = updatedAt.millisecondsSinceEpoch;
+        }
+      }
+      return timestamps;
+    } catch (e) {
+      print('Error fetching chat timestamps: $e');
+      return {};
+    }
+  }
+
+  /// Returns true if the last message in the conversation was from the AI,
+  /// indicating the user has an unread reply.
+  static Future<bool> hasUnreadAIMessage(String aiUsername) async {
+    try {
+      final String? uid = await getCurrentUserUid();
+      if (uid == null) return false;
+
+      final doc = await FirebaseFirestore.instance
+          .collection('aiChatHistory')
+          .doc('${uid}_$aiUsername')
+          .get();
+
+      if (doc.exists && doc.data() != null) {
+        return doc.data()!['lastMessageSpeaker'] == 'ai';
+      }
+      return false;
+    } catch (e) {
+      print('Error checking unread AI message: $e');
+      return false;
     }
   }
 

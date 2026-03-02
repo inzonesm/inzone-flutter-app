@@ -22,6 +22,7 @@ class _AvatarCardState extends State<AvatarCard> {
   int voteCount = 23;
   int comments = 23;
   String? _lastMessage;
+  bool _isLoadingFollowUp = false;
 
   @override
   void initState() {
@@ -32,10 +33,39 @@ class _AvatarCardState extends State<AvatarCard> {
   }
 
   Future<void> _loadLastMessage() async {
+    setState(() => _isLoadingFollowUp = true);
+
     final msg = await InZoneDatabase.getAvatarChatLastMessage(
         widget.avatar.username);
+
     if (msg != null && mounted) {
+      // There's conversation history — show the last message immediately
+      // while we generate an AI follow-up in the background.
       setState(() => _lastMessage = msg);
+      final followUp =
+          await InZoneDatabase.generateFollowUp(widget.avatar.username);
+      if (followUp != null && mounted) {
+        setState(() {
+          _lastMessage = followUp;
+          _isLoadingFollowUp = false;
+        });
+      } else if (mounted) {
+        setState(() => _isLoadingFollowUp = false);
+      }
+    } else if (mounted) {
+      // No conversation history — generate an in-character greeting
+      // instead of using the static fallback.
+      final greeting =
+          await InZoneDatabase.generateGreeting(widget.avatar.username);
+      if (greeting != null && mounted) {
+        setState(() {
+          _lastMessage = greeting;
+          _isLoadingFollowUp = false;
+        });
+      } else if (mounted) {
+        // AI generation failed — fall back to the static greeting
+        setState(() => _isLoadingFollowUp = false);
+      }
     }
   }
 
@@ -147,13 +177,9 @@ class _AvatarCardState extends State<AvatarCard> {
                         overflow: TextOverflow.ellipsis,
                       ),
                       const SizedBox(height: 10),
-// Last message preview or greeting bubble
+// AI-generated message bubble
                       Builder(builder: (_) {
-                        final bubbleText = _lastMessage ??
-                            (widget.avatar.greeting?.isNotEmpty == true
-                                ? widget.avatar.greeting
-                                : null);
-                        final isHistory = _lastMessage != null;
+                        final bubbleText = _lastMessage;
                         return SizedBox(
                           height: 65,
                           child: bubbleText != null
@@ -167,35 +193,41 @@ class _AvatarCardState extends State<AvatarCard> {
                                   padding: const EdgeInsets.symmetric(
                                       horizontal: 10, vertical: 6),
                                   margin: const EdgeInsets.only(bottom: 12),
-                                  child: Column(
+                                  child: _isLoadingFollowUp
+                                      ? Center(
+                                          child: SizedBox(
+                                            width: 16,
+                                            height: 16,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                              color: theme.colorScheme.primary,
+                                            ),
+                                          ),
+                                        )
+                                      : Column(
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      if (isHistory)
-                                        Text(
-                                          'Last message',
-                                          style: TextStyle(
-                                            fontSize: 10,
-                                            fontWeight: FontWeight.w600,
-                                            color: theme
-                                                .colorScheme.primary
-                                                .withValues(alpha: 0.8),
-                                          ),
-                                        ),
                                       Text(
-                                        isHistory
-                                            ? bubbleText
-                                            : '"$bubbleText"',
+                                        widget.avatar.name,
                                         style: TextStyle(
-                                          fontStyle: isHistory
-                                              ? FontStyle.normal
-                                              : FontStyle.italic,
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w600,
+                                          color: theme
+                                              .colorScheme.primary
+                                              .withValues(alpha: 0.8),
+                                        ),
+                                      ),
+                                      Text(
+                                        '"$bubbleText"',
+                                        style: TextStyle(
+                                          fontStyle: FontStyle.italic,
                                           fontSize: 12,
                                           color:
                                               theme.textTheme.bodyMedium?.color,
                                         ),
-                                        maxLines: isHistory ? 2 : 3,
+                                        maxLines: 2,
                                         overflow: TextOverflow.ellipsis,
                                       ),
                                     ],
