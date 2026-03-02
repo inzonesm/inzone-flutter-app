@@ -147,12 +147,13 @@ class _ChatScreenState extends State<ChatScreen> {
     }
 
     // Persist avatar metadata so the chat list can display it without loading
-    // the full message array.
-    InZoneDatabase.initAvatarChatRecord(
+    // the full message array. Await to avoid racing with the read below.
+    await InZoneDatabase.initAvatarChatRecord(
       aiUsername: aiUsername,
       avatarName: widget.userData.name ?? aiUsername,
       avatarProfilePicture: widget.userData.profilePictureURL,
     );
+    if (!mounted) return;
 
     final messages = await InZoneDatabase.loadConversationMessages(aiUsername);
     if (!mounted) return;
@@ -172,18 +173,32 @@ class _ChatScreenState extends State<ChatScreen> {
         if (mounted) scrollToEnd();
       });
     } else {
-      _showGreetingIfNeeded();
+      await _showGreetingIfNeeded();
     }
 
     if (mounted) setState(() => _isLoadingHistory = false);
   }
 
-  void _showGreetingIfNeeded() {
-    final greeting = widget.userData.greeting;
-    if (greeting != null && greeting.isNotEmpty) {
-      // Show greeting as AI message but don't persist it — it's always shown
-      // on a fresh conversation so we don't double-save it
+  Future<void> _showGreetingIfNeeded() async {
+    final aiUsername = widget.userData.email;
+    if (aiUsername == null) return;
+
+    // Determine the greeting text: prefer the one passed in, else try AI.
+    String? greeting = widget.userData.greeting;
+    if (greeting == null || greeting.isEmpty) {
+      greeting = await InZoneDatabase.generateGreeting(aiUsername);
+    }
+
+    if (greeting != null && greeting.isNotEmpty && mounted) {
+      // Show the message in the UI (without persisting from addMessage).
       addMessage(greeting, false, persist: false);
+      // Await the save so it's guaranteed to be in Firestore before the
+      // user can navigate away.
+      await InZoneDatabase.saveConversationMessage(
+        aiUsername: aiUsername,
+        text: greeting,
+        speaker: 'ai',
+      );
     }
   }
   
@@ -240,6 +255,15 @@ class _ChatScreenState extends State<ChatScreen> {
         MessageBubble(
           message: text,
           isMe: isMe,
+          senderAvatar: !isMe && widget.userData.profilePictureURL != null
+              ? CircleAvatar(
+                  radius: 16,
+                  backgroundImage: NetworkImage(
+                    widget.userData.profilePictureURL!,
+                  ),
+                  backgroundColor: Colors.grey.shade300,
+                )
+              : null,
           onShare: !isMe && !widget.userData.email!.contains('.')
               ? () {
                   context.push(Routes.postChat, extra: {
