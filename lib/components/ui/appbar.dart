@@ -4,6 +4,7 @@ import 'package:flutter_feather_icons/flutter_feather_icons.dart';
 import 'package:inzone/services/monetization_service.dart';
 import 'package:popover/popover.dart';
 import 'package:toasty_box/toast_service.dart';
+import 'package:inzone/components/ui/appbar_icon.dart';
 
 class CustomAppBar extends StatefulWidget implements PreferredSizeWidget {
   final String? greeting;
@@ -262,21 +263,9 @@ class _CustomAppBarState extends State<CustomAppBar> {
                       !widget.isGroup &&
                       !widget.isChat &&
                       !widget.isSettings)
-                    GestureDetector(
+                    AppbarIcon(
+                      icon: Icons.search,
                       onTap: widget.onSearchTap,
-                      child: Container(
-                        width: 48,
-                        height: 48,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: Theme.of(context).cardColor,
-                        ),
-                        child: Icon(
-                          Icons.search,
-                          color: Theme.of(context).iconTheme.color,
-                          size: 28,
-                        ),
-                      ),
                     ),
                   if (!widget.isDebug) const SizedBox(width: 8),
                   if (!widget.isDebug)
@@ -284,56 +273,10 @@ class _CustomAppBarState extends State<CustomAppBar> {
                         !widget.isGroup &&
                         !widget.isChat &&
                         !widget.isSettings)
-                      GestureDetector(
-                        onTap: widget.onNotificationTap,
-                        child: Container(
-                          width: 48,
-                          height: 48,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: Theme.of(context).cardColor,
-                          ),
-                          child: Stack(
-                            children: [
-                              Center(
-                                child: Icon(
-                                  Icons.notifications,
-                                  color: Theme.of(context).iconTheme.color,
-                                  size: 28,
-                                ),
-                              ),
-                              if (widget.notificationCount != null && widget.notificationCount! > 0)
-                                Positioned(
-                                  right: 8,
-                                  top: 8,
-                                  child: Container(
-                                    padding: const EdgeInsets.all(2),
-                                    decoration: BoxDecoration(
-                                      color: Colors.red,
-                                      borderRadius: BorderRadius.circular(10),
-                                    ),
-                                    constraints: const BoxConstraints(
-                                      minWidth: 16,
-                                      minHeight: 16,
-                                    ),
-                                    child: Text(
-                                      widget.notificationCount! > 99 
-                                          ? '99+' 
-                                          : widget.notificationCount.toString(),
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                      textAlign: TextAlign.center,
-                                    ),
-                                  ),
-                                ),
-                            ],
-                          ),
-                        ),
-                      ),
-
+                      AppbarIcon(
+                          icon: Icons.person,
+                          onTap: widget.onProfileTap,
+                          badgeCount: widget.notificationCount),
                   if (widget.isGroup && widget.onSearchTap != null)
                     GestureDetector(
                       onTap: widget.onSearchTap,
