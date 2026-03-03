@@ -46,6 +46,8 @@ class HomeScreenState extends State<HomeScreen> {
   List<AvatarCard> avatarCards = [];
   List<AvatarStoryComponent> avatarStoryComponents = [];
   InZoneAvatar? popupAvatar;
+  String? popupMessage;
+  bool _isLoadingPopupMessage = false;
   Timer? _avatarTimer;
 
   late DateTime _startTime;
@@ -92,13 +94,32 @@ class HomeScreenState extends State<HomeScreen> {
   void _startAvatarTimer() {
     _avatarTimer?.cancel();
 
-    _avatarTimer = Timer(const Duration(seconds: 30), () {
+    _avatarTimer = Timer(const Duration(seconds: 30), () async {
       if (!mounted || avatars.isEmpty || popupAvatar != null) return;
 
       final random = Random();
+      final avatar = avatars[random.nextInt(avatars.length)];
+
+      // Show the avatar's static greeting immediately so the popup
+      // is never empty, then try to replace it with an AI-generated message.
       setState(() {
-        popupAvatar = avatars[random.nextInt(avatars.length)];
+        popupAvatar = avatar;
+        popupMessage = avatar.greeting?.isNotEmpty == true
+            ? avatar.greeting
+            : "Hey! Tap here to chat with ${avatar.name}";
+        _isLoadingPopupMessage = false;
       });
+
+      // Try to upgrade with an AI-generated message in the background.
+      String? aiMsg =
+          await InZoneDatabase.generateFollowUp(avatar.username);
+      aiMsg ??= await InZoneDatabase.generateGreeting(avatar.username);
+
+      if (aiMsg != null && mounted && popupAvatar?.id == avatar.id) {
+        setState(() {
+          popupMessage = aiMsg;
+        });
+      }
     });
   }
 
@@ -226,7 +247,8 @@ class HomeScreenState extends State<HomeScreen> {
     try {
       final characters = await InZoneDatabase.getCarouselCharacters();
       if (mounted && characters != null) {
-        _processAvatars(characters);
+        await _processAvatars(characters);
+        if (mounted) setState(() {});
       }
     } catch (e) {}
   }
@@ -594,7 +616,7 @@ class HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  void _processAvatars(List<dynamic> fetchedCharacters) {
+  Future<void> _processAvatars(List<dynamic> fetchedCharacters) async {
     avatars.clear();
     avatarCards.clear();
     avatarStoryComponents.clear();
@@ -605,6 +627,15 @@ class HomeScreenState extends State<HomeScreen> {
         InZoneAvatar avatar = InZoneAvatar.fromDirectJson(characterData);
         avatars.add(avatar);
       }
+
+      // Sort avatars so the ones the user chatted with most recently come first.
+      final chatTimestamps = await InZoneDatabase.getChatTimestamps();
+      avatars.sort((a, b) {
+        final tA = chatTimestamps[a.username] ?? chatTimestamps[a.id] ?? 0;
+        final tB = chatTimestamps[b.username] ?? chatTimestamps[b.id] ?? 0;
+        // Descending: most recent first. Avatars with no history go to the end.
+        return tB.compareTo(tA);
+      });
 
       for (var avatar in avatars) {
         avatarCards.add(AvatarCard(avatar: avatar));
@@ -1003,7 +1034,10 @@ class HomeScreenState extends State<HomeScreen> {
               },
               onDismissed: (_) {
                 if (!mounted) return;
-                setState(() => popupAvatar = null);
+                setState(() {
+                  popupAvatar = null;
+                  popupMessage = null;
+                });
               },
               child: Container(
                 key: const ValueKey('popup'),
@@ -1036,11 +1070,15 @@ class HomeScreenState extends State<HomeScreen> {
                         chatId: null,
                         isHuman: false,
                         profilePictureURL: a.profilePicture,
+                        greeting: popupMessage,
                       ),
                     );
 
                     if (!mounted) return;
-                    setState(() => popupAvatar = null);
+                    setState(() {
+                  popupAvatar = null;
+                  popupMessage = null;
+                });
                   },
                   child: Row(
                     children: [
@@ -1075,10 +1113,20 @@ class HomeScreenState extends State<HomeScreen> {
                       const SizedBox(width: 12),
                       SizedBox(
                         width: 220,
-                        child: Text(
-                          "Hey, I'm ${a.name}! Let's chat, you can ask me anything.",
-                          maxLines: 2,
-                        ),
+                        child: _isLoadingPopupMessage
+                            ? SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Theme.of(context).colorScheme.primary,
+                                ),
+                              )
+                            : Text(
+                                popupMessage ?? a.name,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
                       ),
                     ],
                   ),

@@ -294,6 +294,40 @@ class InZoneDatabase {
     }
   }
 
+  /// Generates an AI follow-up message based on existing conversation history.
+  /// Used for the avatar card bubble to show a contextual teaser.
+  static Future<String?> generateFollowUp(String aiUsername) async {
+    final messages = await loadConversationMessages(aiUsername);
+    if (messages == null || messages.isEmpty) return null;
+
+    // Build chat history in the same format sendMessageToAI uses
+    final chatHistory = messages.map((m) {
+      return [m['text'] ?? '', m['speaker'] == 'user' ? 'user' : 'ai'];
+    }).toList();
+
+    // Send a follow-up prompt through the same AI endpoint
+    final response = await sendMessageToAI(
+      '[Follow up on our previous conversation with a short, friendly message to re-engage me.]',
+      aiUsername,
+      null,
+      chatHistory.map((e) => e.toSet()).toList(),
+    );
+
+    return response;
+  }
+
+  /// Generates an in-character greeting for an avatar the user has never
+  /// chatted with, based on the avatar's personality and traits.
+  static Future<String?> generateGreeting(String aiUsername) async {
+    final response = await sendMessageToAI(
+      '[Introduce yourself with a short, friendly first message. Stay in character.]',
+      aiUsername,
+      null,
+      [], // no history — this is a brand-new conversation
+    );
+    return response;
+  }
+
   static Future<String?> startConversation(String aiUsername) async {
     // String url =
     //     'https://us-central1-inzonebackend.cloudfunctions.net/api/ai/chat';
@@ -2483,15 +2517,140 @@ class InZoneDatabase {
       final docRef =
           FirebaseFirestore.instance.collection('aiChatHistory').doc(docId);
 
-      // Use set with merge so the doc is created on the first message
+      // Use set with merge so the doc is created on the first message.
+      // Also keep a top-level lastMessageText for cheap reads in card previews.
       await docRef.set({
         'userId': uid,
         'aiUsername': aiUsername,
         'updatedAt': FieldValue.serverTimestamp(),
+        'lastMessageText': text,
+        'lastMessageSpeaker': speaker,
         'messages': FieldValue.arrayUnion([messageEntry]),
       }, SetOptions(merge: true));
     } catch (e) {
       print('Error saving conversation message: $e');
+    }
+  }
+
+  /// Saves avatar display metadata (name, profile picture) to the chat doc so
+  /// the chat list can render it without loading the full messages array.
+  static Future<void> initAvatarChatRecord({
+    required String aiUsername,
+    required String avatarName,
+    String? avatarProfilePicture,
+  }) async {
+    try {
+      final String? uid = await getCurrentUserUid();
+      if (uid == null) return;
+
+      final docRef = FirebaseFirestore.instance
+          .collection('aiChatHistory')
+          .doc('${uid}_$aiUsername');
+
+      final Map<String, dynamic> data = {
+        'userId': uid,
+        'aiUsername': aiUsername,
+        'avatarName': avatarName,
+        'updatedAt': FieldValue.serverTimestamp(),
+      };
+      if (avatarProfilePicture != null && avatarProfilePicture.isNotEmpty) {
+        data['avatarProfilePicture'] = avatarProfilePicture;
+      }
+      await docRef.set(data, SetOptions(merge: true));
+    } catch (e) {
+      print('Error initialising avatar chat record: $e');
+    }
+  }
+
+  /// Returns all AI avatar conversations stored locally in aiChatHistory.
+  /// Used to populate the Individual Chats list with avatars chatted via the card.
+  static Future<List<Map<String, dynamic>>> getAvatarChatsFromHistory() async {
+    try {
+      final String? uid = await getCurrentUserUid();
+      if (uid == null) return [];
+
+      final snapshot = await FirebaseFirestore.instance
+          .collection('aiChatHistory')
+          .where('userId', isEqualTo: uid)
+          .orderBy('updatedAt', descending: true)
+          .get();
+
+      return snapshot.docs.map((doc) => doc.data()).toList();
+    } catch (e) {
+      print('Error fetching avatar chats from history: $e');
+      return [];
+    }
+  }
+
+  /// Returns just the last message preview for a single avatar chat doc.
+  static Future<String?> getAvatarChatLastMessage(String aiUsername) async {
+    try {
+      final String? uid = await getCurrentUserUid();
+      if (uid == null) return null;
+
+      final doc = await FirebaseFirestore.instance
+          .collection('aiChatHistory')
+          .doc('${uid}_$aiUsername')
+          .get();
+
+      if (doc.exists && doc.data() != null) {
+        return doc.data()!['lastMessageText'] as String?;
+      }
+      return null;
+    } catch (e) {
+      print('Error fetching last avatar message: $e');
+      return null;
+    }
+  }
+
+  /// Returns a map of aiUsername → lastUpdated timestamp (milliseconds) for
+  /// all conversations the current user has had.
+  static Future<Map<String, int>> getChatTimestamps() async {
+    try {
+      final String? uid = await getCurrentUserUid();
+      if (uid == null) return {};
+
+      final query = await FirebaseFirestore.instance
+          .collection('aiChatHistory')
+          .where('userId', isEqualTo: uid)
+          .get();
+
+      final Map<String, int> timestamps = {};
+      for (final doc in query.docs) {
+        final data = doc.data();
+        final aiUsername = data['aiUsername'] as String?;
+        if (aiUsername == null) continue;
+        final updatedAt = data['updatedAt'];
+        if (updatedAt is Timestamp) {
+          timestamps[aiUsername] = updatedAt.millisecondsSinceEpoch;
+        }
+      }
+      return timestamps;
+    } catch (e) {
+      print('Error fetching chat timestamps: $e');
+      return {};
+    }
+  }
+
+  /// Returns true if the last message in the conversation was from the AI,
+  /// indicating the user has an unread reply.
+  static Future<bool> hasUnreadAIMessage(String aiUsername) async {
+    try {
+      final String? uid = await getCurrentUserUid();
+      if (uid == null) return false;
+
+      final doc = await FirebaseFirestore.instance
+          .collection('aiChatHistory')
+          .doc('${uid}_$aiUsername')
+          .get();
+
+      if (doc.exists && doc.data() != null) {
+        return doc.data()!['lastMessageSpeaker'] == 'ai';
+      }
+      return false;
+    } catch (e) {
+      print('Error checking unread AI message: $e');
+      return false;
     }
   }
 

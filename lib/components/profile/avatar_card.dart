@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:inzone/screen/chat/all_chats_screen.dart';
 import 'package:inzone/screen/chat/chat_screen.dart';
 import 'package:inzone/data/inzone_avatar.dart';
+import 'package:inzone/services/inzone_database.dart';
 import 'package:inzone/theme/app_colors.dart';
 
 class AvatarCard extends StatefulWidget {
@@ -20,12 +21,52 @@ class _AvatarCardState extends State<AvatarCard> {
   bool isDownvoted = false;
   int voteCount = 23;
   int comments = 23;
+  String? _lastMessage;
+  bool _isLoadingFollowUp = false;
 
   @override
   void initState() {
     super.initState();
     voteCount = getRandomNumber(0, 999);
     comments = getRandomNumber(0, 300);
+    _loadLastMessage();
+  }
+
+  Future<void> _loadLastMessage() async {
+    setState(() => _isLoadingFollowUp = true);
+
+    final msg = await InZoneDatabase.getAvatarChatLastMessage(
+        widget.avatar.username);
+
+    if (msg != null && mounted) {
+      // There's conversation history — show the last message immediately
+      // while we generate an AI follow-up in the background.
+      setState(() => _lastMessage = msg);
+      final followUp =
+          await InZoneDatabase.generateFollowUp(widget.avatar.username);
+      if (followUp != null && mounted) {
+        setState(() {
+          _lastMessage = followUp;
+          _isLoadingFollowUp = false;
+        });
+      } else if (mounted) {
+        setState(() => _isLoadingFollowUp = false);
+      }
+    } else if (mounted) {
+      // No conversation history — generate an in-character greeting
+      // instead of using the static fallback.
+      final greeting =
+          await InZoneDatabase.generateGreeting(widget.avatar.username);
+      if (greeting != null && mounted) {
+        setState(() {
+          _lastMessage = greeting;
+          _isLoadingFollowUp = false;
+        });
+      } else if (mounted) {
+        // AI generation failed — fall back to the static greeting
+        setState(() => _isLoadingFollowUp = false);
+      }
+    }
   }
 
   int getRandomNumber(int min, int max) {
@@ -136,33 +177,65 @@ class _AvatarCardState extends State<AvatarCard> {
                         overflow: TextOverflow.ellipsis,
                       ),
                       const SizedBox(height: 10),
-//gretting
-                      SizedBox(
-                        height: 65,
-                        child: widget.avatar.greeting?.isNotEmpty == true
-                            ? Container(
-                                width: double.infinity,
-                                decoration: BoxDecoration(
-                                  color:
-                                      theme.colorScheme.surfaceContainerHighest,
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 10, vertical: 6),
-                                margin: const EdgeInsets.only(bottom: 12),
-                                child: Text(
-                                  '"${widget.avatar.greeting!}"',
-                                  style: TextStyle(
-                                    fontStyle: FontStyle.italic,
-                                    fontSize: 13,
-                                    color: theme.textTheme.bodyMedium?.color,
+// AI-generated message bubble
+                      Builder(builder: (_) {
+                        final bubbleText = _lastMessage;
+                        return SizedBox(
+                          height: 65,
+                          child: bubbleText != null
+                              ? Container(
+                                  width: double.infinity,
+                                  decoration: BoxDecoration(
+                                    color: theme
+                                        .colorScheme.surfaceContainerHighest,
+                                    borderRadius: BorderRadius.circular(8),
                                   ),
-                                  maxLines: 3,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              )
-                            : const SizedBox.shrink(),
-                      ),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 10, vertical: 6),
+                                  margin: const EdgeInsets.only(bottom: 12),
+                                  child: _isLoadingFollowUp
+                                      ? Center(
+                                          child: SizedBox(
+                                            width: 16,
+                                            height: 16,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                              color: theme.colorScheme.primary,
+                                            ),
+                                          ),
+                                        )
+                                      : Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(
+                                        widget.avatar.name,
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w600,
+                                          color: theme
+                                              .colorScheme.primary
+                                              .withValues(alpha: 0.8),
+                                        ),
+                                      ),
+                                      Text(
+                                        '"$bubbleText"',
+                                        style: TextStyle(
+                                          fontStyle: FontStyle.italic,
+                                          fontSize: 12,
+                                          color:
+                                              theme.textTheme.bodyMedium?.color,
+                                        ),
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ],
+                                  ),
+                                )
+                              : const SizedBox.shrink(),
+                        );
+                      }),
 
                       // Bio
                       SizedBox(
@@ -245,11 +318,12 @@ class _AvatarCardState extends State<AvatarCard> {
                                 return ChatScreen(
                                   userData: ChatUser(
                                     name: widget.avatar.name,
-                                    email: widget.avatar.id,
+                                    email: widget.avatar.username,
                                     chatId: null,
                                     isHuman: false,
                                     profilePictureURL:
                                         widget.avatar.profilePicture,
+                                    greeting: widget.avatar.greeting,
                                   ),
                                 );
                               }));
