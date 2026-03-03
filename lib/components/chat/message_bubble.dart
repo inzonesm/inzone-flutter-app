@@ -12,7 +12,8 @@ class MessageBubble extends StatelessWidget {
   final String? senderName;
   final Widget? senderAvatar;
   final VoidCallback? onShare;
-  final VoidCallback? onSenderTap; // New callback for tapping sender avatar/name
+  final VoidCallback?
+      onSenderTap; // New callback for tapping sender avatar/name
 
   const MessageBubble({
     super.key,
@@ -47,72 +48,85 @@ class MessageBubble extends StatelessWidget {
                   isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
               children: [
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-                  margin: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: isMe
-                        ? Theme.of(context).myChatBubbleColor
-                        : Theme.of(context).otherChatBubbleColor,
-                    borderRadius: BorderRadius.only(
-                      topLeft: const Radius.circular(18),
-                      topRight: const Radius.circular(18),
-                      bottomRight: isMe
-                          ? const Radius.circular(0)
-                          : const Radius.circular(18),
-                      bottomLeft: isMe
-                          ? const Radius.circular(18)
-                          : const Radius.circular(0),
+                    padding: const EdgeInsets.only(left: 8, right: 8, top: 4),
+                    margin: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 0,
                     ),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: isMe
-                        ? CrossAxisAlignment.end
-                        : CrossAxisAlignment.start,
-                    children: [
-                      if (!isMe && senderName != null)
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 6.0),
-                          child: GestureDetector(
-                            onTap: onSenderTap,
-                            child: Text(
-                              senderName!,
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                                color:
-                                    Theme.of(context).textTheme.bodySmall?.color,
+                    decoration: BoxDecoration(
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.1),
+                          blurRadius: 0.5,
+                          spreadRadius: 0.5,
+                          offset:
+                              const Offset(0.5, 0.5), // horizontal, vertical
+                        ),
+                      ],
+                      color: isMe
+                          ? Theme.of(context).myChatBubbleColor
+                          : Theme.of(context).otherChatBubbleColor,
+                      borderRadius: BorderRadius.only(
+                        topLeft: const Radius.circular(8),
+                        topRight: const Radius.circular(8),
+                        bottomRight: isMe
+                            ? const Radius.circular(0)
+                            : const Radius.circular(8),
+                        bottomLeft: isMe
+                            ? const Radius.circular(8)
+                            : const Radius.circular(0),
+                      ),
+                    ),
+                    child: IntrinsicWidth(
+                      child: Column(
+                        crossAxisAlignment: isMe
+                            ? CrossAxisAlignment.end
+                            : CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (!isMe && senderName != null)
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 0.0),
+                              child: GestureDetector(
+                                onTap: onSenderTap,
+                                child: Text(
+                                  senderName!,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: Theme.of(context)
+                                        .textTheme
+                                        .bodySmall
+                                        ?.color,
+                                  ),
+                                ),
                               ),
                             ),
+                          Text(
+                            message,
+                            style: TextStyle(
+                              color: isMe
+                                  ? Theme.of(context).myChatTextColor
+                                  : Theme.of(context).otherChatTextColor,
+                            ),
                           ),
-                        ),
-                      Text(
-                        message,
-                        style: TextStyle(
-                          color: isMe
-                              ? Theme.of(context).myChatTextColor
-                              : Theme.of(context).otherChatTextColor,
-                        ),
+                          if (timestamp != null)
+                            Align(
+                                alignment: Alignment.centerRight,
+                                child: Text(_formatTimestamp(timestamp!),
+                                    textAlign: TextAlign.right,
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      color: isMe
+                                          ? Theme.of(context).myChatTextColor
+                                          : Theme.of(context)
+                                              .otherChatTextColor,
+                                    )))
+                        ],
                       ),
-                    ],
-                  ),
-                ),
-                // if (timestamp != null)
-                //   Padding(
-                //     padding: const EdgeInsets.only(top: 2, right: 10, left: 10),
-                //     child: Text(
-                //       _formatTimestamp(timestamp!),
-                //       style: TextStyle(
-                //         fontSize: 10,
-                //         color: Theme.of(context).textTheme.bodySmall?.color,
-                //       ),
-                //     ),
-                //   ),
+                    )),
                 const SizedBox(
-                  height: 10,
+                  height: 5,
                 ),
               ],
             ),
@@ -138,14 +152,13 @@ class MessageBubble extends StatelessWidget {
   }
 
   String _formatTimestamp(DateTime dateTime) {
-    final now = DateTime.now().toUtc();
-    final today = DateTime(now.year, now.month, now.day);
-    final messageDate = DateTime(dateTime.year, dateTime.month, dateTime.day);
+    // final now = DateTime.now().toUtc();
+    // final today = DateTime(now.year, now.month, now.day);
+    // final messageDate = DateTime(dateTime.year, dateTime.month, dateTime.day);
 
-    if (messageDate == today) {
-      return DateFormat('h:mm a').format(dateTime.toLocal());
-    } else {
-      return DateFormat('MMM d, h:mm a').format(dateTime.toLocal());
-    }
+    // if (messageDate == today) {
+    return DateFormat('h:mm a').format(dateTime.toLocal());
+    // } else {
+    // return DateFormat('MMM d, h:mm a').format(dateTime.toLocal());
   }
 }
