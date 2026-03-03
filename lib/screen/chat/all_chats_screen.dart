@@ -99,13 +99,36 @@ class _AllChatsScreenState extends State<AllChatsScreen>
     List<ChatUser> groupChats = [];
 
     try {
-      // Fetch AI user conversations
+      // Fetch AI user conversations from the backend API
       List<dynamic>? aiData = await InZoneDatabase.getConversations();
       if (aiData != null) {
         for (var conversation in aiData) {
           ChatUser? aiUser = ChatUser.fromJson(conversation);
           if (aiUser != null) allChats.add(aiUser);
         }
+      }
+
+      // Also load avatar chats that were started via the avatar card (stored
+      // locally in aiChatHistory).  Merge by username so API entries (which
+      // carry a chatId) take precedence over local-only entries.
+      final Set<String> seenAiUsernames =
+          allChats.map((c) => c.email ?? '').toSet();
+      final List<Map<String, dynamic>> localAiChats =
+          await InZoneDatabase.getAvatarChatsFromHistory();
+      for (final data in localAiChats) {
+        final username = data['aiUsername'] as String? ?? '';
+        if (username.isEmpty || seenAiUsernames.contains(username)) continue;
+        seenAiUsernames.add(username);
+        allChats.add(ChatUser(
+          name: data['avatarName'] as String? ?? username,
+          email: username,
+          chatId: null,
+          profilePictureURL: data['avatarProfilePicture'] as String?,
+          lastMessage: data['lastMessageText'] as String?,
+          lastMessageTime: data['updatedAt'] as Timestamp?,
+          isHuman: false,
+          isGroupChat: false,
+        ));
       }
 
       // Fetch human conversations
@@ -393,6 +416,7 @@ class ChatUser {
   Timestamp? lastMessageTime;
   bool isHuman;
   bool isGroupChat;
+  String? greeting;
 
   ChatUser({
     this.name,
@@ -403,6 +427,7 @@ class ChatUser {
     this.lastMessageTime,
     this.isHuman = false,
     this.isGroupChat = false,
+    this.greeting,
   });
 
   static ChatUser? fromJson(Map<String, dynamic> map) {
