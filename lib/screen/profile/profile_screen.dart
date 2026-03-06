@@ -24,7 +24,8 @@ class ProfileScreen extends StatefulWidget {
   final bool isAI;
   final GoRouterState? routerState; // Add this to access query parameters
 
-  const ProfileScreen({super.key, required this.uid, this.isAI = false, this.routerState});
+  const ProfileScreen(
+      {super.key, required this.uid, this.isAI = false, this.routerState});
 
   @override
   State<ProfileScreen> createState() => _ProfileScreenState();
@@ -464,14 +465,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
               formattedFollowers.add({
                 'id': follower,
                 'username': followerProfile['username'] ??
-                    followerProfile['Name'] ?? 'Unknown',
+                    followerProfile['Name'] ??
+                    'Unknown',
                 'type': 'human'
               });
             } else {
-              formattedFollowers.add({'id': follower, 'username': 'Unknown', 'type': 'human'});
+              formattedFollowers.add(
+                  {'id': follower, 'username': 'Unknown', 'type': 'human'});
             }
           } catch (e) {
-            formattedFollowers.add({'id': follower, 'username': 'Unknown', 'type': 'human'});
+            formattedFollowers
+                .add({'id': follower, 'username': 'Unknown', 'type': 'human'});
           }
         }
       }
@@ -613,13 +617,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
       if (currentUserId != null && currentUserId != userId) {
         // Fetch directly from Firestore to avoid any API caching issues
         DocumentSnapshot? currentUserDoc;
-        
+
         try {
           currentUserDoc = await FirebaseFirestore.instance
               .collection('humanUsers')
               .doc(currentUserId)
               .get();
-          
+
           if (!currentUserDoc.exists) {
             currentUserDoc = await FirebaseFirestore.instance
                 .collection('aiUsers')
@@ -631,8 +635,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
         }
 
         if (currentUserDoc != null && currentUserDoc.exists) {
-          final currentUserProfile = currentUserDoc.data() as Map<String, dynamic>?;
-          
+          final currentUserProfile =
+              currentUserDoc.data() as Map<String, dynamic>?;
+
           if (currentUserProfile != null) {
             List<dynamic> currentUserFollowing =
                 currentUserProfile['following'] ?? [];
@@ -1221,18 +1226,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   )
                 else
                   Padding(
-                    padding: const EdgeInsets.all(15.0),
+                    padding: const EdgeInsets.only(top: 15.0),
                     child: Column(
                       children: [
                         ...List.generate(_posts.length, (index) {
                           // Check if this is the post that should have comments opened
-                          final targetPostId = widget.routerState?.uri.queryParameters['post'];
-                          final shouldOpenComments = widget.routerState?.uri.queryParameters['openComments'] == 'true';
-                          final targetCommentId = widget.routerState?.uri.queryParameters['commentId'];
-                          final targetReplyId = widget.routerState?.uri.queryParameters['replyId'];
-                          final shouldExpandReplies = widget.routerState?.uri.queryParameters['expandReplies'] == 'true';
-                          final isTargetPost = targetPostId != null && _posts[index].id == targetPostId;
-                          
+                          final targetPostId =
+                              widget.routerState?.uri.queryParameters['post'];
+                          final shouldOpenComments = widget.routerState?.uri
+                                  .queryParameters['openComments'] ==
+                              'true';
+                          final targetCommentId = widget
+                              .routerState?.uri.queryParameters['commentId'];
+                          final targetReplyId = widget
+                              .routerState?.uri.queryParameters['replyId'];
+                          final shouldExpandReplies = widget.routerState?.uri
+                                  .queryParameters['expandReplies'] ==
+                              'true';
+                          final isTargetPost = targetPostId != null &&
+                              _posts[index].id == targetPostId;
+
                           return PostCard(
                             post: _posts[index],
                             profileImageUrl: profileImageUrl,
@@ -1245,15 +1258,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             },
                             onUpdated: (updatedPost) {
                               setState(() {
-                                final idx = _posts.indexWhere((p) => p.id == updatedPost.id);
+                                final idx = _posts
+                                    .indexWhere((p) => p.id == updatedPost.id);
                                 if (idx != -1) _posts[idx] = updatedPost;
                               });
                             },
                             inProfile: true,
-                            autoOpenComments: shouldOpenComments && isTargetPost,
+                            autoOpenComments:
+                                shouldOpenComments && isTargetPost,
                             targetCommentId: targetCommentId,
                             targetReplyId: targetReplyId,
-                            autoExpandReplies: shouldExpandReplies && isTargetPost,
+                            autoExpandReplies:
+                                shouldExpandReplies && isTargetPost,
                           );
                         }),
                         const SizedBox(height: 100),
