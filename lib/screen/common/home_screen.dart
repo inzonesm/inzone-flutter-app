@@ -95,7 +95,7 @@ class HomeScreenState extends State<HomeScreen> {
     _avatarTimer?.cancel();
 
     _avatarTimer = Timer(const Duration(seconds: 30), () async {
-      Timer(const Duration(seconds: 30), _dismissAvatarPopup);
+      Timer(const Duration(seconds: 5), _dismissAvatarPopup);
 
       if (!mounted || avatars.isEmpty || popupAvatar != null) return;
 
