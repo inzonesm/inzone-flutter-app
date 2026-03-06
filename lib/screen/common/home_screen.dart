@@ -95,6 +95,8 @@ class HomeScreenState extends State<HomeScreen> {
     _avatarTimer?.cancel();
 
     _avatarTimer = Timer(const Duration(seconds: 30), () async {
+      Timer(const Duration(seconds: 30), _dismissAvatar);
+
       if (!mounted || avatars.isEmpty || popupAvatar != null) return;
 
       final random = Random();
@@ -111,8 +113,7 @@ class HomeScreenState extends State<HomeScreen> {
       });
 
       // Try to upgrade with an AI-generated message in the background.
-      String? aiMsg =
-          await InZoneDatabase.generateFollowUp(avatar.username);
+      String? aiMsg = await InZoneDatabase.generateFollowUp(avatar.username);
       aiMsg ??= await InZoneDatabase.generateGreeting(avatar.username);
 
       if (aiMsg != null && mounted && popupAvatar?.id == avatar.id) {
@@ -120,6 +121,14 @@ class HomeScreenState extends State<HomeScreen> {
           popupMessage = aiMsg;
         });
       }
+    });
+  }
+
+  void _dismissAvatar() {
+    if (!mounted) return;
+    setState(() {
+      popupAvatar = null;
+      popupMessage = null;
     });
   }
 
@@ -1076,9 +1085,9 @@ class HomeScreenState extends State<HomeScreen> {
 
                     if (!mounted) return;
                     setState(() {
-                  popupAvatar = null;
-                  popupMessage = null;
-                });
+                      popupAvatar = null;
+                      popupMessage = null;
+                    });
                   },
                   child: Row(
                     children: [
