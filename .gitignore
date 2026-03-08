@@ -151,7 +151,7 @@ unity/**/[Bb]uild/
 unity/**/[Bb]uilds/
 unity/**/[Ll]ogs/
 unity/**/[Uu]ser[Ss]ettings/
-unirt/**/unity_builds/
+unity/**/unity_builds/
 **/Il2CppOutputProject/
 .DS_Store
 Thumbs.db
