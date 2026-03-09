@@ -322,13 +322,13 @@ Widget GroupCardLoading(BuildContext context) {
 
 Widget ImageLoading(BuildContext context) {
   return Padding(
-    padding: const EdgeInsets.all(4),
+    padding: const EdgeInsets.all(0),
     child: Container(
       height: 140,
       width: MediaQuery.of(context).size.width,
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(24),
+        // borderRadius: BorderRadius.circular(24),
       ),
       child: SkeletonContainer.rounded(
         height: 140,

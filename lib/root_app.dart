@@ -216,7 +216,9 @@ class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
     Ri.home_5_fill,
     Mdi.account_group,
     HeroiconsSolid.chat_bubble_oval_left_ellipsis,
-    Ph.user,
+    // Ri.gamepad_fill
+    Mdi.gamepad_variant
+    // Ph.user,
   ];
 
   void _toggleExpanded() {

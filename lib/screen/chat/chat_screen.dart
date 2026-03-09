@@ -215,7 +215,7 @@ class _ChatScreenState extends State<ChatScreen> {
       );
     }
   }
-  
+
   @override
   void dispose() {
     // End AI character session tracking
@@ -268,6 +268,7 @@ class _ChatScreenState extends State<ChatScreen> {
       messageCards.add(
         MessageBubble(
           message: text,
+          timestamp: DateTime.now(),
           isMe: isMe,
           imageUrl: imageUrl,
           videoUrl: videoUrl,
@@ -331,9 +332,9 @@ class _ChatScreenState extends State<ChatScreen> {
             color: Theme.of(context).colorScheme.surfaceContainerHighest,
             borderRadius: BorderRadius.circular(18),
           ),
-          child: Row(
+          child: const Row(
             mainAxisSize: MainAxisSize.min,
-            children: const [
+            children: [
               _DotPulse(delay: 0),
               SizedBox(width: 4),
               _DotPulse(delay: 150),
@@ -368,7 +369,7 @@ class _ChatScreenState extends State<ChatScreen> {
       body: SafeArea(
         bottom: false,
         child: Padding(
-          padding: const EdgeInsets.only(top: 10),
+          padding: const EdgeInsets.only(left: 10, right: 10),
           child: Column(
             children: [
               Expanded(

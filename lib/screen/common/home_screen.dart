@@ -95,6 +95,8 @@ class HomeScreenState extends State<HomeScreen> {
     _avatarTimer?.cancel();
 
     _avatarTimer = Timer(const Duration(seconds: 30), () async {
+      Timer(const Duration(seconds: 5), _dismissAvatarPopup);
+
       if (!mounted || avatars.isEmpty || popupAvatar != null) return;
 
       final random = Random();
@@ -111,8 +113,7 @@ class HomeScreenState extends State<HomeScreen> {
       });
 
       // Try to upgrade with an AI-generated message in the background.
-      String? aiMsg =
-          await InZoneDatabase.generateFollowUp(avatar.username);
+      String? aiMsg = await InZoneDatabase.generateFollowUp(avatar.username);
       aiMsg ??= await InZoneDatabase.generateGreeting(avatar.username);
 
       if (aiMsg != null && mounted && popupAvatar?.id == avatar.id) {
@@ -120,6 +121,14 @@ class HomeScreenState extends State<HomeScreen> {
           popupMessage = aiMsg;
         });
       }
+    });
+  }
+
+  void _dismissAvatarPopup() {
+    if (!mounted) return;
+    setState(() {
+      popupAvatar = null;
+      popupMessage = null;
     });
   }
 
@@ -1033,11 +1042,7 @@ class HomeScreenState extends State<HomeScreen> {
                 DismissDirection.endToStart: 0.25,
               },
               onDismissed: (_) {
-                if (!mounted) return;
-                setState(() {
-                  popupAvatar = null;
-                  popupMessage = null;
-                });
+                _dismissAvatarPopup();
               },
               child: Container(
                 key: const ValueKey('popup'),
@@ -1062,6 +1067,7 @@ class HomeScreenState extends State<HomeScreen> {
                 ),
                 child: InkWell(
                   onTap: () async {
+                    _dismissAvatarPopup();
                     await context.pushNamed(
                       'chat',
                       extra: ChatUser(
@@ -1073,12 +1079,6 @@ class HomeScreenState extends State<HomeScreen> {
                         greeting: popupMessage,
                       ),
                     );
-
-                    if (!mounted) return;
-                    setState(() {
-                  popupAvatar = null;
-                  popupMessage = null;
-                });
                   },
                   child: Row(
                     children: [
