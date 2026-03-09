@@ -69,7 +69,7 @@ class GroupChatService {
   }
 
   // Send a message to a specific group chat
-  static Future<void> sendMessageToGroup(String groupId, String content) async {
+  static Future<void> sendMessageToGroup(String groupId, String content, {String? imageUrl, String? videoUrl, String? videoThumbnailUrl}) async {
     try {
       print('Sending message to group $groupId: $content');
 
@@ -111,6 +111,17 @@ class GroupChatService {
         'isProcessed': false,
         'timestamp': timestamp,
       };
+      
+      // Add media URLs if provided
+      if (imageUrl != null) {
+        message['imageUrl'] = imageUrl;
+      }
+      if (videoUrl != null) {
+        message['videoUrl'] = videoUrl;
+      }
+      if (videoThumbnailUrl != null) {
+        message['videoThumbnailUrl'] = videoThumbnailUrl;
+      }
 
       print('Created message object for group $groupId: $message');
 

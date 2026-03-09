@@ -14,6 +14,8 @@ import 'package:go_router/go_router.dart';
 import 'package:inzone/router/routes.dart';
 import 'package:inzone/services/appsflyer_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'dart:io';
+import 'package:inzone/auth/auth_work.dart';
 
 // AI Chat Session Tracker
 class AIChatSessionTracker {
@@ -92,6 +94,8 @@ class _ChatScreenState extends State<ChatScreen> {
   final ScrollController _mainScrollController = ScrollController();
 
   bool _isSending = false;
+  File? _pendingImage;
+  File? _pendingVideo;
 
   // AI Character Interaction Tracking
   late DateTime _chatStartTime;
@@ -114,6 +118,9 @@ class _ChatScreenState extends State<ChatScreen> {
   bool _isLoadingHistory = true;
   List<Widget> messageCards = [];
   List<Set> chatHistory = [];
+  String? pendingImageUrl; // For image upload
+  String? pendingVideoUrl; // For video upload
+  String? pendingVideoThumbnailUrl; // For video thumbnail
 
   @override
   void initState() {
@@ -158,7 +165,7 @@ class _ChatScreenState extends State<ChatScreen> {
     final messages = await InZoneDatabase.loadConversationMessages(aiUsername);
     if (!mounted) return;
 
-    if (messages != null && messages.isNotEmpty) {
+      if (messages != null && messages.isNotEmpty) {
       // Sort by timestamp to ensure correct order
       messages.sort((a, b) {
         final ta = (a['timestamp'] as int?) ?? 0;
@@ -167,7 +174,14 @@ class _ChatScreenState extends State<ChatScreen> {
       });
       for (final msg in messages) {
         final isMe = msg['speaker'] == 'user';
-        addMessage(msg['text'] ?? '', isMe, persist: false);
+        addMessage(
+          msg['text'] ?? '',
+          isMe,
+          persist: false,
+          imageUrl: msg['imageUrl'],
+          videoUrl: msg['videoUrl'],
+          videoThumbnailUrl: msg['videoThumbnailUrl'],
+        );
       }
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) scrollToEnd();
@@ -248,13 +262,16 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
-  addMessage(text, isMe, {bool persist = true}) {
+  addMessage(text, isMe, {bool persist = true, String? imageUrl, String? videoUrl, String? videoThumbnailUrl}) {
     if (!mounted) return;
     setState(() {
       messageCards.add(
         MessageBubble(
           message: text,
           isMe: isMe,
+          imageUrl: imageUrl,
+          videoUrl: videoUrl,
+          videoThumbnailUrl: videoThumbnailUrl,
           senderAvatar: !isMe && widget.userData.profilePictureURL != null
               ? CircleAvatar(
                   radius: 16,
@@ -296,6 +313,9 @@ class _ChatScreenState extends State<ChatScreen> {
         aiUsername: widget.userData.email!,
         text: text,
         speaker: isMe ? 'user' : 'ai',
+        imageUrl: imageUrl,
+        videoUrl: videoUrl,
+        videoThumbnailUrl: videoThumbnailUrl,
       );
     }
   }
@@ -379,8 +399,28 @@ class _ChatScreenState extends State<ChatScreen> {
                     "", // AI character ID is stored in email field
                 controller: msg,
                 scrollController: _scrollController,
+                pendingImage: _pendingImage,
+                pendingVideo: _pendingVideo,
+                onClearMedia: () {
+                  setState(() {
+                    _pendingImage = null;
+                    _pendingVideo = null;
+                  });
+                },
+                onImagePicked: (File imageFile) {
+                  setState(() {
+                    _pendingImage = imageFile;
+                    _pendingVideo = null;
+                  });
+                },
+                onVideoPicked: (File videoFile) {
+                  setState(() {
+                    _pendingVideo = videoFile;
+                    _pendingImage = null;
+                  });
+                },
                 onSend: () async {
-                  if (_isSending || msg.text.trim().isEmpty) return;
+                  if (_isSending || (msg.text.trim().isEmpty && _pendingImage == null && _pendingVideo == null)) return;
 
                   setState(() {
                     _isSending = true;
@@ -388,6 +428,34 @@ class _ChatScreenState extends State<ChatScreen> {
 
                   scrollToEnd();
                   String userMessage = msg.text;
+
+                  // Upload pending media if present
+                  String? imageUrl;
+                  String? videoUrl;
+                  String? videoThumbnailUrl;
+
+                  try {
+                    if (_pendingImage != null) {
+                      imageUrl = await AuthWork.sendChatImage(
+                        FirebaseAuth.instance.currentUser!.uid,
+                        _pendingImage!,
+                      );
+                    }
+                    if (_pendingVideo != null) {
+                      final result = await AuthWork.sendChatVideo(
+                        FirebaseAuth.instance.currentUser!.uid,
+                        _pendingVideo!,
+                      );
+                      videoUrl = result['videoUrl'];
+                      videoThumbnailUrl = result['thumbnailUrl'];
+                    }
+                  } catch (e) {
+                    print('Error uploading media: $e');
+                    setState(() {
+                      _isSending = false;
+                    });
+                    return;
+                  }
 
                   // Track user message analytics
                   final userId = FirebaseAuth.instance.currentUser?.uid;
@@ -404,8 +472,21 @@ class _ChatScreenState extends State<ChatScreen> {
                   }
 
                   scrollToEnd();
-                  addMessage(userMessage, true);
+                  addMessage(
+                    userMessage,
+                    true,
+                    imageUrl: imageUrl,
+                    videoUrl: videoUrl,
+                    videoThumbnailUrl: videoThumbnailUrl,
+                  );
                   msg.clear();
+                  
+                  // Clear pending media
+                  setState(() {
+                    _pendingImage = null;
+                    _pendingVideo = null;
+                  });
+                  
                   scrollToEnd();
 
                   String? aiResponse;
@@ -422,14 +503,21 @@ class _ChatScreenState extends State<ChatScreen> {
                         userMessage,
                         widget.userData.email!,
                         widget.userData.chatId,
-                        chatHistory);
+                        chatHistory,
+                        imageUrl: imageUrl,
+                        videoUrl: videoUrl);
                   } else {
                     if (kDebugMode) {
                       print("Chat id not found.");
                     }
 
                     aiResponse = await InZoneDatabase.sendMessageToAI(
-                        userMessage, widget.userData.email!, null, chatHistory);
+                        userMessage,
+                        widget.userData.email!,
+                        null,
+                        chatHistory,
+                        imageUrl: imageUrl,
+                        videoUrl: videoUrl);
                   }
 
                   if (aiResponse != null) {

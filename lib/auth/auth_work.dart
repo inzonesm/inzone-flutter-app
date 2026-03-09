@@ -1,4 +1,3 @@
-import 'dart:developer';
 import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -228,85 +227,7 @@ class AuthWork {
   //       .set({}).then((value) => sendMessage(chatUser, msg, type));
   // }
 
-//   //send chat image
-  static Future<void> sendChatImage(ChatUser chatUser, File file) async {
-//     //getting image file extension
-//     final ext = file.path.split('.').last;
-//
-//     //storage file ref with path
-//     final ref = storage.ref().child(
-//         'images/${chatUser.id}/${DateTime.now().millisecondsSinceEpoch}.$ext');
-//
-//     //uploading image
-//     await ref
-//         .putFile(file, SettableMetadata(contentType: 'image/$ext'))
-//         .then((p0) {
-//       log('Data Transferred: ${p0.bytesTransferred / 1000} kb');
-//     });
-//
-//     //updating image in firestore database
-//     final imageUrl = await ref.getDownloadURL();
-//     await sendMessage(chatUser, imageUrl, Typee.image);
-//   }
-//
-//   //send chat image
-//   static Future<String> sendPostImage(String chatUserID, File file) async {
-//     //getting image file extension
-//     final ext = file.path.split('.').last;
-//
-//     //storage file ref with path
-//     final ref = storage.ref().child(
-//         'images/${chatUserID}/${DateTime.now().millisecondsSinceEpoch}.$ext');
-//
-//     //uploading image
-//     await ref
-//         .putFile(file, SettableMetadata(contentType: 'image/$ext'))
-//         .then((p0) {
-//       log('Data Transferred: ${p0.bytesTransferred / 1000} kb');
-//     });
-//
-//     //updating image in firestore database
-//     final imageUrl = await ref.getDownloadURL();
-//
-//     return imageUrl;
-  }
-//
-//   //send chat video
-//
-// // Function to send chat video
-  static Future<void> sendChatVideo(ChatUser chatUser, File videoFile) async {
-//     try {
-//       // Getting video file extension
-//       final ext = extension(videoFile.path);
-//
-//       // Storage file ref with path for video
-//       final videoRef = storage.ref().child(
-//           'videos/${chatUser.id}/${DateTime.now().millisecondsSinceEpoch}$ext');
-//
-//       // Uploading video
-//       final videoTask = videoRef.putFile(videoFile, SettableMetadata(contentType: 'video/$ext'));
-//       final videoSnapshot = await videoTask.whenComplete(() {});
-//       final videoUrl = await videoSnapshot.ref.getDownloadURL();
-//
-//       // Generate thumbnail
-//       final thumbnail = await generateThumbnail(videoFile);
-//
-//       // Storage file ref with path for thumbnail
-//       final thumbnailRef = storage.ref().child(
-//           'thumbnails/${chatUser.id}/${DateTime.now().millisecondsSinceEpoch}_thumbnail.jpg');
-//
-//       // Uploading thumbnail
-//       final thumbnailTask = thumbnailRef.putFile(thumbnail);
-//       final thumbnailSnapshot = await thumbnailTask.whenComplete(() {});
-//       final thumbnailUrl = await thumbnailSnapshot.ref.getDownloadURL();
-//
-//       // Send message with video and thumbnail URLs
-//       await sendMessage(chatUser, videoUrl, Typee.video, thumbnailUrl: thumbnailUrl);
-//     } catch (e) {
-//       print('Error uploading video: $e');
-//       throw Exception('Error uploading video');
-//     }
-  }
+// // Old chat image/video methods commented out - replaced by new implementations below
 //   static Future<Map<String, String>> sendPostVideo(String chatUserID, File videoFile) async {
 //     try {
 //       // Getting video file extension
@@ -446,6 +367,88 @@ class AuthWork {
       await thumbnailRef.delete();
     } catch (e) {
       throw Exception('Failed to delete video');
+    }
+  }
+
+  // Send chat image (for chats/DMs/group chats)
+  static Future<String> sendChatImage(String chatUserID, File file) async {
+    try {
+      // Getting image file extension
+      final ext = file.path.split('.').last;
+
+      // Storage file ref with path
+      final ref = storage.ref().child(
+          'chat_images/$chatUserID/${DateTime.now().toUtc().millisecondsSinceEpoch}.$ext');
+
+      // Uploading image
+      await ref.putFile(file, SettableMetadata(contentType: 'image/$ext'));
+
+      // Getting download URL
+      final imageUrl = await ref.getDownloadURL();
+
+      return imageUrl;
+    } catch (e) {
+      throw Exception('Error uploading chat image: $e');
+    }
+  }
+
+  // Send chat video (for chats/DMs/group chats)
+  static Future<Map<String, String>> sendChatVideo(
+      String chatUserID, File videoFile) async {
+    try {
+      // Getting video file extension
+      final ext = videoFile.path.split('.').last;
+
+      // Storage file ref with path for video
+      final ref = storage.ref().child(
+          'chat_videos/$chatUserID/${DateTime.now().toUtc().millisecondsSinceEpoch}.$ext');
+
+      // Uploading video
+      await ref.putFile(videoFile, SettableMetadata(contentType: 'video/$ext'));
+
+      // Getting video URL
+      final videoUrl = await ref.getDownloadURL();
+
+      // Generate thumbnail
+      final thumbnail = await generateThumbnail(videoFile);
+
+      // Storage file ref with path for thumbnail
+      final thumbnailRef = storage.ref().child(
+          'chat_thumbnails/$chatUserID/${DateTime.now().toUtc().millisecondsSinceEpoch}_thumbnail.jpg');
+
+      // Uploading thumbnail
+      final thumbnailTask = thumbnailRef.putFile(thumbnail);
+      final thumbnailSnapshot = await thumbnailTask.whenComplete(() {});
+      final thumbnailUrl = await thumbnailSnapshot.ref.getDownloadURL();
+
+      return {"videoUrl": videoUrl, "thumbnailUrl": thumbnailUrl};
+    } catch (e) {
+      throw Exception('Error uploading chat video: $e');
+    }
+  }
+
+  // Delete chat media
+  static Future<void> deleteChatImage(String imageUrl) async {
+    try {
+      final ref = storage.refFromURL(imageUrl);
+      await ref.delete();
+    } catch (e) {
+      throw Exception('Failed to delete chat image');
+    }
+  }
+
+  static Future<void> deleteChatVideo(
+      String videoUrl, String thumbnailUrl) async {
+    try {
+      // Delete video file
+      final videoRef = storage.refFromURL(videoUrl);
+      await videoRef.delete();
+
+      // Delete thumbnail file
+      final thumbnailRef = storage.refFromURL(thumbnailUrl);
+      await thumbnailRef.delete();
+    } catch (e) {
+      throw Exception('Failed to delete chat video');
     }
   }
 

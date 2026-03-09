@@ -1,16 +1,15 @@
+import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:inzone/auth/auth_work.dart';
 import 'package:inzone/components/chat/chat_app_bar.dart';
 import 'package:inzone/components/chat/chat_input.dart';
 import 'package:inzone/components/chat/date_header.dart';
 import 'package:inzone/components/chat/message_bubble.dart';
 import 'package:inzone/services/inzone_database.dart';
 import 'package:inzone/services/notification_event_service.dart';
-import 'package:inzone/services/notification_service.dart';
 import 'package:inzone/services/ai_engagement_service.dart';
-import 'package:inzone/theme/light_theme.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter/foundation.dart';
 import 'package:go_router/go_router.dart';
@@ -41,6 +40,8 @@ class _HumanChatScreenState extends State<HumanChatScreen> {
   String currentUserName = "Me";
   bool isLoading = true;
   String _otherUserProfileImageUrl = '';
+  File? _pendingImage;
+  File? _pendingVideo;
 
   @override
   void initState() {
@@ -111,28 +112,63 @@ class _HumanChatScreenState extends State<HumanChatScreen> {
   }
 
   void _sendMessage() async {
-    if (_msgController.text.trim().isEmpty || currentUserId == null) return;
-
-    // Reference to the conversation document
-    final conversationRef =
-        _firestore.collection('conversations').doc(widget.conversationId);
-
-    // Create a new message document
-    final newMessage = {
-      'text': _msgController.text.trim(),
-      'senderId': currentUserId,
-      'senderName': currentUserName,
-      'timestamp': FieldValue.serverTimestamp(),
-      'isRead': false,
-    };
+    final String messageText = _msgController.text.trim();
+    
+    // Require either text or pending media
+    if (messageText.isEmpty && _pendingImage == null && _pendingVideo == null) return;
+    if (currentUserId == null) return;
 
     try {
+      String? imageUrl;
+      String? videoUrl;
+      String? videoThumbnailUrl;
+
+      // Upload pending media if exists
+      if (_pendingImage != null) {
+        imageUrl = await AuthWork.sendChatImage(widget.otherUserId, _pendingImage!);
+      }
+      if (_pendingVideo != null) {
+        final result = await AuthWork.sendChatVideo(widget.otherUserId, _pendingVideo!);
+        videoUrl = result['videoUrl'];
+        videoThumbnailUrl = result['thumbnailUrl'];
+      }
+
+      // Reference to the conversation document
+      final conversationRef =
+          _firestore.collection('conversations').doc(widget.conversationId);
+
+      // Create a new message document
+      final newMessage = {
+        'text': messageText.isEmpty 
+            ? (imageUrl != null ? '[Image]' : '[Video]') 
+            : messageText,
+        'senderId': currentUserId,
+        'senderName': currentUserName,
+        'timestamp': FieldValue.serverTimestamp(),
+        'isRead': false,
+      };
+
+      // Add media URLs if present
+      if (imageUrl != null) {
+        newMessage['imageUrl'] = imageUrl;
+      }
+      if (videoUrl != null) {
+        newMessage['videoUrl'] = videoUrl;
+      }
+      if (videoThumbnailUrl != null) {
+        newMessage['videoThumbnailUrl'] = videoThumbnailUrl;
+      }
+
       // Add message to the messages subcollection
       await conversationRef.collection('messages').add(newMessage);
 
+      final lastMessageText = messageText.isEmpty 
+          ? (imageUrl != null ? '[Image]' : '[Video]') 
+          : messageText;
+
       // Update conversation metadata
       await conversationRef.set({
-        'lastMessage': _msgController.text.trim(),
+        'lastMessage': lastMessageText,
         'lastMessageTime': FieldValue.serverTimestamp(),
         'participants': [currentUserId, widget.otherUserId],
         'participantNames': {
@@ -145,13 +181,13 @@ class _HumanChatScreenState extends State<HumanChatScreen> {
       // Trigger DM notification event
       await NotificationEventService.onDirectMessage(
         widget.conversationId,
-        _msgController.text.trim(),
+        lastMessageText,
         currentUserId!,
         widget.otherUserId,
       );
 
       // 🤖 AI ENGAGEMENT FIX: Check if receiver is an AI character and trigger immediate response
-      await _checkAndTriggerAIResponse(_msgController.text.trim());
+      await _checkAndTriggerAIResponse(lastMessageText);
 
       // Trigger DM notification
       // await NotificationService.sendDirectMessageNotification(
@@ -235,6 +271,10 @@ class _HumanChatScreenState extends State<HumanChatScreen> {
       }
 
       _msgController.clear();
+      setState(() {
+        _pendingImage = null;
+        _pendingVideo = null;
+      });
       _scrollToEnd();
     } catch (e) {
       print('Error sending message: $e');
@@ -412,6 +452,9 @@ class _HumanChatScreenState extends State<HumanChatScreen> {
                     String senderName = messageData['senderName'] ?? '';
                     Timestamp? timestamp =
                         messageData['timestamp'] as Timestamp?;
+                    String? imageUrl = messageData['imageUrl'];
+                    String? videoUrl = messageData['videoUrl'];
+                    String? videoThumbnailUrl = messageData['videoThumbnailUrl'];
 
                     // Check if message is from current user
                     bool isMe = senderId == currentUserId;
@@ -445,6 +488,9 @@ class _HumanChatScreenState extends State<HumanChatScreen> {
                                             size: 35),
                                       ),
                               ),
+                        imageUrl: imageUrl,
+                        videoUrl: videoUrl,
+                        videoThumbnailUrl: videoThumbnailUrl,
                       ),
                     );
                   }
@@ -465,6 +511,26 @@ class _HumanChatScreenState extends State<HumanChatScreen> {
           ChatInput(
             controller: _msgController,
             onSend: _sendMessage,
+            pendingImage: _pendingImage,
+            pendingVideo: _pendingVideo,
+            onClearMedia: () {
+              setState(() {
+                _pendingImage = null;
+                _pendingVideo = null;
+              });
+            },
+            onImagePicked: (File imageFile) {
+              setState(() {
+                _pendingImage = imageFile;
+                _pendingVideo = null;
+              });
+            },
+            onVideoPicked: (File videoFile) {
+              setState(() {
+                _pendingVideo = videoFile;
+                _pendingImage = null;
+              });
+            },
           ),
         ],
       ),
