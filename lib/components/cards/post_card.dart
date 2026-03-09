@@ -1265,7 +1265,7 @@ class _PostCardState extends State<PostCard>
           constraints: BoxConstraints(
             minHeight: imageSuccess ? 350 : 130,
           ),
-          width: MediaQuery.of(context).size.width - 30,
+          width: MediaQuery.of(context).size.width - 8,
           // padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 10),
           decoration: BoxDecoration(
               boxShadow: [
