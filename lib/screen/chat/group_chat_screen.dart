@@ -27,6 +27,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:toasty_box/toast_service.dart';
 import 'package:inzone/services/appsflyer_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:inzone/auth/auth_work.dart';
 
 // Group Chat Session Tracker
 class GroupChatSessionTracker {
@@ -122,6 +123,9 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   final TextEditingController _msgController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   final bool _isLoading = true;
+  bool _isUploadingMedia = false;
+  File? _pendingImage;
+  File? _pendingVideo;
 
   GroupChatData? _groupChatData;
   late String _groupId;
@@ -451,7 +455,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   }
 
   void _sendMessage() async {
-    if (_msgController.text.trim().isEmpty) return;
+    if (_msgController.text.trim().isEmpty && _pendingImage == null && _pendingVideo == null) return;
 
     final content = _msgController.text.trim();
     final messageLength = content.length;
@@ -471,6 +475,34 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
         ),
         message: 'You need to be logged in to send messages',
       );
+      return;
+    }
+
+    // Upload pending media if present
+    String? imageUrl;
+    String? videoUrl;
+    String? videoThumbnailUrl;
+
+    try {
+      if (_pendingImage != null) {
+        imageUrl = await AuthWork.sendChatImage(currentUserId, _pendingImage!);
+      }
+      if (_pendingVideo != null) {
+        final result = await AuthWork.sendChatVideo(currentUserId, _pendingVideo!);
+        videoUrl = result['videoUrl'];
+        videoThumbnailUrl = result['thumbnailUrl'];
+      }
+    } catch (e) {
+      print('Error uploading media: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to upload media: ${e.toString()}'),
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
+      }
       return;
     }
 
@@ -579,14 +611,40 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       }
 
       // Now send the message
-      await GroupChatService.sendMessageToGroup(_groupId, content);
+      await GroupChatService.sendMessageToGroup(
+        _groupId,
+        content,
+        imageUrl: imageUrl,
+        videoUrl: videoUrl,
+        videoThumbnailUrl: videoThumbnailUrl,
+      );
+      
+      // Clear pending media state
+      setState(() {
+        _pendingImage = null;
+        _pendingVideo = null;
+      });
+      
       // Update message count expectation to prevent double scroll
       _previousMessageCount++;
       _scrollToBottom();
     } catch (e) {
       print('Error checking/updating participant status: $e');
       // Fallback to direct message send
-      GroupChatService.sendMessageToGroup(_groupId, content);
+      GroupChatService.sendMessageToGroup(
+        _groupId,
+        content,
+        imageUrl: imageUrl,
+        videoUrl: videoUrl,
+        videoThumbnailUrl: videoThumbnailUrl,
+      );
+      
+      // Clear pending media state
+      setState(() {
+        _pendingImage = null;
+        _pendingVideo = null;
+      });
+      
       // Update message count expectation to prevent double scroll
       _previousMessageCount++;
       _scrollToBottom();
@@ -992,6 +1050,26 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
               controller: _msgController,
               onSend: _sendMessage,
               isGroupChat: true,
+              pendingImage: _pendingImage,
+              pendingVideo: _pendingVideo,
+              onClearMedia: () {
+                setState(() {
+                  _pendingImage = null;
+                  _pendingVideo = null;
+                });
+              },
+              onImagePicked: (File imageFile) {
+                setState(() {
+                  _pendingImage = imageFile;
+                  _pendingVideo = null;
+                });
+              },
+              onVideoPicked: (File videoFile) {
+                setState(() {
+                  _pendingVideo = videoFile;
+                  _pendingImage = null;
+                });
+              },
             ),
           ],
         ),
@@ -1189,6 +1267,9 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
           context.push(Routes.regularProfilePath(message.sender.uid));
         }
       },
+      imageUrl: message.imageUrl,
+      videoUrl: message.videoUrl,
+      videoThumbnailUrl: message.videoThumbnailUrl,
     );
   }
 

@@ -138,6 +138,9 @@ class ChatMessage {
   final String content;
   final bool isProcessed;
   final DateTime? timestamp;
+  final String? imageUrl;
+  final String? videoUrl;
+  final String? videoThumbnailUrl;
 
   ChatMessage({
     required this.id,
@@ -145,6 +148,9 @@ class ChatMessage {
     required this.content,
     required this.isProcessed,
     this.timestamp,
+    this.imageUrl,
+    this.videoUrl,
+    this.videoThumbnailUrl,
   });
 
   factory ChatMessage.fromMap(Map<String, dynamic> map) {
@@ -165,6 +171,9 @@ class ChatMessage {
         timestamp: map['timestamp'] != null
             ? GroupChatData._parseTimestamp(map['timestamp'])
             : null,
+        imageUrl: map['imageUrl']?.toString(),
+        videoUrl: map['videoUrl']?.toString(),
+        videoThumbnailUrl: map['videoThumbnailUrl']?.toString(),
       );
     } catch (e) {
       // Return a placeholder message instead of failing
@@ -174,6 +183,9 @@ class ChatMessage {
         content: 'Error parsing message: $e',
         isProcessed: true,
         timestamp: DateTime.now().toUtc(),
+        imageUrl: null,
+        videoUrl: null,
+        videoThumbnailUrl: null,
       );
     }
   }

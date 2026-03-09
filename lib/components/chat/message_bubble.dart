@@ -4,6 +4,8 @@ import 'package:intl/intl.dart';
 import 'package:inzone/config/custom_icons.dart';
 import 'package:inzone/theme/app_colors.dart';
 import 'package:inzone/theme/light_theme.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:inzone/components/video/video_player_widget_post_screen.dart';
 
 class MessageBubble extends StatelessWidget {
   final String message;
@@ -14,6 +16,9 @@ class MessageBubble extends StatelessWidget {
   final VoidCallback? onShare;
   final VoidCallback?
       onSenderTap; // New callback for tapping sender avatar/name
+  final String? imageUrl; // New: image URL
+  final String? videoUrl; // New: video URL
+  final String? videoThumbnailUrl; // New: video thumbnail URL
 
   const MessageBubble({
     super.key,
@@ -24,6 +29,9 @@ class MessageBubble extends StatelessWidget {
     this.senderAvatar,
     this.onShare,
     this.onSenderTap,
+    this.imageUrl,
+    this.videoUrl,
+    this.videoThumbnailUrl,
   });
 
   @override
@@ -102,14 +110,64 @@ class MessageBubble extends StatelessWidget {
                                 ),
                               ),
                             ),
-                          Text(
-                            message,
-                            style: TextStyle(
-                              color: isMe
-                                  ? Theme.of(context).myChatTextColor
-                                  : Theme.of(context).otherChatTextColor,
+                          // Display video if present
+                          if (videoUrl != null && videoUrl!.isNotEmpty)
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 8.0),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(8),
+                                child: ConstrainedBox(
+                                  constraints: const BoxConstraints(
+                                    maxWidth: 250,
+                                    maxHeight: 300,
+                                  ),
+                                  child: VideoPlayerWidgetPostScreen(videoUrl!),
+                                ),
+                              ),
                             ),
-                          ),
+                          // Display image if present
+                          if (imageUrl != null && imageUrl!.isNotEmpty)
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 8.0),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(8),
+                                child: ConstrainedBox(
+                                  constraints: const BoxConstraints(
+                                    maxWidth: 250,
+                                    maxHeight: 300,
+                                  ),
+                                  child: CachedNetworkImage(
+                                    imageUrl: imageUrl!,
+                                    fit: BoxFit.cover,
+                                    placeholder: (context, url) => Container(
+                                      width: 250,
+                                      height: 250,
+                                      color: Colors.grey.shade300,
+                                      child: const Center(
+                                        child: CircularProgressIndicator(),
+                                      ),
+                                    ),
+                                    errorWidget: (context, url, error) =>
+                                        Container(
+                                      width: 250,
+                                      height: 250,
+                                      color: Colors.grey.shade300,
+                                      child: const Icon(Icons.error),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          // Display text message if present
+                          if (message.isNotEmpty)
+                            Text(
+                              message,
+                              style: TextStyle(
+                                color: isMe
+                                    ? Theme.of(context).myChatTextColor
+                                    : Theme.of(context).otherChatTextColor,
+                              ),
+                            ),
                           if (timestamp != null)
                             Align(
                                 alignment: Alignment.centerRight,

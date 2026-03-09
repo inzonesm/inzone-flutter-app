@@ -211,7 +211,7 @@ class InZoneDatabase {
   }
 
   static Future<String?> sendMessageToAI(String userMessage, String aiUsername,
-      String? chatID, List<Set> chatHistory) async {
+      String? chatID, List<Set> chatHistory, {String? imageUrl, String? videoUrl}) async {
     String? currentUserUID = await InZoneDatabase.getCurrentUserUid();
     if (currentUserUID == null) {
       // Not logged in, so can't send message.
@@ -243,8 +243,8 @@ class InZoneDatabase {
       print("Error fetching AI ID from Firestore: $e");
     }
 
-    String url =
-        'https://ai-apis-912424781531.us-east1.run.app/chat/popularCharacter';
+    // String url = 'http://172.30.1.54:8080/chat/popularCharacter';
+    String url = 'https://ai-apis-912424781531.us-east1.run.app/chat/popularCharacter';
 
     // Convert each Set to a List (or call toJson() if it's a custom object)
     final chatHistoryJson = chatHistory.map((s) => s.toList()).toList();
@@ -258,6 +258,15 @@ class InZoneDatabase {
         'user_id': currentUserUID,
         'chat_history': chatHistoryJson,
       };
+      
+      // Add media URLs if provided
+      if (imageUrl != null) {
+        requestBody['imageUrl'] = imageUrl;
+      }
+      if (videoUrl != null) {
+        requestBody['videoUrl'] = videoUrl;
+      }
+      
       print("Sending this: $requestBody");
 
       if (chatID != null) {
@@ -2500,6 +2509,9 @@ class InZoneDatabase {
     required String aiUsername,
     required String text,
     required String speaker, // "user" or "ai"
+    String? imageUrl,
+    String? videoUrl,
+    String? videoThumbnailUrl,
   }) async {
     try {
       final String? uid = await getCurrentUserUid();
@@ -2513,6 +2525,17 @@ class InZoneDatabase {
         'text': text,
         'timestamp': DateTime.now().millisecondsSinceEpoch,
       };
+      
+      // Add media URLs if present
+      if (imageUrl != null && imageUrl.isNotEmpty) {
+        messageEntry['imageUrl'] = imageUrl;
+      }
+      if (videoUrl != null && videoUrl.isNotEmpty) {
+        messageEntry['videoUrl'] = videoUrl;
+      }
+      if (videoThumbnailUrl != null && videoThumbnailUrl.isNotEmpty) {
+        messageEntry['videoThumbnailUrl'] = videoThumbnailUrl;
+      }
 
       final docRef =
           FirebaseFirestore.instance.collection('aiChatHistory').doc(docId);
@@ -2523,7 +2546,7 @@ class InZoneDatabase {
         'userId': uid,
         'aiUsername': aiUsername,
         'updatedAt': FieldValue.serverTimestamp(),
-        'lastMessageText': text,
+        'lastMessageText': text.isNotEmpty ? text : (imageUrl != null ? '[Image]' : '[Video]'),
         'lastMessageSpeaker': speaker,
         'messages': FieldValue.arrayUnion([messageEntry]),
       }, SetOptions(merge: true));
