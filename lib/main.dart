@@ -28,6 +28,7 @@ import 'package:app_tracking_transparency/app_tracking_transparency.dart';
 import 'package:inzone/services/reward_ad_service.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:inzone/services/ai_engagement_service.dart';
+import 'package:simula_ads/simula_ads.dart';
 
 // Key for storing first launch status in SharedPreferences
 const String FIRST_LAUNCH_KEY = 'is_first_launch';
@@ -36,14 +37,15 @@ const String FIRST_LAUNCH_KEY = 'is_first_launch';
 class InitTimer {
   static final Stopwatch _totalTimer = Stopwatch();
   static final Map<String, int> _timings = {};
-  
+
   static void startTotal() {
     _totalTimer.reset();
     _totalTimer.start();
     print('\n⏱️ ===== INITIALIZATION TIMING START =====');
   }
-  
-  static Future<T> measure<T>(String label, Future<T> Function() operation) async {
+
+  static Future<T> measure<T>(
+      String label, Future<T> Function() operation) async {
     final stopwatch = Stopwatch()..start();
     try {
       final result = await operation();
@@ -58,7 +60,7 @@ class InitTimer {
       rethrow;
     }
   }
-  
+
   static void measureSync(String label, void Function() operation) {
     final stopwatch = Stopwatch()..start();
     operation();
@@ -66,20 +68,21 @@ class InitTimer {
     _timings[label] = stopwatch.elapsedMilliseconds;
     print('⏱️ [$label] ${stopwatch.elapsedMilliseconds}ms');
   }
-  
+
   static void printSummary() {
     _totalTimer.stop();
     print('\n⏱️ ===== INITIALIZATION TIMING SUMMARY =====');
-    
+
     // Sort by duration descending
     final sorted = _timings.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
-    
+
     for (final entry in sorted) {
       final bar = '█' * (entry.value ~/ 50).clamp(0, 40);
-      print('⏱️ ${entry.value.toString().padLeft(5)}ms | ${entry.key.padRight(30)} $bar');
+      print(
+          '⏱️ ${entry.value.toString().padLeft(5)}ms | ${entry.key.padRight(30)} $bar');
     }
-    
+
     print('⏱️ ─────────────────────────────────────────');
     print('⏱️ TOTAL: ${_totalTimer.elapsedMilliseconds}ms');
     print('⏱️ =========================================\n');
@@ -94,10 +97,10 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
-  
+
   print('📱 Background message received: ${message.notification?.title}');
   print('📱 Background message data: ${message.data}');
-  
+
   // Handle the background message here if needed
   // Note: You cannot update UI from background handler
 }
@@ -251,19 +254,19 @@ Future<void> requestTrackingPermission() async {
 
 void main() async {
   InitTimer.startTotal();
-  
+
   InitTimer.measureSync('WidgetsBinding', () {
     WidgetsFlutterBinding.ensureInitialized();
   });
-  
+
   WidgetsBinding widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
   FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
-  
+
   // Start non-blocking initializations early
   InitTimer.measureSync('MobileAds.init (fire & forget)', () {
     MobileAds.instance.initialize();
   });
-  
+
   InitTimer.measureSync('MediaKit.ensureInitialized', () {
     MediaKit.ensureInitialized();
   });
@@ -272,8 +275,12 @@ void main() async {
   late SharedPreferences prefs;
   await InitTimer.measure('SharedPrefs + Firebase (parallel)', () async {
     final initFutures = await Future.wait([
-      InitTimer.measure('  └─ SharedPreferences', () => SharedPreferences.getInstance()),
-      InitTimer.measure('  └─ Firebase.initializeApp', () => Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform)),
+      InitTimer.measure(
+          '  └─ SharedPreferences', () => SharedPreferences.getInstance()),
+      InitTimer.measure(
+          '  └─ Firebase.initializeApp',
+          () => Firebase.initializeApp(
+              options: DefaultFirebaseOptions.currentPlatform)),
     ]);
     prefs = initFutures[0] as SharedPreferences;
   });
@@ -282,7 +289,8 @@ void main() async {
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
   // Run these in parallel - they're independent of each other
-  await InitTimer.measure('Notifications + RemoteConfig + Session (parallel)', () async {
+  await InitTimer.measure('Notifications + RemoteConfig + Session (parallel)',
+      () async {
     await Future.wait([
       InitTimer.measure('  └─ NotificationService.init', () async {
         try {
@@ -301,18 +309,21 @@ void main() async {
         }
       }),
       InitTimer.measure('  └─ setupRemoteConfig', () => setupRemoteConfig()),
-      InitTimer.measure('  └─ validateFirebaseSession', () => validateFirebaseSession()),
+      InitTimer.measure(
+          '  └─ validateFirebaseSession', () => validateFirebaseSession()),
     ]);
   });
 
   // Check for force update (needs remote config to be ready)
-  bool needsUpdate = await InitTimer.measure('checkForceUpdateRequired', () => checkForceUpdateRequired());
+  bool needsUpdate = await InitTimer.measure(
+      'checkForceUpdateRequired', () => checkForceUpdateRequired());
 
   // Request tracking permission (shows UI dialog - do this while other things load)
   // Run tracking and AppsFlyer in parallel
   await InitTimer.measure('Tracking + AppsFlyer (parallel)', () async {
     await Future.wait([
-      InitTimer.measure('  └─ requestTrackingPermission', () => requestTrackingPermission()),
+      InitTimer.measure(
+          '  └─ requestTrackingPermission', () => requestTrackingPermission()),
       InitTimer.measure('  └─ AppsFlyer.init', () async {
         final appsFlyerService = AppsFlyerService();
         await appsFlyerService.initialize();
@@ -323,7 +334,8 @@ void main() async {
   });
 
   // Initialize RevenueCat (depends on Firebase Auth being ready)
-  await InitTimer.measure('initPlatformState (RevenueCat)', () => initPlatformState());
+  await InitTimer.measure(
+      'initPlatformState (RevenueCat)', () => initPlatformState());
 
   // Print timing summary before UI starts
   InitTimer.printSummary();
@@ -382,7 +394,7 @@ class _MyAppState extends State<MyApp> {
       if (user != null && mounted) {
         // User just signed in, set influencer_id user property
         _setInfluencerIdProperty(user.uid);
-        
+
         // Handle any pending push notification
         Future.delayed(const Duration(milliseconds: 500), () async {
           await NotificationEventService.handlePendingInitialMessage();
@@ -472,11 +484,11 @@ class _MyAppState extends State<MyApp> {
           .collection('humanUsers')
           .doc(userId)
           .get();
-      
+
       if (userDoc.exists) {
         final userData = userDoc.data();
         final referrerId = userData?['referred_by'] as String?;
-        
+
         if (referrerId != null && referrerId.isNotEmpty) {
           await FirebaseAnalytics.instance.setUserProperty(
             name: 'influencer_id',
@@ -502,13 +514,19 @@ class _MyAppState extends State<MyApp> {
     // Get the ThemeManager from the Provider
     final themeManager = Provider.of<ThemeManager>(context);
 
-    return MaterialApp.router(
-      debugShowCheckedModeBanner: false,
-      title: 'Inzone',
-      theme: themeManager.getLightTheme(),
-      darkTheme: themeManager.getDarkTheme(),
-      themeMode: themeManager.themeMode,
-      routerConfig: AppRouter.router,
+    return SimulaProvider(
+      apiKey: 'pub_6d4e9b1c8a3f5e2d7c0b41a9f6e38d2c',
+      primaryUserID: FirebaseAuth.instance.currentUser?.uid ?? '',
+      hasPrivacyConsent: true,
+      devMode: false,
+      child: MaterialApp.router(
+        debugShowCheckedModeBanner: false,
+        title: 'Inzone',
+        theme: themeManager.getLightTheme(),
+        darkTheme: themeManager.getDarkTheme(),
+        themeMode: themeManager.themeMode,
+        routerConfig: AppRouter.router,
+      ),
     );
   }
 }

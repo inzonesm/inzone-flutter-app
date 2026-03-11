@@ -16,6 +16,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:iconify_flutter/icons/ph.dart';
 import 'package:iconify_flutter/icons/heroicons_solid.dart';
 import 'package:in_app_review/in_app_review.dart';
+import 'package:simula_ads/simula_ads.dart';
 import 'package:toasty_box/toast_service.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:http/http.dart' as http;
@@ -38,6 +39,7 @@ class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
   bool _isExpanded = false;
   bool _isNavBarVisible = true; // Track visibility of navigation bar
   double _lastScrollPosition = 0; // Keep track of the last scroll position
+  bool _miniGameMenuOpen = false;
 
   /* --- in app review --- */
   final InAppReview inAppReview = InAppReview.instance;
@@ -149,6 +151,14 @@ class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
 
   void _onItemTapped(int index) {
     HapticFeedback.lightImpact();
+
+    // Gamepad tab (index 3) opens MiniGameMenu instead of navigating
+    if (index == 3) {
+      setState(() {
+        _miniGameMenuOpen = true;
+      });
+      return;
+    }
 
     if (_currentPage == index) {
       // If same tab is tapped again, do any special handling here
@@ -359,6 +369,15 @@ class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
                     ),
                   ),
                 ),
+              ),
+
+              // Simula MiniGameMenu overlay
+              MiniGameMenu(
+                isOpen: _miniGameMenuOpen,
+                onClose: () => setState(() => _miniGameMenuOpen = false),
+                charName: 'InZone',
+                charID: 'inzone-default',
+                charImage: 'https://firebasestorage.googleapis.com/v0/b/inzone-app.appspot.com/o/app_assets%2Finzone_logo.png?alt=media',
               ),
             ],
           ),
