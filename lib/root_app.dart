@@ -377,7 +377,23 @@ class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
                 onClose: () => setState(() => _miniGameMenuOpen = false),
                 charName: 'InZone',
                 charID: 'inzone-default',
-                charImage: 'https://firebasestorage.googleapis.com/v0/b/inzone-app.appspot.com/o/app_assets%2Finzone_logo.png?alt=media',
+                // TODO: Upload assets/icons/white.png and dark.png to Firebase Storage,
+                // then replace these URLs to show the correct icon per theme.
+                charImage: Theme.of(context).brightness == Brightness.dark
+                    ? 'https://firebasestorage.googleapis.com/v0/b/inzone-app.appspot.com/o/app_assets%2Finzone_icon_white.png?alt=media'
+                    : 'https://firebasestorage.googleapis.com/v0/b/inzone-app.appspot.com/o/app_assets%2Finzone_icon_dark.png?alt=media',
+                maxGamesToShow: 6,
+                theme: MiniGameTheme(
+                  backgroundColor: Theme.of(context).cardColor,
+                  headerColor: Theme.of(context).canvasColor,
+                  borderColor: const Color(0xFF2196F3).withValues(alpha: 0.15),
+                  titleFontColor: Theme.of(context).textTheme.bodyLarge?.color,
+                  secondaryFontColor: Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.7),
+                  accentColor: const Color(0xFF14CFEE),
+                  iconCornerRadius: 16.0,
+                  playableHeight: 0.9,
+                  playableBorderColor: const Color(0xFF2196F3),
+                ),
               ),
             ],
           ),
