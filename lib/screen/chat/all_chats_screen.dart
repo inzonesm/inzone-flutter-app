@@ -331,10 +331,21 @@ class _AllChatsScreenState extends State<AllChatsScreen>
                     if (index == users.length) {
                       return const SizedBox(height: 100);
                     }
-                    return ChatUserCard(
-                      userData: users[index],
-                      currentUserId: currentUserId ?? '',
-                    );
+                    return Column(children: [
+                      ChatUserCard(
+                        userData: users[index],
+                        currentUserId: currentUserId ?? '',
+                      ),
+                      Divider(
+                        height: 1,
+                        indent: 10,
+                        endIndent: 10,
+                        color: Theme.of(context)
+                            .colorScheme
+                            .shadow
+                            .withOpacity(0.1),
+                      )
+                    ]);
                   },
                 ),
     );
