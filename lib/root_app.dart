@@ -258,7 +258,9 @@ class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
     final String location = GoRouterState.of(context).matchedLocation;
     final bool isMainTabRoute = _routes.contains(location);
 
-    return Scaffold(
+    return Stack(
+      children: [
+        Scaffold(
       key: _key,
       backgroundColor: Theme.of(context).canvasColor,
       extendBody: true,
@@ -371,36 +373,12 @@ class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
                 ),
               ),
 
-              // Simula MiniGameMenu overlay
-              MiniGameMenu(
-                isOpen: _miniGameMenuOpen,
-                onClose: () => setState(() => _miniGameMenuOpen = false),
-                charName: 'InZone',
-                charID: 'inzone-default',
-                // TODO: Upload assets/icons/white.png and dark.png to Firebase Storage,
-                // then replace these URLs to show the correct icon per theme.
-                charImage: Theme.of(context).brightness == Brightness.dark
-                    ? 'https://firebasestorage.googleapis.com/v0/b/inzone-app.appspot.com/o/app_assets%2Finzone_icon_white.png?alt=media'
-                    : 'https://firebasestorage.googleapis.com/v0/b/inzone-app.appspot.com/o/app_assets%2Finzone_icon_dark.png?alt=media',
-                maxGamesToShow: 6,
-                theme: MiniGameTheme(
-                  backgroundColor: Theme.of(context).cardColor,
-                  headerColor: Theme.of(context).canvasColor,
-                  borderColor: const Color(0xFF2196F3).withValues(alpha: 0.15),
-                  titleFontColor: Theme.of(context).textTheme.bodyLarge?.color,
-                  secondaryFontColor: Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.7),
-                  accentColor: const Color(0xFF14CFEE),
-                  iconCornerRadius: 16.0,
-                  playableHeight: 0.9,
-                  playableBorderColor: const Color(0xFF2196F3),
-                ),
-              ),
             ],
           ),
         ),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-      floatingActionButton: _isKeyboardVisible
+      floatingActionButton: (_isKeyboardVisible || _miniGameMenuOpen)
           ? null
           : AnimatedSlide(
               duration: const Duration(milliseconds: 200),
@@ -455,8 +433,8 @@ class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
             ),
       bottomNavigationBar: AnimatedSwitcher(
         duration: const Duration(milliseconds: 200),
-        child: _isKeyboardVisible
-            ? const SizedBox.shrink()
+        child: (_isKeyboardVisible || _miniGameMenuOpen)
+            ? const SizedBox.shrink(key: ValueKey('navBarHidden'))
             : AnimatedSlide(
                 duration: const Duration(milliseconds: 200),
                 offset: _isNavBarVisible ? Offset.zero : const Offset(0, 1),
@@ -511,6 +489,32 @@ class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
                 ),
               ),
       ),
+    ), // end Scaffold
+        // Simula MiniGameMenu overlay — outside Scaffold so it covers bottom bar
+        MiniGameMenu(
+          isOpen: _miniGameMenuOpen,
+          onClose: () => setState(() => _miniGameMenuOpen = false),
+          charName: 'InZone',
+          charID: 'inzone-default',
+          // TODO: Upload assets/icons/white.png and dark.png to Firebase Storage,
+          // then replace these URLs to show the correct icon per theme.
+          charImage: Theme.of(context).brightness == Brightness.dark
+              ? 'https://firebasestorage.googleapis.com/v0/b/inzone-app.appspot.com/o/app_assets%2Finzone_icon_white.png?alt=media'
+              : 'https://firebasestorage.googleapis.com/v0/b/inzone-app.appspot.com/o/app_assets%2Finzone_icon_dark.png?alt=media',
+          maxGamesToShow: 6,
+          theme: MiniGameTheme(
+            backgroundColor: Theme.of(context).cardColor,
+            headerColor: Theme.of(context).canvasColor,
+            borderColor: const Color(0xFF2196F3).withValues(alpha: 0.15),
+            titleFontColor: Theme.of(context).textTheme.bodyLarge?.color,
+            secondaryFontColor: Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.7),
+            accentColor: const Color(0xFF14CFEE),
+            iconCornerRadius: 16.0,
+            playableHeight: null, // full screen mode
+            playableBorderColor: const Color(0xFF2196F3),
+          ),
+        ),
+      ],
     );
   }
 
