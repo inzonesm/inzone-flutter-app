@@ -36,8 +36,7 @@ class AllChatsScreen extends StatefulWidget {
 
 class _AllChatsScreenState extends State<AllChatsScreen>
     with SingleTickerProviderStateMixin {
-  final List<ChatUser> _chatUsers = [];
-  List<ChatUser> _groupChats = [];
+  final List<ChatUser> _allChats = [];
   bool _isLoading = false;
   String? currentUserId;
   late DateTime _startTime;
@@ -86,8 +85,6 @@ class _AllChatsScreenState extends State<AllChatsScreen>
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   Future<void> _fetchConversations() async {
-    _chatUsers.clear();
-    _groupChats.clear();
     setState(() => _isLoading = true);
 
     if (currentUserId == null) {
@@ -95,16 +92,13 @@ class _AllChatsScreenState extends State<AllChatsScreen>
       return;
     }
 
-    List<ChatUser> allChats = [];
-    List<ChatUser> groupChats = [];
-
     try {
       // Fetch AI user conversations from the backend API
       List<dynamic>? aiData = await InZoneDatabase.getConversations();
       if (aiData != null) {
         for (var conversation in aiData) {
           ChatUser? aiUser = ChatUser.fromJson(conversation);
-          if (aiUser != null) allChats.add(aiUser);
+          if (aiUser != null) _allChats.add(aiUser);
         }
       }
 
@@ -112,14 +106,14 @@ class _AllChatsScreenState extends State<AllChatsScreen>
       // locally in aiChatHistory).  Merge by username so API entries (which
       // carry a chatId) take precedence over local-only entries.
       final Set<String> seenAiUsernames =
-          allChats.map((c) => c.email ?? '').toSet();
+          _allChats.map((c) => c.email ?? '').toSet();
       final List<Map<String, dynamic>> localAiChats =
           await InZoneDatabase.getAvatarChatsFromHistory();
       for (final data in localAiChats) {
         final username = data['aiUsername'] as String? ?? '';
         if (username.isEmpty || seenAiUsernames.contains(username)) continue;
         seenAiUsernames.add(username);
-        allChats.add(ChatUser(
+        _allChats.add(ChatUser(
           name: data['avatarName'] as String? ?? username,
           email: username,
           chatId: null,
@@ -162,7 +156,7 @@ class _AllChatsScreenState extends State<AllChatsScreen>
                   'Group Chat';
             }
 
-            allChats.add(ChatUser(
+            _allChats.add(ChatUser(
               name: groupName,
               email: doc.id,
               chatId: doc.id,
@@ -174,7 +168,7 @@ class _AllChatsScreenState extends State<AllChatsScreen>
           } catch (e) {
             // Fallback to basic info if there's an error
             String groupName = data['groupName'] ?? 'Group Chat';
-            allChats.add(ChatUser(
+            _allChats.add(ChatUser(
               name: groupName,
               email: doc.id,
               chatId: doc.id,
@@ -211,7 +205,7 @@ class _AllChatsScreenState extends State<AllChatsScreen>
               }
             }
 
-            allChats.add(ChatUser(
+            _allChats.add(ChatUser(
               name: otherUserName,
               email: otherUserId,
               chatId: doc.id,
@@ -223,23 +217,13 @@ class _AllChatsScreenState extends State<AllChatsScreen>
           }
         }
       }
-      allChats.sort((a, b) {
+      _allChats.sort((a, b) {
         if (a.lastMessageTime == null) return 1;
         if (b.lastMessageTime == null) return -1;
         return b.lastMessageTime!.compareTo(a.lastMessageTime!);
       });
 
-      // Separate group chats and individual chats
-      for (var chat in allChats) {
-        if (chat.isGroupChat) {
-          groupChats.add(chat);
-        } else {
-          _chatUsers.add(chat);
-        }
-      }
-
       setState(() {
-        _groupChats = groupChats;
         _isLoading = false;
       });
     } catch (e) {
@@ -267,8 +251,7 @@ class _AllChatsScreenState extends State<AllChatsScreen>
   @override
   Widget build(BuildContext context) {
     // Get the count based on current tabç
-    int chatCount =
-        _currentTabIndex == 0 ? _chatUsers.length : _groupChats.length;
+    int chatCount = _allChats.length;
     String subtitle = '$chatCount';
 
     return ColorfulSafeArea(
@@ -289,35 +272,7 @@ class _AllChatsScreenState extends State<AllChatsScreen>
           onProfileTap: () {},
           onPointsTap: () {},
         ),
-        body: Column(
-          children: [
-            // Tab Bar
-            TabBar(
-              controller: _tabController,
-              labelColor: Theme.of(context).colorScheme.primary,
-              unselectedLabelColor:
-                  Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
-              indicatorColor: Theme.of(context).colorScheme.primary,
-              dividerColor: Colors.transparent,
-              tabs: const [
-                Tab(text: 'Individual Chats'),
-                Tab(text: 'Group Chats'),
-              ],
-            ),
-            // Tab Views
-            Expanded(
-              child: TabBarView(
-                controller: _tabController,
-                children: [
-                  // Individual Chats Tab
-                  _buildChatsList(_chatUsers),
-                  // Group Chats Tab
-                  _buildChatsList(_groupChats),
-                ],
-              ),
-            ),
-          ],
-        ),
+        body: _buildChatsList(_allChats),
       ),
     );
   }
