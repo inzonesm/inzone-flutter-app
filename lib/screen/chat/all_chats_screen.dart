@@ -630,8 +630,12 @@ class _ChatUserCardState extends State<ChatUserCard> {
                     height: 50,
                     fit: BoxFit.cover,
                   )
-                : const Icon(Icons.account_circle,
-                    size: 30, color: Colors.grey),
+                : Icon(
+                    widget.userData.isGroupChat
+                        ? Icons.group_rounded
+                        : Icons.account_circle,
+                    size: 30,
+                    color: Colors.grey),
           ),
         ),
         title: Text(
