@@ -1,0 +1,26 @@
+name: simula_ads
+description: Flutter SDK for integrating contextual AI ads with Simula
+version: 1.0.0
+homepage: https://simula.ad
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+  flutter: ">=3.10.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  http: ^1.1.0
+  webview_flutter: ^4.4.2
+  provider: ^6.1.1
+  uuid: ^4.2.1
+  visibility_detector: ^0.4.0+2
+  url_launcher: ^6.2.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+
+flutter:
+  uses-material-design: true
