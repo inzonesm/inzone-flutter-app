@@ -17,10 +17,28 @@ import 'package:iconify_flutter/icons/ph.dart';
 import 'package:iconify_flutter/icons/heroicons_solid.dart';
 import 'package:in_app_review/in_app_review.dart';
 import 'package:simula_ads/simula_ads.dart';
+import 'package:provider/provider.dart';
+import 'package:inzone/services/active_character_notifier.dart';
+import 'package:inzone/services/inzone_database.dart';
 import 'package:toasty_box/toast_service.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+
+class _PopularCharacterOption {
+  final String id;
+  final String name;
+  final String? imageUrl;
+  final String? description;
+
+  const _PopularCharacterOption({
+    required this.id,
+    required this.name,
+    this.imageUrl,
+    this.description,
+  });
+}
 
 class RootApp extends StatefulWidget {
   final Widget child;
@@ -32,6 +50,7 @@ class RootApp extends StatefulWidget {
 }
 
 class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
+  static const String _defaultMiniGameCharacterId = 'inzone-default';
   int _currentPage = 0; // Track selected tab index
   final ScrollController _homeScrollController = ScrollController();
   final _key = GlobalKey<ScaffoldState>();
@@ -40,6 +59,9 @@ class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
   bool _isNavBarVisible = true; // Track visibility of navigation bar
   double _lastScrollPosition = 0; // Keep track of the last scroll position
   bool _miniGameMenuOpen = false;
+  bool _isLoadingPopularCharacters = false;
+  List<_PopularCharacterOption> _popularCharacters = const [];
+  List<Message> _miniGameMessages = const [];
 
   /* --- in app review --- */
   final InAppReview inAppReview = InAppReview.instance;
@@ -154,9 +176,18 @@ class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
 
     // Gamepad tab (index 3) opens MiniGameMenu instead of navigating
     if (index == 3) {
-      setState(() {
-        _miniGameMenuOpen = true;
-      });
+      if (!_miniGameMenuOpen) {
+        setState(() {
+          _miniGameMenuOpen = true;
+        });
+      }
+      _loadPopularCharacters();
+      final activeCharacter = context.read<ActiveCharacterNotifier>();
+      _refreshMiniGameMessages(
+        charID: activeCharacter.charID,
+        charName: activeCharacter.charName,
+        charDesc: activeCharacter.charDesc,
+      );
       return;
     }
 
@@ -188,6 +219,288 @@ class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
 
     // Update the URL without rebuilding the page
     context.go(_routes[index], extra: {'skipRebuild': true});
+  }
+
+  String? _firstNonEmptyString(List<dynamic> values) {
+    for (final value in values) {
+      if (value == null) continue;
+      final text = value.toString().trim();
+      if (text.isNotEmpty) return text;
+    }
+    return null;
+  }
+
+  String _fallbackMiniGameImage(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return isDark
+        ? 'https://firebasestorage.googleapis.com/v0/b/inzone-app.appspot.com/o/app_assets%2Finzone_icon_white.png?alt=media'
+        : 'https://firebasestorage.googleapis.com/v0/b/inzone-app.appspot.com/o/app_assets%2Finzone_icon_dark.png?alt=media';
+  }
+
+  Future<void> _loadPopularCharacters() async {
+    if (_isLoadingPopularCharacters) return;
+
+    setState(() {
+      _isLoadingPopularCharacters = true;
+    });
+
+    try {
+      final snapshot = await FirebaseFirestore.instance
+          .collection('popularCharacters')
+          .orderBy('numberOfChats', descending: true)
+          .limit(30)
+          .get();
+
+      const defaultInZoneOption = _PopularCharacterOption(
+        id: _defaultMiniGameCharacterId,
+        name: 'InZone',
+        imageUrl: null,
+        description: 'Default Simula mini-game AI companion.',
+      );
+
+      final loaded = snapshot.docs.map((doc) {
+        final data = doc.data();
+        return _PopularCharacterOption(
+          id: doc.id,
+          name: _firstNonEmptyString([
+                data['name'],
+                data['displayName'],
+                data['username'],
+              ]) ??
+              'AI Character',
+          imageUrl: _firstNonEmptyString([
+            data['profile_picture_url'],
+            data['profilePicture'],
+            data['profile_picture'],
+            data['avatar'],
+          ]),
+          description: _firstNonEmptyString([
+            data['personality'],
+            data['greeting'],
+            data['description'],
+          ]),
+        );
+      }).toList();
+
+      if (!mounted) return;
+      setState(() {
+        _popularCharacters = [defaultInZoneOption, ...loaded];
+      });
+    } catch (error) {
+      if (mounted) {
+        setState(() {
+          _popularCharacters = const [
+            _PopularCharacterOption(
+              id: _defaultMiniGameCharacterId,
+              name: 'InZone',
+              imageUrl: null,
+              description: 'Default Simula mini-game AI companion.',
+            ),
+          ];
+        });
+        ToastService.showToast(
+          context,
+          backgroundColor: Theme.of(context).canvasColor,
+          shadowColor: Colors.transparent,
+          leading: const Icon(FeatherIcons.alertTriangle, color: Colors.orange),
+          message:
+              'Could not load characters. Opening games with current selection.',
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoadingPopularCharacters = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _refreshMiniGameMessages({
+    required String charID,
+    required String charName,
+    String? charDesc,
+  }) async {
+    if (charID == _defaultMiniGameCharacterId) {
+      if (!mounted) return;
+      setState(() {
+        _miniGameMessages = const [];
+      });
+      return;
+    }
+
+    final List<Message> messages = [
+      Message(
+        role: 'assistant',
+        content:
+            'You are $charName. Give short, contextual game hints and reactions while the user plays, adapting naturally to each game.',
+      ),
+    ];
+
+    if (charDesc != null && charDesc.trim().isNotEmpty) {
+      messages.add(
+        Message(
+          role: 'assistant',
+          content: 'Character context: ${charDesc.trim()}',
+        ),
+      );
+    }
+
+    final history = await InZoneDatabase.loadConversationMessages(charID);
+    if (history != null && history.isNotEmpty) {
+      final recent =
+          history.length > 10 ? history.sublist(history.length - 10) : history;
+
+      for (final item in recent) {
+        final text = (item['text'] ?? '').toString().trim();
+        if (text.isEmpty) continue;
+        final speaker = (item['speaker'] ?? '').toString().toLowerCase();
+        messages.add(
+          Message(
+            role: speaker == 'user' ? 'user' : 'assistant',
+            content: text,
+          ),
+        );
+      }
+    }
+
+    if (!mounted) return;
+    setState(() {
+      _miniGameMessages = messages;
+    });
+  }
+
+  Future<void> _openMiniGameWithCharacterPicker() async {
+    await _loadPopularCharacters();
+    if (!mounted) return;
+
+    final activeCharacter = context.read<ActiveCharacterNotifier>();
+    final selected = await showModalBottomSheet<_PopularCharacterOption>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Theme.of(context).cardColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetContext) {
+        final theme = Theme.of(sheetContext);
+
+        return SafeArea(
+          child: SizedBox(
+            height: MediaQuery.of(sheetContext).size.height * 0.62,
+            child: Column(
+              children: [
+                const SizedBox(height: 10),
+                Container(
+                  width: 42,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: theme.dividerColor,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                ),
+                const SizedBox(height: 14),
+                Text(
+                  'Choose Character for Mini Games',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                if (_popularCharacters.isEmpty)
+                  Expanded(
+                    child: Center(
+                      child: Text(
+                        'No popular characters found.\nUsing current character.',
+                        textAlign: TextAlign.center,
+                        style: theme.textTheme.bodyMedium,
+                      ),
+                    ),
+                  )
+                else
+                  Expanded(
+                    child: ListView.separated(
+                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                      itemCount: _popularCharacters.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 8),
+                      itemBuilder: (_, index) {
+                        final character = _popularCharacters[index];
+                        final isActive = activeCharacter.charID == character.id;
+
+                        return ListTile(
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                            side: BorderSide(
+                              color: isActive
+                                  ? const Color(0xFF14CFEE)
+                                  : theme.dividerColor.withValues(alpha: 0.35),
+                            ),
+                          ),
+                          tileColor: theme.canvasColor,
+                          leading: CircleAvatar(
+                            radius: 22,
+                            backgroundColor: theme.cardColor,
+                            backgroundImage: (character.imageUrl != null &&
+                                    character.imageUrl!.isNotEmpty)
+                                ? NetworkImage(character.imageUrl!)
+                                : null,
+                            child: (character.imageUrl == null ||
+                                    character.imageUrl!.isEmpty)
+                                ? Text(
+                                    character.name.isNotEmpty
+                                        ? character.name[0].toUpperCase()
+                                        : '?',
+                                  )
+                                : null,
+                          ),
+                          title: Text(
+                            character.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.titleSmall,
+                          ),
+                          subtitle: character.description == null
+                              ? null
+                              : Text(
+                                  character.description!,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: theme.textTheme.bodySmall,
+                                ),
+                          trailing: isActive
+                              ? const Icon(Icons.check_circle,
+                                  color: Color(0xFF14CFEE))
+                              : const Icon(Icons.chevron_right),
+                          onTap: () {
+                            Navigator.of(sheetContext).pop(character);
+                          },
+                        );
+                      },
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+
+    if (!mounted) return;
+
+    if (selected != null) {
+      context.read<ActiveCharacterNotifier>().setActiveCharacter(
+            charName: selected.name,
+            charID: selected.id,
+            charImage: selected.imageUrl,
+            charDesc: selected.description,
+          );
+
+      await _refreshMiniGameMessages(
+        charID: selected.id,
+        charName: selected.name,
+        charDesc: selected.description,
+      );
+    }
   }
 
   // Get current page index from the current route
@@ -371,29 +684,47 @@ class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
                 ),
               ),
 
-              // Simula MiniGameMenu overlay
-              MiniGameMenu(
-                isOpen: _miniGameMenuOpen,
-                onClose: () => setState(() => _miniGameMenuOpen = false),
-                charName: 'InZone',
-                charID: 'inzone-default',
-                // TODO: Upload assets/icons/white.png and dark.png to Firebase Storage,
-                // then replace these URLs to show the correct icon per theme.
-                charImage: Theme.of(context).brightness == Brightness.dark
-                    ? 'https://firebasestorage.googleapis.com/v0/b/inzone-app.appspot.com/o/app_assets%2Finzone_icon_white.png?alt=media'
-                    : 'https://firebasestorage.googleapis.com/v0/b/inzone-app.appspot.com/o/app_assets%2Finzone_icon_dark.png?alt=media',
-                maxGamesToShow: 6,
-                theme: MiniGameTheme(
-                  backgroundColor: Theme.of(context).cardColor,
-                  headerColor: Theme.of(context).canvasColor,
-                  borderColor: const Color(0xFF2196F3).withValues(alpha: 0.15),
-                  titleFontColor: Theme.of(context).textTheme.bodyLarge?.color,
-                  secondaryFontColor: Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.7),
-                  accentColor: const Color(0xFF14CFEE),
-                  iconCornerRadius: 16.0,
-                  playableHeight: 0.9,
-                  playableBorderColor: const Color(0xFF2196F3),
-                ),
+              Builder(
+                builder: (context) {
+                  final activeCharacter =
+                      context.watch<ActiveCharacterNotifier>();
+                  final resolvedCharImage =
+                      (activeCharacter.charImage != null &&
+                              activeCharacter.charImage!.trim().isNotEmpty)
+                          ? activeCharacter.charImage!
+                          : _fallbackMiniGameImage(context);
+
+                  return MiniGameMenu(
+                    isOpen: _miniGameMenuOpen,
+                    onClose: () => setState(() => _miniGameMenuOpen = false),
+                    onCharacterTap: _openMiniGameWithCharacterPicker,
+                    charName: activeCharacter.charName,
+                    charID: activeCharacter.charID,
+                    charImage: resolvedCharImage,
+                    charDesc: activeCharacter.charDesc,
+                    messages: _miniGameMessages,
+                    delegateChar:
+                        activeCharacter.charID == _defaultMiniGameCharacterId,
+                    maxGamesToShow: 6,
+                    theme: MiniGameTheme(
+                      backgroundColor: Theme.of(context).cardColor,
+                      headerColor: Theme.of(context).canvasColor,
+                      borderColor:
+                          const Color(0xFF2196F3).withValues(alpha: 0.15),
+                      titleFontColor:
+                          Theme.of(context).textTheme.bodyLarge?.color,
+                      secondaryFontColor: Theme.of(context)
+                          .textTheme
+                          .bodyMedium
+                          ?.color
+                          ?.withValues(alpha: 0.7),
+                      accentColor: const Color(0xFF14CFEE),
+                      iconCornerRadius: 16.0,
+                      playableHeight: 0.9,
+                      playableBorderColor: const Color(0xFF2196F3),
+                    ),
+                  );
+                },
               ),
             ],
           ),
