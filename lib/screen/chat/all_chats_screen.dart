@@ -85,6 +85,7 @@ class _AllChatsScreenState extends State<AllChatsScreen>
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   Future<void> _fetchConversations() async {
+    _allChats.clear();
     setState(() => _isLoading = true);
 
     if (currentUserId == null) {
