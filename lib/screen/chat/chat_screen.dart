@@ -14,6 +14,9 @@ import 'package:go_router/go_router.dart';
 import 'package:inzone/router/routes.dart';
 import 'package:inzone/services/appsflyer_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:provider/provider.dart';
+import 'package:inzone/services/active_character_notifier.dart';
 import 'dart:io';
 import 'package:inzone/auth/auth_work.dart';
 
@@ -122,6 +125,79 @@ class _ChatScreenState extends State<ChatScreen> {
   String? pendingVideoUrl; // For video upload
   String? pendingVideoThumbnailUrl; // For video thumbnail
 
+  String? _firstNonEmptyString(List<dynamic> values) {
+    for (final value in values) {
+      if (value == null) continue;
+      final text = value.toString().trim();
+      if (text.isNotEmpty) return text;
+    }
+    return null;
+  }
+
+  Future<void> _syncActiveCharacterForMiniGames() async {
+    String charID = (widget.userData.email ?? 'unknown').trim();
+    String charName = _firstNonEmptyString([
+          widget.userData.name,
+          'AI Character',
+        ]) ??
+        'AI Character';
+    String? charImage = _firstNonEmptyString([
+      widget.userData.profilePictureURL,
+    ]);
+    String? charDesc = _firstNonEmptyString([
+      widget.userData.greeting,
+    ]);
+
+    if (charID.isNotEmpty && charID != 'unknown') {
+      try {
+        final popularCharacterDoc = await FirebaseFirestore.instance
+            .collection('popularCharacters')
+            .doc(charID)
+            .get();
+
+        if (popularCharacterDoc.exists) {
+          final data = popularCharacterDoc.data() ?? <String, dynamic>{};
+
+          charName = _firstNonEmptyString([
+                data['name'],
+                data['displayName'],
+                data['username'],
+                charName,
+              ]) ??
+              charName;
+
+          charImage = _firstNonEmptyString([
+            data['profile_picture_url'],
+            data['profilePicture'],
+            data['profile_picture'],
+            data['avatar'],
+            charImage,
+          ]);
+
+          charDesc = _firstNonEmptyString([
+            data['personality'],
+            data['greeting'],
+            data['description'],
+            charDesc,
+          ]);
+        }
+      } catch (error) {
+        if (kDebugMode) {
+          print('Failed to sync popularCharacter data for mini games: $error');
+        }
+      }
+    }
+
+    if (!mounted) return;
+
+    context.read<ActiveCharacterNotifier>().setActiveCharacter(
+          charName: charName,
+          charID: charID,
+          charImage: charImage,
+          charDesc: charDesc,
+        );
+  }
+
   @override
   void initState() {
     super.initState();
@@ -130,6 +206,14 @@ class _ChatScreenState extends State<ChatScreen> {
 
     // Start AI character session tracking
     AIChatSessionTracker.startSession(_characterId);
+
+    // Register this character as the active one so MiniGameMenu shows it
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _syncActiveCharacterForMiniGames();
+      }
+    });
+
     // Load previous conversation from Firebase
     _loadPreviousMessages();
 
@@ -165,7 +249,7 @@ class _ChatScreenState extends State<ChatScreen> {
     final messages = await InZoneDatabase.loadConversationMessages(aiUsername);
     if (!mounted) return;
 
-      if (messages != null && messages.isNotEmpty) {
+    if (messages != null && messages.isNotEmpty) {
       // Sort by timestamp to ensure correct order
       messages.sort((a, b) {
         final ta = (a['timestamp'] as int?) ?? 0;
@@ -218,6 +302,19 @@ class _ChatScreenState extends State<ChatScreen> {
 
   @override
   void dispose() {
+    // Clear active character so MiniGameMenu reverts to default
+    // Use a post-frame callback because dispose can run during a build
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      try {
+        final notifier = context.read<ActiveCharacterNotifier>();
+        if (notifier.charID == _characterId) {
+          notifier.clearActiveCharacter();
+        }
+      } catch (_) {
+        // context may no longer be valid after dispose; safe to ignore
+      }
+    });
+
     // End AI character session tracking
     AIChatSessionTracker.endSession(_characterId);
 
@@ -262,7 +359,11 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
-  addMessage(text, isMe, {bool persist = true, String? imageUrl, String? videoUrl, String? videoThumbnailUrl}) {
+  addMessage(text, isMe,
+      {bool persist = true,
+      String? imageUrl,
+      String? videoUrl,
+      String? videoThumbnailUrl}) {
     if (!mounted) return;
     setState(() {
       messageCards.add(
@@ -421,7 +522,10 @@ class _ChatScreenState extends State<ChatScreen> {
                   });
                 },
                 onSend: () async {
-                  if (_isSending || (msg.text.trim().isEmpty && _pendingImage == null && _pendingVideo == null)) return;
+                  if (_isSending ||
+                      (msg.text.trim().isEmpty &&
+                          _pendingImage == null &&
+                          _pendingVideo == null)) return;
 
                   setState(() {
                     _isSending = true;
@@ -481,13 +585,13 @@ class _ChatScreenState extends State<ChatScreen> {
                     videoThumbnailUrl: videoThumbnailUrl,
                   );
                   msg.clear();
-                  
+
                   // Clear pending media
                   setState(() {
                     _pendingImage = null;
                     _pendingVideo = null;
                   });
-                  
+
                   scrollToEnd();
 
                   String? aiResponse;
@@ -513,12 +617,8 @@ class _ChatScreenState extends State<ChatScreen> {
                     }
 
                     aiResponse = await InZoneDatabase.sendMessageToAI(
-                        userMessage,
-                        widget.userData.email!,
-                        null,
-                        chatHistory,
-                        imageUrl: imageUrl,
-                        videoUrl: videoUrl);
+                        userMessage, widget.userData.email!, null, chatHistory,
+                        imageUrl: imageUrl, videoUrl: videoUrl);
                   }
 
                   if (aiResponse != null) {
