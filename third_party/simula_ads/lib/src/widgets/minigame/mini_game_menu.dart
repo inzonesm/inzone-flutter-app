@@ -53,7 +53,6 @@ class MiniGameMenu extends StatefulWidget {
 
 class _MiniGameMenuState extends State<MiniGameMenu> {
   String? _selectedGameId;
-  bool _imageError = false;
   List<GameData> _games = [];
   List<GameData> _filteredGames = [];
   bool _catalogLoading = true;
@@ -125,6 +124,18 @@ class _MiniGameMenuState extends State<MiniGameMenu> {
           setState(() {
             _isSearchFocused = false;
           });
+        }
+      });
+    }
+
+    final characterHeaderChanged = oldWidget.charID != widget.charID ||
+        oldWidget.charName != widget.charName ||
+        oldWidget.charImage != widget.charImage;
+
+    if (characterHeaderChanged && _isDialogShowing) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _isDialogShowing) {
+          _dialogStateSetter?.call(() {});
         }
       });
     }
@@ -749,8 +760,7 @@ class _MiniGameMenuState extends State<MiniGameMenu> {
                   color: backgroundColor,
                   border: Border.all(color: accentColor, width: 2),
                 ),
-                child: _imageError ||
-                        widget.charImage == null ||
+                child: widget.charImage == null ||
                         widget.charImage!.trim().isEmpty
                     ? Center(
                         child: Text(
@@ -768,27 +778,18 @@ class _MiniGameMenuState extends State<MiniGameMenu> {
                         child: Image.network(
                           widget.charImage!,
                           fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) {
-                            WidgetsBinding.instance.addPostFrameCallback((_) {
-                              if (mounted) {
-                                setState(() {
-                                  _imageError = true;
-                                });
-                              }
-                            });
-                            return Center(
-                              child: Text(
-                                _getInitials(widget.charName),
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w700,
-                                  color: titleFontColor,
-                                  fontFamily: titleFont,
-                                  decoration: TextDecoration.none,
-                                ),
+                          errorBuilder: (context, error, stackTrace) => Center(
+                            child: Text(
+                              _getInitials(widget.charName),
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
+                                color: titleFontColor,
+                                fontFamily: titleFont,
+                                decoration: TextDecoration.none,
                               ),
-                            );
-                          },
+                            ),
+                          ),
                         ),
                       ),
               ),
