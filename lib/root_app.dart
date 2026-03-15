@@ -686,48 +686,6 @@ class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
                 ),
               ),
 
-              Builder(
-                builder: (context) {
-                  final activeCharacter =
-                      context.watch<ActiveCharacterNotifier>();
-                  final resolvedCharImage =
-                      (activeCharacter.charImage != null &&
-                              activeCharacter.charImage!.trim().isNotEmpty)
-                          ? activeCharacter.charImage!
-                          : _fallbackMiniGameImage(context);
-
-                  return MiniGameMenu(
-                    isOpen: _miniGameMenuOpen,
-                    onClose: () => setState(() => _miniGameMenuOpen = false),
-                    onCharacterTap: _openMiniGameWithCharacterPicker,
-                    charName: activeCharacter.charName,
-                    charID: activeCharacter.charID,
-                    charImage: resolvedCharImage,
-                    charDesc: activeCharacter.charDesc,
-                    messages: _miniGameMessages,
-                    delegateChar:
-                        activeCharacter.charID == _defaultMiniGameCharacterId,
-                    maxGamesToShow: 6,
-                    theme: MiniGameTheme(
-                      backgroundColor: Theme.of(context).cardColor,
-                      headerColor: Theme.of(context).canvasColor,
-                      borderColor:
-                          const Color(0xFF2196F3).withValues(alpha: 0.15),
-                      titleFontColor:
-                          Theme.of(context).textTheme.bodyLarge?.color,
-                      secondaryFontColor: Theme.of(context)
-                          .textTheme
-                          .bodyMedium
-                          ?.color
-                          ?.withValues(alpha: 0.7),
-                      accentColor: const Color(0xFF14CFEE),
-                      iconCornerRadius: 16.0,
-                      playableHeight: 0.9,
-                      playableBorderColor: const Color(0xFF2196F3),
-                    ),
-                  );
-                },
-              ),
             ],
           ),
         ),
@@ -846,28 +804,45 @@ class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
       ),
     ), // end Scaffold
         // Simula MiniGameMenu overlay — outside Scaffold so it covers bottom bar
-        MiniGameMenu(
-          isOpen: _miniGameMenuOpen,
-          onClose: () => setState(() => _miniGameMenuOpen = false),
-          charName: 'InZone',
-          charID: 'inzone-default',
-          // TODO: Upload assets/icons/white.png and dark.png to Firebase Storage,
-          // then replace these URLs to show the correct icon per theme.
-          charImage: Theme.of(context).brightness == Brightness.dark
-              ? 'https://firebasestorage.googleapis.com/v0/b/inzone-app.appspot.com/o/app_assets%2Finzone_icon_white.png?alt=media'
-              : 'https://firebasestorage.googleapis.com/v0/b/inzone-app.appspot.com/o/app_assets%2Finzone_icon_dark.png?alt=media',
-          maxGamesToShow: 6,
-          theme: MiniGameTheme(
-            backgroundColor: Theme.of(context).cardColor,
-            headerColor: Theme.of(context).canvasColor,
-            borderColor: const Color(0xFF2196F3).withValues(alpha: 0.15),
-            titleFontColor: Theme.of(context).textTheme.bodyLarge?.color,
-            secondaryFontColor: Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.7),
-            accentColor: const Color(0xFF14CFEE),
-            iconCornerRadius: 16.0,
-            playableHeight: null, // full screen mode
-            playableBorderColor: const Color(0xFF2196F3),
-          ),
+        Builder(
+          builder: (context) {
+            final activeCharacter = context.watch<ActiveCharacterNotifier>();
+            final resolvedCharImage =
+                (activeCharacter.charImage != null &&
+                        activeCharacter.charImage!.trim().isNotEmpty)
+                    ? activeCharacter.charImage!
+                    : _fallbackMiniGameImage(context);
+
+            return MiniGameMenu(
+              isOpen: _miniGameMenuOpen,
+              onClose: () => setState(() => _miniGameMenuOpen = false),
+              onCharacterTap: _openMiniGameWithCharacterPicker,
+              charName: activeCharacter.charName,
+              charID: activeCharacter.charID,
+              charImage: resolvedCharImage,
+              charDesc: activeCharacter.charDesc,
+              messages: _miniGameMessages,
+              delegateChar:
+                  activeCharacter.charID == _defaultMiniGameCharacterId,
+              maxGamesToShow: 6,
+              theme: MiniGameTheme(
+                backgroundColor: Theme.of(context).cardColor,
+                headerColor: Theme.of(context).canvasColor,
+                borderColor: const Color(0xFF2196F3).withValues(alpha: 0.15),
+                titleFontColor:
+                    Theme.of(context).textTheme.bodyLarge?.color,
+                secondaryFontColor: Theme.of(context)
+                    .textTheme
+                    .bodyMedium
+                    ?.color
+                    ?.withValues(alpha: 0.7),
+                accentColor: const Color(0xFF14CFEE),
+                iconCornerRadius: 16.0,
+                playableHeight: null, // full screen mode
+                playableBorderColor: const Color(0xFF2196F3),
+              ),
+            );
+          },
         ),
       ],
     );
