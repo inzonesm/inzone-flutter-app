@@ -1771,10 +1771,9 @@ packages:
   simula_ads:
     dependency: "direct main"
     description:
-      name: simula_ads
-      sha256: e52deb9289681d3de387e99c0950004476848003869b085ced8c7a218cff9284
-      url: "https://pub.dev"
-    source: hosted
+      path: "third_party/simula_ads"
+      relative: true
+    source: path
     version: "1.0.0"
   skeleton_text:
     dependency: "direct main"
