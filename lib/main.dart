@@ -28,6 +28,7 @@ import 'package:app_tracking_transparency/app_tracking_transparency.dart';
 import 'package:inzone/services/reward_ad_service.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:inzone/services/ai_engagement_service.dart';
+import 'package:inzone/services/active_character_notifier.dart';
 import 'package:simula_ads/simula_ads.dart';
 
 // Key for storing first launch status in SharedPreferences
@@ -366,8 +367,11 @@ void main() async {
     DeviceOrientation.portraitDown,
   ]).then((_) {
     runApp(
-      ChangeNotifierProvider(
-        create: (_) => ThemeManager(),
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider(create: (_) => ThemeManager()),
+          ChangeNotifierProvider(create: (_) => ActiveCharacterNotifier()),
+        ],
         child: MyApp(prefs: prefs, needsUpdate: needsUpdate),
       ),
     );
