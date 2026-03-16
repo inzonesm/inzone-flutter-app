@@ -59,6 +59,7 @@ class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
   bool _isNavBarVisible = true; // Track visibility of navigation bar
   double _lastScrollPosition = 0; // Keep track of the last scroll position
   bool _miniGameMenuOpen = false;
+  bool _isCharacterPickerOpen = false;
   bool _isLoadingPopularCharacters = false;
   List<_PopularCharacterOption> _popularCharacters = const [];
   List<Message> _miniGameMessages = const [];
@@ -371,135 +372,144 @@ class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
   }
 
   Future<void> _openMiniGameWithCharacterPicker() async {
-    await _loadPopularCharacters();
-    if (!mounted) return;
+    if (_isCharacterPickerOpen) return;
+    _isCharacterPickerOpen = true;
 
-    final activeCharacter = context.read<ActiveCharacterNotifier>();
-    final selected = await showModalBottomSheet<_PopularCharacterOption>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Theme.of(context).cardColor,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (sheetContext) {
-        final theme = Theme.of(sheetContext);
+    try {
+      await _loadPopularCharacters();
+      if (!mounted) return;
 
-        return SafeArea(
-          child: SizedBox(
-            height: MediaQuery.of(sheetContext).size.height * 0.62,
-            child: Column(
-              children: [
-                const SizedBox(height: 10),
-                Container(
-                  width: 42,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: theme.dividerColor,
-                    borderRadius: BorderRadius.circular(20),
+      final activeCharacter = context.read<ActiveCharacterNotifier>();
+      final selected = await showModalBottomSheet<_PopularCharacterOption>(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Theme.of(context).cardColor,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        builder: (sheetContext) {
+          final theme = Theme.of(sheetContext);
+
+          return SafeArea(
+            child: SizedBox(
+              height: MediaQuery.of(sheetContext).size.height * 0.62,
+              child: Column(
+                children: [
+                  const SizedBox(height: 10),
+                  Container(
+                    width: 42,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: theme.dividerColor,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
                   ),
-                ),
-                const SizedBox(height: 14),
-                Text(
-                  'Choose Character for Mini Games',
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
+                  const SizedBox(height: 14),
+                  Text(
+                    'Choose Character for Mini Games',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 8),
-                if (_popularCharacters.isEmpty)
-                  Expanded(
-                    child: Center(
-                      child: Text(
-                        'No popular characters found.\nUsing current character.',
-                        textAlign: TextAlign.center,
-                        style: theme.textTheme.bodyMedium,
+                  const SizedBox(height: 8),
+                  if (_popularCharacters.isEmpty)
+                    Expanded(
+                      child: Center(
+                        child: Text(
+                          'No popular characters found.\nUsing current character.',
+                          textAlign: TextAlign.center,
+                          style: theme.textTheme.bodyMedium,
+                        ),
+                      ),
+                    )
+                  else
+                    Expanded(
+                      child: ListView.separated(
+                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                        itemCount: _popularCharacters.length,
+                        separatorBuilder: (_, __) => const SizedBox(height: 8),
+                        itemBuilder: (_, index) {
+                          final character = _popularCharacters[index];
+                          final isActive =
+                              activeCharacter.charID == character.id;
+
+                          return ListTile(
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                              side: BorderSide(
+                                color: isActive
+                                    ? const Color(0xFF14CFEE)
+                                    : theme.dividerColor
+                                        .withValues(alpha: 0.35),
+                              ),
+                            ),
+                            tileColor: theme.canvasColor,
+                            leading: CircleAvatar(
+                              radius: 22,
+                              backgroundColor: theme.cardColor,
+                              backgroundImage: (character.imageUrl != null &&
+                                      character.imageUrl!.isNotEmpty)
+                                  ? NetworkImage(character.imageUrl!)
+                                  : null,
+                              child: (character.imageUrl == null ||
+                                      character.imageUrl!.isEmpty)
+                                  ? Text(
+                                      character.name.isNotEmpty
+                                          ? character.name[0].toUpperCase()
+                                          : '?',
+                                    )
+                                  : null,
+                            ),
+                            title: Text(
+                              character.name,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: theme.textTheme.titleSmall,
+                            ),
+                            subtitle: character.description == null
+                                ? null
+                                : Text(
+                                    character.description!,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: theme.textTheme.bodySmall,
+                                  ),
+                            trailing: isActive
+                                ? const Icon(Icons.check_circle,
+                                    color: Color(0xFF14CFEE))
+                                : const Icon(Icons.chevron_right),
+                            onTap: () {
+                              Navigator.of(sheetContext).pop(character);
+                            },
+                          );
+                        },
                       ),
                     ),
-                  )
-                else
-                  Expanded(
-                    child: ListView.separated(
-                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-                      itemCount: _popularCharacters.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 8),
-                      itemBuilder: (_, index) {
-                        final character = _popularCharacters[index];
-                        final isActive = activeCharacter.charID == character.id;
-
-                        return ListTile(
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14),
-                            side: BorderSide(
-                              color: isActive
-                                  ? const Color(0xFF14CFEE)
-                                  : theme.dividerColor.withValues(alpha: 0.35),
-                            ),
-                          ),
-                          tileColor: theme.canvasColor,
-                          leading: CircleAvatar(
-                            radius: 22,
-                            backgroundColor: theme.cardColor,
-                            backgroundImage: (character.imageUrl != null &&
-                                    character.imageUrl!.isNotEmpty)
-                                ? NetworkImage(character.imageUrl!)
-                                : null,
-                            child: (character.imageUrl == null ||
-                                    character.imageUrl!.isEmpty)
-                                ? Text(
-                                    character.name.isNotEmpty
-                                        ? character.name[0].toUpperCase()
-                                        : '?',
-                                  )
-                                : null,
-                          ),
-                          title: Text(
-                            character.name,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: theme.textTheme.titleSmall,
-                          ),
-                          subtitle: character.description == null
-                              ? null
-                              : Text(
-                                  character.description!,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: theme.textTheme.bodySmall,
-                                ),
-                          trailing: isActive
-                              ? const Icon(Icons.check_circle,
-                                  color: Color(0xFF14CFEE))
-                              : const Icon(Icons.chevron_right),
-                          onTap: () {
-                            Navigator.of(sheetContext).pop(character);
-                          },
-                        );
-                      },
-                    ),
-                  ),
-              ],
+                ],
+              ),
             ),
-          ),
-        );
-      },
-    );
-
-    if (!mounted) return;
-
-    if (selected != null) {
-      context.read<ActiveCharacterNotifier>().setActiveCharacter(
-            charName: selected.name,
-            charID: selected.id,
-            charImage: selected.imageUrl,
-            charDesc: selected.description,
           );
-
-      await _refreshMiniGameMessages(
-        charID: selected.id,
-        charName: selected.name,
-        charDesc: selected.description,
+        },
       );
+
+      if (!mounted) return;
+
+      if (selected != null) {
+        context.read<ActiveCharacterNotifier>().setActiveCharacter(
+              charName: selected.name,
+              charID: selected.id,
+              charImage: selected.imageUrl,
+              charDesc: selected.description,
+            );
+
+        await _refreshMiniGameMessages(
+          charID: selected.id,
+          charName: selected.name,
+          charDesc: selected.description,
+        );
+      }
+    } finally {
+      _isCharacterPickerOpen = false;
     }
   }
 
@@ -574,244 +584,247 @@ class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
     return Stack(
       children: [
         Scaffold(
-      key: _key,
-      backgroundColor: Theme.of(context).canvasColor,
-      extendBody: true,
-      body: GestureDetector(
-        onTap: () {
-          FocusScope.of(context).unfocus();
-          if (_isExpanded) {
-            _toggleExpanded();
-          }
-        },
-        child: NotificationListener<ScrollNotification>(
-          onNotification: (ScrollNotification notification) {
-            if (notification is ScrollStartNotification) {
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                if (mounted) {
-                  setState(() {
-                    isUserScrolling = true;
+          key: _key,
+          backgroundColor: Theme.of(context).canvasColor,
+          extendBody: true,
+          body: GestureDetector(
+            onTap: () {
+              FocusScope.of(context).unfocus();
+              if (_isExpanded) {
+                _toggleExpanded();
+              }
+            },
+            child: NotificationListener<ScrollNotification>(
+              onNotification: (ScrollNotification notification) {
+                if (notification is ScrollStartNotification) {
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    if (mounted) {
+                      setState(() {
+                        isUserScrolling = true;
+                      });
+                    }
+                  });
+                } else if (notification is ScrollEndNotification) {
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    if (mounted) {
+                      setState(() {
+                        isUserScrolling = false;
+                      });
+                    }
                   });
                 }
-              });
-            } else if (notification is ScrollEndNotification) {
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                if (mounted) {
-                  setState(() {
-                    isUserScrolling = false;
-                  });
-                }
-              });
-            }
-            return false; // false: allow scroll event to continue propagating
-          },
-          // Use IndexedStack for main tab routes, otherwise use the provided child for nested routes
-          child: Stack(
-            children: [
-              isMainTabRoute
-                  ? IndexedStack(
-                      index: _currentPage,
-                      children: _screens,
-                    )
-                  : widget.child, // Use the provided child for non-tab routes
+                return false; // false: allow scroll event to continue propagating
+              },
+              // Use IndexedStack for main tab routes, otherwise use the provided child for nested routes
+              child: Stack(
+                children: [
+                  isMainTabRoute
+                      ? IndexedStack(
+                          index: _currentPage,
+                          children: _screens,
+                        )
+                      : widget
+                          .child, // Use the provided child for non-tab routes
 
-              // Full screen semi-transparent overlay
-              Positioned.fill(
-                child: AnimatedOpacity(
-                  opacity: _isExpanded ? 1.0 : 0.0,
-                  duration: const Duration(milliseconds: 300),
-                  curve: _isExpanded ? Curves.easeOut : Curves.easeIn,
-                  child: IgnorePointer(
-                    ignoring: !_isExpanded,
-                    child: GestureDetector(
-                      behavior: HitTestBehavior.opaque,
-                      onTap: _toggleExpanded,
-                      child: Container(
-                        color: Colors.black.withOpacity(0.3),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-
-              // Option buttons (absolute top layer)
-              Positioned(
-                bottom: 135,
-                left: 0,
-                right: 0,
-                child: AnimatedOpacity(
-                  opacity: _isExpanded ? 1.0 : 0.0,
-                  duration: const Duration(milliseconds: 300),
-                  curve: _isExpanded ? Curves.easeOut : Curves.easeIn,
-                  child: IgnorePointer(
-                    ignoring: !_isExpanded,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        // _buildAnimatedOptionButton(
-                        //   'Create 3D Avatar',
-                        //   Icons.person,
-                        //   () {
-                        //     print("Create 3D Avatar button tapped");
-                        //     _toggleExpanded();
-                        //     context.push(Routes.create3dModelIntro);
-                        //   },
-                        //   0,
-                        // ),
-                        // const SizedBox(height: 16),
-                        _buildAnimatedOptionButton(
-                          'Create AI Character',
-                          Icons.face,
-                          () {
-                            print("Create AI Character button tapped");
-                            _toggleExpanded();
-                            context.push(Routes.createAICharacter);
-                          },
-                          1,
-                        ),
-                        const SizedBox(height: 16),
-                        _buildAnimatedOptionButton(
-                          'Create Post',
-                          Icons.post_add,
-                          () {
-                            print("Create Post button tapped");
-                            _toggleExpanded();
-                            context.push(Routes.post);
-                          },
-                          2,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-
-            ],
-          ),
-        ),
-      ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-      floatingActionButton: (_isKeyboardVisible || _miniGameMenuOpen)
-          ? null
-          : AnimatedSlide(
-              duration: const Duration(milliseconds: 200),
-              offset: _isNavBarVisible ? Offset.zero : const Offset(0, 2),
-              child: AnimatedOpacity(
-                duration: const Duration(milliseconds: 200),
-                opacity: _isNavBarVisible ? 1.0 : 0.0,
-                child: GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: () {
-                    print("Main FAB button tapped");
-                    _toggleExpanded();
-                  },
-                  child: Container(
-                    width: 56,
-                    height: 56,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.2),
-                          spreadRadius: 1,
-                          blurRadius: 3,
-                          offset: const Offset(0, 1),
-                        ),
-                      ],
-                      gradient: const LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [
-                          Color(0xFF14CFEE),
-                          Color(0xFF2196F3),
-                        ],
-                      ),
-                    ),
-                    child: AnimatedBuilder(
-                      animation: _rotationAnimation,
-                      builder: (context, child) {
-                        return Transform.rotate(
-                          angle: _rotationAnimation.value * 2.0 * 3.14159,
-                          child: const Icon(
-                            Icons.add,
-                            size: 28,
-                            color: Colors.white,
+                  // Full screen semi-transparent overlay
+                  Positioned.fill(
+                    child: AnimatedOpacity(
+                      opacity: _isExpanded ? 1.0 : 0.0,
+                      duration: const Duration(milliseconds: 300),
+                      curve: _isExpanded ? Curves.easeOut : Curves.easeIn,
+                      child: IgnorePointer(
+                        ignoring: !_isExpanded,
+                        child: GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTap: _toggleExpanded,
+                          child: Container(
+                            color: Colors.black.withOpacity(0.3),
                           ),
-                        );
-                      },
+                        ),
+                      ),
                     ),
                   ),
-                ),
+
+                  // Option buttons (absolute top layer)
+                  Positioned(
+                    bottom: 135,
+                    left: 0,
+                    right: 0,
+                    child: AnimatedOpacity(
+                      opacity: _isExpanded ? 1.0 : 0.0,
+                      duration: const Duration(milliseconds: 300),
+                      curve: _isExpanded ? Curves.easeOut : Curves.easeIn,
+                      child: IgnorePointer(
+                        ignoring: !_isExpanded,
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            // _buildAnimatedOptionButton(
+                            //   'Create 3D Avatar',
+                            //   Icons.person,
+                            //   () {
+                            //     print("Create 3D Avatar button tapped");
+                            //     _toggleExpanded();
+                            //     context.push(Routes.create3dModelIntro);
+                            //   },
+                            //   0,
+                            // ),
+                            // const SizedBox(height: 16),
+                            _buildAnimatedOptionButton(
+                              'Create AI Character',
+                              Icons.face,
+                              () {
+                                print("Create AI Character button tapped");
+                                _toggleExpanded();
+                                context.push(Routes.createAICharacter);
+                              },
+                              1,
+                            ),
+                            const SizedBox(height: 16),
+                            _buildAnimatedOptionButton(
+                              'Create Post',
+                              Icons.post_add,
+                              () {
+                                print("Create Post button tapped");
+                                _toggleExpanded();
+                                context.push(Routes.post);
+                              },
+                              2,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
-      bottomNavigationBar: AnimatedSwitcher(
-        duration: const Duration(milliseconds: 200),
-        child: (_isKeyboardVisible || _miniGameMenuOpen)
-            ? const SizedBox.shrink(key: ValueKey('navBarHidden'))
-            : AnimatedSlide(
-                duration: const Duration(milliseconds: 200),
-                offset: _isNavBarVisible ? Offset.zero : const Offset(0, 1),
-                child: AnimatedOpacity(
+          ),
+          floatingActionButtonLocation:
+              FloatingActionButtonLocation.centerDocked,
+          floatingActionButton: (_isKeyboardVisible || _miniGameMenuOpen)
+              ? null
+              : AnimatedSlide(
                   duration: const Duration(milliseconds: 200),
-                  opacity: _isNavBarVisible ? 1.0 : 0.0,
-                  child: SafeArea(
-                    bottom: false,
-                    child: AnimatedBottomNavigationBar.builder(
-                      key: const ValueKey('navBar'),
-                      itemCount: _bottomNavBarTitles.length,
-                      tabBuilder: (int index, bool isActive) {
-                        return Center(
-                          child: SizedBox(
-                            width: 26,
-                            height: 26,
-                            child: FittedBox(
-                              fit: BoxFit.contain,
-                              child: ColorFiltered(
-                                colorFilter: ColorFilter.mode(
-                                  isActive
-                                      ? Theme.of(context).colorScheme.primary
-                                      : Theme.of(context).unselectedWidgetColor,
-                                  BlendMode.srcIn,
-                                ),
-                                child: Iconify(
-                                  _iconifyPaths[index],
-                                  size: 100,
-                                ),
-                              ),
-                            ),
-                          ),
-                        );
+                  offset: _isNavBarVisible ? Offset.zero : const Offset(0, 2),
+                  child: AnimatedOpacity(
+                    duration: const Duration(milliseconds: 200),
+                    opacity: _isNavBarVisible ? 1.0 : 0.0,
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () {
+                        print("Main FAB button tapped");
+                        _toggleExpanded();
                       },
-                      activeIndex: _currentPage,
-                      splashSpeedInMilliseconds: 0,
-                      gapLocation: GapLocation.center,
-                      notchSmoothness: NotchSmoothness.softEdge,
-                      leftCornerRadius: 32,
-                      rightCornerRadius: 32,
-                      onTap: _onItemTapped,
-                      backgroundColor: Theme.of(context).cardColor,
-                      splashColor: Colors.transparent,
-                      splashRadius: 0,
-                      shadow: const BoxShadow(
-                        color: Colors.transparent,
-                        blurRadius: 0,
-                        spreadRadius: 0,
+                      child: Container(
+                        width: 56,
+                        height: 56,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.2),
+                              spreadRadius: 1,
+                              blurRadius: 3,
+                              offset: const Offset(0, 1),
+                            ),
+                          ],
+                          gradient: const LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [
+                              Color(0xFF14CFEE),
+                              Color(0xFF2196F3),
+                            ],
+                          ),
+                        ),
+                        child: AnimatedBuilder(
+                          animation: _rotationAnimation,
+                          builder: (context, child) {
+                            return Transform.rotate(
+                              angle: _rotationAnimation.value * 2.0 * 3.14159,
+                              child: const Icon(
+                                Icons.add,
+                                size: 28,
+                                color: Colors.white,
+                              ),
+                            );
+                          },
+                        ),
                       ),
                     ),
                   ),
                 ),
-              ),
-      ),
-    ), // end Scaffold
+          bottomNavigationBar: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 200),
+            child: (_isKeyboardVisible || _miniGameMenuOpen)
+                ? const SizedBox.shrink(key: ValueKey('navBarHidden'))
+                : AnimatedSlide(
+                    duration: const Duration(milliseconds: 200),
+                    offset: _isNavBarVisible ? Offset.zero : const Offset(0, 1),
+                    child: AnimatedOpacity(
+                      duration: const Duration(milliseconds: 200),
+                      opacity: _isNavBarVisible ? 1.0 : 0.0,
+                      child: SafeArea(
+                        bottom: false,
+                        child: AnimatedBottomNavigationBar.builder(
+                          key: const ValueKey('navBar'),
+                          itemCount: _bottomNavBarTitles.length,
+                          tabBuilder: (int index, bool isActive) {
+                            return Center(
+                              child: SizedBox(
+                                width: 26,
+                                height: 26,
+                                child: FittedBox(
+                                  fit: BoxFit.contain,
+                                  child: ColorFiltered(
+                                    colorFilter: ColorFilter.mode(
+                                      isActive
+                                          ? Theme.of(context)
+                                              .colorScheme
+                                              .primary
+                                          : Theme.of(context)
+                                              .unselectedWidgetColor,
+                                      BlendMode.srcIn,
+                                    ),
+                                    child: Iconify(
+                                      _iconifyPaths[index],
+                                      size: 100,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
+                          activeIndex: _currentPage,
+                          splashSpeedInMilliseconds: 0,
+                          gapLocation: GapLocation.center,
+                          notchSmoothness: NotchSmoothness.softEdge,
+                          leftCornerRadius: 32,
+                          rightCornerRadius: 32,
+                          onTap: _onItemTapped,
+                          backgroundColor: Theme.of(context).cardColor,
+                          splashColor: Colors.transparent,
+                          splashRadius: 0,
+                          shadow: const BoxShadow(
+                            color: Colors.transparent,
+                            blurRadius: 0,
+                            spreadRadius: 0,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+          ),
+        ), // end Scaffold
         // Simula MiniGameMenu overlay — outside Scaffold so it covers bottom bar
         Builder(
           builder: (context) {
             final activeCharacter = context.watch<ActiveCharacterNotifier>();
-            final resolvedCharImage =
-                (activeCharacter.charImage != null &&
-                        activeCharacter.charImage!.trim().isNotEmpty)
-                    ? activeCharacter.charImage!
-                    : _fallbackMiniGameImage(context);
+            final resolvedCharImage = (activeCharacter.charImage != null &&
+                    activeCharacter.charImage!.trim().isNotEmpty)
+                ? activeCharacter.charImage!
+                : _fallbackMiniGameImage(context);
 
             return MiniGameMenu(
               isOpen: _miniGameMenuOpen,
@@ -822,15 +835,13 @@ class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
               charImage: resolvedCharImage,
               charDesc: activeCharacter.charDesc,
               messages: _miniGameMessages,
-              delegateChar:
-                  activeCharacter.charID == _defaultMiniGameCharacterId,
+              delegateChar: true,
               maxGamesToShow: 6,
               theme: MiniGameTheme(
                 backgroundColor: Theme.of(context).cardColor,
                 headerColor: Theme.of(context).canvasColor,
                 borderColor: const Color(0xFF2196F3).withValues(alpha: 0.15),
-                titleFontColor:
-                    Theme.of(context).textTheme.bodyLarge?.color,
+                titleFontColor: Theme.of(context).textTheme.bodyLarge?.color,
                 secondaryFontColor: Theme.of(context)
                     .textTheme
                     .bodyMedium
