@@ -7,6 +7,7 @@ import 'package:inzone/components/cards/post_card.dart';
 import 'package:inzone/components/profile/avatar_card.dart';
 import 'package:inzone/components/profile/user_posts_tab.dart';
 import 'package:inzone/components/ui/profile_appbar.dart';
+import 'package:inzone/components/ui/appbar_icon.dart';
 import 'package:inzone/components/posts/shimmering.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:inzone/data/inzone_avatar.dart';
@@ -170,26 +171,11 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
 
     return Row(
       children: [
-        GestureDetector(
+        AppbarIcon(
+          icon: FeatherIcons.bell,
           onTap: () {
-            context.push(
-              Routes.notificationCenter,
-            );
+            context.push(Routes.notificationCenter);
           },
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-            decoration: BoxDecoration(
-              color: Theme.of(context).brightness == Brightness.light
-                  ? Colors.grey[300]
-                  : Colors.grey[800],
-              borderRadius: BorderRadius.circular(30),
-            ),
-            child: Icon(
-              FeatherIcons.bell,
-              size: 18,
-              color: theme.textTheme.bodyMedium?.color,
-            ),
-          ),
         ),
         GestureDetector(
           onTap: () {
