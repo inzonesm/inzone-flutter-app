@@ -15,6 +15,7 @@ import 'package:inzone/data/inzone_post.dart';
 import 'package:inzone/router/routes.dart';
 import 'package:inzone/screen/settings/settings_screen.dart';
 import 'package:inzone/services/inzone_database.dart';
+import 'package:inzone/services/notification_badge_service.dart';
 import 'package:inzone/theme/app_colors.dart';
 import 'package:go_router/go_router.dart';
 import 'package:inzone/router/routes.dart';
@@ -171,12 +172,18 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
 
     return Row(
       children: [
-        AppbarIcon(
-          icon: FeatherIcons.bell,
-          onTap: () {
-            context.push(Routes.notificationCenter);
-          },
-        ),
+        StreamBuilder<int>(
+            stream: NotificationBadgeService.getUnreadNotificationCount(),
+            builder: (context, snapshot) {
+              final notificationCount = snapshot.data ?? 0;
+              return AppbarIcon(
+                icon: FeatherIcons.bell,
+                onTap: () {
+                  context.push(Routes.notificationCenter);
+                },
+                badgeCount: notificationCount,
+              );
+            }),
         GestureDetector(
           onTap: () {
             context.push(
