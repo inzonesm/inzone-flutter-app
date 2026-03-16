@@ -173,6 +173,27 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
         GestureDetector(
           onTap: () {
             context.push(
+              Routes.notificationCenter,
+            );
+          },
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+            decoration: BoxDecoration(
+              color: Theme.of(context).brightness == Brightness.light
+                  ? Colors.grey[300]
+                  : Colors.grey[800],
+              borderRadius: BorderRadius.circular(30),
+            ),
+            child: Icon(
+              FeatherIcons.bell,
+              size: 18,
+              color: theme.textTheme.bodyMedium?.color,
+            ),
+          ),
+        ),
+        GestureDetector(
+          onTap: () {
+            context.push(
               Routes.settings,
             );
           },
@@ -515,7 +536,8 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                             },
                             onUpdated: (updatedPost) {
                               setState(() {
-                                final idx = _posts.indexWhere((p) => p.id == updatedPost.id);
+                                final idx = _posts
+                                    .indexWhere((p) => p.id == updatedPost.id);
                                 if (idx != -1) _posts[idx] = updatedPost;
                               });
                             },
