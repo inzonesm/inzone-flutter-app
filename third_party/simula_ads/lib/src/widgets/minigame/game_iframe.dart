@@ -65,25 +65,8 @@ class _GameIframeState extends State<GameIframe> {
   bool _hasLoaded = false;
   OverlayEntry? _overlayEntry;
   double? _currentHeight; // Track current height for draggable bottom sheet
-  bool _isDragging = false;
   bool?
       _lastBottomSheetState; // Track last bottom sheet state to avoid redundant SystemChrome calls
-
-  String _getInitials(String name) {
-    final trimmed = name.trim();
-    if (trimmed.isEmpty) {
-      return '?';
-    }
-
-    final parts = trimmed.split(RegExp(r'\s+'));
-    final initials = parts
-        .where((part) => part.isNotEmpty)
-        .take(2)
-        .map((part) => part[0])
-        .join()
-        .toUpperCase();
-    return initials.isEmpty ? trimmed[0].toUpperCase() : initials;
-  }
 
   @override
   void initState() {
@@ -140,17 +123,18 @@ class _GameIframeState extends State<GameIframe> {
       builder: (context) {
         // Calculate position based on playableHeight
         final screenSize = MediaQuery.of(context).size;
+        final safeTop = MediaQuery.of(context).padding.top;
         final (initialHeight, isBottomSheet) = _calculateHeight(screenSize);
         final containerHeight = _currentHeight ?? initialHeight;
 
         // Calculate close button position
         // If bottom sheet, position at top of container (screenHeight - containerHeight + offset)
-        // If full screen, position at top of screen
+        // If full screen, position below the safe area (dynamic island)
+        final fullScreenButtonTop = safeTop + 8.0;
         final closeButtonTop =
-            isBottomSheet ? screenSize.height - containerHeight + 60 : 60.0;
-        final characterButtonTop = closeButtonTop;
+            isBottomSheet ? screenSize.height - containerHeight + 60 : fullScreenButtonTop;
         final touchBlockerTop =
-            isBottomSheet ? screenSize.height - containerHeight + 8 : 8.0;
+            isBottomSheet ? screenSize.height - containerHeight + 8 : safeTop;
 
         return Stack(
           children: [
@@ -182,8 +166,8 @@ class _GameIframeState extends State<GameIframe> {
                     widget.onClose?.call(_currentHeight);
                   },
                   child: Container(
-                    width: 40,
-                    height: 40,
+                    width: 32,
+                    height: 32,
                     decoration: BoxDecoration(
                       color: Colors.white.withValues(alpha: 0.9),
                       shape: BoxShape.circle,
@@ -198,78 +182,13 @@ class _GameIframeState extends State<GameIframe> {
                     child: const Icon(
                       Icons.close,
                       color: Colors.black87,
-                      size: 24,
+                      size: 18,
                     ),
                   ),
                 ),
               ),
             ),
 
-            Positioned(
-              top: characterButtonTop,
-              left: 16,
-              child: Material(
-                elevation: 10000,
-                color: Colors.transparent,
-                child: GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: widget.onCharacterTap,
-                  child: Container(
-                    width: 48,
-                    height: 48,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.95),
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: const Color(0xFF14CFEE),
-                        width: 2,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.3),
-                          blurRadius: 6,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: ClipOval(
-                      child: widget.charImage != null &&
-                              widget.charImage!.trim().isNotEmpty
-                          ? Image.network(
-                              widget.charImage!,
-                              fit: BoxFit.cover,
-                              errorBuilder: (context, error, stackTrace) {
-                                return Container(
-                                  color: Colors.white,
-                                  alignment: Alignment.center,
-                                  child: Text(
-                                    _getInitials(widget.charName),
-                                    style: const TextStyle(
-                                      color: Colors.black87,
-                                      fontWeight: FontWeight.w700,
-                                      fontSize: 16,
-                                    ),
-                                  ),
-                                );
-                              },
-                            )
-                          : Container(
-                              color: Colors.white,
-                              alignment: Alignment.center,
-                              child: Text(
-                                _getInitials(widget.charName),
-                                style: const TextStyle(
-                                  color: Colors.black87,
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 16,
-                                ),
-                              ),
-                            ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
           ],
         );
       },
@@ -414,8 +333,8 @@ class _GameIframeState extends State<GameIframe> {
         // Percentage value (e.g., 0.8 = 80%, 1.0 = 100%)
         final percentageValue = playableHeight;
 
-        // Treat >= 0.95 or == 1.0 as full screen (no bottom sheet UI)
-        if (percentageValue >= 0.95 || percentageValue == 1.0) {
+        // Treat > 0.95 or == 1.0 as full screen (no bottom sheet UI)
+        if (percentageValue > 0.95 || percentageValue == 1.0) {
           return (screenSize.height, false);
         }
 
@@ -456,10 +375,10 @@ class _GameIframeState extends State<GameIframe> {
     _lastBottomSheetState = isBottomSheet;
 
     if (!isBottomSheet) {
-      // Hide status bar for full screen
+      // Keep system UI visible so content isn't blocked by dynamic island
       SystemChrome.setEnabledSystemUIMode(
-        SystemUiMode.immersiveSticky,
-        overlays: [],
+        SystemUiMode.edgeToEdge,
+        overlays: SystemUiOverlay.values,
       );
     } else {
       // Show status bar for bottom sheet
@@ -498,61 +417,7 @@ class _GameIframeState extends State<GameIframe> {
                 color: playableBorderColor,
                 borderRadius: BorderRadius.circular(sheetRadius),
               ),
-              child: Column(
-                children: [
-                  // Draggable handle
-                  GestureDetector(
-                    onPanStart: (details) {
-                      // Only start dragging if the gesture starts near the handle (within handle area)
-                      setState(() {
-                        _isDragging = true;
-                      });
-                    },
-                    onPanUpdate: (details) {
-                      // Only process vertical drags (ignore horizontal swipes)
-                      if (details.delta.dy.abs() > details.delta.dx.abs()) {
-                        // Calculate new height based on drag delta (dragging up = decrease height)
-                        final newHeight =
-                            (containerHeight - details.delta.dy).clamp(
-                          _minPlayableHeight.toDouble(),
-                          screenSize.height,
-                        );
-                        setState(() {
-                          _currentHeight = newHeight;
-                        });
-                        _updateOverlay();
-                      }
-                    },
-                    onPanEnd: (_) {
-                      setState(() {
-                        _isDragging = false;
-                      });
-                    },
-                    child: Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      color: Colors.transparent,
-                      child: Center(
-                        child: Container(
-                          width: 36,
-                          height: 4,
-                          decoration: BoxDecoration(
-                            color: Colors.black.withValues(alpha: 0.2),
-                            borderRadius: BorderRadius.circular(2),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  // Content
-                  Expanded(
-                    child: Container(
-                      color: Colors.white,
-                      child: _buildContent(isBottomSheet: true),
-                    ),
-                  ),
-                ],
-              ),
+              child: _buildContent(isBottomSheet: true),
             ),
           ),
         ),
@@ -561,7 +426,9 @@ class _GameIframeState extends State<GameIframe> {
 
     return Container(
       color: Colors.black.withValues(alpha: 0.8),
-      child: _buildContent(isBottomSheet: false),
+      child: SafeArea(
+        child: _buildContent(isBottomSheet: false),
+      ),
     );
   }
 

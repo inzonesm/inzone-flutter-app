@@ -232,10 +232,7 @@ class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
   }
 
   String _fallbackMiniGameImage(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return isDark
-        ? 'https://firebasestorage.googleapis.com/v0/b/inzone-app.appspot.com/o/app_assets%2Finzone_icon_white.png?alt=media'
-        : 'https://firebasestorage.googleapis.com/v0/b/inzone-app.appspot.com/o/app_assets%2Finzone_icon_dark.png?alt=media';
+    return 'https://firebasestorage.googleapis.com/v0/b/inzone-f93e4.appspot.com/o/app_assets%2Fsplash.png?alt=media';
   }
 
   Future<void> _loadPopularCharacters() async {
@@ -849,7 +846,7 @@ class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
                     ?.withValues(alpha: 0.7),
                 accentColor: const Color(0xFF14CFEE),
                 iconCornerRadius: 16.0,
-                playableHeight: null, // full screen mode
+                playableHeight: 0.95, // 95% of screen to avoid dynamic island
                 playableBorderColor: const Color(0xFF2196F3),
               ),
             );
