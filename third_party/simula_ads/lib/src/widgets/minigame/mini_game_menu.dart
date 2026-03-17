@@ -145,10 +145,10 @@ class _MiniGameMenuState extends State<MiniGameMenu> {
     _previousAdIframeUrl = _adIframeUrl;
 
     if (_adIframeUrl != null && previousAdUrl == null) {
-      // Ad overlay just opened - hide status bar for full screen
+      // Ad overlay just opened - keep system UI visible to avoid dynamic island overlap
       SystemChrome.setEnabledSystemUIMode(
-        SystemUiMode.immersiveSticky,
-        overlays: [],
+        SystemUiMode.edgeToEdge,
+        overlays: SystemUiOverlay.values,
       );
     } else if (_adIframeUrl == null && previousAdUrl != null) {
       // Ad overlay just closed - restore status bar
@@ -264,10 +264,10 @@ class _MiniGameMenuState extends State<MiniGameMenu> {
             final (_, isBottomSheet) = _calculateAdHeight(screenSize);
 
             if (!isBottomSheet) {
-              // Hide status bar for full screen ad overlay
+              // Keep system UI visible to avoid dynamic island overlap
               SystemChrome.setEnabledSystemUIMode(
-                SystemUiMode.immersiveSticky,
-                overlays: [],
+                SystemUiMode.edgeToEdge,
+                overlays: SystemUiOverlay.values,
               );
             } else {
               // Show status bar for bottom sheet ad overlay
@@ -438,8 +438,8 @@ class _MiniGameMenuState extends State<MiniGameMenu> {
         // Percentage value (e.g., 0.8 = 80%, 1.0 = 100%)
         final percentageValue = playableHeight;
 
-        // Treat >= 0.95 or == 1.0 as full screen (no bottom sheet UI)
-        if (percentageValue >= 0.95 || percentageValue == 1.0) {
+        // Treat > 0.95 or == 1.0 as full screen (no bottom sheet UI)
+        if (percentageValue > 0.95 || percentageValue == 1.0) {
           return (screenSize.height, false);
         }
 
@@ -528,11 +528,13 @@ class _MiniGameMenuState extends State<MiniGameMenu> {
 
     // Calculate close button position
     // If bottom sheet, position at top of container (screenHeight - containerHeight + offset)
-    // If full screen, position at top of screen
+    // If full screen, position below the safe area (dynamic island)
+    final safeTop = MediaQuery.of(context).padding.top;
+    final fullScreenButtonTop = safeTop + 8.0;
     final closeButtonTop =
-        isBottomSheet ? screenSize.height - containerHeight + 60 : 60.0;
+        isBottomSheet ? screenSize.height - containerHeight + 60 : fullScreenButtonTop;
     final touchBlockerTop =
-        isBottomSheet ? screenSize.height - containerHeight + 8 : 8.0;
+        isBottomSheet ? screenSize.height - containerHeight + 8 : safeTop;
 
     if (isBottomSheet) {
       const sheetRadius = 16.0;
@@ -613,9 +615,11 @@ class _MiniGameMenuState extends State<MiniGameMenu> {
       color: Colors.black.withValues(alpha: 0.8),
       child: Stack(
         children: [
-          // WebView - full screen
+          // WebView - full screen with safe area
           Positioned.fill(
-            child: WebViewWidget(controller: adController),
+            child: SafeArea(
+              child: WebViewWidget(controller: adController),
+            ),
           ),
           // Touch blocker area - prevents WebView from capturing touches in close button area
           Positioned(
