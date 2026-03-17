@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 import 'package:video_player/video_player.dart';
+import 'package:inzone/components/ui/appbar_icon.dart';
 
 class ChatInput extends StatefulWidget {
   final TextEditingController controller;
@@ -65,13 +66,14 @@ class _ChatInputState extends State<ChatInput> {
 
   @override
   Widget build(BuildContext context) {
-    final bool hasMedia = widget.pendingImage != null || widget.pendingVideo != null;
-    
+    final bool hasMedia =
+        widget.pendingImage != null || widget.pendingVideo != null;
+
     return Container(
       color: Theme.of(context).canvasColor,
       child: Padding(
         padding:
-            const EdgeInsets.only(left: 10.0, right: 10, bottom: 30, top: 2),
+            const EdgeInsets.only(left: 10.0, right: 10, bottom: 10, top: 5),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -129,146 +131,162 @@ class _ChatInputState extends State<ChatInput> {
               ),
             Row(
               children: [
-            // Media buttons (image and video)
-            if (widget.onImagePicked != null || widget.onVideoPicked != null)
-              Row(
-                children: [
-                  if (widget.onImagePicked != null)
-                    IconButton(
-                      icon: Icon(
-                        FeatherIcons.image,
-                        color: Theme.of(context).brightness == Brightness.dark
-                            ? Colors.grey.shade400
-                            : Colors.blue.shade600,
-                        size: 24,
-                      ),
-                      onPressed: () async {
-                        final ImagePicker picker = ImagePicker();
-                        final XFile? image = await picker.pickImage(
-                          source: ImageSource.gallery,
-                          imageQuality: 90,
-                        );
-                        if (image != null && widget.onImagePicked != null) {
-                          widget.onImagePicked!(File(image.path));
-                        }
-                      },
-                    ),
-                  if (widget.onVideoPicked != null)
-                    IconButton(
-                      icon: Icon(
-                        FeatherIcons.video,
-                        color: Theme.of(context).brightness == Brightness.dark
-                            ? Colors.grey.shade400
-                            : Colors.blue.shade600,
-                        size: 24,
-                      ),
-                      onPressed: () async {
-                        final ImagePicker picker = ImagePicker();
-                        final XFile? video = await picker.pickVideo(
-                          source: ImageSource.gallery,
-                          maxDuration: const Duration(minutes: 5),
-                        );
-                        if (video != null && widget.onVideoPicked != null) {
-                          widget.onVideoPicked!(File(video.path));
-                        }
-                      },
-                    ),
-                ],
-              ),
-            Expanded(
-              child: Scrollbar(
-                controller: widget.scrollController,
-                child: Container(
-                  constraints: const BoxConstraints(maxHeight: 100),
-                  child: TextFormField(
-                    scrollController: widget.scrollController,
-                    cursorColor: Theme.of(context).brightness == Brightness.dark
-                        ? Colors.grey.shade400
-                        : Colors.blue.shade600,
-                    controller: widget.controller,
-                    maxLines: null,
-                    keyboardType: TextInputType.multiline,
-                    onFieldSubmitted:
-                        _isTextEmpty ? null : (_) => widget.onSend(),
-                    textInputAction: TextInputAction.send,
-                    decoration: InputDecoration(
-                      contentPadding:
-                          const EdgeInsets.only(left: 20, right: 10),
-                      border: InputBorder.none,
-                      hintText: widget.hintText,
-                      hintStyle: TextStyle(
-                        color: Theme.of(context).brightness == Brightness.dark
-                            ? Colors.grey.shade400
-                            : Colors.blue.shade600,
-                      ),
-                      filled: true,
-                      fillColor: Theme.of(context).brightness == Brightness.dark
-                          ? Colors.grey.shade800
-                          : Theme.of(context)
-                              .colorScheme
-                              .primary
-                              .withOpacity(0.2),
-                      enabledBorder: OutlineInputBorder(
-                        borderSide: const BorderSide(
-                          color: Colors.transparent,
+                // Media buttons (image and video)
+                if (widget.onImagePicked != null ||
+                    widget.onVideoPicked != null)
+                  Row(
+                    children: [
+                      if (widget.onImagePicked != null)
+                        IconButton(
+                          icon: Icon(
+                            FeatherIcons.image,
+                            color:
+                                Theme.of(context).brightness == Brightness.dark
+                                    ? Colors.grey.shade400
+                                    : Colors.blue.shade600,
+                            size: 24,
+                          ),
+                          onPressed: () async {
+                            final ImagePicker picker = ImagePicker();
+                            final XFile? image = await picker.pickImage(
+                              source: ImageSource.gallery,
+                              imageQuality: 90,
+                            );
+                            if (image != null && widget.onImagePicked != null) {
+                              widget.onImagePicked!(File(image.path));
+                            }
+                          },
                         ),
-                        borderRadius: BorderRadius.circular(30),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderSide: const BorderSide(
-                          color: Colors.transparent,
+                      if (widget.onVideoPicked != null)
+                        IconButton(
+                          icon: Icon(
+                            FeatherIcons.video,
+                            color:
+                                Theme.of(context).brightness == Brightness.dark
+                                    ? Colors.grey.shade400
+                                    : Colors.blue.shade600,
+                            size: 24,
+                          ),
+                          onPressed: () async {
+                            final ImagePicker picker = ImagePicker();
+                            final XFile? video = await picker.pickVideo(
+                              source: ImageSource.gallery,
+                              maxDuration: const Duration(minutes: 5),
+                            );
+                            if (video != null && widget.onVideoPicked != null) {
+                              widget.onVideoPicked!(File(video.path));
+                            }
+                          },
                         ),
-                        borderRadius: BorderRadius.circular(30),
+                    ],
+                  ),
+                Expanded(
+                  child: Scrollbar(
+                    controller: widget.scrollController,
+                    child: Container(
+                      constraints: const BoxConstraints(maxHeight: 100),
+                      child: TextFormField(
+                        scrollController: widget.scrollController,
+                        cursorColor:
+                            Theme.of(context).brightness == Brightness.dark
+                                ? Colors.grey.shade400
+                                : Colors.blue.shade600,
+                        controller: widget.controller,
+                        maxLines: null,
+                        keyboardType: TextInputType.multiline,
+                        onFieldSubmitted:
+                            _isTextEmpty ? null : (_) => widget.onSend(),
+                        textInputAction: TextInputAction.send,
+                        style: const TextStyle(fontSize: 14),
+                        decoration: InputDecoration(
+                          isDense: true,
+                          contentPadding: const EdgeInsets.symmetric(
+                              vertical: 8, horizontal: 12),
+                          border: InputBorder.none,
+                          hintText: widget.hintText,
+                          hintStyle: TextStyle(
+                            color:
+                                Theme.of(context).brightness == Brightness.dark
+                                    ? Colors.grey.shade400
+                                    : Colors.blue.shade600,
+                          ),
+                          filled: true,
+                          fillColor:
+                              Theme.of(context).brightness == Brightness.dark
+                                  ? Colors.grey.shade800
+                                  : Theme.of(context)
+                                      .colorScheme
+                                      .primary
+                                      .withOpacity(0.2),
+                          enabledBorder: OutlineInputBorder(
+                            borderSide: const BorderSide(
+                              color: Colors.transparent,
+                            ),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderSide: const BorderSide(
+                              color: Colors.transparent,
+                            ),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
                       ),
                     ),
                   ),
                 ),
-              ),
+                const SizedBox(width: 10),
+                if (!widget.isGroupChat)
+                  MaterialButton(
+                    minWidth: 45,
+                    height: 50,
+                    elevation: 0,
+                    color: Theme.of(context).brightness == Brightness.dark
+                        ? Colors.grey.shade800
+                        : Theme.of(context)
+                            .colorScheme
+                            .primary
+                            .withOpacity(0.8),
+                    shape: const CircleBorder(),
+                    onPressed: (_isTextEmpty && !hasMedia)
+                        ? () => context.push('/chat/voice', extra: {
+                              'avatarUrl': widget.receiverAvatarUrl,
+                              'avatarId': widget.receiverAvatarId,
+                            })
+                        : widget.onSend,
+                    child: Center(
+                      child: Icon(
+                        (_isTextEmpty && !hasMedia)
+                            ? Icons.mic
+                            : FeatherIcons.arrowUp,
+                        color: Colors.white,
+                        size: 20,
+                      ),
+                    ),
+                  ),
+                if (widget.isGroupChat)
+                  MaterialButton(
+                    minWidth: 45,
+                    height: 50,
+                    elevation: 0,
+                    color: Theme.of(context).brightness == Brightness.dark
+                        ? Colors.grey.shade800
+                        : Theme.of(context)
+                            .colorScheme
+                            .primary
+                            .withOpacity(0.8),
+                    shape: const CircleBorder(),
+                    onPressed: widget.onSend,
+                    child: const Center(
+                      child: Icon(
+                        FeatherIcons.arrowUp,
+                        color: Colors.white,
+                        size: 20,
+                      ),
+                    ),
+                  ),
+              ],
             ),
-            const SizedBox(width: 10),
-            if (!widget.isGroupChat)
-              MaterialButton(
-                minWidth: 45,
-                height: 50,
-                elevation: 0,
-                color: Theme.of(context).brightness == Brightness.dark
-                    ? Colors.grey.shade800
-                    : Theme.of(context).colorScheme.primary.withOpacity(0.8),
-                shape: const CircleBorder(),
-                onPressed: (_isTextEmpty && !hasMedia)
-                    ? () => context.push('/chat/voice', extra: {
-                          'avatarUrl': widget.receiverAvatarUrl,
-                          'avatarId': widget.receiverAvatarId,
-                        })
-                    : widget.onSend,
-                child: Center(
-                  child: Icon(
-                    (_isTextEmpty && !hasMedia) ? Icons.mic : FeatherIcons.arrowUp,
-                    color: Colors.white,
-                    size: 20,
-                  ),
-                ),
-              ),
-            if (widget.isGroupChat)
-              MaterialButton(
-                minWidth: 45,
-                height: 50,
-                elevation: 0,
-                color: Theme.of(context).brightness == Brightness.dark
-                    ? Colors.grey.shade800
-                    : Theme.of(context).colorScheme.primary.withOpacity(0.8),
-                shape: const CircleBorder(),
-                onPressed: widget.onSend,
-                child: const Center(
-                  child: Icon(
-                    FeatherIcons.arrowUp,
-                    color: Colors.white,
-                    size: 20,
-                  ),
-                ),
-              ),
-          ],
-        ),
           ],
         ),
       ),
