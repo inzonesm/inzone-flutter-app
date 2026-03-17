@@ -7,6 +7,7 @@ import 'package:inzone/components/cards/post_card.dart';
 import 'package:inzone/components/profile/avatar_card.dart';
 import 'package:inzone/components/profile/user_posts_tab.dart';
 import 'package:inzone/components/ui/profile_appbar.dart';
+import 'package:inzone/components/ui/appbar_icon.dart';
 import 'package:inzone/components/posts/shimmering.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:inzone/data/inzone_avatar.dart';
@@ -14,6 +15,7 @@ import 'package:inzone/data/inzone_post.dart';
 import 'package:inzone/router/routes.dart';
 import 'package:inzone/screen/settings/settings_screen.dart';
 import 'package:inzone/services/inzone_database.dart';
+import 'package:inzone/services/notification_badge_service.dart';
 import 'package:inzone/theme/app_colors.dart';
 import 'package:go_router/go_router.dart';
 import 'package:inzone/router/routes.dart';
@@ -170,27 +172,23 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
 
     return Row(
       children: [
-        GestureDetector(
-          onTap: () {
-            context.push(
-              Routes.settings,
-            );
-          },
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-            decoration: BoxDecoration(
-              color: Theme.of(context).brightness == Brightness.light
-                  ? Colors.grey[300]
-                  : Colors.grey[800],
-              borderRadius: BorderRadius.circular(30),
-            ),
-            child: Icon(
-              FeatherIcons.settings,
-              size: 18,
-              color: theme.textTheme.bodyMedium?.color,
-            ),
-          ),
-        ),
+        StreamBuilder<int>(
+            stream: NotificationBadgeService.getUnreadNotificationCount(),
+            builder: (context, snapshot) {
+              final notificationCount = snapshot.data ?? 0;
+              return AppbarIcon(
+                icon: FeatherIcons.bell,
+                onTap: () {
+                  context.push(Routes.notificationCenter);
+                },
+                badgeCount: notificationCount,
+              );
+            }),
+        AppbarIcon(
+            icon: FeatherIcons.settings,
+            onTap: () {
+              context.push(Routes.settings);
+            }),
         Padding(
           padding: const EdgeInsets.only(left: 10),
           child: GestureDetector(
@@ -515,7 +513,8 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                             },
                             onUpdated: (updatedPost) {
                               setState(() {
-                                final idx = _posts.indexWhere((p) => p.id == updatedPost.id);
+                                final idx = _posts
+                                    .indexWhere((p) => p.id == updatedPost.id);
                                 if (idx != -1) _posts[idx] = updatedPost;
                               });
                             },
