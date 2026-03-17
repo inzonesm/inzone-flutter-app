@@ -184,27 +184,11 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                 badgeCount: notificationCount,
               );
             }),
-        GestureDetector(
-          onTap: () {
-            context.push(
-              Routes.settings,
-            );
-          },
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-            decoration: BoxDecoration(
-              color: Theme.of(context).brightness == Brightness.light
-                  ? Colors.grey[300]
-                  : Colors.grey[800],
-              borderRadius: BorderRadius.circular(30),
-            ),
-            child: Icon(
-              FeatherIcons.settings,
-              size: 18,
-              color: theme.textTheme.bodyMedium?.color,
-            ),
-          ),
-        ),
+        AppbarIcon(
+            icon: FeatherIcons.settings,
+            onTap: () {
+              context.push(Routes.settings);
+            }),
         Padding(
           padding: const EdgeInsets.only(left: 10),
           child: GestureDetector(
