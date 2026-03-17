@@ -73,7 +73,7 @@ class _ChatInputState extends State<ChatInput> {
       color: Theme.of(context).canvasColor,
       child: Padding(
         padding:
-            const EdgeInsets.only(left: 10.0, right: 10, bottom: 10, top: 5),
+            const EdgeInsets.only(left: 10.0, right: 10, bottom: 15, top: 5),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -138,13 +138,16 @@ class _ChatInputState extends State<ChatInput> {
                     children: [
                       if (widget.onImagePicked != null)
                         IconButton(
+                          visualDensity: VisualDensity.compact,
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
                           icon: Icon(
                             FeatherIcons.image,
                             color:
                                 Theme.of(context).brightness == Brightness.dark
                                     ? Colors.grey.shade400
                                     : Colors.blue.shade600,
-                            size: 24,
+                            size: 20,
                           ),
                           onPressed: () async {
                             final ImagePicker picker = ImagePicker();
@@ -159,13 +162,16 @@ class _ChatInputState extends State<ChatInput> {
                         ),
                       if (widget.onVideoPicked != null)
                         IconButton(
+                          visualDensity: VisualDensity.compact,
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
                           icon: Icon(
                             FeatherIcons.video,
                             color:
                                 Theme.of(context).brightness == Brightness.dark
                                     ? Colors.grey.shade400
                                     : Colors.blue.shade600,
-                            size: 24,
+                            size: 20,
                           ),
                           onPressed: () async {
                             final ImagePicker picker = ImagePicker();
@@ -180,6 +186,7 @@ class _ChatInputState extends State<ChatInput> {
                         ),
                     ],
                   ),
+                const SizedBox(width: 4),
                 Expanded(
                   child: Scrollbar(
                     controller: widget.scrollController,
@@ -235,11 +242,10 @@ class _ChatInputState extends State<ChatInput> {
                     ),
                   ),
                 ),
-                const SizedBox(width: 10),
                 if (!widget.isGroupChat)
                   MaterialButton(
-                    minWidth: 45,
-                    height: 50,
+                    minWidth: 35,
+                    height: 35,
                     elevation: 0,
                     color: Theme.of(context).brightness == Brightness.dark
                         ? Colors.grey.shade800
@@ -260,7 +266,7 @@ class _ChatInputState extends State<ChatInput> {
                             ? Icons.mic
                             : FeatherIcons.arrowUp,
                         color: Colors.white,
-                        size: 20,
+                        size: 15,
                       ),
                     ),
                   ),
