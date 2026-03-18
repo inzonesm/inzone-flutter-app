@@ -55,6 +55,53 @@ class MessageBubble extends StatelessWidget {
               crossAxisAlignment:
                   isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
               children: [
+                // Display image if present
+                if (imageUrl != null && imageUrl!.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8.0),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(
+                          maxWidth: 250,
+                          maxHeight: 300,
+                        ),
+                        child: CachedNetworkImage(
+                          imageUrl: imageUrl!,
+                          fit: BoxFit.cover,
+                          placeholder: (context, url) => Container(
+                            width: 250,
+                            height: 250,
+                            color: Colors.grey.shade300,
+                            child: const Center(
+                              child: CircularProgressIndicator(),
+                            ),
+                          ),
+                          errorWidget: (context, url, error) => Container(
+                            width: 250,
+                            height: 250,
+                            color: Colors.grey.shade300,
+                            child: const Icon(Icons.error),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                // Display video if present
+                if (videoUrl != null && videoUrl!.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8.0),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(
+                          maxWidth: 250,
+                          maxHeight: 300,
+                        ),
+                        child: VideoPlayerWidgetPostScreen(videoUrl!),
+                      ),
+                    ),
+                  ),
                 Container(
                     padding: const EdgeInsets.only(left: 8, right: 8, top: 4),
                     margin: EdgeInsets.only(
@@ -104,54 +151,6 @@ class MessageBubble extends StatelessWidget {
                                         .textTheme
                                         .bodySmall
                                         ?.color,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          // Display video if present
-                          if (videoUrl != null && videoUrl!.isNotEmpty)
-                            Padding(
-                              padding: const EdgeInsets.only(bottom: 8.0),
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(8),
-                                child: ConstrainedBox(
-                                  constraints: const BoxConstraints(
-                                    maxWidth: 250,
-                                    maxHeight: 300,
-                                  ),
-                                  child: VideoPlayerWidgetPostScreen(videoUrl!),
-                                ),
-                              ),
-                            ),
-                          // Display image if present
-                          if (imageUrl != null && imageUrl!.isNotEmpty)
-                            Padding(
-                              padding: const EdgeInsets.only(bottom: 8.0),
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(8),
-                                child: ConstrainedBox(
-                                  constraints: const BoxConstraints(
-                                    maxWidth: 250,
-                                    maxHeight: 300,
-                                  ),
-                                  child: CachedNetworkImage(
-                                    imageUrl: imageUrl!,
-                                    fit: BoxFit.cover,
-                                    placeholder: (context, url) => Container(
-                                      width: 250,
-                                      height: 250,
-                                      color: Colors.grey.shade300,
-                                      child: const Center(
-                                        child: CircularProgressIndicator(),
-                                      ),
-                                    ),
-                                    errorWidget: (context, url, error) =>
-                                        Container(
-                                      width: 250,
-                                      height: 250,
-                                      color: Colors.grey.shade300,
-                                      child: const Icon(Icons.error),
-                                    ),
                                   ),
                                 ),
                               ),
