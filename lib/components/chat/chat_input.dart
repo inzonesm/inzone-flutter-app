@@ -64,6 +64,23 @@ class _ChatInputState extends State<ChatInput> {
     }
   }
 
+  Widget buildActionIcon() {
+    final bool mediaPending =
+        widget.pendingImage != null || widget.pendingVideo != null;
+    if (mediaPending) {
+      return const SizedBox(
+        width: 20,
+        height: 20,
+        child: CircularProgressIndicator(strokeWidth: 2),
+      );
+    }
+
+    final bool showMic = _isTextEmpty && !mediaPending;
+
+    return Icon(showMic ? Icons.mic : FeatherIcons.arrowUp,
+        color: Colors.white, size: 18);
+  }
+
   @override
   Widget build(BuildContext context) {
     final bool hasMedia =
@@ -261,13 +278,7 @@ class _ChatInputState extends State<ChatInput> {
                             })
                         : widget.onSend,
                     child: Center(
-                      child: Icon(
-                        (_isTextEmpty && !hasMedia)
-                            ? Icons.mic
-                            : FeatherIcons.arrowUp,
-                        color: Colors.white,
-                        size: 15,
-                      ),
+                      child: buildActionIcon(),
                     ),
                   ),
                 if (widget.isGroupChat)
