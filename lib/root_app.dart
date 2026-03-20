@@ -563,6 +563,35 @@ class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
     });
   }
 
+  void _showGameEndDialog() {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return Dialog(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  'Game Over',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 12),
+                const Text('You win! 🎉'),
+                const SizedBox(height: 20),
+                ElevatedButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('OK'),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     const systemUiOverlayStyle = SystemUiOverlayStyle(
@@ -825,7 +854,10 @@ class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
 
             return MiniGameMenu(
               isOpen: _miniGameMenuOpen,
-              onClose: () => setState(() => _miniGameMenuOpen = false),
+              onClose: () {
+                setState(() => _miniGameMenuOpen = false);
+                _showGameEndDialog();
+              },
               onCharacterTap: _openMiniGameWithCharacterPicker,
               charName: activeCharacter.charName,
               charID: activeCharacter.charID,
