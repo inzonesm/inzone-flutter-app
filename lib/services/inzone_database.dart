@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'package:inzone/data/inzone_post.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:inzone/services/appsflyer_service.dart';
+import 'package:inzone/services/cache_service.dart';
 import 'dart:async'; // Add Timer import
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -2701,6 +2702,109 @@ class InZoneDatabase {
       print('Error loading conversation messages: $e');
       return null;
     }
+  }
+
+  // ─── Cache-aware API methods ───────────────────────────────────────
+
+  static const _feedCacheKey = 'feed_page1';
+  static const _carouselCacheKey = 'carousel_characters';
+  static const _conversationsCacheKey = 'conversations';
+  static const _profileCacheKey = 'user_profile';
+  static const _userPostsCacheKey = 'user_posts';
+
+  static final CacheService _cache = CacheService.instance;
+
+  /// Returns cached feed (page 1) immediately, or null if no cache.
+  static Future<Map<String, dynamic>?> getCachedFeed() async {
+    final entry = await _cache.get(_feedCacheKey, ignoreExpiry: true);
+    if (entry != null) {
+      return Map<String, dynamic>.from(entry.data as Map);
+    }
+    return null;
+  }
+
+  /// Fetches fresh feed and writes it to cache.
+  static Future<dynamic> getFeedAndCache(
+      {int? page, int? batchNumber, List<String>? excludeIds}) async {
+    final result = await getFeed(
+        page: page, batchNumber: batchNumber, excludeIds: excludeIds);
+    if (result != null && (page == null || page == 1)) {
+      await _cache.put(_feedCacheKey, result);
+    }
+    return result;
+  }
+
+  /// Returns cached carousel characters, or null if no cache.
+  static Future<List<Map<String, dynamic>>?> getCachedCarouselCharacters() async {
+    final entry = await _cache.get(_carouselCacheKey, ignoreExpiry: true);
+    if (entry != null) {
+      final list = entry.data as List;
+      return list.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+    }
+    return null;
+  }
+
+  /// Fetches fresh carousel characters and writes to cache.
+  static Future<List<Map<String, dynamic>>?> getCarouselCharactersAndCache() async {
+    final result = await getCarouselCharacters();
+    if (result != null) {
+      await _cache.put(_carouselCacheKey, result);
+    }
+    return result;
+  }
+
+  /// Returns cached conversations list, or null.
+  static Future<List<dynamic>?> getCachedConversations() async {
+    final entry = await _cache.get(_conversationsCacheKey, ignoreExpiry: true);
+    if (entry != null) {
+      return List<dynamic>.from(entry.data as List);
+    }
+    return null;
+  }
+
+  /// Fetches fresh conversations and writes to cache.
+  static Future<List<dynamic>?> getConversationsAndCache() async {
+    final result = await getConversations();
+    if (result != null) {
+      await _cache.put(_conversationsCacheKey, result);
+    }
+    return result;
+  }
+
+  /// Returns cached user profile, or null.
+  static Future<Map<String, dynamic>?> getCachedUserProfile() async {
+    final entry = await _cache.get(_profileCacheKey, ignoreExpiry: true);
+    if (entry != null) {
+      return Map<String, dynamic>.from(entry.data as Map);
+    }
+    return null;
+  }
+
+  /// Fetches fresh current user profile and writes to cache.
+  static Future<Map<String, dynamic>?> getCurrentUserProfileAndCache() async {
+    final result = await getCurrentUserProfile();
+    if (result != null) {
+      await _cache.put(_profileCacheKey, result);
+    }
+    return result;
+  }
+
+  /// Returns cached user posts, or null.
+  static Future<List<dynamic>?> getCachedUserPosts() async {
+    final entry = await _cache.get(_userPostsCacheKey, ignoreExpiry: true);
+    if (entry != null) {
+      return List<dynamic>.from(entry.data as List);
+    }
+    return null;
+  }
+
+  /// Fetches fresh user posts and writes to cache.
+  static Future<List<dynamic>?> getUserPostsAndCache(String userId) async {
+    final result = await getUserPosts(userId);
+    if (result != null) {
+      await _cache.put(_userPostsCacheKey, result);
+    }
+    return result;
   }
 }
 

@@ -76,8 +76,7 @@ class HomeScreenState extends State<HomeScreen> {
     super.initState();
     _scrollController = widget.controller ?? ScrollController();
     _startTime = DateTime.now().toUtc();
-    loadFeed();
-    loadAvatars();
+    _loadWithCache();
     _startAvatarTimer();
     _scrollController.addListener(_onScroll);
 
@@ -88,6 +87,109 @@ class HomeScreenState extends State<HomeScreen> {
         userId: userId,
         deviceModel: _getPlatform(),
       );
+    }
+  }
+
+  /// Show cached content instantly, then refresh from network in background.
+  Future<void> _loadWithCache() async {
+    // Try loading cached data first (instant)
+    bool hasCachedFeed = false;
+    bool hasCachedAvatars = false;
+
+    try {
+      final cachedFeed = await InZoneDatabase.getCachedFeed();
+      if (cachedFeed != null && cachedFeed.containsKey('posts')) {
+        final cachedPosts = cachedFeed['posts'] as List<dynamic>? ?? [];
+        if (cachedPosts.isNotEmpty && mounted) {
+          setState(() {
+            posts.addAll(cachedPosts);
+            originalPosts = List.from(posts);
+            for (var post in cachedPosts) {
+              String category = _extractCategoryFromPost(post);
+              if (category.isNotEmpty && !categoriesList.contains(category)) {
+                categoriesList.add(category);
+              }
+            }
+            isLoading = false;
+          });
+          hasCachedFeed = true;
+          print('⚡ Loaded ${cachedPosts.length} cached feed posts');
+        }
+      }
+    } catch (e) {
+      print('Cache read failed (feed): $e');
+    }
+
+    try {
+      final cachedChars = await InZoneDatabase.getCachedCarouselCharacters();
+      if (cachedChars != null && cachedChars.isNotEmpty && mounted) {
+        await _processAvatars(cachedChars);
+        if (mounted) setState(() {});
+        hasCachedAvatars = true;
+        print('⚡ Loaded ${cachedChars.length} cached avatars');
+      }
+    } catch (e) {
+      print('Cache read failed (avatars): $e');
+    }
+
+    // Now fetch fresh data from network (replaces cached data when ready)
+    if (hasCachedFeed) {
+      // Background refresh — don't show loading spinner
+      _refreshFeedInBackground();
+    } else {
+      loadFeed();
+    }
+
+    if (hasCachedAvatars) {
+      _refreshAvatarsInBackground();
+    } else {
+      loadAvatars();
+    }
+  }
+
+  /// Silently refresh feed from network and update UI when ready.
+  Future<void> _refreshFeedInBackground() async {
+    try {
+      final response = await InZoneDatabase.getFeedAndCache(
+        page: 1,
+        batchNumber: reloadCount,
+        excludeIds: [],
+      );
+      if (!mounted || response == null) return;
+      if (response.containsKey('posts')) {
+        final newPosts = response['posts'] as List<dynamic>? ?? [];
+        if (newPosts.isNotEmpty) {
+          setState(() {
+            posts.clear();
+            originalPosts.clear();
+            categoriesList.clear();
+            posts.addAll(newPosts);
+            originalPosts = List.from(posts);
+            for (var post in newPosts) {
+              String category = _extractCategoryFromPost(post);
+              if (category.isNotEmpty && !categoriesList.contains(category)) {
+                categoriesList.add(category);
+              }
+            }
+            hasMorePosts = true;
+          });
+        }
+      }
+    } catch (e) {
+      print('Background feed refresh failed: $e');
+    }
+  }
+
+  /// Silently refresh avatars from network.
+  Future<void> _refreshAvatarsInBackground() async {
+    try {
+      final characters = await InZoneDatabase.getCarouselCharactersAndCache();
+      if (mounted && characters != null) {
+        await _processAvatars(characters);
+        if (mounted) setState(() {});
+      }
+    } catch (e) {
+      print('Background avatar refresh failed: $e');
     }
   }
 
@@ -254,7 +356,7 @@ class HomeScreenState extends State<HomeScreen> {
 
   Future<void> loadAvatars() async {
     try {
-      final characters = await InZoneDatabase.getCarouselCharacters();
+      final characters = await InZoneDatabase.getCarouselCharactersAndCache();
       if (mounted && characters != null) {
         await _processAvatars(characters);
         if (mounted) setState(() {});
@@ -298,7 +400,7 @@ class HomeScreenState extends State<HomeScreen> {
 
       // CONSISTENT PAGINATION: Always use page 1 for fresh batch
       // _currentPage tracks client-side pagination within the batch
-      final response = await InZoneDatabase.getFeed(
+      final response = await InZoneDatabase.getFeedAndCache(
         page: 1,
         batchNumber:
             reloadCount, // NEW: Pass batch number to get different recommendations

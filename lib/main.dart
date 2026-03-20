@@ -13,6 +13,7 @@ import 'package:provider/provider.dart';
 import 'package:inzone/router/app_router.dart';
 import 'package:inzone/router/routes.dart';
 import 'package:inzone/services/appsflyer_service.dart';
+import 'package:inzone/services/cache_service.dart';
 import 'package:inzone/services/inzone_database.dart';
 import 'package:inzone/services/notification_service.dart';
 import 'package:inzone/services/notification_event_service.dart';
@@ -263,18 +264,14 @@ void main() async {
   WidgetsBinding widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
   FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
 
-  // Start non-blocking initializations early
-  InitTimer.measureSync('MobileAds.init (fire & forget)', () {
-    MobileAds.instance.initialize();
-  });
+  // Fire-and-forget: these don't need to complete before UI
+  MobileAds.instance.initialize();
+  MediaKit.ensureInitialized();
 
-  InitTimer.measureSync('MediaKit.ensureInitialized', () {
-    MediaKit.ensureInitialized();
-  });
-
-  // Run SharedPreferences and Firebase init in parallel
+  // ── CRITICAL PATH: Only block on what the UI absolutely needs ──
   late SharedPreferences prefs;
-  await InitTimer.measure('SharedPrefs + Firebase (parallel)', () async {
+  await InitTimer.measure('SharedPrefs + Firebase + Cache (parallel)',
+      () async {
     final initFutures = await Future.wait([
       InitTimer.measure(
           '  └─ SharedPreferences', () => SharedPreferences.getInstance()),
@@ -282,107 +279,110 @@ void main() async {
           '  └─ Firebase.initializeApp',
           () => Firebase.initializeApp(
               options: DefaultFirebaseOptions.currentPlatform)),
+      InitTimer.measure(
+          '  └─ CacheService.init', () => CacheService.initialize()),
     ]);
     prefs = initFutures[0] as SharedPreferences;
   });
 
-  // Register FCM background message handler (must be after Firebase init)
+  // Register FCM background handler (must be after Firebase init, but non-blocking)
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
-  // Run these in parallel - they're independent of each other
-  await InitTimer.measure('Notifications + RemoteConfig + Session (parallel)',
-      () async {
-    await Future.wait([
-      InitTimer.measure('  └─ NotificationService.init', () async {
-        try {
-          await NotificationService.initialize();
-          print('✅ Notification service initialized');
-        } catch (e) {
-          print('⚠️ Failed to initialize notification service: $e');
-        }
-      }),
-      InitTimer.measure('  └─ NotificationEventService.init', () async {
-        try {
-          await NotificationEventService.initializePushNotifications();
-          print('✅ Push notifications initialized');
-        } catch (e) {
-          print('⚠️ Failed to initialize push notifications: $e');
-        }
-      }),
-      InitTimer.measure('  └─ setupRemoteConfig', () => setupRemoteConfig()),
-      InitTimer.measure(
-          '  └─ validateFirebaseSession', () => validateFirebaseSession()),
-    ]);
-  });
-
-  // Check for force update (needs remote config to be ready)
-  bool needsUpdate = await InitTimer.measure(
-      'checkForceUpdateRequired', () => checkForceUpdateRequired());
-
-  // Request tracking permission (shows UI dialog - do this while other things load)
-  // Run tracking and AppsFlyer in parallel
-  await InitTimer.measure('Tracking + AppsFlyer (parallel)', () async {
-    await Future.wait([
-      InitTimer.measure(
-          '  └─ requestTrackingPermission', () => requestTrackingPermission()),
-      InitTimer.measure('  └─ AppsFlyer.init', () async {
-        final appsFlyerService = AppsFlyerService();
-        await appsFlyerService.initialize();
-        String? advertisingId = await appsFlyerService.getAdvertisingId();
-        print("The advertising ID is $advertisingId");
-      }),
-    ]);
-  });
-
-  // Initialize RevenueCat (depends on Firebase Auth being ready)
-  await InitTimer.measure(
-      'initPlatformState (RevenueCat)', () => initPlatformState());
-
-  // Print timing summary before UI starts
+  // Print timing summary — UI is about to start
   InitTimer.printSummary();
 
-  // These don't need to block app startup - run async
+  // ── LAUNCH UI IMMEDIATELY ──
+  await SystemChrome.setPreferredOrientations([
+    DeviceOrientation.portraitUp,
+    DeviceOrientation.portraitDown,
+  ]);
+
+  runApp(
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => ThemeManager()),
+        ChangeNotifierProvider(create: (_) => ActiveCharacterNotifier()),
+      ],
+      child: MyApp(prefs: prefs),
+    ),
+  );
+
+  // ── POST-UI: Everything below runs after the UI is rendering ──
+  _initDeferredServices();
+}
+
+/// Runs all non-critical initialization after the UI is up.
+Future<void> _initDeferredServices() async {
+  // Warm up Cloud Run container
+  InZoneDatabase.warmUpCloudRun();
+
+  // Firebase Analytics (fire-and-forget)
   FirebaseAnalytics.instance.setAnalyticsCollectionEnabled(true).then((_) {
     print("✅ Firebase Analytics initialized for ad revenue tracking");
   });
 
-  // Warm up Cloud Run container (already async)
-  InZoneDatabase.warmUpCloudRun();
+  // Run notifications, remote config, session validation, and tracking in parallel
+  await Future.wait([
+    () async {
+      try {
+        await NotificationService.initialize();
+        print('✅ Notification service initialized');
+      } catch (e) {
+        print('⚠️ Failed to initialize notification service: $e');
+      }
+    }(),
+    () async {
+      try {
+        await NotificationEventService.initializePushNotifications();
+        print('✅ Push notifications initialized');
+      } catch (e) {
+        print('⚠️ Failed to initialize push notifications: $e');
+      }
+    }(),
+    setupRemoteConfig(),
+    validateFirebaseSession(),
+    () async {
+      try {
+        final appsFlyerService = AppsFlyerService();
+        await appsFlyerService.initialize();
+        print("✅ AppsFlyer initialized");
+      } catch (e) {
+        print('⚠️ AppsFlyer init failed: $e');
+      }
+    }(),
+  ]);
 
-  // Defer AI engagement service - initialize after app is running
-  Future.delayed(const Duration(seconds: 1), () async {
-    try {
-      await AIEngagementService.initialize();
-      print("✅ AI Engagement Service initialized successfully");
-    } catch (e) {
-      print("⚠️ AI Engagement Service initialization failed: $e");
-    }
-  });
+  // These depend on the above completing:
+  // Force update check (needs remote config)
+  final needsUpdate = await checkForceUpdateRequired();
+  if (needsUpdate) {
+    print("Force update required - navigating to update screen");
+    AppRouter.setInitialRoute(Routes.forceUpdate);
+  }
 
-  // // TESTING: Uncomment the line below to test all analytics
-  // await appsFlyerService.testAllAnalytics();
+  // Tracking permission (iOS dialog — better after UI is visible)
+  await requestTrackingPermission();
 
-  SystemChrome.setPreferredOrientations([
-    DeviceOrientation.portraitUp,
-    DeviceOrientation.portraitDown,
-  ]).then((_) {
-    runApp(
-      MultiProvider(
-        providers: [
-          ChangeNotifierProvider(create: (_) => ThemeManager()),
-          ChangeNotifierProvider(create: (_) => ActiveCharacterNotifier()),
-        ],
-        child: MyApp(prefs: prefs, needsUpdate: needsUpdate),
-      ),
-    );
-  });
+  // RevenueCat
+  try {
+    await initPlatformState();
+  } catch (e) {
+    print('⚠️ RevenueCat init failed: $e');
+  }
+
+  // AI engagement service
+  try {
+    await AIEngagementService.initialize();
+    print("✅ AI Engagement Service initialized successfully");
+  } catch (e) {
+    print("⚠️ AI Engagement Service initialization failed: $e");
+  }
 }
 
 class MyApp extends StatefulWidget {
   final SharedPreferences prefs;
-  final bool needsUpdate;
 
-  const MyApp({super.key, required this.prefs, required this.needsUpdate});
+  const MyApp({super.key, required this.prefs});
 
   @override
   State<MyApp> createState() => _MyAppState();
@@ -409,12 +409,8 @@ class _MyAppState extends State<MyApp> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       FlutterNativeSplash.remove();
 
-      // If update is required, show force update screen
-      if (widget.needsUpdate) {
-        print("Force update required - showing update screen");
-        AppRouter.setInitialRoute(Routes.forceUpdate);
-        return;
-      }
+      // Force update check is now handled in _initDeferredServices() after
+      // remote config loads — this avoids blocking startup.
 
       // Check if this is the first launch
       bool isFirstLaunch = widget.prefs.getBool(FIRST_LAUNCH_KEY) ?? true;

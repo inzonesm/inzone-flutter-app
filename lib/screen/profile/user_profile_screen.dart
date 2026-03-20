@@ -88,9 +88,30 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
         isLoading = false;
       });
     } else {
+      // Try loading cached posts first for instant display
+      await _loadCachedPosts();
+      // Then fetch fresh data from network
       await fetchUserProfile();
       await fetchUserPosts();
       await _fetchSavedCharacters();
+    }
+  }
+
+  /// Load cached user posts for instant display while fresh data loads.
+  Future<void> _loadCachedPosts() async {
+    try {
+      final cachedPosts = await InZoneDatabase.getCachedUserPosts();
+      if (cachedPosts != null && cachedPosts.isNotEmpty && mounted) {
+        final posts = cachedPosts.map((json) => InZonePost.fromJson(json)).toList();
+        setState(() {
+          _posts = posts;
+          postCount = posts.length;
+          isLoading = false;
+        });
+        print('⚡ Loaded ${posts.length} cached user posts');
+      }
+    } catch (e) {
+      print('Cache read failed (user posts): $e');
     }
   }
 
@@ -368,7 +389,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     }
 
     try {
-      final result = await InZoneDatabase.getUserPosts(userId);
+      final result = await InZoneDatabase.getUserPostsAndCache(userId);
       List<InZonePost> fetchedPosts = [];
       if (result != null) {
         fetchedPosts = result.map((json) => InZonePost.fromJson(json)).toList();

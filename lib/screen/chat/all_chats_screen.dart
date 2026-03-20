@@ -76,17 +76,40 @@ class _AllChatsScreenState extends State<AllChatsScreen>
   Future<void> _loadCurrentUser() async {
     currentUserId = await InZoneDatabase.getCurrentUserUid();
     if (currentUserId != null) {
+      await _loadCachedChats();
       _fetchConversations();
     } else {
       setState(() => _isLoading = false);
     }
   }
 
+  /// Load cached chat list so the user sees content instantly.
+  Future<void> _loadCachedChats() async {
+    try {
+      final cachedData = await InZoneDatabase.getCachedConversations();
+      if (cachedData != null && cachedData.isNotEmpty && mounted) {
+        _allChats.clear();
+        for (var conversation in cachedData) {
+          ChatUser? aiUser = ChatUser.fromJson(
+              Map<String, dynamic>.from(conversation as Map));
+          if (aiUser != null) _allChats.add(aiUser);
+        }
+        if (_allChats.isNotEmpty) {
+          setState(() => _isLoading = false);
+          print('⚡ Loaded ${_allChats.length} cached chats');
+        }
+      }
+    } catch (e) {
+      print('Cache read failed (chats): $e');
+    }
+  }
+
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   Future<void> _fetchConversations() async {
+    final hadCachedData = _allChats.isNotEmpty;
     _allChats.clear();
-    setState(() => _isLoading = true);
+    if (!hadCachedData) setState(() => _isLoading = true);
 
     if (currentUserId == null) {
       setState(() => _isLoading = false);
@@ -95,7 +118,7 @@ class _AllChatsScreenState extends State<AllChatsScreen>
 
     try {
       // Fetch AI user conversations from the backend API
-      List<dynamic>? aiData = await InZoneDatabase.getConversations();
+      List<dynamic>? aiData = await InZoneDatabase.getConversationsAndCache();
       if (aiData != null) {
         for (var conversation in aiData) {
           ChatUser? aiUser = ChatUser.fromJson(conversation);
