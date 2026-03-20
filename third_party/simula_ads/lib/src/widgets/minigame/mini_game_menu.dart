@@ -17,6 +17,7 @@ const Color _defaultPlayableBorderColor = Color(0xFF262626);
 class MiniGameMenu extends StatefulWidget {
   final bool isOpen;
   final VoidCallback onClose;
+  final VoidCallback? onGameEnd;
   final VoidCallback? onCharacterTap;
   final String charName;
   final String charID;
@@ -35,6 +36,7 @@ class MiniGameMenu extends StatefulWidget {
     super.key,
     required this.isOpen,
     required this.onClose,
+    this.onGameEnd,
     this.onCharacterTap,
     required this.charName,
     required this.charID,
@@ -291,11 +293,13 @@ class _MiniGameMenuState extends State<MiniGameMenu> {
       setState(() {
         _selectedGameId = null;
       });
+      widget.onGameEnd?.call();
     } else {
       // If ad has already been fetched, just close so we don't double count impressions
       setState(() {
         _selectedGameId = null;
       });
+      widget.onGameEnd?.call();
     }
   }
 
@@ -315,6 +319,7 @@ class _MiniGameMenuState extends State<MiniGameMenu> {
       _adIframeUrl = null;
       // Keep _adFetched as true so we don't show another ad
     });
+    widget.onGameEnd?.call();
   }
 
   String _getInitials(String name) {
