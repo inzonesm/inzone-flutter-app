@@ -563,11 +563,11 @@ class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
     });
   }
 
-  void _showGameEndDialog() {
+  void _showGameEndDialog(BuildContext parentContext) {
     Future.microtask(() {
       showDialog(
-        context: context,
-        builder: (context) {
+        context: parentContext,
+        builder: (dialogContext) {
           return Dialog(
             child: Padding(
               padding: const EdgeInsets.all(16),
@@ -582,8 +582,17 @@ class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
                   const Text('You win! 🎉'),
                   const SizedBox(height: 20),
                   ElevatedButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    child: const Text('OK'),
+                    onPressed: () {
+                      Navigator.of(dialogContext).pop();
+
+                      context.push(Routes.postChat, extra: {
+                        'name': '123',
+                        'profileImageURL': '',
+                        'chat': '123',
+                        'avatarID': '',
+                      });
+                    },
+                    child: const Text('Share your win!'),
                   ),
                 ],
               ),
@@ -867,7 +876,7 @@ class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
                 await Future.delayed(const Duration(milliseconds: 220));
                 if (!mounted) return;
 
-                showFeedbackPopup(context);
+                _showGameEndDialog(context);
               },
               onCharacterTap: _openMiniGameWithCharacterPicker,
               charName: activeCharacter.charName,
