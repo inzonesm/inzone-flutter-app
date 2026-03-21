@@ -859,7 +859,14 @@ class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
               onClose: () {
                 setState(() => _miniGameMenuOpen = false);
               },
-              onGameEnd: () {
+              onGameEnd: () async {
+                if (_miniGameMenuOpen) {
+                  setState(() => _miniGameMenuOpen = false);
+                }
+
+                await Future.delayed(const Duration(milliseconds: 220));
+                if (!mounted) return;
+
                 showFeedbackPopup(context);
               },
               onCharacterTap: _openMiniGameWithCharacterPicker,
