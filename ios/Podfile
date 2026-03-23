@@ -33,6 +33,9 @@ target 'Runner' do
 
   flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
 
+  # Facebook SDK for iOS - required for attribution/analytics
+  pod 'FBSDKCoreKit', '~> 17.0'
+
 
   target 'RunnerTests' do
     inherit! :search_paths

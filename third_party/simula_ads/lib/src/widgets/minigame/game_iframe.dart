@@ -102,6 +102,17 @@ class _GameIframeState extends State<GameIframe> {
       });
       _updateOverlay();
     }
+
+    final characterContextChanged = oldWidget.charID != widget.charID ||
+        oldWidget.charName != widget.charName ||
+        oldWidget.charImage != widget.charImage ||
+        oldWidget.charDesc != widget.charDesc ||
+        oldWidget.delegateChar != widget.delegateChar ||
+        oldWidget.messages.length != widget.messages.length;
+
+    if (characterContextChanged && _iframeUrl != null) {
+      _loadGame();
+    }
   }
 
   @override
@@ -213,6 +224,12 @@ class _GameIframeState extends State<GameIframe> {
     try {
       _webViewController = WebViewController()
         ..setJavaScriptMode(JavaScriptMode.unrestricted)
+        ..addJavaScriptChannel(
+          'InzoneCharacterTap',
+          onMessageReceived: (_) {
+            widget.onCharacterTap?.call();
+          },
+        )
         ..setNavigationDelegate(
           NavigationDelegate(
             onNavigationRequest: (NavigationRequest request) {
@@ -251,6 +268,9 @@ class _GameIframeState extends State<GameIframe> {
 
               return NavigationDecision.navigate;
             },
+            onPageFinished: (url) {
+              _injectCharacterTapBridgeScript();
+            },
           ),
         );
     } catch (e) {
@@ -274,6 +294,15 @@ class _GameIframeState extends State<GameIframe> {
         _error = null;
       });
 
+      final List<Message> requestMessages = [
+        ...widget.messages,
+        Message(
+          role: 'assistant',
+          content:
+              'Current game is ${widget.gameId}. Keep responses concise and useful for this specific game context.',
+        ),
+      ];
+
       final response = await notifier.apiClient.getMinigame(
         gameType: widget.gameId,
         sessionId: notifier.sessionId!,
@@ -283,7 +312,7 @@ class _GameIframeState extends State<GameIframe> {
         charName: widget.charName,
         charImage: widget.charImage ?? '',
         charDesc: widget.charDesc,
-        messages: widget.messages,
+        messages: requestMessages,
         delegateChar: widget.delegateChar,
         menuId: widget.menuId,
       );
@@ -310,6 +339,241 @@ class _GameIframeState extends State<GameIframe> {
         });
       }
     }
+  }
+
+  void _injectCharacterTapBridgeScript() {
+    final controller = _webViewController;
+    if (controller == null) return;
+
+    const script = '''
+(() => {
+  try {
+    if (window.__inzoneCharacterTapBridgeInstalled) return;
+    window.__inzoneCharacterTapBridgeInstalled = true;
+
+    const keywordMatch = (value) => {
+      if (!value || typeof value !== 'string') return false;
+      const text = value.toLowerCase();
+      return text.includes('character') || text.includes('avatar') || text.includes('profile') || text.includes('agent');
+    };
+
+    const isVisible = (el, win) => {
+      if (!el || !el.getBoundingClientRect) return false;
+      const style = win.getComputedStyle ? win.getComputedStyle(el) : null;
+      if (!style) return true;
+      if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') {
+        return false;
+      }
+      const rect = el.getBoundingClientRect();
+      return rect.width > 0 && rect.height > 0;
+    };
+
+    const isGameStartMenuVisible = (doc, win) => {
+      const candidates = doc.querySelectorAll('button, [role="button"], div, span, a');
+      let found = 0;
+      const labels = new Set(['easy', 'medium', 'hard']);
+
+      for (let i = 0; i < candidates.length; i += 1) {
+        const el = candidates[i];
+        if (!isVisible(el, win)) continue;
+        const text = ((el.innerText || el.textContent || '') + '').toLowerCase().trim();
+        if (!labels.has(text)) continue;
+
+        const rect = el.getBoundingClientRect();
+        if (rect.width >= 80 && rect.height >= 30) {
+          found += 1;
+        }
+        if (found >= 2) return true;
+      }
+
+      return false;
+    };
+
+    const isStartMenuButton = (el) => {
+      if (!el) return false;
+      const text = ((el.innerText || el.textContent || '') + '').toLowerCase().trim();
+      if (!text) return false;
+      return text === 'easy' || text === 'medium' || text === 'hard';
+    };
+
+    const isCharacterElement = (el, win) => {
+      if (!el || !el.getAttribute) return false;
+
+      const attrs = [
+        el.getAttribute('data-testid'),
+        el.getAttribute('id'),
+        el.getAttribute('class'),
+        el.getAttribute('aria-label'),
+        el.getAttribute('title'),
+        el.getAttribute('alt'),
+      ];
+
+      for (const attr of attrs) {
+        if (keywordMatch(attr)) return true;
+      }
+
+      if (el.tagName === 'IMG' && keywordMatch(el.alt || '')) return true;
+      if (el.tagName === 'BUTTON' && keywordMatch(el.getAttribute('aria-label') || '')) return true;
+
+      const style = win.getComputedStyle ? win.getComputedStyle(el) : null;
+      const width = el.offsetWidth || 0;
+      const height = el.offsetHeight || 0;
+      const likelyCircleSize = width >= 24 && width <= 140 && Math.abs(width - height) <= 16;
+      const borderRadius = style ? (style.borderRadius || '').toLowerCase() : '';
+      const looksCircular = borderRadius.includes('50%') || borderRadius.includes('999') || borderRadius.includes('100%');
+      const isFloating = style && (style.position === 'fixed' || style.position === 'absolute' || style.position === 'sticky');
+      const isDraggableCursor = style && ((style.cursor || '').includes('grab') || (style.cursor || '').includes('move'));
+      const draggableHint = !!(el.getAttribute('draggable') || '').toString().toLowerCase().includes('true');
+      const hasTouchActionNone = style && (style.touchAction || '').toLowerCase().includes('none');
+
+      if (!likelyCircleSize) return false;
+
+      if ((isFloating && (isDraggableCursor || draggableHint || hasTouchActionNone)) && looksCircular) {
+        return true;
+      }
+
+      if (keywordMatch(el.getAttribute('data-testid') || '') && isFloating && looksCircular) {
+        return true;
+      }
+
+      return false;
+    };
+
+    let lastTapMs = 0;
+
+    const sendTap = () => {
+      const now = Date.now();
+      if (now - lastTapMs < 400) return;
+      lastTapMs = now;
+
+      if (window.InzoneCharacterTap && window.InzoneCharacterTap.postMessage) {
+        window.InzoneCharacterTap.postMessage('character_tap');
+      }
+    };
+
+    const getEventPoint = (event) => {
+      if (!event) return null;
+      if (typeof event.clientX === 'number' && typeof event.clientY === 'number') {
+        return { x: event.clientX, y: event.clientY };
+      }
+      const touch = (event.changedTouches && event.changedTouches[0])
+        || (event.touches && event.touches[0]);
+      if (touch && typeof touch.clientX === 'number' && typeof touch.clientY === 'number') {
+        return { x: touch.clientX, y: touch.clientY };
+      }
+      return null;
+    };
+
+    const isInGameCircleZone = (event, win) => {
+      const point = getEventPoint(event);
+      if (!point) return false;
+
+      const vw = win.innerWidth || 0;
+      const vh = win.innerHeight || 0;
+      if (vw <= 0 || vh <= 0) return false;
+
+      const zoneLeft = 0;
+      const zoneTop = 52;
+      const zoneRight = Math.min(190, vw * 0.5);
+      const zoneBottom = Math.min(250, vh * 0.42);
+
+      return point.x >= zoneLeft &&
+        point.x <= zoneRight &&
+        point.y >= zoneTop &&
+        point.y <= zoneBottom;
+    };
+
+    const inspect = (doc, win, event) => {
+      if (isGameStartMenuVisible(doc, win)) return;
+
+      let node = event.target;
+      let depth = 0;
+      while (node && depth < 8) {
+        if (isStartMenuButton(node)) return;
+        if (isCharacterElement(node, win)) {
+          sendTap();
+          break;
+        }
+        node = node.parentElement;
+        depth += 1;
+      }
+
+      if (isInGameCircleZone(event, win)) {
+        sendTap();
+      }
+    };
+
+    const maybeAttachDirectCircleListeners = (doc, win) => {
+      if (isGameStartMenuVisible(doc, win)) return;
+
+      const nodes = doc.querySelectorAll('img, button, div, span, canvas');
+      const vw = win.innerWidth || 0;
+      const vh = win.innerHeight || 0;
+
+      for (let i = 0; i < nodes.length; i += 1) {
+        const node = nodes[i];
+        if (!isVisible(node, win)) continue;
+        if (!isCharacterElement(node, win)) continue;
+
+        const rect = node.getBoundingClientRect();
+        const nearTopLeft = rect.left < vw * 0.5 && rect.top < vh * 0.5;
+        if (!nearTopLeft) continue;
+
+        if (node.__inzoneTapBound) continue;
+        node.__inzoneTapBound = true;
+
+        node.addEventListener('click', () => {
+          if (!isGameStartMenuVisible(doc, win)) sendTap();
+        }, true);
+
+        node.addEventListener('touchend', () => {
+          if (!isGameStartMenuVisible(doc, win)) sendTap();
+        }, true);
+
+        node.addEventListener('pointerup', () => {
+          if (!isGameStartMenuVisible(doc, win)) sendTap();
+        }, true);
+      }
+    };
+
+    const installBridgeForDocument = (doc, win) => {
+      if (!doc || !win) return;
+      if (doc.__inzoneDocBridgeInstalled) return;
+      doc.__inzoneDocBridgeInstalled = true;
+
+      const handler = (event) => inspect(doc, win, event);
+      doc.addEventListener('click', handler, true);
+      doc.addEventListener('pointerup', handler, true);
+      doc.addEventListener('touchend', handler, true);
+
+      maybeAttachDirectCircleListeners(doc, win);
+    };
+
+    const installBridgesRecursively = () => {
+      installBridgeForDocument(document, window);
+
+      const iframes = document.querySelectorAll('iframe');
+      for (let i = 0; i < iframes.length; i += 1) {
+        const iframe = iframes[i];
+        try {
+          const subWin = iframe.contentWindow;
+          const subDoc = subWin ? subWin.document : null;
+          if (!subWin || !subDoc) continue;
+          installBridgeForDocument(subDoc, subWin);
+          maybeAttachDirectCircleListeners(subDoc, subWin);
+        } catch (_) {
+          // Cross-origin iframe, ignore.
+        }
+      }
+    };
+
+    installBridgesRecursively();
+    window.setInterval(installBridgesRecursively, 1200);
+  } catch (_) {}
+})();
+''';
+
+    controller.runJavaScript(script).catchError((_) {});
   }
 
   /// Calculate container height based on playableHeight prop
