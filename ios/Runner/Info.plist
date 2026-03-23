@@ -108,5 +108,13 @@
 		<string>We use your device's advertising identifier (IDFA) to deliver relevant ads and measure how our ads perform.</string>
 		<key>NSAdvertisingAttributionReportEndpoint</key>
 		<string>https://appsflyer-skadnetwork.com/</string>
+		<key>FacebookAppID</key>
+		<string>3421498634819032</string>
+		<key>FacebookDisplayName</key>
+		<string>InZone</string>
+		<key>FacebookAdvertiserIDCollectionEnabled</key>
+		<true/>
+		<key>FacebookAutoLogAppEventsEnabled</key>
+		<true/>
 	</dict>
 </plist>
