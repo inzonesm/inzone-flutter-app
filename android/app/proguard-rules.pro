@@ -13,3 +13,7 @@
 -dontwarn androidx.window.sidecar.SidecarInterface
 -dontwarn androidx.window.sidecar.SidecarProvider
 -dontwarn androidx.window.sidecar.SidecarWindowLayoutInfo
+
+# AppsFlyer SDK
+-keep class com.appsflyer.** { *; }
+-keep class kotlin.jvm.internal.** { *; }
