@@ -581,6 +581,7 @@ class AppRouter {
             profileImageURL: extra['profileImageURL'] as String,
             chat: extra['chat'] as String,
             avatarID: extra['avatarID'] as String,
+            initialText: extra['initialText'] as String?,
           );
         },
       ),

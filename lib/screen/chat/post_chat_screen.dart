@@ -14,13 +14,15 @@ class PostChatScreen extends StatefulWidget {
   String? profileImageURL;
   String chat;
   String avatarID;
+  String? initialText;
 
   PostChatScreen(
       {super.key,
       required this.name,
       required this.profileImageURL,
       required this.chat,
-      required this.avatarID});
+      required this.avatarID,
+      this.initialText});
 
   @override
   State<PostChatScreen> createState() => _PostChatScreenState();
@@ -37,6 +39,7 @@ class _PostChatScreenState extends State<PostChatScreen> {
   double maxWidth = 0.0;
   double maxMovable = 0.928;
   bool doesNotWork = false;
+  bool _isSubmitting = false;
 
   void setPostContent(String postContentF) {
     postContent = postContentF;
@@ -85,67 +88,17 @@ class _PostChatScreenState extends State<PostChatScreen> {
           ),
           actions: [
             TextButton(
-              onPressed: () async {
+              onPressed: _isSubmitting
+                  ? null
+                  : () async {
                 if (postContent != null && postContent!.isNotEmpty) {
                   try {
-                    // Enhanced sentiment analysis
-                    final analysis =
-                        await InZoneDatabase.analyzeSentiment(
-                          postContent!,
-                          imageUrls: [], // No images in chat sharing
-                          videoUrls: [], // No videos in chat sharing
-                        );
-
-                    // Update state before proceeding with post creation
-                    int sentiment = analysis["sentiment"] as int;
-                    bool isBlocked = analysis["blocked"] ?? false;
-                    
                     setState(() {
-                      if (sentiment == -2 || isBlocked) {
-                        moveValue = low;
-                        doesNotWork = true;
-                      } else if (sentiment == -1) {
-                        moveValue = low;
-                        doesNotWork = true;
-                      } else if (sentiment == 0) {
-                        moveValue = medium;
-                        doesNotWork = false;
-                      } else if (sentiment == 1) {
-                        moveValue = high;
-                        doesNotWork = false;
-                      }
+                      _isSubmitting = true;
                     });
 
-                    // Show error message and return if content is blocked or inappropriate
-                    if (sentiment == -2 || isBlocked) {
-                      String blockReason = analysis["block_reason"] ?? "Content violates our guidelines";
-                      ToastService.showToast(
-                        context,
-                        backgroundColor: theme.canvasColor,
-                        shadowColor: Colors.transparent,
-                        leading: const Icon(
-                          Icons.error,
-                          color: Colors.redAccent,
-                        ),
-                        message: "Post blocked: $blockReason",
-                      );
-                      return;
-                    }
-
-                    if (sentiment == -1) {
-                      ToastService.showToast(
-                        context,
-                        backgroundColor: theme.canvasColor,
-                        shadowColor: Colors.transparent,
-                        leading: const Icon(
-                          Icons.error,
-                          color: Colors.redAccent,
-                        ),
-                        message:
-                            'Your post contains inappropriate content. Please revise and try again.',
-                      );
-                      return;
-                    }
+                    final String imageUrl = (widget.profileImageURL ?? '').trim();
+                    final List<String> imageRefs = imageUrl.isNotEmpty ? [imageUrl] : [];
 
                     // Only proceed with repost if sentiment is acceptable (0 or 1)
                     final result = await InZoneDatabase.createRepost(
@@ -154,22 +107,39 @@ class _PostChatScreenState extends State<PostChatScreen> {
                       aiProfileImageURL: widget.profileImageURL ?? "",
                       aiChatContent: widget.chat,
                       aiId: widget.avatarID,
-                      imageRefs: [],
+                      imageRefs: imageRefs,
                       videoRefs: [],
                     );
 
+                    final int sentiment = (result["sentiment"] is int)
+                        ? result["sentiment"] as int
+                        : 0;
+                    final bool blocked = result["blocked"] == true;
+
+                    setState(() {
+                      if (sentiment == -2 || blocked || sentiment == -1) {
+                        moveValue = low;
+                        doesNotWork = true;
+                      } else if (sentiment == 0) {
+                        moveValue = medium;
+                        doesNotWork = false;
+                      } else {
+                        moveValue = high;
+                        doesNotWork = false;
+                      }
+                    });
+
                     if (!result["success"]) {
+                      final String error = (result["error"] ?? 'Failed to create repost').toString();
                       ToastService.showToast(
                         context,
                         backgroundColor: theme.canvasColor,
                         shadowColor: Colors.transparent,
                         leading: const Icon(
-                          Icons
-                              .error, // or Icons.check_circle, Icons.cancel, etc.
-                          color: Colors
-                              .redAccent, // or Colors.greenAccent, Colors.orange, etc.
+                          Icons.error,
+                          color: Colors.redAccent,
                         ),
-                        message: result["error"] ?? 'Failed to create repost',
+                        message: error,
                       );
                       return;
                     }
@@ -194,6 +164,12 @@ class _PostChatScreenState extends State<PostChatScreen> {
                       ),
                       message: 'Error creating repost: $e',
                     );
+                  } finally {
+                    if (mounted) {
+                      setState(() {
+                        _isSubmitting = false;
+                      });
+                    }
                   }
                 } else {
                   ToastService.showToast(
@@ -208,7 +184,7 @@ class _PostChatScreenState extends State<PostChatScreen> {
                 }
               },
               child: Text(
-                'Post',
+                _isSubmitting ? 'Posting...' : 'Post',
                 style: theme.textTheme.labelLarge,
               ),
             ),
@@ -287,6 +263,7 @@ class _PostChatScreenState extends State<PostChatScreen> {
                     profileImageURL: widget.profileImageURL,
                     chat: widget.chat,
                     avatarID: widget.avatarID,
+                    initialText: widget.initialText,
                     callback: setPostContent,
                   ),
                 ],
@@ -303,6 +280,7 @@ class RepostPostCard extends StatefulWidget {
   String? profileImageURL;
   String chat;
   String avatarID;
+    String? initialText;
   void Function(String) callback;
   RepostPostCard(
       {super.key,
@@ -310,6 +288,7 @@ class RepostPostCard extends StatefulWidget {
       required this.profileImageURL,
       required this.chat,
       required this.avatarID,
+      this.initialText,
       this.onTap,
       required this.callback});
 
@@ -323,10 +302,21 @@ class _RepostPostCardState extends State<RepostPostCard> {
   bool isUnLike = false;
   String username = '';
   CommentClass? comment;
+  late final TextEditingController _postTextController;
 
   @override
   void initState() {
     super.initState();
+    _postTextController = TextEditingController(text: widget.initialText ?? '');
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      widget.callback(_postTextController.text.trim());
+    });
+  }
+
+  @override
+  void dispose() {
+    _postTextController.dispose();
+    super.dispose();
   }
 
   @override
@@ -361,6 +351,7 @@ class _RepostPostCardState extends State<RepostPostCard> {
                 Row(children: [
                   Expanded(
                     child: TextField(
+                      controller: _postTextController,
                       maxLines: null,
                       textInputAction: TextInputAction.done,
                       autofocus: true,

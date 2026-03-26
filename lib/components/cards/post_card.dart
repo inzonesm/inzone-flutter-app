@@ -116,6 +116,9 @@ class _PostCardState extends State<PostCard>
     // Direct approach: Extract user ID from post ID pattern
     // Post IDs follow pattern: post_USERID_timestamp
     final postIdStr = widget.post.id.toString();
+    if (postIdStr.contains(currentUser.uid)) {
+      return true;
+    }
     if (postIdStr.contains('post_')) {
       final parts = postIdStr.split('_');
       if (parts.length >= 2) {
@@ -124,8 +127,37 @@ class _PostCardState extends State<PostCard>
       }
     }
 
-    // Fallback: Check userReference field
-    return currentUser.uid == widget.post.userReference;
+    final normalizedRef = widget.post.userReference.trim().toLowerCase();
+    if (normalizedRef.isEmpty) return false;
+
+    if (normalizedRef == currentUser.uid.toLowerCase()) {
+      return true;
+    }
+
+    final currentEmail = currentUser.email?.trim().toLowerCase();
+    if (currentEmail != null && currentEmail.isNotEmpty && normalizedRef == currentEmail) {
+      return true;
+    }
+
+    final currentDisplayName = currentUser.displayName?.trim().toLowerCase();
+    if (currentDisplayName != null &&
+        currentDisplayName.isNotEmpty &&
+        normalizedRef == currentDisplayName) {
+      return true;
+    }
+
+    return false;
+  }
+
+  Future<String?> _resolveBackendPostId() async {
+    final rawId = widget.post.id.trim();
+    if (rawId.isNotEmpty && !rawId.startsWith('generated_')) {
+      return rawId;
+    }
+
+    return InZoneDatabase.resolveOwnedPostIdByText(
+      textContent: _currentTextContent,
+    );
   }
 
   // Delete post functionality
@@ -133,8 +165,20 @@ class _PostCardState extends State<PostCard>
     try {
       print('Attempting to delete post: ${widget.post.id}');
       const String deletedContent = "[This post has been deleted by the user]";
+
+      final postId = await _resolveBackendPostId();
+      if (postId == null) {
+        ToastService.showToast(
+          context,
+          backgroundColor: Colors.red,
+          message: 'Could not resolve this post ID. Please refresh and try again.',
+          leading: const Icon(Icons.error, color: Colors.white),
+        );
+        return;
+      }
+
       bool deleteSuccess = await InZoneDatabase.updatePost(
-        postId: widget.post.id,
+        postId: postId,
         content: deletedContent,
       );
 
@@ -271,9 +315,21 @@ class _PostCardState extends State<PostCard>
         leading: const Icon(Icons.sync, color: Colors.white),
       );
 
+      final postId = await _resolveBackendPostId();
+      if (postId == null) {
+        if (!mounted) return;
+        ToastService.showToast(
+          context,
+          backgroundColor: Colors.red,
+          message: 'Could not resolve this post ID. Please refresh and try again.',
+          leading: const Icon(Icons.error, color: Colors.white),
+        );
+        return;
+      }
+
       // Call the backend API to update the post
       bool updateSuccess = await InZoneDatabase.updatePost(
-        postId: widget.post.id,
+        postId: postId,
         content: newText,
       );
 
@@ -1615,8 +1671,8 @@ class _PostCardState extends State<PostCard>
 
                   // Navigate to the full edit post screen
                   _navigateToEditPost();
-                  // Show direct edit dialog instead of navigating to post screen
-                  _showEditDialog();
+                  // Inline edit popup disabled to avoid duplicate Edit Post prompt.
+                  // _showEditDialog();
                 },
               ),
               ListTile(

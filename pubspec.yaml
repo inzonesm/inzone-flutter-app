@@ -111,6 +111,8 @@ dependencies:
   flutter_local_notifications: ^19.4.1
   timezone: ^0.10.1
   app_links: ^6.4.1 
+  flutter_contacts: ^2.0.1
+  share_plus: ^12.0.1
 
 
 dev_dependencies:

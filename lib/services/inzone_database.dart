@@ -1028,7 +1028,11 @@ class InZoneDatabase {
       String url =
           'https://inzoneapi-912424781531.us-central1.run.app/feed/create-repost';
 
+      final repostId =
+          "repost_${FirebaseAuth.instance.currentUser!.uid}_${DateTime.now().toUtc().millisecondsSinceEpoch}";
+
       Map<String, dynamic> postData = {
+        "Id": repostId,
         "UserDocumentId": FirebaseAuth.instance.currentUser!.uid,
         "UserName": FirebaseAuth.instance.currentUser!.displayName,
         "Post": {
@@ -1848,6 +1852,170 @@ class InZoneDatabase {
       }
     } catch (e) {
       return false;
+    }
+  }
+
+  static Future<String?> resolveOwnedPostIdByText({
+    required String textContent,
+  }) async {
+    try {
+      final uid = FirebaseAuth.instance.currentUser?.uid;
+      if (uid == null || uid.isEmpty) return null;
+
+      final normalizedTarget = textContent.trim().toLowerCase();
+      if (normalizedTarget.isEmpty) return null;
+
+      final userPosts = await getUserPosts(uid);
+      if (userPosts != null && userPosts.isNotEmpty) {
+        for (final item in userPosts) {
+          if (item is! Map) continue;
+          final postMap = Map<String, dynamic>.from(item);
+          final post = postMap['post'] is Map<String, dynamic>
+              ? postMap['post'] as Map<String, dynamic>
+              : <String, dynamic>{};
+
+          final postText = (post['text_content'] ?? '').toString().trim().toLowerCase();
+          if (postText == normalizedTarget) {
+            final candidateIds = [
+              postMap['id'],
+              postMap['_id'],
+              postMap['post_id'],
+              postMap['postId'],
+              postMap['PostId'],
+              post['id'],
+              post['post_id'],
+              post['postId'],
+              post['PostId'],
+            ];
+
+            for (final candidate in candidateIds) {
+              if (candidate == null) continue;
+              final id = candidate.toString().trim();
+              if (id.isNotEmpty && !id.startsWith('generated_')) {
+                return id;
+              }
+            }
+          }
+        }
+      }
+
+      for (final collection in ['humanPosts', 'reposts', 'aiPosts']) {
+        final snap = await FirebaseFirestore.instance
+            .collection(collection)
+            .where('user_document_id', isEqualTo: uid)
+            .limit(60)
+            .get();
+
+        for (final doc in snap.docs) {
+          final data = doc.data();
+          final post = data['post'] is Map<String, dynamic>
+              ? data['post'] as Map<String, dynamic>
+              : <String, dynamic>{};
+
+          final postText = (post['text_content'] ?? '').toString().trim().toLowerCase();
+          if (postText == normalizedTarget) {
+            return doc.id;
+          }
+        }
+      }
+
+      return null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static Future<String?> resolveRepostPostId({
+    required String textContent,
+    required String aiChatContent,
+  }) async {
+    try {
+      final uid = FirebaseAuth.instance.currentUser?.uid;
+      if (uid == null || uid.isEmpty) return null;
+
+      final userPosts = await getUserPosts(uid);
+      if (userPosts == null || userPosts.isEmpty) return null;
+
+      String normalize(String? value) {
+        return (value ?? '').trim().toLowerCase();
+      }
+
+      final targetText = normalize(textContent);
+      final targetAiChat = normalize(aiChatContent);
+
+      String? extractId(Map<String, dynamic> postMap) {
+        final post = postMap['post'] is Map<String, dynamic>
+            ? postMap['post'] as Map<String, dynamic>
+            : <String, dynamic>{};
+
+        final candidates = [
+          postMap['id'],
+          postMap['_id'],
+          postMap['post_id'],
+          postMap['postId'],
+          postMap['PostId'],
+          post['id'],
+          post['post_id'],
+          post['postId'],
+          post['PostId'],
+        ];
+
+        for (final candidate in candidates) {
+          if (candidate == null) continue;
+          final id = candidate.toString().trim();
+          if (id.isNotEmpty && !id.startsWith('generated_')) {
+            return id;
+          }
+        }
+        return null;
+      }
+
+      for (final item in userPosts) {
+        if (item is! Map) continue;
+        final postMap = Map<String, dynamic>.from(item);
+        final post = postMap['post'] is Map<String, dynamic>
+            ? postMap['post'] as Map<String, dynamic>
+            : <String, dynamic>{};
+
+        final postText = normalize(post['text_content']?.toString());
+        final aiChat = normalize(postMap['ai_chat_content']?.toString());
+
+        if (postText == targetText &&
+            targetText.isNotEmpty &&
+            aiChat == targetAiChat &&
+            targetAiChat.isNotEmpty) {
+          final resolvedId = extractId(postMap);
+          if (resolvedId != null) {
+            return resolvedId;
+          }
+        }
+      }
+
+      final repostSnapshot = await FirebaseFirestore.instance
+          .collection('reposts')
+          .where('user_document_id', isEqualTo: uid)
+          .limit(50)
+          .get();
+
+      for (final doc in repostSnapshot.docs) {
+        final data = doc.data();
+        final post = data['post'] is Map<String, dynamic>
+            ? data['post'] as Map<String, dynamic>
+            : <String, dynamic>{};
+
+        final postText = normalize(post['text_content']?.toString());
+        final aiChat = normalize(data['ai_chat_content']?.toString());
+
+        if (postText == targetText && targetText.isNotEmpty) {
+          if (targetAiChat.isEmpty || aiChat == targetAiChat) {
+            return doc.id;
+          }
+        }
+      }
+
+      return null;
+    } catch (_) {
+      return null;
     }
   }
 

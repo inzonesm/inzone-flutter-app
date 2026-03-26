@@ -99,6 +99,23 @@ class _EditPostScreenState extends State<EditPostScreen> {
     return false;
   }
 
+  Future<String?> _resolveBackendPostId() async {
+    final currentId = widget.post.id.trim();
+    if (currentId.isNotEmpty && !currentId.startsWith('generated_')) {
+      return currentId;
+    }
+
+    final resolved = await InZoneDatabase.resolveOwnedPostIdByText(
+      textContent: widget.post.textContent,
+    );
+
+    if (resolved != null && resolved.trim().isNotEmpty) {
+      return resolved.trim();
+    }
+
+    return null;
+  }
+
   // Real-time sentiment analysis
   void _analyzeContentRealTime() {
     if (postContent.trim().isEmpty) {
@@ -300,9 +317,20 @@ class _EditPostScreenState extends State<EditPostScreen> {
         return;
       }
 
+      final resolvedPostId = await _resolveBackendPostId();
+      if (resolvedPostId == null) {
+        ToastService.showToast(
+          context,
+          backgroundColor: Colors.red,
+          message: 'Could not identify this post for editing',
+          leading: const Icon(Icons.error, color: Colors.white),
+        );
+        return;
+      }
+
       // Call the backend to update the post
       bool updateSuccess = await InZoneDatabase.updatePost(
-        postId: widget.post.id,
+        postId: resolvedPostId,
         content: postContent,
         imageUrls: imageUrls,
         videoUrls: videoUrls,
@@ -316,7 +344,7 @@ class _EditPostScreenState extends State<EditPostScreen> {
           comments: widget.post.comments,
           datePosted: widget.post.datePosted,
           likes: widget.post.likes,
-          id: widget.post.id,
+          id: resolvedPostId,
           imageContent: imageUrls,
           videoContent: videoUrls,
           textContent: postContent,

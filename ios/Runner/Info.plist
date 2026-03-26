@@ -18,6 +18,14 @@
 					<string>com.googleusercontent.apps.912424781531-2vtjhlmifp6gggihubmpdnf0bt2ketgm</string>
 				</array>
 			</dict>
+			<dict>
+				<key>CFBundleTypeRole</key>
+				<string>Editor</string>
+				<key>CFBundleURLSchemes</key>
+				<array>
+					<string>inzone</string>
+				</array>
+			</dict>
 		</array>
 		<key>NSContactsUsageDescription</key>
 		<string>We need access to your contacts to invite your friends via referral</string>
