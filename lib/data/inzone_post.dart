@@ -124,16 +124,30 @@ class InZonePost {
     String userName = json['user_name'] ?? 'Unknown';
     int likes = json['likes'] ?? 0;
 
-    // More robust ID handling
+    final postData = json['post'] is Map<String, dynamic>
+        ? json['post'] as Map<String, dynamic>
+        : <String, dynamic>{};
+
+    String? firstNonEmpty(dynamic value) {
+      if (value == null) return null;
+      final text = value.toString().trim();
+      return text.isEmpty ? null : text;
+    }
+
     String id;
-    if (json.containsKey('id') &&
-        json['id'] != null &&
-        json['id'].toString().isNotEmpty) {
-      id = json['id'].toString();
-    } else if (json.containsKey('_id') &&
-        json['_id'] != null &&
-        json['_id'].toString().isNotEmpty) {
-      id = json['_id'].toString();
+    final resolvedId = firstNonEmpty(json['id']) ??
+        firstNonEmpty(json['_id']) ??
+        firstNonEmpty(json['post_id']) ??
+        firstNonEmpty(json['postId']) ??
+        firstNonEmpty(json['PostId']) ??
+        firstNonEmpty(postData['id']) ??
+        firstNonEmpty(postData['_id']) ??
+        firstNonEmpty(postData['post_id']) ??
+        firstNonEmpty(postData['postId']) ??
+        firstNonEmpty(postData['PostId']);
+
+    if (resolvedId != null) {
+      id = resolvedId;
     } else {
       // Generate a unique ID based on content and timestamp if no ID is available
       String timestamp =
@@ -154,7 +168,15 @@ class InZonePost {
       }
     } catch (e) {}
 
-    String userReference = json['user_name'] ?? 'unknown';
+    String userReference = (json['user_document_id'] ??
+      json['UserDocumentId'] ??
+      json['userDocumentId'] ??
+        json['user_reference'] ??
+        json['user_id'] ??
+        json['uid'] ??
+        json['user_name'] ??
+        'unknown')
+      .toString();
 
     // Parse date_posted if available
     DateTime datePosted;
@@ -295,15 +317,30 @@ class InZonePost {
     int likes = data['likes'] ?? 0;
 
     // More robust ID handling
+    final postData = data['post'] is Map<String, dynamic>
+        ? data['post'] as Map<String, dynamic>
+        : <String, dynamic>{};
+
+    String? firstNonEmpty(dynamic value) {
+      if (value == null) return null;
+      final text = value.toString().trim();
+      return text.isEmpty ? null : text;
+    }
+
     String id;
-    if (json.containsKey('id') &&
-        json['id'] != null &&
-        json['id'].toString().isNotEmpty) {
-      id = json['id'].toString();
-    } else if (json.containsKey('_id') &&
-        json['_id'] != null &&
-        json['_id'].toString().isNotEmpty) {
-      id = json['_id'].toString();
+    final resolvedId = firstNonEmpty(json['id']) ??
+        firstNonEmpty(json['_id']) ??
+        firstNonEmpty(json['post_id']) ??
+        firstNonEmpty(json['postId']) ??
+        firstNonEmpty(json['PostId']) ??
+        firstNonEmpty(postData['id']) ??
+        firstNonEmpty(postData['_id']) ??
+        firstNonEmpty(postData['post_id']) ??
+        firstNonEmpty(postData['postId']) ??
+        firstNonEmpty(postData['PostId']);
+
+    if (resolvedId != null) {
+      id = resolvedId;
     } else {
       // Generate a unique ID based on content and timestamp if no ID is available
       String timestamp =
@@ -331,11 +368,15 @@ class InZonePost {
     debugPrint('🔍 userDocumentId: ${json['userDocumentId']}');
     debugPrint('🔍 user_reference: ${json['user_reference']}');
     
-    String userReference = json['user_document_id'] ?? 
-                          json['UserDocumentId'] ?? 
-                          json['userDocumentId'] ?? 
-                          json['user_reference'] ??
-                          'unknown';
+    String userReference = (json['user_document_id'] ??
+        json['UserDocumentId'] ??
+        json['userDocumentId'] ??
+        json['user_reference'] ??
+        json['user_id'] ??
+        data['user_id'] ??
+        json['uid'] ??
+        'unknown')
+      .toString();
                           
     debugPrint('🔍 Final userReference: $userReference');
     

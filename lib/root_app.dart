@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_feather_icons/flutter_feather_icons.dart';
@@ -18,9 +19,12 @@ import 'package:iconify_flutter/icons/heroicons_solid.dart';
 import 'package:in_app_review/in_app_review.dart';
 import 'package:simula_ads/simula_ads.dart';
 import 'package:provider/provider.dart';
+import 'package:app_links/app_links.dart';
 import 'package:inzone/services/active_character_notifier.dart';
+import 'package:inzone/services/appsflyer_service.dart';
 import 'package:inzone/services/inzone_database.dart';
 import 'package:toasty_box/toast_service.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:http/http.dart' as http;
@@ -49,7 +53,8 @@ class RootApp extends StatefulWidget {
   _RootAppState createState() => _RootAppState();
 }
 
-class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
+class _RootAppState extends State<RootApp>
+  with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   static const String _defaultMiniGameCharacterId = 'inzone-default';
   int _currentPage = 0; // Track selected tab index
   final ScrollController _homeScrollController = ScrollController();
@@ -63,6 +68,11 @@ class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
   bool _isLoadingPopularCharacters = false;
   List<_PopularCharacterOption> _popularCharacters = const [];
   List<Message> _miniGameMessages = const [];
+  GameData? _lastCompletedMiniGame;
+  String? _pendingMiniGameDeepLinkGameId;
+  String? _lastCompletedMiniGameOverText;
+  AppLinks? _appLinks;
+  StreamSubscription<Uri>? _appLinksSubscription;
 
   /* --- in app review --- */
   final InAppReview inAppReview = InAppReview.instance;
@@ -95,6 +105,7 @@ class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
 
     // Initialize rotation animation controller
     _rotationController = AnimationController(
@@ -123,10 +134,21 @@ class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
 
     // Check app open count and request review if needed
     _checkAndRequestReview();
+    _initAppLinks();
+    _consumePendingMinigameDeepLink();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _consumePendingMinigameDeepLink();
+    }
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _appLinksSubscription?.cancel();
     // _homeScrollController.removeListener(_handleScroll);
     _homeScrollController.dispose();
     _rootFocusNode.dispose();
@@ -140,6 +162,68 @@ class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
     }
 
     super.dispose();
+  }
+
+  Future<void> _initAppLinks() async {
+    try {
+      _appLinks = AppLinks();
+
+      final initialUri = await _appLinks!.getInitialLink();
+      _handleIncomingDeepLinkUri(initialUri);
+
+      _appLinksSubscription = _appLinks!.uriLinkStream.listen((uri) {
+        _handleIncomingDeepLinkUri(uri);
+      });
+    } catch (_) {}
+  }
+
+  void _handleIncomingDeepLinkUri(Uri? uri) {
+    if (!mounted || uri == null) return;
+
+    String? gameId;
+
+    if (uri.scheme.toLowerCase() == 'inzone' && uri.host.toLowerCase() == 'minigame') {
+      gameId = uri.queryParameters['gameId'];
+    }
+
+    if (gameId == null || gameId.trim().isEmpty) {
+      final deepLinkValue = uri.queryParameters['deep_link_value']?.toLowerCase();
+      if (deepLinkValue == 'minigame') {
+        gameId = uri.queryParameters['deep_link_sub1'];
+      }
+    }
+
+    if (gameId != null && gameId.trim().isNotEmpty) {
+      setState(() {
+        _pendingMiniGameDeepLinkGameId = gameId;
+        _miniGameMenuOpen = true;
+      });
+      _loadPopularCharacters();
+      final activeCharacter = context.read<ActiveCharacterNotifier>();
+      _refreshMiniGameMessages(
+        charID: activeCharacter.charID,
+        charName: activeCharacter.charName,
+        charDesc: activeCharacter.charDesc,
+      );
+    }
+  }
+
+  Future<void> _consumePendingMinigameDeepLink() async {
+    final gameId = await AppsFlyerService.consumePendingMinigameDeepLinkGameId();
+    if (!mounted || gameId == null || gameId.trim().isEmpty) return;
+
+    setState(() {
+      _pendingMiniGameDeepLinkGameId = gameId;
+      _miniGameMenuOpen = true;
+    });
+
+    _loadPopularCharacters();
+    final activeCharacter = context.read<ActiveCharacterNotifier>();
+    _refreshMiniGameMessages(
+      charID: activeCharacter.charID,
+      charName: activeCharacter.charName,
+      charDesc: activeCharacter.charDesc,
+    );
   }
 
   // Handle scroll events to show/hide navbar
@@ -563,6 +647,400 @@ class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
     });
   }
 
+  String _buildMiniGameChallengeLink(String gameId) {
+    return AppsFlyerService().generateMinigameLink(gameId);
+  }
+
+  String _normalizedGameName(GameData game) {
+    return '${game.id} ${game.name}'.toLowerCase();
+  }
+
+  List<int> _extractAllNumbers(String text) {
+    return RegExp(r'\b\d+\b')
+        .allMatches(text)
+        .map((m) => int.tryParse(m.group(0) ?? ''))
+        .whereType<int>()
+        .toList();
+  }
+
+  int? _extractStatNumber(String text, String labelPattern) {
+    final lowerText = text.toLowerCase();
+
+    final labeledAfter = RegExp(
+      "(?:$labelPattern)\\s*[\"']?\\s*[:=-]?\\s*[\"']?(\\d+(?:\\.\\d+)?)",
+      caseSensitive: false,
+    ).firstMatch(lowerText);
+
+    if (labeledAfter != null) {
+      final value = double.tryParse(labeledAfter.group(1)!);
+      if (value != null) return value.round();
+    }
+
+    final labeledBefore = RegExp(
+      '(\\d+(?:\\.\\d+)?)\\s*(?:$labelPattern)',
+      caseSensitive: false,
+    ).firstMatch(lowerText);
+
+    if (labeledBefore != null) {
+      final value = double.tryParse(labeledBefore.group(1)!);
+      if (value != null) return value.round();
+    }
+
+    final jsonLike = RegExp(
+      "[\"']?(?:$labelPattern)[\"']?\\s*:\\s*[\"']?(\\d+(?:\\.\\d+)?)",
+      caseSensitive: false,
+    ).firstMatch(lowerText);
+
+    if (jsonLike != null) {
+      final value = double.tryParse(jsonLike.group(1)!);
+      if (value != null) return value.round();
+    }
+
+    return null;
+  }
+
+  String? _extractDifficulty(String text) {
+    const levels = ['easy', 'medium', 'hard', 'expert', 'master'];
+    for (final level in levels) {
+      if (text.toLowerCase().contains(level)) {
+        return level[0].toUpperCase() + level.substring(1);
+      }
+    }
+    return null;
+  }
+
+  int? _extractLikelyScore(String text) {
+    final direct = _extractStatNumber(
+      text,
+      'userscore|user_score|score|points|best|final|finalscore',
+    );
+    if (direct != null) return direct;
+
+    final allNumbers = _extractAllNumbers(text);
+    if (allNumbers.isEmpty) return null;
+
+    allNumbers.sort((a, b) => b.compareTo(a));
+    return allNumbers.first;
+  }
+
+  String _buildShareProgressText(GameData game, String? gameOverText) {
+    final normalized = _normalizedGameName(game);
+    final source = gameOverText ?? '';
+    final score = _extractLikelyScore(source);
+    final level = _extractStatNumber(source, 'level|stage');
+    final turns = _extractStatNumber(source, 'turns|moves');
+    final coins = _extractStatNumber(source, 'coins?');
+    final distance = _extractStatNumber(source, 'distance');
+    final difficulty = _extractDifficulty(source);
+
+    if (normalized.contains('chess')) {
+      if (difficulty != null && turns != null) {
+        return 'Just beat the $difficulty AI on ${game.name} in $turns turns — can you top that?';
+      }
+      if (difficulty != null) {
+        return 'Just beat the $difficulty AI on ${game.name} — can you top that?';
+      }
+      if (turns != null) {
+        return 'Just beat the AI on ${game.name} in $turns turns — can you top that?';
+      }
+      return 'Just won a match on ${game.name} — your turn now.';
+    }
+
+    final isScoreBased = normalized.contains('flappy') ||
+        normalized.contains('fish') ||
+        normalized.contains('property') ||
+        normalized.contains('pursuit') ||
+        normalized.contains('apes') ||
+        normalized.contains('tower') ||
+        normalized.contains('defense') ||
+        normalized.contains('tasty') ||
+        normalized.contains('tiles');
+
+    if (isScoreBased) {
+      if (score != null && level != null) {
+        return 'Just scored $score on ${game.name} (Level $level) — can you beat this?';
+      }
+      if (score != null) {
+        return 'Just scored $score on ${game.name} — can you beat this?';
+      }
+      if (coins != null && distance != null) {
+        return 'Just collected $coins coins and reached $distance distance on ${game.name} — can you beat this?';
+      }
+      if (coins != null) {
+        return 'Just collected $coins coins on ${game.name} — can you beat this?';
+      }
+      if (distance != null) {
+        return 'Just reached $distance distance on ${game.name} — can you beat this?';
+      }
+      if (level != null) {
+        return 'Just reached level $level on ${game.name} — can you beat this?';
+      }
+      return 'Just put up a new run on ${game.name} — beat my next score.';
+    }
+
+    if (score != null) {
+      return 'Just scored $score on ${game.name} — can you beat this?';
+    }
+    if (coins != null && distance != null) {
+      return 'Just collected $coins coins and reached $distance distance on ${game.name} — challenge me.';
+    }
+    if (turns != null) {
+      return 'Just finished ${game.name} in $turns turns — challenge me.';
+    }
+    if (level != null) {
+      return 'Just reached level $level on ${game.name} — challenge me.';
+    }
+    return 'Just finished a run on ${game.name} — challenge me.';
+  }
+
+  String _buildChallengeShareText(
+    GameData game,
+    String challengeLink,
+    String? gameOverText,
+  ) {
+    final normalized = _normalizedGameName(game);
+    final source = gameOverText ?? '';
+    final score = _extractLikelyScore(source);
+    final level = _extractStatNumber(source, 'level|stage');
+    final turns = _extractStatNumber(source, 'turns|moves');
+    final coins = _extractStatNumber(source, 'coins?');
+    final distance = _extractStatNumber(source, 'distance');
+    final difficulty = _extractDifficulty(source);
+
+    if (normalized.contains('chess')) {
+      if (difficulty != null && turns != null) {
+        return 'I just beat the $difficulty AI on ${game.name} in $turns turns — beat me 👀\n$challengeLink';
+      }
+      if (difficulty != null) {
+        return 'I just beat the $difficulty AI on ${game.name} — beat me 👀\n$challengeLink';
+      }
+      if (turns != null) {
+        return 'I just beat the AI on ${game.name} in $turns turns — beat me 👀\n$challengeLink';
+      }
+      return 'Challenge me on ${game.name} 🎮\n$challengeLink';
+    }
+
+    final isScoreBased = normalized.contains('flappy') ||
+        normalized.contains('fish') ||
+        normalized.contains('property') ||
+        normalized.contains('pursuit') ||
+        normalized.contains('apes') ||
+        normalized.contains('tower') ||
+        normalized.contains('defense') ||
+        normalized.contains('tasty') ||
+        normalized.contains('tiles');
+
+    if (isScoreBased) {
+      if (score != null) {
+        return 'I just scored $score on ${game.name} — beat me 🎯\n$challengeLink';
+      }
+      if (coins != null && distance != null) {
+        return 'I just collected $coins coins and hit $distance distance on ${game.name} — beat me 🎯\n$challengeLink';
+      }
+      if (coins != null) {
+        return 'I just collected $coins coins on ${game.name} — beat me 🎯\n$challengeLink';
+      }
+      if (level != null) {
+        return 'I just reached level $level on ${game.name} — beat me 🎯\n$challengeLink';
+      }
+      return 'Challenge me on ${game.name} 🎮\n$challengeLink';
+    }
+
+    if (score != null) {
+      return 'I just scored $score on ${game.name} — beat me 🎯\n$challengeLink';
+    }
+    if (turns != null) {
+      return 'I just finished ${game.name} in $turns turns — beat me 🎯\n$challengeLink';
+    }
+    if (coins != null) {
+      return 'I just collected $coins coins on ${game.name} — beat me 🎯\n$challengeLink';
+    }
+
+    return 'Challenge me on ${game.name} 🎮\n$challengeLink';
+  }
+
+  Future<void> _copyChallengeLink(String gameName, String challengeLink) async {
+    await Clipboard.setData(ClipboardData(text: challengeLink));
+    if (!mounted) return;
+    ToastService.showToast(
+      context,
+      backgroundColor: Theme.of(context).cardColor,
+      shadowColor: Colors.transparent,
+      leading: const Icon(Icons.link, color: Colors.greenAccent),
+      message: 'Challenge link copied for $gameName',
+    );
+  }
+
+  Future<void> _shareChallengeLink(
+    GameData game,
+    String challengeLink,
+    String? gameOverText,
+  ) async {
+    final text = _buildChallengeShareText(game, challengeLink, gameOverText);
+    await Share.share(
+      text,
+      subject: 'Challenge me on ${game.name}',
+    );
+  }
+
+  Future<void> _showChallengeOptions(
+    BuildContext parentContext,
+    GameData game,
+    String? gameOverText,
+  ) async {
+    final challengeLink = _buildMiniGameChallengeLink(game.id);
+
+    await showModalBottomSheet<void>(
+      context: parentContext,
+      builder: (sheetContext) {
+        final theme = Theme.of(sheetContext);
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: Icon(Icons.copy, color: theme.iconTheme.color),
+                title: const Text('Copy link'),
+                onTap: () async {
+                  Navigator.of(sheetContext).pop();
+                  await _copyChallengeLink(game.name, challengeLink);
+                },
+              ),
+              ListTile(
+                leading: Icon(Icons.share, color: theme.iconTheme.color),
+                title: const Text('Native share'),
+                onTap: () async {
+                  Navigator.of(sheetContext).pop();
+                  await _shareChallengeLink(game, challengeLink, gameOverText);
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _showGameEndDialog(
+    BuildContext parentContext,
+    MiniGameCompletion completion,
+  ) {
+    Future.microtask(() {
+      if (!completion.playedLikely) {
+        return;
+      }
+
+      final selectedGame = completion.game ?? _lastCompletedMiniGame;
+      final gameName = selectedGame?.name ?? 'this game';
+      final gameId = selectedGame?.id ?? 'minigame';
+      final gameIcon = selectedGame?.iconUrl ?? '';
+      final resolvedGameOverText =
+          completion.gameOverText ?? _lastCompletedMiniGameOverText;
+      final prefilledText = selectedGame != null
+          ? _buildShareProgressText(selectedGame, resolvedGameOverText)
+          : 'Just completed a run on $gameName — can you beat this?';
+
+      showDialog(
+        context: parentContext,
+        barrierDismissible: true,
+        builder: (dialogContext) {
+          return Dialog(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Stack(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Text(
+                          'Game Over',
+                          style: TextStyle(
+                              fontSize: 18, fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 12),
+                        const Text('Great run 🎮'),
+                        const SizedBox(height: 20),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton(
+                            onPressed: () {
+                              context.push(Routes.postChat, extra: {
+                                'name': gameName,
+                                'profileImageURL': gameIcon,
+                                'chat': 'Completed a level in $gameName.',
+                                'avatarID': gameId,
+                                'initialText': prefilledText,
+                              });
+                            },
+                            child: const Text('Share Progress'),
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton(
+                            onPressed: () async {
+                              await _showChallengeOptions(parentContext,
+                                  GameData(
+                                id: gameId,
+                                name: gameName,
+                                iconUrl: gameIcon,
+                                description: selectedGame?.description ?? '',
+                                iconFallback: selectedGame?.iconFallback,
+                              ), resolvedGameOverText);
+                            },
+                            child: const Text('Challenge a Friend'),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Positioned(
+                    top: 0,
+                    right: 0,
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(16),
+                      onTap: () => Navigator.of(dialogContext).pop(),
+                      child: const Padding(
+                        padding: EdgeInsets.all(4),
+                        child: Icon(Icons.close, size: 18),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      );
+    });
+  }
+
+  }
+
+  final List<String> _iconifyPaths = [
+    Ri.home_5_fill,
+    Mdi.account_group,
+    HeroiconsSolid.chat_bubble_oval_left_ellipsis,
+    // Ri.gamepad_fill
+    Mdi.gamepad_variant
+    // Ph.user,
+  ];
+
+  void _toggleExpanded() {
+    print("Toggle expanded: ${!_isExpanded}");
+    setState(() {
+      _isExpanded = !_isExpanded;
+      if (_isExpanded) {
+        _rotationController.forward();
+      } else {
+        _rotationController.reverse();
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     const systemUiOverlayStyle = SystemUiOverlayStyle(
@@ -825,7 +1303,28 @@ class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
 
             return MiniGameMenu(
               isOpen: _miniGameMenuOpen,
-              onClose: () => setState(() => _miniGameMenuOpen = false),
+              onClose: () {
+                setState(() {
+                  _miniGameMenuOpen = false;
+                  _pendingMiniGameDeepLinkGameId = null;
+                });
+              },
+              onGameEnd: (completion) async {
+                if (_miniGameMenuOpen) {
+                  setState(() {
+                    _miniGameMenuOpen = false;
+                    _pendingMiniGameDeepLinkGameId = null;
+                  });
+                }
+
+                _lastCompletedMiniGame = completion.game;
+                _lastCompletedMiniGameOverText = completion.gameOverText;
+
+                await Future.delayed(const Duration(milliseconds: 220));
+                if (!mounted) return;
+
+                _showGameEndDialog(context, completion);
+              },
               onCharacterTap: _openMiniGameWithCharacterPicker,
               charName: activeCharacter.charName,
               charID: activeCharacter.charID,
@@ -834,6 +1333,7 @@ class _RootAppState extends State<RootApp> with SingleTickerProviderStateMixin {
               messages: _miniGameMessages,
               delegateChar: true,
               maxGamesToShow: 6,
+              initialGameId: _pendingMiniGameDeepLinkGameId,
               theme: MiniGameTheme(
                 backgroundColor: Theme.of(context).cardColor,
                 headerColor: Theme.of(context).canvasColor,

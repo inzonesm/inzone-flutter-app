@@ -233,6 +233,22 @@ class GameData {
       );
 }
 
+/// Minigame completion payload used by host app callbacks.
+///
+/// `playedLikely` is a best-effort heuristic indicating whether the user
+/// actually engaged with gameplay before closing.
+class MiniGameCompletion {
+  final GameData? game;
+  final bool playedLikely;
+  final String? gameOverText;
+
+  MiniGameCompletion({
+    required this.game,
+    required this.playedLikely,
+    this.gameOverText,
+  });
+}
+
 /// Theme configuration for minigame menu
 class MiniGameTheme {
   final Color? backgroundColor;

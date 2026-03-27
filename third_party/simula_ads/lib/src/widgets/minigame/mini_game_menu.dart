@@ -17,6 +17,7 @@ const Color _defaultPlayableBorderColor = Color(0xFF262626);
 class MiniGameMenu extends StatefulWidget {
   final bool isOpen;
   final VoidCallback onClose;
+  final ValueChanged<MiniGameCompletion>? onGameEnd;
   final VoidCallback? onCharacterTap;
   final String charName;
   final String charID;
@@ -26,6 +27,7 @@ class MiniGameMenu extends StatefulWidget {
   final int maxGamesToShow;
   final bool delegateChar;
   final MiniGameTheme? theme;
+  final String? initialGameId;
 
   /// Custom message to show when privacy consent is not granted.
   /// If not provided, a default message will be shown.
@@ -35,6 +37,7 @@ class MiniGameMenu extends StatefulWidget {
     super.key,
     required this.isOpen,
     required this.onClose,
+    this.onGameEnd,
     this.onCharacterTap,
     required this.charName,
     required this.charID,
@@ -44,6 +47,7 @@ class MiniGameMenu extends StatefulWidget {
     this.maxGamesToShow = 6,
     this.delegateChar = true,
     this.theme,
+    this.initialGameId,
     this.consentRequiredMessage,
   });
 
@@ -53,6 +57,10 @@ class MiniGameMenu extends StatefulWidget {
 
 class _MiniGameMenuState extends State<MiniGameMenu> {
   String? _selectedGameId;
+  GameData? _lastPlayedGame;
+  String? _lastGameOverText;
+  DateTime? _gameSessionStartedAt;
+  bool _hasAttemptedInitialGameLaunch = false;
   List<GameData> _games = [];
   List<GameData> _filteredGames = [];
   bool _catalogLoading = true;
@@ -70,6 +78,33 @@ class _MiniGameMenuState extends State<MiniGameMenu> {
   bool _isDialogShowing = false; // Track if dialog is currently showing
   StateSetter?
       _dialogStateSetter; // Store dialog's StateSetter to trigger rebuilds
+
+  int _gameOverTextSignalScore(String? text) {
+    if (text == null || text.trim().isEmpty) return 0;
+    final lower = text.toLowerCase();
+    int score = 0;
+
+    if (RegExp(r'\bscore\s*[:=-]?\s*\d+').hasMatch(lower)) score += 4;
+    if (RegExp(r'\blevel\s*[:=-]?\s*\d+').hasMatch(lower)) score += 3;
+    if (RegExp(r'\bturns?\s*[:=-]?\s*\d+').hasMatch(lower)) score += 3;
+    if (RegExp(r'\bcoins?\s*[:=-]?\s*\d+').hasMatch(lower)) score += 3;
+    if (RegExp(r'\bdistance\s*[:=-]?\s*\d+').hasMatch(lower)) score += 3;
+    if (lower.contains('action: game_end')) score += 2;
+    if (lower.contains('game over') || lower.contains('final score')) score += 2;
+
+    score += (text.length / 120).floor();
+    return score;
+  }
+
+  String? _pickBetterGameOverText(String? current, String? incoming) {
+    final incomingTrimmed = incoming?.trim();
+    if (incomingTrimmed == null || incomingTrimmed.isEmpty) return current;
+    if (current == null || current.trim().isEmpty) return incomingTrimmed;
+
+    final currentScore = _gameOverTextSignalScore(current);
+    final incomingScore = _gameOverTextSignalScore(incomingTrimmed);
+    return incomingScore >= currentScore ? incomingTrimmed : current;
+  }
 
   @override
   void initState() {
@@ -97,6 +132,16 @@ class _MiniGameMenuState extends State<MiniGameMenu> {
   @override
   void didUpdateWidget(MiniGameMenu oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (oldWidget.initialGameId != widget.initialGameId) {
+      _hasAttemptedInitialGameLaunch = false;
+      if (widget.isOpen) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            _tryLaunchInitialGame();
+          }
+        });
+      }
+    }
     if (widget.isOpen && !oldWidget.isOpen) {
       if (!_isDialogShowing) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -174,6 +219,7 @@ class _MiniGameMenuState extends State<MiniGameMenu> {
         _menuId = catalogResponse.menuId;
         _catalogLoading = false;
       });
+      _tryLaunchInitialGame();
       // Trigger dialog rebuild if it's showing
       _dialogStateSetter?.call(() {});
     } catch (error) {
@@ -232,14 +278,39 @@ class _MiniGameMenuState extends State<MiniGameMenu> {
   }
 
   void _handleGameSelect(String gameId) {
+    final selectedGame = _games.where((game) => game.id == gameId).firstOrNull;
     setState(() {
       _selectedGameId = gameId;
+      _lastPlayedGame = selectedGame;
+      _lastGameOverText = null;
+      _gameSessionStartedAt = DateTime.now();
       _adFetched = false;
       _currentAdId = null;
       _resizedHeight = null; // Reset resized height when selecting a new game
     });
     // Close the menu modal (but keep the widget mounted for the iframe)
     widget.onClose();
+  }
+
+  void _tryLaunchInitialGame() {
+    if (!widget.isOpen || _catalogLoading || _games.isEmpty) return;
+    if (_hasAttemptedInitialGameLaunch) return;
+
+    final initialGameId = widget.initialGameId?.trim();
+    if (initialGameId == null || initialGameId.isEmpty) return;
+
+    _hasAttemptedInitialGameLaunch = true;
+    final game = _games.where((item) => item.id == initialGameId).firstOrNull;
+    if (game != null) {
+      _handleGameSelect(game.id);
+    }
+  }
+
+  bool _inferPlayedLikely() {
+    final startedAt = _gameSessionStartedAt;
+    if (startedAt == null) return false;
+    final elapsed = DateTime.now().difference(startedAt);
+    return elapsed.inSeconds >= 8;
   }
 
   void _handleAdIdReceived(String adId) {
@@ -291,11 +362,21 @@ class _MiniGameMenuState extends State<MiniGameMenu> {
       setState(() {
         _selectedGameId = null;
       });
+      widget.onGameEnd?.call(MiniGameCompletion(
+        game: _lastPlayedGame,
+        playedLikely: _inferPlayedLikely(),
+        gameOverText: _lastGameOverText,
+      ));
     } else {
       // If ad has already been fetched, just close so we don't double count impressions
       setState(() {
         _selectedGameId = null;
       });
+      widget.onGameEnd?.call(MiniGameCompletion(
+        game: _lastPlayedGame,
+        playedLikely: _inferPlayedLikely(),
+        gameOverText: _lastGameOverText,
+      ));
     }
   }
 
@@ -315,6 +396,11 @@ class _MiniGameMenuState extends State<MiniGameMenu> {
       _adIframeUrl = null;
       // Keep _adFetched as true so we don't show another ad
     });
+    widget.onGameEnd?.call(MiniGameCompletion(
+      game: _lastPlayedGame,
+      playedLikely: _inferPlayedLikely(),
+      gameOverText: _lastGameOverText,
+    ));
   }
 
   String _getInitials(String name) {
@@ -394,6 +480,10 @@ class _MiniGameMenuState extends State<MiniGameMenu> {
             child: GameIframe(
               gameId: _selectedGameId!,
               onCharacterTap: widget.onCharacterTap,
+              onGameOverText: (text) {
+                _lastGameOverText =
+                    _pickBetterGameOverText(_lastGameOverText, text);
+              },
               charID: widget.charID,
               charName: widget.charName,
               charImage: widget.charImage,
@@ -756,50 +846,78 @@ class _MiniGameMenuState extends State<MiniGameMenu> {
             label: 'Change character',
             child: GestureDetector(
               onTap: widget.onCharacterTap,
-              child: Container(
-                width: 42,
-                height: 42,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: backgroundColor,
-                  border: Border.all(color: accentColor, width: 2),
-                ),
-                child: widget.charImage == null ||
-                        widget.charImage!.trim().isEmpty
-                    ? Center(
-                        child: Text(
-                          _getInitials(widget.charName),
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
-                            color: titleFontColor,
-                            fontFamily: titleFont,
-                            decoration: TextDecoration.none,
-                          ),
-                        ),
-                      )
-                    : ClipOval(
-                        child: Image.network(
-                          widget.charImage!,
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) => Center(
-                            child: Text(
-                              _getInitials(widget.charName),
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w700,
-                                color: titleFontColor,
-                                fontFamily: titleFont,
-                                decoration: TextDecoration.none,
+              child: SizedBox(
+                width: 46,
+                height: 46,
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    Container(
+                      width: 42,
+                      height: 42,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: backgroundColor,
+                        border: Border.all(color: accentColor, width: 2),
+                      ),
+                      child: widget.charImage == null ||
+                              widget.charImage!.trim().isEmpty
+                          ? Center(
+                              child: Text(
+                                _getInitials(widget.charName),
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w700,
+                                  color: titleFontColor,
+                                  fontFamily: titleFont,
+                                  decoration: TextDecoration.none,
+                                ),
+                              ),
+                            )
+                          : ClipOval(
+                              child: Image.network(
+                                widget.charImage!,
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) =>
+                                    Center(
+                                  child: Text(
+                                    _getInitials(widget.charName),
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w700,
+                                      color: titleFontColor,
+                                      fontFamily: titleFont,
+                                      decoration: TextDecoration.none,
+                                    ),
+                                  ),
+                                ),
                               ),
                             ),
-                          ),
+                    ),
+                    Positioned(
+                      right: -1,
+                      bottom: -1,
+                      child: Container(
+                        width: 16,
+                        height: 16,
+                        decoration: BoxDecoration(
+                          color: accentColor,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: backgroundColor, width: 1.5),
+                        ),
+                        child: const Icon(
+                          Icons.keyboard_arrow_down_rounded,
+                          size: 12,
+                          color: Colors.white,
                         ),
                       ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 10),
           // Header Text
           Expanded(
             child: Text(

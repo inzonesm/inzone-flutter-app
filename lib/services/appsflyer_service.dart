@@ -63,6 +63,8 @@ class PostViewTracker {
 
 class AppsFlyerService {
   static final AppsFlyerService _instance = AppsFlyerService._internal();
+  static const String pendingMinigameDeepLinkGameIdKey =
+      'pending_minigame_deeplink_game_id';
   late AppsflyerSdk appsflyerSdk;
 
   // Store attribution data
@@ -117,11 +119,7 @@ class AppsFlyerService {
       try {
         final Map<String, dynamic> mapData = Map<String, dynamic>.from(data);
         _attributionData = mapData;
-
-        final referrerId = mapData['deep_link_sub1'];
-        if (referrerId != null) {
-          _handleReferral(referrerId, mapData);
-        }
+        _handleDeepLinkPayload(mapData);
       } catch (e) {
         log('Error parsing onAppOpenAttribution data: $e');
       }
@@ -131,11 +129,7 @@ class AppsFlyerService {
       try {
         final Map<String, dynamic> mapData = Map<String, dynamic>.from(data);
         _conversionData = mapData;
-
-        final referrerId = mapData['deep_link_sub1'];
-        if (referrerId != null) {
-          _handleReferral(referrerId, mapData);
-        }
+        _handleDeepLinkPayload(mapData);
       } catch (e) {
         log('Error parsing onInstallConversionData data: $e');
       }
@@ -148,10 +142,9 @@ class AppsFlyerService {
           // Deep link found
           final deepLinkData = deepLinkResult.deepLink;
           if (deepLinkData?.clickEvent != null) {
-            final referrerId = deepLinkData?.clickEvent['deep_link_sub1'];
-            if (referrerId != null) {
-              _handleReferral(referrerId, deepLinkData?.clickEvent);
-            }
+            final payload =
+                Map<String, dynamic>.from(deepLinkData!.clickEvent);
+            _handleDeepLinkPayload(payload);
           }
           break;
         case Status.NOT_FOUND:
@@ -166,6 +159,48 @@ class AppsFlyerService {
           break;
       }
     });
+  }
+
+  void _handleDeepLinkPayload(Map<String, dynamic> payload) {
+    final deepLinkValue = (payload['deep_link_value'] ?? payload['deep_link'])
+        ?.toString()
+        .toLowerCase();
+    final deepLinkSub1 = payload['deep_link_sub1']?.toString();
+
+    if (deepLinkValue == 'referral') {
+      if (deepLinkSub1 != null && deepLinkSub1.isNotEmpty) {
+        _handleReferral(deepLinkSub1, payload);
+      }
+      return;
+    }
+
+    if (deepLinkValue == 'minigame') {
+      if (deepLinkSub1 != null && deepLinkSub1.isNotEmpty) {
+        _handleMinigameDeepLink(deepLinkSub1);
+      }
+      return;
+    }
+
+    // Backwards-compatible fallback for payloads without deep_link_value
+    if (deepLinkSub1 != null && deepLinkSub1.isNotEmpty) {
+      _handleReferral(deepLinkSub1, payload);
+    }
+  }
+
+  Future<void> _handleMinigameDeepLink(String gameId) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(pendingMinigameDeepLinkGameIdKey, gameId);
+    logEvent('minigame_deep_link_received', {'game_id': gameId});
+  }
+
+  static Future<String?> consumePendingMinigameDeepLinkGameId() async {
+    final prefs = await SharedPreferences.getInstance();
+    final gameId = prefs.getString(pendingMinigameDeepLinkGameIdKey);
+    if (gameId != null && gameId.trim().isNotEmpty) {
+      await prefs.remove(pendingMinigameDeepLinkGameIdKey);
+      return gameId;
+    }
+    return null;
   }
 
   void _handleReferral(
@@ -321,6 +356,26 @@ class AppsFlyerService {
     });
 
     return referralUri.toString();
+  }
+
+  String generateMinigameLink(String gameId) {
+    final Uri fallbackDeepLink = Uri(
+      scheme: 'inzone',
+      host: 'minigame',
+      queryParameters: {
+        'gameId': gameId,
+      },
+    );
+
+    final Uri minigameOneLink = Uri.https('join-inzone.onelink.me', '/SACg', {
+      'af_xp': 'custom',
+      'pid': 'social_share',
+      'deep_link_value': 'minigame',
+      'deep_link_sub1': gameId,
+      'af_dp': fallbackDeepLink.toString(),
+    });
+
+    return minigameOneLink.toString();
   }
 
   Future<bool?> trackSignupEvent(String referrerId) {

@@ -36,7 +36,6 @@ target 'Runner' do
   # Facebook SDK for iOS - required for attribution/analytics
   pod 'FBSDKCoreKit', '~> 17.0'
 
-
   target 'RunnerTests' do
     inherit! :search_paths
   end

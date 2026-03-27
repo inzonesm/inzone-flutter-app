@@ -1,24 +1,22 @@
+import 'package:flutter_contacts/flutter_contacts.dart';
+import 'package:share_plus/share_plus.dart';
 import 'dart:io';
 
-import 'package:cloud_functions/cloud_functions.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:colorful_safe_area/colorful_safe_area.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_native_contact_picker/flutter_native_contact_picker.dart';
-import 'package:flutter_native_contact_picker/model/contact.dart';
-import 'package:inzone/components/ui/appbar.dart';
 import 'package:inzone/components/ui/button.dart';
 import 'package:inzone/services/monetization_service.dart';
 import 'package:inzone/screen/settings/referral_tile.dart';
 import 'package:toasty_box/toast_service.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'package:go_router/go_router.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:inzone/services/appsflyer_service.dart';
 import 'package:flutter_feather_icons/flutter_feather_icons.dart';
+
+const _contactNameFallback = 'Unknown Contact';
 
 // Main Referral Screen
 class ReferralScreen extends StatefulWidget {
@@ -28,206 +26,72 @@ class ReferralScreen extends StatefulWidget {
   State<ReferralScreen> createState() => _ReferralScreenState();
 }
 
-class _ReferralScreenState extends State<ReferralScreen>
-    with TickerProviderStateMixin {
+class _ReferralScreenState extends State<ReferralScreen> with TickerProviderStateMixin, WidgetsBindingObserver {
   final MonetizationService _monetizationService = MonetizationService();
-  final FlutterNativeContactPicker _contactPicker =
-      FlutterNativeContactPicker();
-  Contact? _selectedContact;
-  String? _referralCode;
+  bool _isLoading = true;
   String? _referralLink;
   List<Map<String, dynamic>> _referralHistory = [];
-  bool _isLoading = true;
-  final String _userName = 'User'; // Default name
+  
+  // For sequential SMS sending
+  bool _isSendingReferrals = false;
+  int _currentContactIndex = 0;
+  List<Contact>? _pendingContacts;
+  String? _pendingMessage;
 
   @override
   void initState() {
     super.initState();
-
-    _loadReferralData();
+    WidgetsBinding.instance.addObserver(this);
+    _loadReferralHistory();
   }
 
-  Future<void> _loadReferralData() async {
-    try {
-      final generateResponse =
-          await _monetizationService.generateReferralCode();
-      if (generateResponse['success'] == true) {
-        setState(() {
-          _referralCode = generateResponse['data']['referral_code'];
-          _referralLink = 'https://inzone.ai/referral?code=$_referralCode';
-        });
-      }
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
 
-      final stats = await _monetizationService.getReferralStats();
-      if (stats['success'] == true) {
+  Future<void> _loadReferralHistory() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        final snapshot = await FirebaseFirestore.instance
+            .collection('humanUsers')
+            .doc(user.uid)
+            .collection('referralHistory')
+            .orderBy('timestamp', descending: true)
+            .limit(50)
+            .get();
+        
         setState(() {
-          _referralHistory = List<Map<String, dynamic>>.from(
-              stats['data']['referral_history']);
+          _referralHistory = snapshot.docs.map((doc) => doc.data()).toList();
           _isLoading = false;
         });
       }
     } catch (e) {
-      setState(() {
-        _isLoading = false;
-      });
-      if (mounted) {
-        ToastService.showToast(
-          context,
-          backgroundColor: Theme.of(context).canvasColor,
-          shadowColor: Colors.transparent,
-          leading: const Icon(
-            FeatherIcons.xCircle,
-            color: Colors.redAccent,
-          ),
-          message: 'Error loading referral data: $e',
-        );
-      }
+      debugPrint('Error loading referral history: $e');
+      setState(() => _isLoading = false);
     }
   }
 
-  Future<void> _copyReferralLink(String link) async {
-    await Clipboard.setData(ClipboardData(text: link));
-    ToastService.showToast(
-      context,
-      backgroundColor: Theme.of(context).canvasColor,
-      shadowColor: Colors.transparent,
-      leading: const Icon(
-        FeatherIcons.checkCircle,
-        color: Colors.greenAccent,
-      ),
-      message: 'Referral link copied to clipboard',
-    );
-  }
-
-  Future<void> _launchInBrowser(String url) async {
-    if (await canLaunch(url)) {
-      await launch(url, forceSafariVC: false, forceWebView: false);
-    } else {
-      throw 'Could not launch $url';
-    }
-  }
-
-  Future<void> sendSMS(String message, String number) async {
-    try {
-      if (Platform.isAndroid) {
-        String uri = 'sms:$number?body=${Uri.encodeComponent(message)}';
-        await launchUrl(Uri.parse(uri));
-      } else if (Platform.isIOS) {
-        String uri = 'sms:$number&body=${Uri.encodeComponent(message)}';
-        await launchUrl(Uri.parse(uri));
-      }
-    } catch (e) {
-      if (mounted) {
-        ToastService.showToast(
-          context,
-          backgroundColor: Theme.of(context).canvasColor,
-          shadowColor: Colors.transparent,
-          leading: const Icon(
-            FeatherIcons.xCircle,
-            color: Colors.redAccent,
-          ),
-          message: 'Error sending SMS: $e',
-        );
-      }
-      rethrow;
-    }
-  }
-
-  String _getMessageInfo(String link) {
-    return "Hey! 👋\n\nJoin me on InZone using this link: $link";
-  }
-
-  Future<void> _addToReferralHistory(Contact contact) async {
-    try {
-      final newReferral = {
-        'name': contact.fullName ?? 'Referred User',
-        'photo_url': '', // You can add a default avat r if needed
-        'date': DateTime.now()
-            .toUtc()
-            .toString()
-            .split(' ')[0], // Only keep the date part
-        'phone': contact.phoneNumbers?.first.toString() ?? '',
-      };
-
-      setState(() {
-        _referralHistory.insert(0, newReferral);
-      });
-
-      // You might want to sync this with your backend
-      // await _monetizationService.addReferral(newReferral);
-    } catch (e) {
-      if (mounted) {
-        ToastService.showToast(
-          context,
-          backgroundColor: Theme.of(context).canvasColor,
-          shadowColor: Colors.transparent,
-          leading: const Icon(
-            FeatherIcons.xCircle,
-            color: Colors.redAccent,
-          ),
-          message: 'Error adding to referral history: $e',
-        );
-      }
-    }
-  }
-
-  Future<void> _handleContactSelection() async {
-    try {
-      final contact = await _contactPicker.selectContact();
-      if (contact != null) {
-        setState(() {
-          _selectedContact = contact;
-        });
-
-        if (_selectedContact?.phoneNumbers?.isNotEmpty == true) {
-          final phoneNumber = _selectedContact!.phoneNumbers![0].toString();
-          final userUid = FirebaseAuth.instance.currentUser?.uid;
-          if (userUid != null) {
-            final referralLink =
-                AppsFlyerService().generateReferralLink(userUid);
-            final message = _getMessageInfo(referralLink);
-
-            // Send SMS
-            await sendSMS(message, phoneNumber);
-
-            // Add to referral history
-            await _addToReferralHistory(contact);
-
-            if (mounted) {
-              ToastService.showToast(
-                context,
-                backgroundColor: Theme.of(context).canvasColor,
-                shadowColor: Colors.transparent,
-                leading: const Icon(
-                  FeatherIcons.checkCircle,
-                  color: Colors.greenAccent,
-                ),
-                message: 'Referral message sent successfully!',
-              );
-            }
-          }
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    
+    // When user returns to the app after sending SMS
+    if (state == AppLifecycleState.resumed && _isSendingReferrals && _pendingContacts != null) {
+      Future.delayed(const Duration(milliseconds: 300), () {
+        if (mounted && _isSendingReferrals) {
+          _currentContactIndex++;
+          _sendToNextContact();
         }
-      }
-    } catch (e) {
-      if (mounted) {
-        ToastService.showToast(
-          context,
-          backgroundColor: Theme.of(context).canvasColor,
-          shadowColor: Colors.transparent,
-          leading: const Icon(
-            FeatherIcons.xCircle,
-            color: Colors.redAccent,
-          ),
-          message: 'Error selecting contact: $e',
-        );
-      }
+      });
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-
     return ColorfulSafeArea(
       color: theme.canvasColor,
       child: Scaffold(
@@ -236,8 +100,7 @@ class _ReferralScreenState extends State<ReferralScreen>
           children: [
             SingleChildScrollView(
               child: Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -268,7 +131,7 @@ class _ReferralScreenState extends State<ReferralScreen>
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const SizedBox(width: 40), // Placeholder for balance
+                    const SizedBox(width: 40),
                     Text(
                       "Referral",
                       style: theme.textTheme.titleLarge,
@@ -314,6 +177,160 @@ class _ReferralScreenState extends State<ReferralScreen>
         ),
       ),
     );
+  }
+
+  Future<void> _shareReferralLink() async {
+    final userUid = FirebaseAuth.instance.currentUser?.uid;
+    if (userUid != null) {
+      final referralLink = AppsFlyerService().generateReferralLink(userUid);
+      final message = _getMessageInfo(referralLink);
+      await Share.share(
+        message,
+        subject: 'Join me on InZone!',
+      );
+    }
+  }
+
+  Future<void> _sendSMS(String message, String number) async {
+    try {
+      if (Platform.isAndroid) {
+        String uri = 'sms:$number?body=${Uri.encodeComponent(message)}';
+        await launchUrl(Uri.parse(uri), mode: LaunchMode.externalApplication);
+      } else if (Platform.isIOS) {
+        String uri = 'sms:$number&body=${Uri.encodeComponent(message)}';
+        await launchUrl(Uri.parse(uri), mode: LaunchMode.externalApplication);
+      }
+    } catch (e) {
+      if (mounted) {
+        ToastService.showToast(
+          context,
+          backgroundColor: Theme.of(context).canvasColor,
+          shadowColor: Colors.transparent,
+          leading: const Icon(
+            FeatherIcons.xCircle,
+            color: Colors.redAccent,
+          ),
+          message: 'Error sending SMS: $e',
+        );
+      }
+    }
+  }
+
+  Future<void> _handleContactSelection() async {
+    final permissionStatus = await FlutterContacts.permissions.request(
+      PermissionType.read,
+    );
+
+    if (permissionStatus != PermissionStatus.granted) {
+      ToastService.showToast(
+        context,
+        backgroundColor: Theme.of(context).canvasColor,
+        shadowColor: Colors.transparent,
+        leading: const Icon(FeatherIcons.xCircle, color: Colors.redAccent),
+        message: 'Contacts permission denied.',
+      );
+      return;
+    }
+    
+    List<Contact> contacts = await FlutterContacts.getAll(
+      properties: {ContactProperty.phone},
+    );
+    List<Contact> contactList = contacts.where((c) => c.phones.isNotEmpty).toList();
+
+    List<Contact> selectedContacts = await showDialog(
+      context: context,
+      builder: (context) => _ContactMultiSelectDialog(contacts: contactList),
+    ) ?? [];
+
+    if (selectedContacts.isEmpty) {
+      return;
+    }
+
+    final userUid = FirebaseAuth.instance.currentUser?.uid;
+    if (userUid != null) {
+      final referralLink = AppsFlyerService().generateReferralLink(userUid);
+      final message = _getMessageInfo(referralLink);
+      
+      setState(() {
+        _isSendingReferrals = true;
+        _pendingContacts = selectedContacts;
+        _pendingMessage = message;
+        _currentContactIndex = 0;
+      });
+
+      _sendToNextContact();
+    }
+  }
+
+  Future<void> _sendToNextContact() async {
+    if (_pendingContacts == null || _currentContactIndex >= _pendingContacts!.length) {
+      // All done
+      _finishReferralProcess();
+      return;
+    }
+
+    final contact = _pendingContacts![_currentContactIndex];
+    final phone = contact.phones.isNotEmpty ? contact.phones.first.number : null;
+
+    if (phone == null || phone.isEmpty) {
+      _currentContactIndex++;
+      _sendToNextContact();
+      return;
+    }
+
+    // Simple toast showing progress
+    if (mounted) {
+      ToastService.showToast(
+        context,
+        backgroundColor: Theme.of(context).canvasColor,
+        shadowColor: Colors.transparent,
+        leading: const Icon(FeatherIcons.send, color: Colors.blue),
+        message: 'Opening SMS for ${contact.displayName ?? _contactNameFallback} (${_currentContactIndex + 1}/${_pendingContacts!.length})',
+      );
+    }
+
+    // Open SMS app
+    await _sendSMS(_pendingMessage!, phone);
+
+    // Save to Firebase immediately
+    try {
+      await _monetizationService.addReferralHistory({
+        'name': contact.displayName ?? _contactNameFallback,
+        'phone': phone,
+        'date': DateTime.now().toUtc().toIso8601String(),
+      });
+      await _loadReferralHistory(); // Refresh the list
+    } catch (e) {
+      debugPrint('Error saving referral: $e');
+    }
+
+    // The next contact will be handled automatically when app resumes (didChangeAppLifecycleState)
+  }
+
+  void _finishReferralProcess() {
+    final totalSent = _currentContactIndex;
+    if (mounted) {
+      ToastService.showToast(
+        context,
+        backgroundColor: Theme.of(context).canvasColor,
+        shadowColor: Colors.transparent,
+        leading: const Icon(
+          FeatherIcons.checkCircle,
+          color: Colors.greenAccent,
+        ),
+        message: '✅ Sent referrals to $totalSent contact(s)!',
+      );
+    }
+    setState(() {
+      _isSendingReferrals = false;
+      _pendingContacts = null;
+      _pendingMessage = null;
+      _currentContactIndex = 0;
+    });
+  }
+
+  String _getMessageInfo(String link) {
+    return "Hey! 👋\n\nJoin me on InZone using this link: $link";
   }
 
   Widget _buildTopBanner(ThemeData theme) {
@@ -362,10 +379,26 @@ class _ReferralScreenState extends State<ReferralScreen>
               const SizedBox(width: 14),
               Image.asset("icons/referral/twitter.png", width: 32, height: 32),
               const SizedBox(width: 14),
-              Image.asset("icons/referral/instagram.png",
-                  width: 32, height: 32),
+              Image.asset("icons/referral/instagram.png", width: 32, height: 32),
               const SizedBox(width: 14),
               Image.asset("icons/referral/tiktok.png", width: 32, height: 32),
+              const SizedBox(width: 14),
+              GestureDetector(
+                onTap: _shareReferralLink,
+                child: Container(
+                  width: 32,
+                  height: 32,
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.primary.withOpacity(0.2),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    FeatherIcons.share2,
+                    size: 16,
+                    color: theme.colorScheme.primary,
+                  ),
+                ),
+              ),
             ],
           ),
         ],
@@ -405,6 +438,17 @@ class _ReferralScreenState extends State<ReferralScreen>
           ),
         ],
       ),
+    );
+  }
+
+  void _copyReferralLink(String link) {
+    Clipboard.setData(ClipboardData(text: link));
+    ToastService.showToast(
+      context,
+      backgroundColor: Theme.of(context).canvasColor,
+      shadowColor: Colors.transparent,
+      leading: const Icon(FeatherIcons.checkCircle, color: Colors.greenAccent),
+      message: 'Referral link copied!',
     );
   }
 
@@ -456,6 +500,72 @@ class _ReferralScreenState extends State<ReferralScreen>
           ),
         );
       },
+    );
+  }
+}
+
+// Place this at the very end of the file, outside any other class!
+class _ContactMultiSelectDialog extends StatefulWidget {
+  final List<Contact> contacts;
+  const _ContactMultiSelectDialog({Key? key, required this.contacts}) : super(key: key);
+
+  @override
+  State<_ContactMultiSelectDialog> createState() => _ContactMultiSelectDialogState();
+}
+
+class _ContactMultiSelectDialogState extends State<_ContactMultiSelectDialog> {
+  late List<int> _selectedIndices;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedIndices = [];
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Select Contacts'),
+      content: SizedBox(
+        width: double.maxFinite,
+        height: 400,
+        child: ListView.builder(
+          itemCount: widget.contacts.length,
+          itemBuilder: (context, index) {
+            final contact = widget.contacts[index];
+            final isSelected = _selectedIndices.contains(index);
+            return CheckboxListTile(
+              value: isSelected,
+              onChanged: (val) {
+                setState(() {
+                  if (val == true) {
+                    if (!_selectedIndices.contains(index)) {
+                      _selectedIndices.add(index);
+                    }
+                  } else {
+                    _selectedIndices.remove(index);
+                  }
+                });
+              },
+              title: Text(contact.displayName ?? _contactNameFallback),
+              subtitle: Text(contact.phones.isNotEmpty ? contact.phones.first.number : ''),
+            );
+          },
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(<Contact>[]),
+          child: const Text('Cancel'),
+        ),
+        ElevatedButton(
+          onPressed: () {
+            final selected = _selectedIndices.map((i) => widget.contacts[i]).toList();
+            Navigator.of(context).pop(selected);
+          },
+          child: const Text('Send Referrals'),
+        ),
+      ],
     );
   }
 }

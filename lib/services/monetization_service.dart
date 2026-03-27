@@ -9,6 +9,35 @@ import 'package:in_app_purchase_storekit/in_app_purchase_storekit.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class MonetizationService {
+
+    // Add referral history directly to Firestore
+    Future<void> addReferralHistory(Map<String, dynamic> referral) async {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) throw Exception('User not logged in');
+      
+      try {
+        await FirebaseFirestore.instance
+            .collection('humanUsers')
+            .doc(user.uid)
+            .collection('referralHistory')
+            .add({
+          ...referral,
+          'timestamp': FieldValue.serverTimestamp(),
+          'referrerId': user.uid,
+        });
+        
+        // Also update the main document with referral count
+        await FirebaseFirestore.instance
+            .collection('humanUsers')
+            .doc(user.uid)
+            .update({
+          'totalReferrals': FieldValue.increment(1),
+        });
+      } catch (e) {
+        debugPrint('Failed to add referral history: $e');
+        rethrow;
+      }
+    }
   // Product IDs
   static final String _subscriptionId =
       Platform.isIOS ? 'InCashGold' : '2025incashgold';
@@ -220,6 +249,8 @@ class MonetizationService {
 
   // Generate referral code
   Future<Map<String, dynamic>> generateReferralCode() async {
+    // Always use production code, never mock debug code
+
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) throw Exception('User not logged in');
 

@@ -533,30 +533,37 @@ class NotificationEventService {
     }
   }
 
-  /// Wait briefly for APNS token to be available on iOS.
-  /// Only waits 1 second — if not ready, onTokenRefresh listener will handle it later.
+  /// Wait for APNS token to be available on iOS
   static Future<void> _waitForAPNSToken() async {
     try {
-      print('🍎 Checking for APNS token...');
-
-      // Check immediately first
-      String? apnsToken = await _firebaseMessaging.getAPNSToken();
-      if (apnsToken != null) {
-        print('✅ APNS token available immediately');
-        return;
+      print('🍎 Waiting for APNS token...');
+      
+      // Try to get APNS token with retries
+      int maxRetries = 10;
+      int retryCount = 0;
+      
+      while (retryCount < maxRetries) {
+        try {
+          String? apnsToken = await _firebaseMessaging.getAPNSToken();
+          if (apnsToken != null) {
+            print('✅ APNS token available: ${apnsToken.substring(0, 20)}...');
+            return;
+          }
+        } catch (e) {
+          print('⚠️ APNS token not yet available (attempt ${retryCount + 1}/$maxRetries): $e');
+        }
+        
+        retryCount++;
+        
+        // Wait before retrying, with exponential backoff
+        int delaySeconds = retryCount * 2;
+        print('⏳ Waiting ${delaySeconds}s before retry...');
+        await Future.delayed(Duration(seconds: delaySeconds));
       }
-
-      // Brief wait — APNS token is typically ready within 0.5-2s
-      await Future.delayed(const Duration(seconds: 1));
-      apnsToken = await _firebaseMessaging.getAPNSToken();
-      if (apnsToken != null) {
-        print('✅ APNS token available after 1s wait');
-        return;
-      }
-
-      print('⚠️ APNS token not yet available, will rely on onTokenRefresh listener');
+      
+      print('⚠️ APNS token not available after $maxRetries attempts, proceeding anyway...');
     } catch (e) {
-      print('❌ Error checking APNS token: $e');
+      print('❌ Error waiting for APNS token: $e');
     }
   }
 

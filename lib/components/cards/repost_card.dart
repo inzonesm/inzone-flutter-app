@@ -43,6 +43,216 @@ class _RepostCardState extends State<RepostCard>
 
   String username = '';
   CommentClass? comment;
+  String? _editedTextContent;
+  String? _resolvedPostId;
+
+  String get _currentTextContent =>
+      _editedTextContent ?? widget.post.textContent;
+
+  Future<String?> _resolveBackendPostId() async {
+    if (_resolvedPostId != null && _resolvedPostId!.isNotEmpty) {
+      return _resolvedPostId;
+    }
+
+    final rawId = widget.post.id.trim();
+    if (rawId.isNotEmpty && !rawId.startsWith('generated_')) {
+      _resolvedPostId = rawId;
+      return _resolvedPostId;
+    }
+
+    final resolved = await InZoneDatabase.resolveRepostPostId(
+      textContent: _currentTextContent,
+      aiChatContent: widget.aiChat,
+    );
+
+    if (resolved != null && resolved.isNotEmpty) {
+      _resolvedPostId = resolved;
+      return _resolvedPostId;
+    }
+
+    return null;
+  }
+
+  bool _isPostOwner() {
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) return false;
+
+    final postIdStr = widget.post.id.toString();
+    if (postIdStr.contains(currentUser.uid)) {
+      return true;
+    }
+    if (postIdStr.contains('post_')) {
+      final parts = postIdStr.split('_');
+      if (parts.length >= 2) {
+        final userIdFromPostId = parts[1];
+        return currentUser.uid == userIdFromPostId;
+      }
+    }
+
+    final normalizedRef = widget.post.userReference.trim().toLowerCase();
+    if (normalizedRef.isEmpty) return false;
+
+    if (normalizedRef == currentUser.uid.toLowerCase()) {
+      return true;
+    }
+
+    final currentEmail = currentUser.email?.trim().toLowerCase();
+    if (currentEmail != null && currentEmail.isNotEmpty && normalizedRef == currentEmail) {
+      return true;
+    }
+
+    final currentDisplayName = currentUser.displayName?.trim().toLowerCase();
+    if (currentDisplayName != null &&
+        currentDisplayName.isNotEmpty &&
+        normalizedRef == currentDisplayName) {
+      return true;
+    }
+
+    return false;
+  }
+
+  Future<void> _deletePost() async {
+    try {
+      const String deletedContent = "[This post has been deleted by the user]";
+
+      final postId = await _resolveBackendPostId();
+      if (postId == null) {
+        if (!mounted) return;
+        ToastService.showToast(
+          context,
+          backgroundColor: Colors.red,
+          message: 'Could not resolve this repost ID. Please refresh and try again.',
+          leading: const Icon(Icons.error, color: Colors.white),
+        );
+        return;
+      }
+
+      bool deleteSuccess = await InZoneDatabase.updatePost(
+        postId: postId,
+        content: deletedContent,
+      );
+
+      if (!mounted) return;
+
+      if (deleteSuccess) {
+        setState(() {
+          _editedTextContent = deletedContent;
+        });
+        ToastService.showToast(
+          context,
+          backgroundColor: Colors.red,
+          message: 'Post deleted successfully',
+          leading: const Icon(Icons.delete, color: Colors.white),
+        );
+      } else {
+        ToastService.showToast(
+          context,
+          backgroundColor: Colors.red,
+          message: 'Failed to delete post from server',
+          leading: const Icon(Icons.error, color: Colors.white),
+        );
+      }
+    } catch (_) {
+      if (!mounted) return;
+      ToastService.showToast(
+        context,
+        backgroundColor: Colors.red,
+        message: 'Error: Could not delete post',
+        leading: const Icon(Icons.error, color: Colors.white),
+      );
+    }
+  }
+
+  Future<void> _updatePost(String newText) async {
+    if (newText.isEmpty || newText == _currentTextContent) {
+      return;
+    }
+
+    try {
+      final postId = await _resolveBackendPostId();
+      if (postId == null) {
+        if (!mounted) return;
+        ToastService.showToast(
+          context,
+          backgroundColor: Colors.red,
+          message: 'Could not resolve this repost ID. Please refresh and try again.',
+          leading: const Icon(Icons.error, color: Colors.white),
+        );
+        return;
+      }
+
+      bool updateSuccess = await InZoneDatabase.updatePost(
+        postId: postId,
+        content: newText,
+      );
+
+      if (!mounted) return;
+
+      if (updateSuccess) {
+        setState(() {
+          _editedTextContent = newText;
+        });
+        ToastService.showToast(
+          context,
+          backgroundColor: Colors.green,
+          message: 'Post updated successfully',
+          leading: const Icon(Icons.check_circle, color: Colors.white),
+        );
+      } else {
+        ToastService.showToast(
+          context,
+          backgroundColor: Colors.red,
+          message: 'Failed to save changes',
+          leading: const Icon(Icons.error, color: Colors.white),
+        );
+      }
+    } catch (_) {
+      if (!mounted) return;
+      ToastService.showToast(
+        context,
+        backgroundColor: Colors.red,
+        message: 'Error: Could not update post',
+        leading: const Icon(Icons.error, color: Colors.white),
+      );
+    }
+  }
+
+  void _showEditDialog() {
+    final controller = TextEditingController(text: _currentTextContent);
+
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          title: const Text('Edit Post'),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: TextField(
+              controller: controller,
+              maxLines: 5,
+              decoration: const InputDecoration(
+                hintText: 'Edit your post content...',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.pop(dialogContext);
+                _updatePost(controller.text.trim());
+              },
+              child: const Text('Save Changes'),
+            ),
+          ],
+        );
+      },
+    );
+  }
 
   @override
   bool get wantKeepAlive => true;
@@ -126,12 +336,12 @@ class _RepostCardState extends State<RepostCard>
               const SizedBox(
                 height: 10,
               ),
-              widget.post.textContent == null
+                _currentTextContent.isEmpty
                   ? const SizedBox()
                   : Align(
                       alignment: Alignment.centerLeft,
                       child: Text(
-                        widget.post.textContent,
+                    _currentTextContent,
                         textAlign: TextAlign.start,
                         style:
                             const TextStyle(height: 1.5, color: Colors.black),
@@ -238,6 +448,8 @@ class _RepostCardState extends State<RepostCard>
   }
 
   void _showOptionsBottomSheet(BuildContext context) {
+    final bool isOwner = _isPostOwner();
+
     showModalBottomSheet(
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
@@ -264,6 +476,70 @@ class _RepostCardState extends State<RepostCard>
               ),
             ),
             const SizedBox(height: 15),
+            if (isOwner) ...[
+              ListTile(
+                leading: Icon(
+                  FeatherIcons.edit,
+                  color: Theme.of(context).iconTheme.color,
+                  size: 24,
+                ),
+                title: Text(
+                  'Edit Post',
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Theme.of(context).textTheme.bodyLarge?.color,
+                  ),
+                ),
+                onTap: () {
+                  Navigator.pop(context);
+                  _showEditDialog();
+                },
+              ),
+              ListTile(
+                leading: const Icon(
+                  FeatherIcons.trash2,
+                  color: Colors.red,
+                  size: 24,
+                ),
+                title: const Text(
+                  'Delete Post',
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Colors.red,
+                  ),
+                ),
+                onTap: () {
+                  Navigator.pop(context);
+                  showDialog(
+                    context: context,
+                    builder: (BuildContext dialogContext) {
+                      return AlertDialog(
+                        title: const Text('Delete Post'),
+                        content: const Text(
+                            'Are you sure you want to delete this post? This action cannot be undone.'),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(dialogContext),
+                            child: const Text('Cancel'),
+                          ),
+                          TextButton(
+                            onPressed: () {
+                              Navigator.pop(dialogContext);
+                              _deletePost();
+                            },
+                            style: TextButton.styleFrom(
+                              foregroundColor: Colors.red,
+                            ),
+                            child: const Text('Delete'),
+                          ),
+                        ],
+                      );
+                    },
+                  );
+                },
+              ),
+              Divider(height: 1, thickness: 0.5, color: Colors.grey.shade300),
+            ],
             _optionItem(
               CustomIcons.notInterested,
               "Flag this post",
