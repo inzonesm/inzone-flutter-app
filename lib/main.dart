@@ -303,7 +303,12 @@ void main() async {
       }),
       InitTimer.measure('  └─ NotificationEventService.init', () async {
         try {
-          await NotificationEventService.initializePushNotifications();
+          await NotificationEventService
+              .initializePushNotifications()
+              .timeout(const Duration(seconds: 8), onTimeout: () {
+            print(
+                '⚠️ NotificationEventService.init timed out after 8s; continuing startup');
+          });
           print('✅ Push notifications initialized');
         } catch (e) {
           print('⚠️ Failed to initialize push notifications: $e');
@@ -319,19 +324,20 @@ void main() async {
   bool needsUpdate = await InitTimer.measure(
       'checkForceUpdateRequired', () => checkForceUpdateRequired());
 
-  // Request tracking permission (shows UI dialog - do this while other things load)
-  // Run tracking and AppsFlyer in parallel
-  await InitTimer.measure('Tracking + AppsFlyer (parallel)', () async {
-    await Future.wait([
-      InitTimer.measure(
-          '  └─ requestTrackingPermission', () => requestTrackingPermission()),
-      InitTimer.measure('  └─ AppsFlyer.init', () async {
-        final appsFlyerService = AppsFlyerService();
-        await appsFlyerService.initialize();
-        String? advertisingId = await appsFlyerService.getAdvertisingId();
-        print("The advertising ID is $advertisingId");
-      }),
-    ]);
+  // Don't block first render on tracking/appsflyer initialization.
+  Future(() async {
+    await InitTimer.measure('Tracking + AppsFlyer (parallel)', () async {
+      await Future.wait([
+        InitTimer.measure('  └─ requestTrackingPermission',
+            () => requestTrackingPermission()),
+        InitTimer.measure('  └─ AppsFlyer.init', () async {
+          final appsFlyerService = AppsFlyerService();
+          await appsFlyerService.initialize();
+          String? advertisingId = await appsFlyerService.getAdvertisingId();
+          print("The advertising ID is $advertisingId");
+        }),
+      ]);
+    });
   });
 
   // Initialize RevenueCat (depends on Firebase Auth being ready)
