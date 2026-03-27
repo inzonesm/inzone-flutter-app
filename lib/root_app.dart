@@ -1018,29 +1018,6 @@ class _RootAppState extends State<RootApp>
     });
   }
 
-  }
-
-  final List<String> _iconifyPaths = [
-    Ri.home_5_fill,
-    Mdi.account_group,
-    HeroiconsSolid.chat_bubble_oval_left_ellipsis,
-    // Ri.gamepad_fill
-    Mdi.gamepad_variant
-    // Ph.user,
-  ];
-
-  void _toggleExpanded() {
-    print("Toggle expanded: ${!_isExpanded}");
-    setState(() {
-      _isExpanded = !_isExpanded;
-      if (_isExpanded) {
-        _rotationController.forward();
-      } else {
-        _rotationController.reverse();
-      }
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
     const systemUiOverlayStyle = SystemUiOverlayStyle(
