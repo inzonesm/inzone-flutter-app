@@ -124,7 +124,6 @@ class InZonePost {
     String userName = json['user_name'] ?? 'Unknown';
     int likes = json['likes'] ?? 0;
 
-    // More robust ID handling
     final postData = json['post'] is Map<String, dynamic>
         ? json['post'] as Map<String, dynamic>
         : <String, dynamic>{};

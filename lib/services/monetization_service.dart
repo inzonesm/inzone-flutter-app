@@ -292,8 +292,6 @@ class MonetizationService {
 
   // Get referral stats
   Future<Map<String, dynamic>> getReferralStats() async {
-    // Always use production code, never mock debug code
-
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) throw Exception('User not logged in');
 
