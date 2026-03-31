@@ -330,7 +330,7 @@ class _RootAppState extends State<RootApp>
       final snapshot = await FirebaseFirestore.instance
           .collection('popularCharacters')
           .orderBy('numberOfChats', descending: true)
-          .limit(30)
+          .limit(300)
           .get();
 
       const defaultInZoneOption = _PopularCharacterOption(
@@ -473,7 +473,7 @@ class _RootAppState extends State<RootApp>
 
           return SafeArea(
             child: SizedBox(
-              height: MediaQuery.of(sheetContext).size.height * 0.62,
+              height: MediaQuery.of(sheetContext).size.height * 0.85,
               child: Column(
                 children: [
                   const SizedBox(height: 10),
@@ -723,6 +723,34 @@ class _RootAppState extends State<RootApp>
     return allNumbers.first;
   }
 
+  String _buildGameCelebrationMessage(GameData? game) {
+    if (game == null) return 'Well played!';
+
+    final normalized = _normalizedGameName(game);
+
+    if (normalized.contains('chess')) {
+      return 'Well Played';
+    }
+
+    if (normalized.contains('property') || normalized.contains('pursuit')) {
+      return 'Good Run';
+    }
+
+    if (normalized.contains('flappy') || normalized.contains('fish')) {
+      return 'Great Score';
+    }
+
+    if (normalized.contains('tower') || normalized.contains('defense')) {
+      return 'Strong Defense';
+    }
+
+    if (normalized.contains('tiles') || normalized.contains('puzzle')) {
+      return 'Nice Move';
+    }
+
+    return 'Great Run';
+  }
+
   String _buildShareProgressText(GameData game, String? gameOverText) {
     final normalized = _normalizedGameName(game);
     final source = gameOverText ?? '';
@@ -877,9 +905,11 @@ class _RootAppState extends State<RootApp>
     String? gameOverText,
   ) async {
     final text = _buildChallengeShareText(game, challengeLink, gameOverText);
-    await Share.share(
-      text,
-      subject: 'Challenge me on ${game.name}',
+    await SharePlus.instance.share(
+      ShareParams(
+        text: text,
+        subject: 'Challenge me on ${game.name}',
+      ),
     );
   }
 
@@ -945,72 +975,269 @@ class _RootAppState extends State<RootApp>
         barrierDismissible: true,
         builder: (dialogContext) {
           return Dialog(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Stack(
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.only(top: 8),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Text(
-                          'Game Over',
-                          style: TextStyle(
-                              fontSize: 18, fontWeight: FontWeight.bold),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(24),
+            ),
+            child: Stack(
+              children: [
+                Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Gradient header with game icon
+                    Container(
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF14CFEE), Color(0xFF2196F3)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
                         ),
-                        const SizedBox(height: 12),
-                        const Text('Great run 🎮'),
-                        const SizedBox(height: 20),
-                        SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton(
-                            onPressed: () {
-                              context.push(Routes.postChat, extra: {
-                                'name': gameName,
-                                'profileImageURL': gameIcon,
-                                'chat': 'Completed a level in $gameName.',
-                                'avatarID': gameId,
-                                'initialText': prefilledText,
-                              });
-                            },
-                            child: const Text('Share Progress'),
-                          ),
+                        borderRadius: const BorderRadius.vertical(
+                          top: Radius.circular(24),
                         ),
-                        const SizedBox(height: 10),
-                        SizedBox(
-                          width: double.infinity,
-                          child: OutlinedButton(
-                            onPressed: () async {
-                              await _showChallengeOptions(parentContext,
-                                  GameData(
-                                id: gameId,
-                                name: gameName,
-                                iconUrl: gameIcon,
-                                description: selectedGame?.description ?? '',
-                                iconFallback: selectedGame?.iconFallback,
-                              ), resolvedGameOverText);
-                            },
-                            child: const Text('Challenge a Friend'),
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                          vertical: 24, horizontal: 16),
+                      child: Column(
+                        children: [
+                          // Game icon or trophy emoji
+                          Container(
+                            width: 64,
+                            height: 64,
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.2),
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: Colors.white.withOpacity(0.4),
+                                width: 2,
+                              ),
+                            ),
+                            child: gameIcon.isNotEmpty
+                                ? ClipOval(
+                                    child: Image.network(
+                                      gameIcon,
+                                      fit: BoxFit.cover,
+                                      errorBuilder:
+                                          (context, error, stackTrace) =>
+                                              const Center(
+                                        child: Text(
+                                          '🏆',
+                                          style: TextStyle(fontSize: 32),
+                                        ),
+                                      ),
+                                    ),
+                                  )
+                                : const Center(
+                                    child: Text(
+                                      '🏆',
+                                      style: TextStyle(fontSize: 32),
+                                    ),
+                                  ),
                           ),
+                          const SizedBox(height: 16),
+                          const Text(
+                            'Game Over',
+                            style: TextStyle(
+                              fontSize: 28,
+                              fontWeight: FontWeight.w800,
+                              color: Colors.white,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            gameName,
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                              color: Colors.white.withOpacity(0.9),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    // Content
+                    Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // Celebratory status text (non-interactive)
+                          Column(
+                            children: [
+                              const Text(
+                                '🎮',
+                                style: TextStyle(fontSize: 22),
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                _buildGameCelebrationMessage(selectedGame),
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(
+                                  fontSize: 17,
+                                  fontWeight: FontWeight.w700,
+                                  color: Color(0xFF2196F3),
+                                  letterSpacing: 0.2,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 24),
+                          // Challenge button
+                          SizedBox(
+                            width: double.infinity,
+                            height: 56,
+                            child: Container(
+                              decoration: BoxDecoration(
+                                gradient: const LinearGradient(
+                                  colors: [
+                                    Color(0xFF14CFEE),
+                                    Color(0xFF2196F3)
+                                  ],
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                ),
+                                borderRadius: BorderRadius.circular(14),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: const Color(0xFF2196F3)
+                                        .withOpacity(0.3),
+                                    blurRadius: 12,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ],
+                              ),
+                              child: Material(
+                                color: Colors.transparent,
+                                child: InkWell(
+                                  onTap: () async {
+                                    await _showChallengeOptions(
+                                        parentContext,
+                                        GameData(
+                                          id: gameId,
+                                          name: gameName,
+                                          iconUrl: gameIcon,
+                                          description: selectedGame
+                                                  ?.description ??
+                                              '',
+                                          iconFallback: selectedGame
+                                              ?.iconFallback,
+                                        ),
+                                        resolvedGameOverText);
+                                  },
+                                  borderRadius: BorderRadius.circular(14),
+                                  child: const Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.center,
+                                    children: [
+                                      Icon(
+                                        Icons.sports_esports,
+                                        color: Colors.white,
+                                        size: 20,
+                                      ),
+                                      SizedBox(width: 12),
+                                      Text(
+                                        'Challenge a Friend',
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w700,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          // Share button
+                          SizedBox(
+                            width: double.infinity,
+                            height: 56,
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF2196F3)
+                                    .withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(14),
+                                border: Border.all(
+                                  color: const Color(0xFF2196F3)
+                                      .withOpacity(0.4),
+                                  width: 2,
+                                ),
+                              ),
+                              child: Material(
+                                color: Colors.transparent,
+                                child: InkWell(
+                                  onTap: () {
+                                    context.push(Routes.postChat, extra: {
+                                      'name': gameName,
+                                      'profileImageURL': gameIcon,
+                                      'chat':
+                                          'Completed a level in $gameName.',
+                                      'avatarID': gameId,
+                                      'initialText': prefilledText,
+                                    });
+                                  },
+                                  borderRadius: BorderRadius.circular(14),
+                                  child: Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.center,
+                                    children: [
+                                      const Icon(
+                                        Icons.share,
+                                        color: Color(0xFF2196F3),
+                                        size: 20,
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Text(
+                                        'Share Progress',
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w700,
+                                          color: const Color(0xFF2196F3),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                // Close button
+                Positioned(
+                  top: 12,
+                  right: 12,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.95),
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.1),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
                         ),
                       ],
                     ),
-                  ),
-                  Positioned(
-                    top: 0,
-                    right: 0,
                     child: InkWell(
-                      borderRadius: BorderRadius.circular(16),
+                      borderRadius: BorderRadius.circular(20),
                       onTap: () => Navigator.of(dialogContext).pop(),
                       child: const Padding(
-                        padding: EdgeInsets.all(4),
-                        child: Icon(Icons.close, size: 18),
+                        padding: EdgeInsets.all(8),
+                        child: Icon(
+                          Icons.close,
+                          size: 20,
+                          color: Color(0xFF2196F3),
+                        ),
                       ),
                     ),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           );
         },
