@@ -23,6 +23,8 @@ import 'package:inzone/services/appsflyer_service.dart';
 import 'dart:async';
 import 'dart:io';
 import 'dart:math';
+import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key, this.controller});
@@ -70,14 +72,21 @@ class HomeScreenState extends State<HomeScreen> {
   List<dynamic> originalPosts = []; // For category filtering
   final Set<String> _viewedPosts =
       {}; // Track posts whose view count has been incremented
+  static const String _feedCacheKey = 'home_feed_cache_v1';
 
   @override
   void initState() {
     super.initState();
     _scrollController = widget.controller ?? ScrollController();
     _startTime = DateTime.now().toUtc();
-    loadFeed();
-    loadAvatars();
+
+    // Fast path: render cached feed immediately while refreshing in background.
+    _loadCachedFeed();
+    Future(() {
+      loadFeed();
+      loadAvatars();
+    });
+
     _startAvatarTimer();
     _scrollController.addListener(_onScroll);
 
@@ -284,9 +293,12 @@ class HomeScreenState extends State<HomeScreen> {
       loadAvatars();
     }
 
-    setState(() {
-      isLoading = true;
-    });
+    final bool shouldShowBlockingLoader = isRefresh || posts.isEmpty;
+    if (shouldShowBlockingLoader) {
+      setState(() {
+        isLoading = true;
+      });
+    }
 
     try {
       // Collect currently loaded post IDs to exclude from backend
@@ -344,6 +356,8 @@ class HomeScreenState extends State<HomeScreen> {
             hasMorePosts = true; // Always true for infinite scroll
           });
 
+          _cacheFeedPosts();
+
           print(
               '✅ LOADED Initial Page 1 of Batch $reloadCount: ${newPosts.length} posts (Total now: ${posts.length})');
           // Show first 3 post IDs for verification
@@ -390,6 +404,45 @@ class HomeScreenState extends State<HomeScreen> {
           isLoading = false;
         });
       }
+    }
+  }
+
+  Future<void> _loadCachedFeed() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final cached = prefs.getString(_feedCacheKey);
+      if (cached == null || cached.isEmpty || !mounted) return;
+
+      final decoded = jsonDecode(cached);
+      if (decoded is! List || decoded.isEmpty) return;
+
+      final cachedPosts = decoded.cast<dynamic>();
+      final cachedCategories = <String>{};
+      for (final post in cachedPosts) {
+        final category = _extractCategoryFromPost(post);
+        if (category.isNotEmpty) {
+          cachedCategories.add(category);
+        }
+      }
+
+      setState(() {
+        posts = List<dynamic>.from(cachedPosts);
+        originalPosts = List<dynamic>.from(cachedPosts);
+        categoriesList = cachedCategories.toList();
+        isLoading = false;
+      });
+    } catch (e) {
+      print('Error loading cached feed: $e');
+    }
+  }
+
+  Future<void> _cacheFeedPosts() async {
+    try {
+      if (posts.isEmpty) return;
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_feedCacheKey, jsonEncode(posts));
+    } catch (e) {
+      print('Error caching feed: $e');
     }
   }
 

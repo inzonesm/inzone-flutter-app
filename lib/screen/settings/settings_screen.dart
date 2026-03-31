@@ -582,7 +582,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       },
       () {
         try {
-          _launchInBrowser("https://inzone.ai/about");
+          _launchInBrowser("mailto:contact@inzone.ai");
         } catch (e) {
           ToastService.showToast(
             context,

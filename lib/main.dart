@@ -289,40 +289,7 @@ void main() async {
   // Register FCM background message handler (must be after Firebase init)
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
-  // Run these in parallel - they're independent of each other
-  await InitTimer.measure('Notifications + RemoteConfig + Session (parallel)',
-      () async {
-    await Future.wait([
-      InitTimer.measure('  └─ NotificationService.init', () async {
-        try {
-          await NotificationService.initialize();
-          print('✅ Notification service initialized');
-        } catch (e) {
-          print('⚠️ Failed to initialize notification service: $e');
-        }
-      }),
-      InitTimer.measure('  └─ NotificationEventService.init', () async {
-        try {
-          await NotificationEventService
-              .initializePushNotifications()
-              .timeout(const Duration(seconds: 8), onTimeout: () {
-            print(
-                '⚠️ NotificationEventService.init timed out after 8s; continuing startup');
-          });
-          print('✅ Push notifications initialized');
-        } catch (e) {
-          print('⚠️ Failed to initialize push notifications: $e');
-        }
-      }),
-      InitTimer.measure('  └─ setupRemoteConfig', () => setupRemoteConfig()),
-      InitTimer.measure(
-          '  └─ validateFirebaseSession', () => validateFirebaseSession()),
-    ]);
-  });
-
-  // Check for force update (needs remote config to be ready)
-  bool needsUpdate = await InitTimer.measure(
-      'checkForceUpdateRequired', () => checkForceUpdateRequired());
+  const bool needsUpdate = false;
 
   // Don't block first render on tracking/appsflyer initialization.
   Future(() async {
@@ -340,9 +307,11 @@ void main() async {
     });
   });
 
-  // Initialize RevenueCat (depends on Firebase Auth being ready)
-  await InitTimer.measure(
-      'initPlatformState (RevenueCat)', () => initPlatformState());
+  // Initialize RevenueCat in background (depends on Firebase Auth being ready).
+  Future(() async {
+    await InitTimer.measure(
+        'initPlatformState (RevenueCat)', () => initPlatformState());
+  });
 
   // Print timing summary before UI starts
   InitTimer.printSummary();
@@ -382,6 +351,52 @@ void main() async {
       ),
     );
   });
+
+  // Run startup work in background after first frame can render.
+  Future(() async {
+    await InitTimer.measure('Notifications + RemoteConfig + Session (bg)',
+        () async {
+      await Future.wait([
+        InitTimer.measure('  └─ NotificationService.init', () async {
+          try {
+            await NotificationService.initialize().timeout(
+              const Duration(seconds: 8),
+              onTimeout: () {
+                print(
+                    '⚠️ NotificationService.init timed out after 8s; continuing startup');
+              },
+            );
+            print('✅ Notification service initialized');
+          } catch (e) {
+            print('⚠️ Failed to initialize notification service: $e');
+          }
+        }),
+        InitTimer.measure('  └─ NotificationEventService.init', () async {
+          try {
+            await NotificationEventService.initializePushNotifications().timeout(
+                const Duration(seconds: 8), onTimeout: () {
+              print(
+                  '⚠️ NotificationEventService.init timed out after 8s; continuing startup');
+            });
+            print('✅ Push notifications initialized');
+          } catch (e) {
+            print('⚠️ Failed to initialize push notifications: $e');
+          }
+        }),
+        InitTimer.measure('  └─ setupRemoteConfig', () => setupRemoteConfig()),
+        InitTimer.measure(
+            '  └─ validateFirebaseSession', () => validateFirebaseSession()),
+      ]);
+    });
+
+    final shouldForceUpdate = await InitTimer.measure(
+        'checkForceUpdateRequired (bg)', () => checkForceUpdateRequired());
+    if (shouldForceUpdate) {
+      Future.delayed(const Duration(milliseconds: 300), () {
+        AppRouter.setInitialRoute(Routes.forceUpdate);
+      });
+    }
+  });
 }
 
 class MyApp extends StatefulWidget {
@@ -404,6 +419,16 @@ class _MyAppState extends State<MyApp> {
       if (user != null && mounted) {
         // User just signed in, set influencer_id user property
         _setInfluencerIdProperty(user.uid);
+
+        // // Ensure FCM token registration runs after auth is available.
+        // Future.delayed(const Duration(seconds: 1), () async {
+        //   try {
+        //     await NotificationEventService.reRegisterFCMToken();
+        //     print('✅ FCM token re-registered after login');
+        //   } catch (e) {
+        //     print('⚠️ Failed to re-register FCM token after login: $e');
+        //   }
+        // });
 
         // Handle any pending push notification
         Future.delayed(const Duration(milliseconds: 500), () async {

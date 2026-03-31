@@ -1,5 +1,6 @@
 // main onboarding page with animated background
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:inzone/router/routes.dart';
 import 'package:go_router/go_router.dart';
 
@@ -17,6 +18,7 @@ class _OnboardPageState extends State<OnboardPage>
   bool _isNavigating = false;
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
+  final Map<String, String> _resolvedOnboardingImages = {};
 
   // List of screen keys matching the header map
   final List<String> _screenKeys = [
@@ -37,12 +39,58 @@ class _OnboardPageState extends State<OnboardPage>
     _fadeAnimation =
         Tween<double>(begin: 0.0, end: 1.0).animate(_animationController);
     _animationController.forward();
+    _loadOnboardingAssetPaths();
+  }
+
+  Future<void> _loadOnboardingAssetPaths() async {
+    try {
+      final manifest = await AssetManifest.loadFromAssetBundle(rootBundle);
+      final allAssets = manifest.listAssets();
+
+      String? findAsset(String key, String mode) {
+        final regex = RegExp(
+          '^assets/onboarding/${RegExp.escape(key)}_${RegExp.escape(mode)}\\.(png|jpg|jpeg)\$',
+          caseSensitive: false,
+        );
+
+        for (final asset in allAssets) {
+          if (regex.hasMatch(asset)) {
+            return asset;
+          }
+        }
+        return null;
+      }
+
+      final resolved = <String, String>{};
+      for (final key in _screenKeys) {
+        final lightPath = findAsset(key, 'light');
+        final darkPath = findAsset(key, 'dark');
+
+        if (lightPath != null) {
+          resolved['${key}_light'] = lightPath;
+        }
+        if (darkPath != null) {
+          resolved['${key}_dark'] = darkPath;
+        }
+      }
+
+      if (!mounted) return;
+      setState(() {
+        _resolvedOnboardingImages
+          ..clear()
+          ..addAll(resolved);
+      });
+    } catch (e) {
+      debugPrint('Failed to load onboarding asset manifest: $e');
+    }
   }
 
   // Get the correct image based on current theme mode
   Widget _getScreenImage(String key, bool isDarkMode) {
-    final String imagePath =
-        'assets/onboarding/${key}_${isDarkMode ? 'dark' : 'light'}.PNG';
+    final mode = isDarkMode ? 'dark' : 'light';
+    final cacheKey = '${key}_$mode';
+    final String imagePath = _resolvedOnboardingImages[cacheKey] ??
+      'assets/onboarding/${key}_$mode.PNG';
 
     // Use Image.asset with error builder to handle missing assets
     return Image.asset(
@@ -73,32 +121,37 @@ class _OnboardPageState extends State<OnboardPage>
   final Map<String, Map<String, dynamic>> _content = {
     'feed': {
       'title': 'Discover Your Feed',
-      'subtitle': 'Enjoy the best content online handpicked just for you.',
-      'highlights': ['best content', 'handpicked']
+      'subtitle':
+          'See game clips, friend activity, and the best posts from across InZone.',
+      'highlights': ['game clips', 'friend activity', 'best posts']
     },
     'group': {
-      'title': 'Join the Conversation',
+      'title': 'Join Group Chats',
       'subtitle':
-          'Chat about live games with pro athletes, favorite movies with the stars, or throw down your hottest music takes with the artists.',
-      'highlights': ['pro athletes', 'stars', 'artists']
+          'Talk with friends, react live, and keep the game going together in group chats.',
+      'highlights': ['Talk with friends', 'react live', 'group chats']
     },
     'msg': {
-      'title': 'Chat with Anyone',
+      'title': 'Play Mini Games',
       'subtitle':
-          'Amazing one-on-one chats and group conversations. Chat with your favorite personas on anything from math homework to summer plans.',
-      'highlights': ['one-on-one chats', 'favorite personas']
+          'Jump into fun mini games, beat high scores, and challenge your friends instantly.',
+      'highlights': [
+        'fun mini games',
+        'beat high scores',
+        'challenge your friends'
+      ]
     },
     'post': {
-      'title': 'Share & Earn',
+      'title': 'Share Your Wins',
       'subtitle':
-          'Share your amazing content and earn real cash when other users tip your creativity.',
-      'highlights': ['earn real cash', 'tip your creativity']
+          'Post your scores, funniest moments, and best content for everyone to see.',
+      'highlights': ['Post your scores', 'funniest moments', 'best content']
     },
     'ai': {
-      'title': 'Create AI Characters',
+      'title': 'AI That Keeps It Going',
       'subtitle':
-          'Contribute to the community by creating amazing characters and avatars.',
-      'highlights': ['amazing characters', 'avatars']
+          'AI reacts to your games, pushes you to improve, and keeps the competition alive.',
+      'highlights': ['reacts to your games', 'keeps the competition alive']
     },
   };
 
