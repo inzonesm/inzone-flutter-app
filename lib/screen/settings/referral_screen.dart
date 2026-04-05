@@ -1,15 +1,13 @@
 import 'package:flutter_contacts/flutter_contacts.dart';
 import 'package:share_plus/share_plus.dart';
 import 'dart:io';
-
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:intl/intl.dart';
 import 'package:colorful_safe_area/colorful_safe_area.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:inzone/components/ui/button.dart';
 import 'package:inzone/services/monetization_service.dart';
 import 'package:inzone/screen/settings/referral_tile.dart';
-import 'package:permission_handler/permission_handler.dart' as permission_handler;
 import 'package:toasty_box/toast_service.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:go_router/go_router.dart';
@@ -29,18 +27,14 @@ class ReferralScreen extends StatefulWidget {
 
 class _ReferralScreenState extends State<ReferralScreen> with TickerProviderStateMixin, WidgetsBindingObserver {
   final MonetizationService _monetizationService = MonetizationService();
-  static const MethodChannel _smsTrackingChannel = MethodChannel('inzone/sms_tracking');
   bool _isLoading = true;
-  String? _referralLink;
   List<Map<String, dynamic>> _referralHistory = [];
   
-  // ============ OLD LOGIC - COMMENTED OUT ============
   // For sequential SMS sending
-  // bool _isSendingReferrals = false;
-  // int _currentContactIndex = 0;
-  // List<Contact>? _pendingContacts;
-  // String? _pendingMessage;
-  // ============ END OLD LOGIC ============
+  bool _isSendingReferrals = false;
+  int _currentContactIndex = 0;
+  List<Contact>? _pendingContacts;
+  String? _pendingMessage;
 
   @override
   void initState() {
@@ -57,23 +51,15 @@ class _ReferralScreenState extends State<ReferralScreen> with TickerProviderStat
 
   Future<void> _loadReferralHistory() async {
     try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user != null) {
-        final snapshot = await FirebaseFirestore.instance
-            .collection('humanUsers')
-            .doc(user.uid)
-            .collection('referralHistory')
-            .orderBy('timestamp', descending: true)
-            .limit(50)
-            .get();
-        
-        setState(() {
-          _referralHistory = snapshot.docs.map((doc) => doc.data()).toList();
-          _isLoading = false;
-        });
-      }
+      final acceptedReferrals = await _monetizationService.getAcceptedReferrals(limit: 50);
+      if (!mounted) return;
+      setState(() {
+        _referralHistory = acceptedReferrals;
+        _isLoading = false;
+      });
     } catch (e) {
       debugPrint('Error loading referral history: $e');
+      if (!mounted) return;
       setState(() => _isLoading = false);
     }
   }
@@ -82,17 +68,15 @@ class _ReferralScreenState extends State<ReferralScreen> with TickerProviderStat
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
     
-    // ============ OLD LOGIC - COMMENTED OUT ============
     // When user returns to the app after sending SMS
-    // if (state == AppLifecycleState.resumed && _isSendingReferrals && _pendingContacts != null) {
-    //   Future.delayed(const Duration(milliseconds: 300), () {
-    //     if (mounted && _isSendingReferrals) {
-    //       _currentContactIndex++;
-    //       _sendToNextContact();
-    //     }
-    //   });
-    // }
-    // ============ END OLD LOGIC ============
+    if (state == AppLifecycleState.resumed && _isSendingReferrals && _pendingContacts != null) {
+      Future.delayed(const Duration(milliseconds: 300), () {
+        if (mounted && _isSendingReferrals) {
+          _currentContactIndex++;
+          _sendToNextContact();
+        }
+      });
+    }
   }
 
   @override
@@ -116,7 +100,7 @@ class _ReferralScreenState extends State<ReferralScreen> with TickerProviderStat
                     _buildReferralLinkSection(theme),
                     const SizedBox(height: 20),
                     Text(
-                      "Your Referrals",
+                      "Accepted Referrals",
                       style: theme.textTheme.titleLarge,
                     ),
                     const SizedBox(height: 10),
@@ -174,10 +158,14 @@ class _ReferralScreenState extends State<ReferralScreen> with TickerProviderStat
         bottomNavigationBar: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 25),
           child: Button(
-            text: "Sync Contacts",
+            text: Platform.isAndroid ? "Share Referral" : "Sync Contacts",
             onPressed: () async {
               HapticFeedback.mediumImpact();
-              await _syncContactsAndShareReferral();
+              if (Platform.isAndroid) {
+                await _shareReferralLink();
+              } else {
+                await _handleContactSelection();
+              }
             },
           ),
         ),
@@ -185,434 +173,6 @@ class _ReferralScreenState extends State<ReferralScreen> with TickerProviderStat
     );
   }
 
-  Future<void> _syncContactsAndShareReferral() async {
-    if (Platform.isIOS) {
-      await _syncContactsAndShareReferralIOS();
-      return;
-    }
-
-    final permissionStatus = await FlutterContacts.permissions.request(
-      PermissionType.read,
-    );
-
-    if (permissionStatus != PermissionStatus.granted) {
-      if (!mounted) return;
-      ToastService.showToast(
-        context,
-        backgroundColor: Theme.of(context).canvasColor,
-        shadowColor: Colors.transparent,
-        leading: const Icon(FeatherIcons.xCircle, color: Colors.redAccent),
-        message: 'Contacts permission denied.',
-      );
-      return;
-    }
-
-    final contacts = await FlutterContacts.getAll(
-      properties: {ContactProperty.phone},
-    );
-    final contactsByPhone = <String, Contact>{};
-    for (final contact in contacts) {
-      for (final phone in contact.phones) {
-        final normalized = _normalizePhone(phone.number);
-        if (normalized.isNotEmpty && !contactsByPhone.containsKey(normalized)) {
-          contactsByPhone[normalized] = contact;
-        }
-      }
-    }
-
-    if (Platform.isAndroid) {
-      await permission_handler.Permission.sms.request();
-    }
-
-    final userUid = FirebaseAuth.instance.currentUser?.uid;
-    if (userUid == null) return;
-
-    final referralLink = AppsFlyerService().generateReferralLink(userUid);
-    final message = _getMessageInfo(referralLink);
-
-    try {
-      final shareResult = await SharePlus.instance.share(
-        ShareParams(
-          text: message,
-          subject: 'Join me on InZone!',
-        ),
-      );
-
-      final shareStatus = shareResult.status.toString().split('.').last;
-
-      if (shareStatus == 'success') {
-        await _trackAndroidSmsRecipients(
-          referralLink: referralLink,
-          shareStatus: shareStatus,
-          contactsByPhone: contactsByPhone,
-        );
-      }
-
-      await _loadReferralHistory();
-
-      if (mounted) {
-        if (shareStatus == 'success') {
-          ToastService.showToast(
-            context,
-            backgroundColor: Theme.of(context).canvasColor,
-            shadowColor: Colors.transparent,
-            leading: const Icon(
-              FeatherIcons.checkCircle,
-              color: Colors.greenAccent,
-            ),
-            message: '✅ Referral share completed.',
-          );
-        }
-      }
-    } catch (e) {
-      debugPrint('Error sharing referral: $e');
-      if (mounted) {
-        ToastService.showToast(
-          context,
-          backgroundColor: Theme.of(context).canvasColor,
-          shadowColor: Colors.transparent,
-          leading: const Icon(
-            FeatherIcons.xCircle,
-            color: Colors.redAccent,
-          ),
-          message: 'Error sharing referral: $e',
-        );
-      }
-    }
-  }
-
-  Future<void> _syncContactsAndShareReferralIOS() async {
-    final permissionStatus = await FlutterContacts.permissions.request(
-      PermissionType.read,
-    );
-
-    if (permissionStatus != PermissionStatus.granted) {
-      if (!mounted) return;
-      ToastService.showToast(
-        context,
-        backgroundColor: Theme.of(context).canvasColor,
-        shadowColor: Colors.transparent,
-        leading: const Icon(FeatherIcons.xCircle, color: Colors.redAccent),
-        message: 'Contacts permission denied.',
-      );
-      return;
-    }
-
-    final allContacts = await FlutterContacts.getAll(
-      properties: {ContactProperty.phone},
-    );
-    final contactList = allContacts.where((c) => c.phones.isNotEmpty).toList();
-
-    if (contactList.isEmpty) return;
-
-    final userUid = FirebaseAuth.instance.currentUser?.uid;
-    if (userUid == null) return;
-
-    final referralLink = AppsFlyerService().generateReferralLink(userUid);
-    final message = _getMessageInfo(referralLink);
-
-    try {
-      final shareResult = await SharePlus.instance.share(
-        ShareParams(
-          text: message,
-          subject: 'Join me on InZone!',
-        ),
-      );
-
-      final shareStatus = shareResult.status.toString().split('.').last;
-
-      if (shareStatus == 'success') {
-        await _monetizationService.addReferralHistory({
-          'name': 'Native Share',
-          'phone': 'N/A',
-          'date': DateTime.now().toIso8601String(),
-          'method': 'share_plus',
-          'shareStatus': shareStatus,
-          'syncedContactsCount': contactList.length,
-          'source': 'contact_sync_native_share_ios',
-        });
-      }
-
-      await _loadReferralHistory();
-
-      if (mounted && shareStatus == 'success') {
-        ToastService.showToast(
-          context,
-          backgroundColor: Theme.of(context).canvasColor,
-          shadowColor: Colors.transparent,
-          leading: const Icon(
-            FeatherIcons.checkCircle,
-            color: Colors.greenAccent,
-          ),
-          message: '✅ Referral share completed.',
-        );
-      }
-    } catch (e) {
-      debugPrint('Error sharing referral with synced contacts on iOS: $e');
-      if (mounted) {
-        ToastService.showToast(
-          context,
-          backgroundColor: Theme.of(context).canvasColor,
-          shadowColor: Colors.transparent,
-          leading: const Icon(
-            FeatherIcons.xCircle,
-            color: Colors.redAccent,
-          ),
-          message: 'Error sharing referral: $e',
-        );
-      }
-    }
-  }
-
-  Future<bool> _trackAndroidSmsRecipients({
-    required String referralLink,
-    required String shareStatus,
-    required Map<String, Contact> contactsByPhone,
-  }) async {
-    if (!Platform.isAndroid) {
-      return false;
-    }
-
-    final smsPermission = await permission_handler.Permission.sms.status;
-    if (!smsPermission.isGranted) {
-      return false;
-    }
-
-    try {
-      final result = await _smsTrackingChannel.invokeMethod<List<dynamic>>(
-        'getRecentReferralSmsRecipients',
-        {
-          'referralLink': referralLink,
-          'lookbackMinutes': 20,
-        },
-      );
-
-      if (result == null || result.isEmpty) {
-        return false;
-      }
-
-      var trackedCount = 0;
-      for (final item in result) {
-        if (item is! Map) continue;
-        final phoneRaw = (item['address'] ?? '').toString();
-        final normalized = _normalizePhone(phoneRaw);
-        if (normalized.isEmpty) continue;
-
-        final alreadyTracked = await _isPhoneAlreadyTracked(phoneRaw);
-        if (alreadyTracked) {
-          continue;
-        }
-
-        final matchedContact = contactsByPhone[normalized];
-        final displayName = (matchedContact?.displayName ?? '').trim().isEmpty
-            ? _contactNameFallback
-            : matchedContact!.displayName!.trim();
-
-        await _monetizationService.addReferralHistory({
-          'name': displayName,
-          'phone': phoneRaw,
-          'date': DateTime.now().toIso8601String(),
-          'method': 'share_plus',
-          'shareStatus': shareStatus,
-          'source': 'android_sent_sms_tracking',
-        });
-        trackedCount++;
-      }
-
-      return trackedCount > 0;
-    } catch (e) {
-      debugPrint('Error tracking Android SMS recipients: $e');
-      return false;
-    }
-  }
-
-  Future<bool> _isPhoneAlreadyTracked(String phone) async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return false;
-
-    final existing = await FirebaseFirestore.instance
-        .collection('humanUsers')
-        .doc(user.uid)
-        .collection('referralHistory')
-        .where('phone', isEqualTo: phone)
-        .limit(1)
-        .get();
-
-    return existing.docs.isNotEmpty;
-  }
-
-  String _normalizePhone(String input) {
-    return input.replaceAll(RegExp(r'[^0-9]'), '');
-  }
-
-  // ============ CONTACT PICKER LOGIC - COMMENTED OUT ============
-  // Future<Contact?> _showContactPickerForNativeShare(
-  //   List<Contact> contacts,
-  // ) async {
-  //   return showModalBottomSheet<Contact>(
-  //     context: context,
-  //     isScrollControlled: true,
-  //     backgroundColor: Theme.of(context).cardColor,
-  //     shape: const RoundedRectangleBorder(
-  //       borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-  //     ),
-  //     builder: (sheetContext) {
-  //       final theme = Theme.of(sheetContext);
-  //       return SafeArea(
-  //         child: SizedBox(
-  //           height: MediaQuery.of(sheetContext).size.height * 0.75,
-  //           child: Column(
-  //             children: [
-  //               const SizedBox(height: 10),
-  //               Container(
-  //                 width: 42,
-  //                 height: 4,
-  //                 decoration: BoxDecoration(
-  //                   color: theme.dividerColor,
-  //                   borderRadius: BorderRadius.circular(20),
-  //                 ),
-  //               ),
-  //               const SizedBox(height: 12),
-  //               Text(
-  //                 'Choose a contact',
-  //                 style: theme.textTheme.titleMedium?.copyWith(
-  //                   fontWeight: FontWeight.w700,
-  //                 ),
-  //               ),
-  //               const SizedBox(height: 8),
-  //               Expanded(
-  //                 child: ListView.separated(
-  //                   padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-  //                   itemCount: contacts.length,
-  //                   separatorBuilder: (_, __) => const SizedBox(height: 8),
-  //                   itemBuilder: (_, index) {
-  //                     final contact = contacts[index];
-  //                     final displayName =
-  //                         (contact.displayName ?? '').trim().isEmpty
-  //                             ? _contactNameFallback
-  //                             : contact.displayName!.trim();
-  //                     final phone = contact.phones.isNotEmpty
-  //                         ? contact.phones.first.number
-  //                         : '';
-  //
-  //                     return ListTile(
-  //                       shape: RoundedRectangleBorder(
-  //                         borderRadius: BorderRadius.circular(14),
-  //                         side: BorderSide(
-  //                           color: theme.dividerColor.withValues(alpha: 0.35),
-  //                         ),
-  //                       ),
-  //                       tileColor: theme.canvasColor,
-  //                       title: Text(
-  //                         displayName,
-  //                         maxLines: 1,
-  //                         overflow: TextOverflow.ellipsis,
-  //                         style: theme.textTheme.titleSmall,
-  //                       ),
-  //                       subtitle: Text(
-  //                         phone,
-  //                         maxLines: 1,
-  //                         overflow: TextOverflow.ellipsis,
-  //                         style: theme.textTheme.bodySmall,
-  //                       ),
-  //                       trailing: const Icon(Icons.chevron_right),
-  //                       onTap: () => Navigator.of(sheetContext).pop(contact),
-  //                     );
-  //                   },
-  //                 ),
-  //               ),
-  //             ],
-  //           ),
-  //         ),
-  //       );
-  //     },
-  //   );
-  // }
-  // ============ END CONTACT PICKER LOGIC ============
-
-  // ============ OLD LOGIC - NO LONGER USED ============
-  /*
-  Future<void> _registerNativeShareTargets(
-    List<Contact> selectedContacts,
-    String shareStatus,
-  ) async {
-    final now = DateTime.now().toUtc().toIso8601String();
-
-    for (final contact in selectedContacts) {
-      final phoneRaw =
-          contact.phones.isNotEmpty ? contact.phones.first.number : '';
-      final phone = phoneRaw.trim().isEmpty ? 'N/A' : phoneRaw.trim();
-
-      await _monetizationService.addReferralHistory({
-        'name': (contact.displayName ?? '').trim().isEmpty
-            ? _contactNameFallback
-            : contact.displayName!.trim(),
-        'phone': phone,
-        'date': now,
-        'method': 'share_plus_contact_sync',
-        'shareStatus': shareStatus,
-      });
-    }
-  }
-  */
-
-  /*
-  Future<void> _shareReferralViaSharePlus() async {
-    final userUid = FirebaseAuth.instance.currentUser?.uid;
-    if (userUid != null) {
-      final referralLink = AppsFlyerService().generateReferralLink(userUid);
-      final message = _getMessageInfo(referralLink);
-      
-      try {
-        // Share using SharePlus with ShareParams (like _shareChallengeLink)
-        await SharePlus.instance.share(
-          ShareParams(
-            text: message,
-            subject: 'Join me on InZone!',
-          ),
-        );
-
-        // Track the referral attempt to Firebase
-        // Even if the user shares to any platform, we log the referral
-        await _monetizationService.addReferralHistory({
-          'name': 'Shared via SharePlus',
-          'phone': 'N/A',
-          'date': DateTime.now().toUtc().toIso8601String(),
-          'method': 'share_plus',
-        });
-        await _loadReferralHistory(); // Refresh the list
-        
-        if (mounted) {
-          ToastService.showToast(
-            context,
-            backgroundColor: Theme.of(context).canvasColor,
-            shadowColor: Colors.transparent,
-            leading: const Icon(
-              FeatherIcons.checkCircle,
-              color: Colors.greenAccent,
-            ),
-            message: '✅ Share sheet opened! Referral tracked.',
-          );
-        }
-      } catch (e) {
-        debugPrint('Error sharing referral: $e');
-        if (mounted) {
-          ToastService.showToast(
-            context,
-            backgroundColor: Theme.of(context).canvasColor,
-            shadowColor: Colors.transparent,
-            leading: const Icon(
-              FeatherIcons.xCircle,
-              color: Colors.redAccent,
-            ),
-            message: 'Error sharing referral: $e',
-          );
-        }
-      }
-    }
-  }
-  */
-  /*
   Future<void> _shareReferralLink() async {
     final userUid = FirebaseAuth.instance.currentUser?.uid;
     if (userUid != null) {
@@ -671,9 +231,14 @@ class _ReferralScreenState extends State<ReferralScreen> with TickerProviderStat
     );
     List<Contact> contactList = contacts.where((c) => c.phones.isNotEmpty).toList();
 
-    List<Contact> selectedContacts = await showDialog(
+    List<Contact> selectedContacts = await showModalBottomSheet<List<Contact>>(
       context: context,
-      builder: (context) => _ContactMultiSelectDialog(contacts: contactList),
+      isScrollControlled: true,
+      backgroundColor: Theme.of(context).canvasColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => _ContactMultiSelectSheet(contacts: contactList),
     ) ?? [];
 
     if (selectedContacts.isEmpty) {
@@ -726,18 +291,6 @@ class _ReferralScreenState extends State<ReferralScreen> with TickerProviderStat
     // Open SMS app
     await _sendSMS(_pendingMessage!, phone);
 
-    // Save to Firebase immediately
-    try {
-      await _monetizationService.addReferralHistory({
-        'name': contact.displayName ?? _contactNameFallback,
-        'phone': phone,
-        'date': DateTime.now().toUtc().toIso8601String(),
-      });
-      await _loadReferralHistory(); // Refresh the list
-    } catch (e) {
-      debugPrint('Error saving referral: $e');
-    }
-
     // The next contact will be handled automatically when app resumes (didChangeAppLifecycleState)
   }
 
@@ -752,7 +305,7 @@ class _ReferralScreenState extends State<ReferralScreen> with TickerProviderStat
           FeatherIcons.checkCircle,
           color: Colors.greenAccent,
         ),
-        message: '✅ Sent referrals to $totalSent contact(s)!',
+        message: '✅ Opened referral message for $totalSent contact(s).',
       );
     }
     setState(() {
@@ -762,9 +315,6 @@ class _ReferralScreenState extends State<ReferralScreen> with TickerProviderStat
       _currentContactIndex = 0;
     });
   }
-  */
-  // ============ END OLD LOGIC ============
-
 
   String _getMessageInfo(String link) {
     return "Hey! 👋\n\nJoin me on InZone using this link: $link";
@@ -821,7 +371,7 @@ class _ReferralScreenState extends State<ReferralScreen> with TickerProviderStat
               Image.asset("icons/referral/tiktok.png", width: 32, height: 32),
               const SizedBox(width: 14),
               GestureDetector(
-                onTap: _syncContactsAndShareReferral,
+                onTap: _shareReferralLink,
                 child: Container(
                   width: 32,
                   height: 32,
@@ -933,75 +483,157 @@ class _ReferralScreenState extends State<ReferralScreen> with TickerProviderStat
           child: ReferralTile(
             photoUrl: referral['photo_url'] ?? '',
             name: referral['name'] ?? 'Referred User',
-            date: referral['date'] ?? 'N/A',
+            date: _formatReferralDate(referral['date']),
           ),
         );
       },
     );
   }
+
+  String _formatReferralDate(dynamic rawDate) {
+    if (rawDate == null) return 'N/A';
+    final parsed = DateTime.tryParse(rawDate.toString());
+    if (parsed == null) return rawDate.toString();
+    return DateFormat('MMM d, yyyy').format(parsed.toLocal());
+  }
 }
 
-// class _ContactMultiSelectDialog extends StatefulWidget {
-//   final List<Contact> contacts;
-//   const _ContactMultiSelectDialog({Key? key, required this.contacts}) : super(key: key);
+class _ContactMultiSelectSheet extends StatefulWidget {
+  final List<Contact> contacts;
+  const _ContactMultiSelectSheet({Key? key, required this.contacts}) : super(key: key);
 
-//   @override
-//   State<_ContactMultiSelectDialog> createState() => _ContactMultiSelectDialogState();
-// }
+  @override
+  State<_ContactMultiSelectSheet> createState() => _ContactMultiSelectSheetState();
+}
 
-// class _ContactMultiSelectDialogState extends State<_ContactMultiSelectDialog> {
-//   late List<int> _selectedIndices;
+class _ContactMultiSelectSheetState extends State<_ContactMultiSelectSheet> {
+  late List<int> _selectedIndices;
+  String _query = '';
 
-//   @override
-//   void initState() {
-//     super.initState();
-//     _selectedIndices = [];
-//   }
+  @override
+  void initState() {
+    super.initState();
+    _selectedIndices = [];
+  }
 
-//   @override
-//   Widget build(BuildContext context) {
-//     return AlertDialog(
-//       title: const Text('Select Contacts'),
-//       content: SizedBox(
-//         width: double.maxFinite,
-//         height: 400,
-//         child: ListView.builder(
-//           itemCount: widget.contacts.length,
-//           itemBuilder: (context, index) {
-//             final contact = widget.contacts[index];
-//             final isSelected = _selectedIndices.contains(index);
-//             return CheckboxListTile(
-//               value: isSelected,
-//               onChanged: (val) {
-//                 setState(() {
-//                   if (val == true) {
-//                     if (!_selectedIndices.contains(index)) {
-//                       _selectedIndices.add(index);
-//                     }
-//                   } else {
-//                     _selectedIndices.remove(index);
-//                   }
-//                 });
-//               },
-//               title: Text(contact.displayName ?? _contactNameFallback),
-//               subtitle: Text(contact.phones.isNotEmpty ? contact.phones.first.number : ''),
-//             );
-//           },
-//         ),
-//       ),
-//       actions: [
-//         TextButton(
-//           onPressed: () => Navigator.of(context).pop(<Contact>[]),
-//           child: const Text('Cancel'),
-//         ),
-//         ElevatedButton(
-//           onPressed: () {
-//             final selected = _selectedIndices.map((i) => widget.contacts[i]).toList();
-//             Navigator.of(context).pop(selected);
-//           },
-//           child: const Text('Send Referrals'),
-//         ),
-//       ],
-//     );
-//   }
-// }
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    final filteredEntries = widget.contacts.asMap().entries.where((entry) {
+      if (_query.trim().isEmpty) return true;
+      final contact = entry.value;
+      final name = (contact.displayName ?? _contactNameFallback).toLowerCase();
+      final phone = contact.phones.isNotEmpty ? contact.phones.first.number.toLowerCase() : '';
+      final query = _query.toLowerCase();
+      return name.contains(query) || phone.contains(query);
+    }).toList();
+
+    return SafeArea(
+      child: SizedBox(
+        height: MediaQuery.of(context).size.height * 0.78,
+        child: Column(
+          children: [
+            const SizedBox(height: 8),
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: theme.dividerColor,
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Row(
+                children: [
+                  Text('Select Contacts', style: theme.textTheme.titleMedium),
+                  const Spacer(),
+                  Text('${_selectedIndices.length} selected', style: theme.textTheme.bodySmall),
+                ],
+              ),
+            ),
+            const SizedBox(height: 10),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: TextField(
+                onChanged: (value) => setState(() => _query = value),
+                decoration: InputDecoration(
+                  hintText: 'Search contacts',
+                  prefixIcon: const Icon(Icons.search),
+                  isDense: true,
+                  filled: true,
+                  fillColor: theme.cardColor,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: theme.dividerColor),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: theme.dividerColor),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Expanded(
+              child: ListView.builder(
+                itemCount: filteredEntries.length,
+                itemBuilder: (context, listIndex) {
+                  final entry = filteredEntries[listIndex];
+                  final index = entry.key;
+                  final contact = entry.value;
+                  final isSelected = _selectedIndices.contains(index);
+
+                  return CheckboxListTile(
+                    value: isSelected,
+                    onChanged: (val) {
+                      setState(() {
+                        if (val == true) {
+                          if (!_selectedIndices.contains(index)) {
+                            _selectedIndices.add(index);
+                          }
+                        } else {
+                          _selectedIndices.remove(index);
+                        }
+                      });
+                    },
+                    controlAffinity: ListTileControlAffinity.leading,
+                    title: Text(contact.displayName ?? _contactNameFallback),
+                    subtitle: Text(contact.phones.isNotEmpty ? contact.phones.first.number : ''),
+                  );
+                },
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 6, 16, 12),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.of(context).pop(<Contact>[]),
+                      child: const Text('Cancel'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: _selectedIndices.isEmpty
+                          ? null
+                          : () {
+                              final selected = _selectedIndices.map((i) => widget.contacts[i]).toList();
+                              Navigator.of(context).pop(selected);
+                            },
+                      child: const Text('Send Referrals'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

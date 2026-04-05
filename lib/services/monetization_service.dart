@@ -7,6 +7,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
 import 'package:in_app_purchase_storekit/in_app_purchase_storekit.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:inzone/config/api_config.dart';
 
 class MonetizationService {
 
@@ -61,8 +62,6 @@ class MonetizationService {
     return _productIds[platformKey] ?? '';
   }
 
-  static const String baseUrl =
-      'https://inzoneapi-912424781531.us-central1.run.app/';
   final InAppPurchase _inAppPurchase = InAppPurchase.instance;
   final StreamController<List<PurchaseDetails>> _purchaseController =
       StreamController<List<PurchaseDetails>>.broadcast();
@@ -255,7 +254,7 @@ class MonetizationService {
     if (user == null) throw Exception('User not logged in');
 
     final response = await http.post(
-      Uri.parse('$baseUrl/user/generate-referral-code'),
+      Uri.parse(ApiConfig.endpoint('/user/generate-referral-code')),
       headers: {'Content-Type': 'application/json'},
       body: json.encode({
         'UserDocumentId': user.uid,
@@ -275,7 +274,7 @@ class MonetizationService {
     if (user == null) throw Exception('User not logged in');
 
     final response = await http.post(
-      Uri.parse('$baseUrl/user/apply-referral'),
+      Uri.parse(ApiConfig.endpoint('/user/apply-referral')),
       headers: {'Content-Type': 'application/json'},
       body: json.encode({
         'UserDocumentId': user.uid,
@@ -296,7 +295,7 @@ class MonetizationService {
     if (user == null) throw Exception('User not logged in');
 
     final response = await http.get(
-      Uri.parse('$baseUrl/user/referral-stats?UserDocumentId=${user.uid}'),
+      Uri.parse(ApiConfig.endpoint('/user/referral-stats?UserDocumentId=${user.uid}')),
     );
 
     if (response.statusCode == 200) {
@@ -306,6 +305,31 @@ class MonetizationService {
     }
   }
 
+  Future<List<Map<String, dynamic>>> getAcceptedReferrals({int limit = 50}) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) throw Exception('User not logged in');
+
+    final response = await http.get(
+      Uri.parse(ApiConfig.endpoint('/user/referral/accepted?UserDocumentId=${user.uid}&Limit=$limit')),
+    );
+
+    if (response.statusCode != 200) {
+      throw Exception('Failed to load accepted referrals');
+    }
+
+    final Map<String, dynamic> payload = json.decode(response.body);
+    final dynamic list = payload['data']?['accepted_referrals'];
+
+    if (list is! List) {
+      return [];
+    }
+
+    return list
+        .whereType<Map>()
+        .map((e) => Map<String, dynamic>.from(e))
+        .toList();
+  }
+
   Future<Map<String, dynamic>> getBalance() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null || user.uid.isEmpty) {
@@ -313,7 +337,7 @@ class MonetizationService {
     }
 
     final response = await http.get(
-      Uri.parse('$baseUrl/wallet/balance?UserDocumentId=${user.uid}'),
+      Uri.parse(ApiConfig.endpoint('/wallet/balance?UserDocumentId=${user.uid}')),
     );
 
     if (response.statusCode == 200) {
@@ -330,7 +354,7 @@ class MonetizationService {
 
     try {
       final response = await http.post(
-        Uri.parse('$baseUrl/wallet/purchase-incash'),
+        Uri.parse(ApiConfig.endpoint('/wallet/purchase-incash')),
         headers: {'Content-Type': 'application/json'},
         body: json.encode({
           'UserDocumentId': user.uid,
@@ -361,7 +385,7 @@ class MonetizationService {
 
     try {
       final response = await http.post(
-        Uri.parse('$baseUrl/wallet/update-subscription'),
+        Uri.parse(ApiConfig.endpoint('/wallet/update-subscription')),
         headers: {'Content-Type': 'application/json'},
         body: json.encode({
           'UserDocumentId': user.uid,
@@ -393,7 +417,7 @@ class MonetizationService {
 
     try {
       final response = await http.post(
-        Uri.parse('$baseUrl/wallet/spend-incash'),
+        Uri.parse(ApiConfig.endpoint('/wallet/spend-incash')),
         headers: {'Content-Type': 'application/json'},
         body: json.encode({
           'UserDocumentId': user.uid,
@@ -424,7 +448,7 @@ class MonetizationService {
 
     try {
       final response = await http.post(
-        Uri.parse('$baseUrl/user/tip/send'),
+        Uri.parse(ApiConfig.endpoint('/user/tip/send')),
         headers: {'Content-Type': 'application/json'},
         body: json.encode({
           'sender_id': user.uid,

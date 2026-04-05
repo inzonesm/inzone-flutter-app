@@ -80,12 +80,7 @@ class HomeScreenState extends State<HomeScreen> {
     _scrollController = widget.controller ?? ScrollController();
     _startTime = DateTime.now().toUtc();
 
-    // Fast path: render cached feed immediately while refreshing in background.
-    _loadCachedFeed();
-    Future(() {
-      loadFeed();
-      loadAvatars();
-    });
+    _bootstrapHomeFeed();
 
     _startAvatarTimer();
     _scrollController.addListener(_onScroll);
@@ -98,6 +93,16 @@ class HomeScreenState extends State<HomeScreen> {
         deviceModel: _getPlatform(),
       );
     }
+  }
+
+  Future<void> _bootstrapHomeFeed() async {
+    await _loadCachedFeed();
+    if (!mounted) return;
+
+    await Future.wait([
+      loadFeed(),
+      loadAvatars(),
+    ]);
   }
 
   void _startAvatarTimer() {
@@ -433,6 +438,10 @@ class HomeScreenState extends State<HomeScreen> {
       });
     } catch (e) {
       print('Error loading cached feed: $e');
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.remove(_feedCacheKey);
+      } catch (_) {}
     }
   }
 

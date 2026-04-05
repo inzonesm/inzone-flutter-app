@@ -1,9 +1,12 @@
 import 'dart:io';
+import 'dart:convert';
 
 import 'package:appsflyer_sdk/appsflyer_sdk.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:http/http.dart' as http;
+import 'package:inzone/config/api_config.dart';
 import 'dart:developer';
 
 // Post View Tracking Helper
@@ -65,6 +68,9 @@ class AppsFlyerService {
   static final AppsFlyerService _instance = AppsFlyerService._internal();
   static const String pendingMinigameDeepLinkGameIdKey =
       'pending_minigame_deeplink_game_id';
+  static const String _pendingReferralKey = 'pending_referral_payload_v1';
+  static const String _legacyReferrerKey = 'referrer_id';
+  static const String _legacyAttributionKey = 'attribution_data';
   late AppsflyerSdk appsflyerSdk;
 
   // Store attribution data
@@ -205,19 +211,34 @@ class AppsFlyerService {
 
   void _handleReferral(
       String referrerId, Map<String, dynamic>? attributionData) async {
-    // Store the referrerId and attribution data using SharedPreferences
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('referrer_id', referrerId);
+    if (referrerId.isEmpty) return;
 
-    // Store attribution data as a string
-    if (attributionData != null) {
-      await prefs.setString('attribution_data', attributionData.toString());
+    final prefs = await SharedPreferences.getInstance();
+    final normalizedAttributionData =
+        _normalizeReferralAttribution(attributionData);
+    final pendingPayload = <String, dynamic>{
+      'referrerId': referrerId,
+      'attributionData': normalizedAttributionData,
+      'receivedAt': DateTime.now().millisecondsSinceEpoch,
+    };
+
+    await prefs.setString(_pendingReferralKey, jsonEncode(pendingPayload));
+    await prefs.setString(_legacyReferrerKey, referrerId);
+
+    if (normalizedAttributionData.isNotEmpty) {
+      await prefs.setString(
+          _legacyAttributionKey, jsonEncode(normalizedAttributionData));
     }
 
-    // If user is already logged in, save the referral data to Firestore
     User? currentUser = FirebaseAuth.instance.currentUser;
     if (currentUser != null) {
-      await _saveReferralToFirestore(referrerId, attributionData, currentUser);
+      final saved = await _saveReferralToFirestore(
+          referrerId, normalizedAttributionData, currentUser);
+      if (saved) {
+        await prefs.remove(_pendingReferralKey);
+        await prefs.remove(_legacyReferrerKey);
+        await prefs.remove(_legacyAttributionKey);
+      }
     } else {
       log('User not signed in yet. Referral data saved locally and will be sent after login.');
     }
@@ -229,30 +250,55 @@ class AppsFlyerService {
   Future<void> checkAndSavePendingReferral() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final referrerId = prefs.getString('referrer_id');
+      String? referrerId;
+      Map<String, dynamic>? attributionData;
 
-      if (referrerId != null) {
-        // We have a stored referral, get the current user
-        User? currentUser = FirebaseAuth.instance.currentUser;
-        if (currentUser != null) {
-          // Get stored attribution data if available
-          String? attributionDataString = prefs.getString('attribution_data');
-          Map<String, dynamic>? attributionData;
-          if (attributionDataString != null &&
-              attributionDataString.isNotEmpty) {
-            // Convert string representation back to map (simple approach)
-            // This is a simple implementation and may need improvement for complex objects
+      final pendingPayloadString = prefs.getString(_pendingReferralKey);
+      if (pendingPayloadString != null && pendingPayloadString.isNotEmpty) {
+        try {
+          final decoded = jsonDecode(pendingPayloadString);
+          if (decoded is Map) {
+            final pendingMap = Map<String, dynamic>.from(decoded);
+            referrerId = pendingMap['referrerId']?.toString();
+            final pendingAttribution = pendingMap['attributionData'];
+            if (pendingAttribution is Map) {
+              attributionData = Map<String, dynamic>.from(pendingAttribution);
+            }
+          }
+        } catch (e) {
+          log('Error decoding pending referral payload: $e');
+        }
+      }
+
+      referrerId ??= prefs.getString(_legacyReferrerKey);
+      if (attributionData == null) {
+        final attributionDataString = prefs.getString(_legacyAttributionKey);
+        if (attributionDataString != null && attributionDataString.isNotEmpty) {
+          try {
+            final decoded = jsonDecode(attributionDataString);
+            if (decoded is Map) {
+              attributionData = Map<String, dynamic>.from(decoded);
+            }
+          } catch (_) {
             attributionData = {'stored_data': attributionDataString};
           }
+        }
+      }
 
-          // Save to Firestore with complete user details
-          await _saveReferralToFirestore(
-              referrerId, attributionData, currentUser);
+      if (referrerId != null && referrerId.isNotEmpty) {
+        User? currentUser = FirebaseAuth.instance.currentUser;
+        if (currentUser != null) {
+          final normalizedAttributionData =
+              _normalizeReferralAttribution(attributionData);
+          final saved = await _saveReferralToFirestore(
+              referrerId, normalizedAttributionData, currentUser);
 
-          // Optionally clear the stored referral after saving to avoid duplicates
-          // await prefs.remove('referrer_id');
-          // await prefs.remove('attribution_data');
-          log('Saved pending referral data for signed-in user');
+          if (saved) {
+            await prefs.remove(_pendingReferralKey);
+            await prefs.remove(_legacyReferrerKey);
+            await prefs.remove(_legacyAttributionKey);
+            log('Saved pending referral data for signed-in user');
+          }
         }
       }
     } catch (e) {
@@ -260,47 +306,228 @@ class AppsFlyerService {
     }
   }
 
-  Future<void> _saveReferralToFirestore(String referrerId,
+  Future<bool> _saveReferralToFirestore(String referrerId,
       Map<String, dynamic>? attributionData, User user) async {
     try {
+      if (referrerId.isEmpty || user.uid.isEmpty) {
+        return false;
+      }
+      if (referrerId == user.uid) {
+        log('Skipping self-referral for user ${user.uid}');
+        return false;
+      }
+
       // Get AppsFlyer ID
       String? appsFlyerId = await getAdvertisingId();
+      final firestore = FirebaseFirestore.instance;
+        final normalizedAttributionData =
+          _normalizeReferralAttribution(attributionData);
+        final installerProfile =
+          await _loadInstallerProfile(firestore: firestore, installerId: user.uid);
+        final installerDisplayName =
+          _resolveInstallerDisplayName(user: user, profile: installerProfile);
+        final installerPhotoUrl =
+          _resolveInstallerPhotoUrl(user: user, profile: installerProfile);
+      final referralKey = '${referrerId}_${user.uid}';
+      final referralDoc = firestore.collection('referrals').doc(referralKey);
+      final existingReferral = await referralDoc.get();
+
+      if (existingReferral.exists) {
+        log('Referral already exists for referrer $referrerId and installer ${user.uid}');
+        return true;
+      }
 
       // Create the document data with complete user details
       Map<String, dynamic> referralData = {
         'referrerId': referrerId,
         'installerId': user.uid,
         'installerEmail': user.email,
-        'installerDisplayName': user.displayName,
+        'installerDisplayName': installerDisplayName,
         'installerPhoneNumber': user.phoneNumber,
-        'installerPhotoURL': user.photoURL,
+        'installerPhotoURL': installerPhotoUrl,
         'installerEmailVerified': user.emailVerified,
         'installerCreationTime':
             user.metadata.creationTime?.millisecondsSinceEpoch,
         'installerLastSignInTime':
             user.metadata.lastSignInTime?.millisecondsSinceEpoch,
         'appsFlyerId': appsFlyerId,
-        'attributionData': attributionData ?? {},
+        'attributionData': normalizedAttributionData,
         'installTimestamp': FieldValue.serverTimestamp(),
         'platform': _getPlatform(),
         'conversionData': _conversionData,
+        'referralKey': referralKey,
       };
 
-      // Get a reference to the Firestore collection
-      final firestore = FirebaseFirestore.instance;
+      await referralDoc.set(referralData, SetOptions(merge: true));
 
-      // Add a new document to the 'referrals' collection
-      await firestore.collection('referrals').add(referralData);
+      await _markInstallerReferrerIfMissing(
+        firestore: firestore,
+        installerId: user.uid,
+        referrerId: referrerId,
+      );
 
       // Add 1500 to balance for both users
       await _updateUserBalance(referrerId, 1500); // Referrer gets 1500
       await _updateUserBalance(user.uid, 1500); // Installer gets 1500
 
+      try {
+        await http.post(
+          Uri.parse(ApiConfig.endpoint('/user/referral/track-accepted')),
+          headers: {'Content-Type': 'application/json'},
+          body: json.encode({
+            'ReferrerId': referrerId,
+            'RefereeId': user.uid,
+            'Platform': _getPlatform(),
+            'Source': 'appsflyer_deeplink',
+            'AttributionData': {
+              ...normalizedAttributionData,
+              'appsFlyerId': appsFlyerId,
+              'installerEmail': user.email,
+                'installerDisplayName': installerDisplayName,
+              'installerPhoneNumber': user.phoneNumber,
+                'installerPhotoURL': installerPhotoUrl,
+              'installerEmailVerified': user.emailVerified,
+              'installerCreationTime':
+                  user.metadata.creationTime?.millisecondsSinceEpoch,
+              'installerLastSignInTime':
+                  user.metadata.lastSignInTime?.millisecondsSinceEpoch,
+              'conversionData': _conversionData,
+            },
+          }),
+        );
+      } catch (e) {
+        log('Error mirroring accepted referral to backend: $e');
+      }
+
       log('Successfully saved referral data to Firestore with complete user details');
       log('Successfully added 1500 balance to both referrer ($referrerId) and installer (${user.uid})');
+      return true;
     } catch (e) {
       log('Error saving referral data to Firestore: $e');
+      return false;
     }
+  }
+
+  Future<void> _markInstallerReferrerIfMissing({
+    required FirebaseFirestore firestore,
+    required String installerId,
+    required String referrerId,
+  }) async {
+    final installerRef = firestore.collection('humanUsers').doc(installerId);
+    await firestore.runTransaction((transaction) async {
+      final installerSnapshot = await transaction.get(installerRef);
+      final installerData = installerSnapshot.data() ?? <String, dynamic>{};
+      final existingReferrer = installerData['referred_by']?.toString();
+
+      if (existingReferrer == null || existingReferrer.isEmpty) {
+        transaction.set(installerRef, {
+          'referred_by': referrerId,
+        }, SetOptions(merge: true));
+      }
+    });
+  }
+
+  Future<Map<String, dynamic>?> _loadInstallerProfile({
+    required FirebaseFirestore firestore,
+    required String installerId,
+  }) async {
+    try {
+      final snapshot = await firestore.collection('humanUsers').doc(installerId).get();
+      return snapshot.data();
+    } catch (e) {
+      return null;
+    }
+  }
+
+  String? _resolveInstallerDisplayName({
+    required User user,
+    required Map<String, dynamic>? profile,
+  }) {
+    final authDisplayName = user.displayName?.trim();
+    if (authDisplayName != null && authDisplayName.isNotEmpty) {
+      return authDisplayName;
+    }
+
+    final profileName = profile?['name']?.toString().trim();
+    if (profileName != null && profileName.isNotEmpty) {
+      return profileName;
+    }
+
+    final profileNameLegacy = profile?['Name']?.toString().trim();
+    if (profileNameLegacy != null && profileNameLegacy.isNotEmpty) {
+      return profileNameLegacy;
+    }
+
+    final profileUsername = profile?['username']?.toString().trim();
+    if (profileUsername != null && profileUsername.isNotEmpty) {
+      return profileUsername;
+    }
+
+    final profileUsernameLegacy = profile?['Username']?.toString().trim();
+    if (profileUsernameLegacy != null && profileUsernameLegacy.isNotEmpty) {
+      return profileUsernameLegacy;
+    }
+
+    final email = user.email?.trim();
+    if (email != null && email.isNotEmpty) {
+      final local = email.split('@').first.trim();
+      if (local.isNotEmpty) {
+        return local;
+      }
+      return email;
+    }
+
+    return user.uid;
+  }
+
+  String? _resolveInstallerPhotoUrl({
+    required User user,
+    required Map<String, dynamic>? profile,
+  }) {
+    final authPhoto = user.photoURL?.trim();
+    if (authPhoto != null && authPhoto.isNotEmpty) {
+      return authPhoto;
+    }
+
+    final profilePhoto = profile?['profilePicture']?.toString().trim();
+    if (profilePhoto != null && profilePhoto.isNotEmpty) {
+      return profilePhoto;
+    }
+
+    final profilePhotoLegacy = profile?['ProfilePicture']?.toString().trim();
+    if (profilePhotoLegacy != null && profilePhotoLegacy.isNotEmpty) {
+      return profilePhotoLegacy;
+    }
+
+    final profilePhotoUrl = profile?['profile_picture_url']?.toString().trim();
+    if (profilePhotoUrl != null && profilePhotoUrl.isNotEmpty) {
+      return profilePhotoUrl;
+    }
+
+    return null;
+  }
+
+  Map<String, dynamic> _normalizeReferralAttribution(
+      Map<String, dynamic>? raw) {
+    final source = raw ?? <String, dynamic>{};
+    final normalized = <String, dynamic>{
+      'is_deferred': source['is_deferred'],
+      'af_sub4': source['af_sub4'] ?? '',
+      'click_http_referrer': source['click_http_referrer'] ?? '',
+      'af_sub1': source['af_sub1'] ?? '',
+      'af_sub3': source['af_sub3'] ?? '',
+      'deep_link_value': source['deep_link_value'] ?? source['deep_link'] ?? '',
+      'campaign': source['campaign'] ?? '',
+      'match_type': source['match_type'] ?? '',
+      'af_sub5': source['af_sub5'] ?? '',
+      'campaign_id': source['campaign_id'] ?? '',
+      'media_source': source['media_source'] ?? '',
+      'deep_link_sub1': source['deep_link_sub1'] ?? '',
+      'af_sub2': source['af_sub2'] ?? '',
+    };
+
+    normalized.removeWhere((key, value) => value == null);
+    return normalized;
   }
 
   Future<void> _updateUserBalance(String userId, int amount) async {

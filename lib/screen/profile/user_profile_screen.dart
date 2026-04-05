@@ -333,8 +333,8 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
 
       if (mounted) {
         setState(() {
-          name = profile["name"] ?? profile["Name"] ?? "Unknown";
-          username = profile["username"] ?? profile["Username"] ?? "Unknown";
+          name = _resolveProfileName(profile);
+          username = _resolveProfileUsername(profile);
           bio = profile["bio"] ?? profile["Bio"] ?? "";
           profileImageUrl =
               profile["profilePicture"] ?? profile["ProfilePicture"] ?? "";
@@ -346,9 +346,61 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
       }
     } else {
       setState(() {
+        name = _resolveAuthFallback() ?? "User";
+        username = _resolveAuthFallback() ?? "User";
+        bio = "";
         isLoading = false;
       });
     }
+  }
+
+  String _resolveProfileName(Map<String, dynamic>? profile) {
+    final name = profile?["name"]?.toString().trim() ??
+        profile?["Name"]?.toString().trim();
+    if (name != null && name.isNotEmpty) {
+      return name;
+    }
+
+    final username = _resolveProfileUsername(profile);
+    if (username.isNotEmpty) {
+      return username;
+    }
+
+    return _resolveAuthFallback() ?? "User";
+  }
+
+  String _resolveProfileUsername(Map<String, dynamic>? profile) {
+    final username = profile?["username"]?.toString().trim() ??
+        profile?["Username"]?.toString().trim();
+    if (username != null && username.isNotEmpty && username.toLowerCase() != 'unknown') {
+      return username;
+    }
+
+    return _resolveAuthFallback() ?? "User";
+  }
+
+  String? _resolveAuthFallback() {
+    final currentUser = FirebaseAuth.instance.currentUser;
+    final displayName = currentUser?.displayName?.trim();
+    if (displayName != null && displayName.isNotEmpty) {
+      return displayName;
+    }
+
+    final email = currentUser?.email?.trim();
+    if (email != null && email.isNotEmpty) {
+      final localPart = email.split('@').first.trim();
+      if (localPart.isNotEmpty) {
+        return localPart;
+      }
+      return email;
+    }
+
+    final userId = getUserId();
+    if (userId.isNotEmpty) {
+      return userId;
+    }
+
+    return null;
   }
 
   Future<void> fetchUserPosts() async {

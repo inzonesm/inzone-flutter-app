@@ -3,6 +3,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_feather_icons/flutter_feather_icons.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:inzone/components/profile/user_posts_tab.dart';
 import 'package:inzone/components/profile/followers_following_tab.dart';
 import 'package:inzone/components/ui/profile_appbar.dart';
@@ -508,18 +509,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
       setState(() {
         // Access the fields directly from the user data object
-        name = userProfile!["name"] ?? userProfile["Name"] ?? "Unknown";
-        bio = userProfile["bio"] ?? userProfile["Bio"] ?? "";
-        username =
-            userProfile["username"] ?? userProfile["Username"] ?? "Unknown";
-        profileImageUrl = userProfile["profilePicture"] ??
-            userProfile["ProfilePicture"] ??
-            userProfile["profile_picture_url"] ??
+        final profile = userProfile!;
+        name = _resolveProfileName(profile, userId);
+        bio = profile["bio"] ?? profile["Bio"] ?? "";
+        username = _resolveProfileUsername(profile, userId);
+        profileImageUrl = profile["profilePicture"] ??
+            profile["ProfilePicture"] ??
+            profile["profile_picture_url"] ??
             "";
 
         // Get followers and following counts - prioritize API count fields, fallback to array length
-        followersCount = userProfile["followers_count"] ?? followers.length;
-        followingCount = userProfile["following_count"] ?? following.length;
+        followersCount = profile["followers_count"] ?? followers.length;
+        followingCount = profile["following_count"] ?? following.length;
       });
     } else {
       // Set default values if profile couldn't be fetched
@@ -813,17 +814,66 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   // Helper method to get current user's name
   Future<String> _getCurrentUserName(String userId) async {
-    String defaultName = "User";
-
     try {
       Map<String, dynamic>? userProfile =
           await InZoneDatabase.getUserProfile(userId);
       if (userProfile != null) {
-        return userProfile["Name"] ?? userProfile["name"] ?? defaultName;
+        final resolvedName = _resolveProfileName(userProfile, userId);
+        if (resolvedName.isNotEmpty) {
+          return resolvedName;
+        }
       }
     } catch (e) {}
 
-    return defaultName;
+    return _resolveAuthFallback(userId) ?? "User";
+  }
+
+  String _resolveProfileName(Map<String, dynamic>? profile, String userId) {
+    final name = profile?["Name"]?.toString().trim() ??
+        profile?["name"]?.toString().trim();
+    if (name != null && name.isNotEmpty) {
+      return name;
+    }
+
+    final username = _resolveProfileUsername(profile, userId);
+    if (username.isNotEmpty) {
+      return username;
+    }
+
+    return _resolveAuthFallback(userId) ?? "User";
+  }
+
+  String _resolveProfileUsername(Map<String, dynamic>? profile, String userId) {
+    final username = profile?["username"]?.toString().trim() ??
+        profile?["Username"]?.toString().trim();
+    if (username != null && username.isNotEmpty && username.toLowerCase() != 'unknown') {
+      return username;
+    }
+
+    return _resolveAuthFallback(userId) ?? "User";
+  }
+
+  String? _resolveAuthFallback(String userId) {
+    final currentUser = FirebaseAuth.instance.currentUser;
+    final displayName = currentUser?.displayName?.trim();
+    if (displayName != null && displayName.isNotEmpty) {
+      return displayName;
+    }
+
+    final email = currentUser?.email?.trim();
+    if (email != null && email.isNotEmpty) {
+      final localPart = email.split('@').first.trim();
+      if (localPart.isNotEmpty) {
+        return localPart;
+      }
+      return email;
+    }
+
+    if (userId.isNotEmpty) {
+      return userId;
+    }
+
+    return null;
   }
 
   void _showOptionsBottomSheet(BuildContext context) {

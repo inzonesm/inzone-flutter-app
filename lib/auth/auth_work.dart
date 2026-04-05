@@ -482,17 +482,17 @@ class AuthWork {
 
       final currentUser = auth.currentUser;
       if (currentUser != null) {
-        final userDoc =
-            await firestore.collection('humanUsers').doc(currentUser.uid).get();
-        if (!userDoc.exists) {
-          await firestore.collection('humanUsers').doc(currentUser.uid).set({
-            'uid': currentUser.uid,
-            'email': currentUser.email,
-            'username': currentUser.email,
-            'createdAt': FieldValue.serverTimestamp(),
-            'interests': [],
-          });
-        }
+        final fallbackName = _buildFallbackDisplayName(currentUser);
+        final fallbackUsername = _buildFallbackUsername(currentUser);
+
+        await firestore.collection('humanUsers').doc(currentUser.uid).set({
+          'uid': currentUser.uid,
+          'email': currentUser.email,
+          'name': fallbackName,
+          'username': fallbackUsername,
+          'createdAt': FieldValue.serverTimestamp(),
+          'interests': [],
+        }, SetOptions(merge: true));
         
         // Re-register FCM token after successful Google sign-in
         try {
@@ -527,17 +527,17 @@ class AuthWork {
 
       final currentUser = auth.currentUser;
       if (currentUser != null) {
-        final userDoc =
-            await firestore.collection('humanUsers').doc(currentUser.uid).get();
-        if (!userDoc.exists) {
-          await firestore.collection('humanUsers').doc(currentUser.uid).set({
-            'uid': currentUser.uid,
-            'email': currentUser.email,
-            'username': currentUser.email,
-            'createdAt': FieldValue.serverTimestamp(),
-            'interests': [],
-          });
-        }
+        final fallbackName = _buildFallbackDisplayName(currentUser);
+        final fallbackUsername = _buildFallbackUsername(currentUser);
+
+        await firestore.collection('humanUsers').doc(currentUser.uid).set({
+          'uid': currentUser.uid,
+          'email': currentUser.email,
+          'name': fallbackName,
+          'username': fallbackUsername,
+          'createdAt': FieldValue.serverTimestamp(),
+          'interests': [],
+        }, SetOptions(merge: true));
         
         // Re-register FCM token after successful Apple sign-in
         try {
@@ -551,6 +551,47 @@ class AuthWork {
       print("❌ Sign in with Apple failed: $e");
       return null;
     }
+  }
+
+  String _buildFallbackDisplayName(User user) {
+    final displayName = user.displayName?.trim();
+    if (displayName != null && displayName.isNotEmpty) {
+      return displayName;
+    }
+
+    final emailLocalPart = _emailLocalPart(user.email);
+    if (emailLocalPart != null && emailLocalPart.isNotEmpty) {
+      return emailLocalPart;
+    }
+
+    return 'User';
+  }
+
+  String _buildFallbackUsername(User user) {
+    final emailLocalPart = _emailLocalPart(user.email);
+    if (emailLocalPart != null && emailLocalPart.isNotEmpty) {
+      return emailLocalPart;
+    }
+
+    final displayName = user.displayName?.trim();
+    if (displayName != null && displayName.isNotEmpty) {
+      return displayName;
+    }
+
+    return user.uid;
+  }
+
+  String? _emailLocalPart(String? email) {
+    if (email == null || email.trim().isEmpty) {
+      return null;
+    }
+
+    final parts = email.split('@');
+    if (parts.isEmpty) {
+      return null;
+    }
+
+    return parts.first.trim();
   }
 
   /* ----------------------email sign in-------------------------- */
