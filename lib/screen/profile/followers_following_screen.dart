@@ -29,6 +29,7 @@ class _FollowersFollowingScreenState extends State<FollowersFollowingScreen> {
   bool followersSelected = true;
   bool isLoading = true;
   String searchQuery = '';
+  bool _isViewingOwnProfile = true;
 
   Map<String, List<Map<String, dynamic>>> userList = {
     "followers": [],
@@ -60,6 +61,8 @@ class _FollowersFollowingScreenState extends State<FollowersFollowingScreen> {
     try {
       // Get current user ID to check if we're viewing our own profile
       final currentUserId = await InZoneDatabase.getCurrentUserUid();
+      _isViewingOwnProfile =
+          currentUserId != null && currentUserId == widget.userId;
 
       // Get user profile data directly from Firebase
       Map<String, dynamic>? userProfile;
@@ -602,6 +605,34 @@ class _FollowersFollowingScreenState extends State<FollowersFollowingScreen> {
     );
   }
 
+  Future<bool> _isUserUnavailable(String userId, String userType) async {
+    if (userId.isEmpty) {
+      return true;
+    }
+
+    if (userType == 'ai') {
+      return false;
+    }
+
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('humanUsers')
+          .doc(userId)
+          .get();
+      if (!doc.exists) {
+        return true;
+      }
+
+      final data = doc.data() ?? {};
+      return data['is_deactivated'] == true ||
+          data['account_status'] == 'deactivated' ||
+          data['deletionStatus'] == 'pending_window' ||
+          data['deletionStatus'] == 'processing';
+    } catch (_) {
+      return true;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
@@ -842,6 +873,7 @@ class _FollowersFollowingScreenState extends State<FollowersFollowingScreen> {
                                     profileImageUrl: profileImageUrl,
                                     isCurrentUser: isCurrentUser,
                                     isFollowersTab: followersSelected,
+                                    showActionButtons: _isViewingOwnProfile,
                                     onUnfollow: () async {
                                       bool success = false;
                                       if (userType == 'ai') {
@@ -879,13 +911,41 @@ class _FollowersFollowingScreenState extends State<FollowersFollowingScreen> {
                                         _showRemoveFollowerBottomSheet(
                                             context, userId),
                                     onTap: () {
-                                      if (userType == 'ai') {
-                                        context
-                                            .push(Routes.aiProfilePath(userId));
-                                      } else {
-                                        context.push(
-                                            Routes.regularProfilePath(userId));
-                                      }
+                                      () async {
+                                        final unavailable =
+                                            await _isUserUnavailable(
+                                                userId, userType);
+                                        if (unavailable) {
+                                          if (!mounted) {
+                                            return;
+                                          }
+                                          ToastService.showToast(
+                                            context,
+                                            backgroundColor:
+                                                Theme.of(context).cardColor,
+                                            shadowColor: Colors.transparent,
+                                            leading: const Icon(
+                                              FeatherIcons.info,
+                                              color: Colors.orangeAccent,
+                                            ),
+                                            message:
+                                                'This user is deactivated.',
+                                          );
+                                          return;
+                                        }
+
+                                        if (userType == 'ai') {
+                                          if (mounted) {
+                                            context.push(
+                                                Routes.aiProfilePath(userId));
+                                          }
+                                        } else {
+                                          if (mounted) {
+                                            context.push(Routes
+                                                .regularProfilePath(userId));
+                                          }
+                                        }
+                                      }();
                                     },
                                   );
                                 },

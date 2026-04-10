@@ -7,6 +7,7 @@ import 'package:inzone/screen/chat/all_chats_screen.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:video_player/video_player.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
+import 'package:inzone/services/account_lifecycle_service.dart';
 import 'package:inzone/services/notification_event_service.dart';
 
 class AuthWork {
@@ -15,6 +16,41 @@ class AuthWork {
   static FirebaseStorage storage = FirebaseStorage.instance;
 
   static User get user => auth.currentUser!;
+
+  static Future<void> _autoReactivateIfDeactivated(User? currentUser) async {
+    if (currentUser == null) {
+      return;
+    }
+
+    try {
+      final userDoc =
+          await firestore.collection('humanUsers').doc(currentUser.uid).get();
+      if (!userDoc.exists) {
+        return;
+      }
+
+      final data = userDoc.data() ?? {};
+        final hasPendingDeletion = data['deletionStatus'] == 'pending_window' ||
+          data['deletionRequestedAt'] != null ||
+          data['deletionPurgeAfter'] != null;
+        final isDeactivated = data['is_deactivated'] == true ||
+          data['account_status'] == 'deactivated';
+        if (!isDeactivated && !hasPendingDeletion) {
+        return;
+      }
+
+      final result =
+          await AccountLifecycleService().reactivateAccount(currentUser.uid);
+      if (result.success) {
+        print('✅ Auto-reactivated account on login for ${currentUser.uid}');
+      } else {
+        print(
+            '❌ Auto-reactivation failed for ${currentUser.uid}: ${result.message}');
+      }
+    } catch (e) {
+      print('❌ Auto-reactivation check failed: $e');
+    }
+  }
   // static FirebaseStorage storage = FirebaseStorage.instance;
 
   //for gmail user
@@ -500,6 +536,8 @@ class AuthWork {
         } catch (e) {
           print('❌ Failed to re-register FCM token after Google sign-in: $e');
         }
+
+        await _autoReactivateIfDeactivated(currentUser);
       }
 
       return userCredential;
@@ -545,6 +583,8 @@ class AuthWork {
         } catch (e) {
           print('❌ Failed to re-register FCM token after Apple sign-in: $e');
         }
+
+        await _autoReactivateIfDeactivated(currentUser);
       }
       return userCredential;
     } catch (e) {
@@ -610,6 +650,8 @@ class AuthWork {
     try {
       await auth.signInWithEmailAndPassword(email: email, password: password);
       print('✅ Login successful for $email');
+
+      await _autoReactivateIfDeactivated(auth.currentUser);
       
       // Re-register FCM token after successful login
       try {

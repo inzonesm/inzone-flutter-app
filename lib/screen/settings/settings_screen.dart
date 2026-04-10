@@ -16,6 +16,7 @@ import 'package:purchases_ui_flutter/purchases_ui_flutter.dart';
 import 'package:inzone/services/monetization_service.dart';
 import 'package:inzone/services/auth_service.dart';
 import 'package:inzone/services/reward_ad_service.dart';
+import 'package:inzone/services/account_lifecycle_service.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -27,6 +28,8 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   final MonetizationService _monetizationService = MonetizationService();
   final RewardAdService _rewardAdService = RewardAdService();
+  final AccountLifecycleService _accountLifecycleService =
+      AccountLifecycleService();
   final adunitId = Platform.isAndroid
       ? "ca-app-pub-4474122990542651/6949210208"
       : "ca-app-pub-4474122990542651/7222071742";
@@ -273,119 +276,333 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
-  Future<void> _deleteAccount(BuildContext context) async {
-    final User? currentUser = FirebaseAuth.instance.currentUser;
-
-    if (currentUser == null) {
-      if (context.mounted) {
-        ToastService.showToast(
-          context,
-          backgroundColor: Theme.of(context).canvasColor,
-          shadowColor: Colors.transparent,
-          leading: const Icon(
-            Icons
-                .error, // You can use Icons.check_circle, Icons.warning_amber_rounded, etc.
-            color: Colors.redAccent, // Or Colors.greenAccent, Colors.orange
+  Future<String?> _showAccountActionDialog(BuildContext context) async {
+    return showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (BuildContext context) {
+        return SafeArea(
+          child: Container(
+            height: MediaQuery.of(context).size.height * 0.82,
+            decoration: BoxDecoration(
+              color: Theme.of(context).canvasColor,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+            ),
+            child: Column(
+              children: [
+                const SizedBox(height: 10),
+                Container(
+                  width: 44,
+                  height: 5,
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).dividerColor,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 18),
+                  child: Row(
+                    children: [
+                      Text(
+                        'Manage Account',
+                        style: Theme.of(context).textTheme.titleLarge,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(18, 0, 18, 20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Choose one option below. For your security, you\'ll be asked to log in again before continuing.',
+                          style: Theme.of(context).textTheme.bodyMedium,
+                        ),
+                        const SizedBox(height: 16),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).cardColor,
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Deactivate account',
+                                style: Theme.of(context).textTheme.titleMedium,
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Your profile and posts become hidden until your next login, when your account is restored automatically.',
+                                style: Theme.of(context).textTheme.bodySmall,
+                              ),
+                              const SizedBox(height: 10),
+                              Text(
+                                '• Login remains available.\n• On your next successful login, your account is reactivated automatically.\n• Your content is not permanently removed.',
+                                style: Theme.of(context).textTheme.bodySmall,
+                              ),
+                              const SizedBox(height: 12),
+                              SizedBox(
+                                width: double.infinity,
+                                child: ElevatedButton(
+                                  onPressed: () => Navigator.of(context).pop('deactivate'),
+                                  child: const Text('Deactivate account'),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).cardColor,
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Delete account',
+                                style: Theme.of(context).textTheme.titleMedium,
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'This starts a permanent deletion request with a 30-day waiting period.',
+                                style: Theme.of(context).textTheme.bodySmall,
+                              ),
+                              const SizedBox(height: 10),
+                              Text(
+                                '• Your account enters deletion pending status.\n• After 30 days, data can be permanently purged.\n• This action may not be reversible after purge.',
+                                style: Theme.of(context).textTheme.bodySmall,
+                              ),
+                              const SizedBox(height: 12),
+                              SizedBox(
+                                width: double.infinity,
+                                child: ElevatedButton(
+                                  onPressed: () => Navigator.of(context).pop('delete'),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.redAccent,
+                                    foregroundColor: Colors.white,
+                                  ),
+                                  child: const Text('Request account deletion'),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        SizedBox(
+                          width: double.infinity,
+                          child: TextButton(
+                            onPressed: () => Navigator.of(context).pop(null),
+                            child: const Text('Cancel'),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
-          message: 'No user is signed in',
         );
-      }
+      },
+    );
+  }
+
+  Future<Map<String, String>?> _showReauthDialog(BuildContext context) async {
+    String email = FirebaseAuth.instance.currentUser?.email ?? '';
+    String password = '';
+    String? errorText;
+
+    final result = await showModalBottomSheet<Map<String, String>>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (BuildContext context) {
+        return StatefulBuilder(
+          builder: (BuildContext context, StateSetter setStateDialog) {
+            final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+            return SafeArea(
+              child: Padding(
+                padding: EdgeInsets.only(bottom: bottomInset),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).canvasColor,
+                    borderRadius:
+                        const BorderRadius.vertical(top: Radius.circular(20)),
+                  ),
+                  padding: const EdgeInsets.fromLTRB(18, 14, 18, 20),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Confirm your identity',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      const SizedBox(height: 10),
+                      TextFormField(
+                        keyboardType: TextInputType.emailAddress,
+                        initialValue: email,
+                        decoration: const InputDecoration(labelText: 'Email'),
+                        onChanged: (value) => email = value.trim(),
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        obscureText: true,
+                        decoration: const InputDecoration(labelText: 'Password'),
+                        onChanged: (value) => password = value,
+                      ),
+                      if (errorText != null) ...[
+                        const SizedBox(height: 10),
+                        Text(
+                          errorText!,
+                          style: const TextStyle(color: Colors.redAccent),
+                        )
+                      ],
+                      const SizedBox(height: 14),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextButton(
+                              child: const Text('Cancel'),
+                              onPressed: () => Navigator.of(context).pop(null),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: ElevatedButton(
+                              child: const Text('Continue'),
+                              onPressed: () {
+                                if (email.isEmpty || password.isEmpty) {
+                                  setStateDialog(() {
+                                    errorText =
+                                        'Email and password are required.';
+                                  });
+                                  return;
+                                }
+
+                                Navigator.of(context).pop({
+                                  'email': email,
+                                  'password': password,
+                                });
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+    return result;
+  }
+
+  Future<bool> _reauthenticateUser(String email, String password) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      return false;
+    }
+
+    final credential = EmailAuthProvider.credential(
+      email: email,
+      password: password,
+    );
+    await user.reauthenticateWithCredential(credential);
+    return true;
+  }
+
+  Future<void> _handleAccountLifecycleAction(BuildContext context) async {
+    final User? currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) {
+      ToastService.showToast(
+        context,
+        backgroundColor: Theme.of(context).canvasColor,
+        shadowColor: Colors.transparent,
+        leading: const Icon(Icons.error, color: Colors.redAccent),
+        message: 'No user is signed in',
+      );
+      return;
+    }
+
+    final action = await _showAccountActionDialog(context);
+    if (action == null) {
+      return;
+    }
+
+    final credentials = await _showReauthDialog(context);
+    if (credentials == null) {
       return;
     }
 
     try {
-      await currentUser.delete();
-      await FirebaseAuth.instance
-          .authStateChanges()
-          .firstWhere((user) => user == null);
-
-      if (context.mounted) {
-        context.go(Routes.login);
-      }
+      await _reauthenticateUser(
+        credentials['email']!,
+        credentials['password']!,
+      );
     } on FirebaseAuthException catch (e) {
-      if (e.code == 'requires-recent-login') {
-        try {
-          await FirebaseAuth.instance.signOut();
-
-          if (context.mounted) {
-            ToastService.showToast(
-              context,
-              backgroundColor: Theme.of(context).canvasColor,
-              shadowColor: Colors.transparent,
-              leading: const Icon(
-                Icons.warning_amber_rounded,
-                color: Colors.orange,
-              ),
-              message: 'Please sign in again to delete your account',
-            );
-            context.go(Routes.login);
-          }
-        } catch (signOutError) {
-          if (context.mounted) {
-            ToastService.showToast(
-              context,
-              backgroundColor: Theme.of(context).canvasColor,
-              shadowColor: Colors.transparent,
-              leading: const Icon(
-                Icons.error,
-                color: Colors.redAccent,
-              ),
-              message: 'Error signing out: $signOutError',
-            );
-          }
-        }
-      } else {
-        if (context.mounted) {
-          ToastService.showToast(
-            context,
-            backgroundColor: Theme.of(context).canvasColor,
-            shadowColor: Colors.transparent,
-            leading: const Icon(
-              Icons.error,
-              color: Colors.redAccent,
-            ),
-            message: 'Error: ${e.message ?? e.toString()}',
-          );
-        }
-      }
+      ToastService.showToast(
+        context,
+        backgroundColor: Theme.of(context).canvasColor,
+        shadowColor: Colors.transparent,
+        leading: const Icon(Icons.error, color: Colors.redAccent),
+        message: e.message ?? 'Re-authentication failed.',
+      );
+      return;
     } catch (e) {
-      if (context.mounted) {
-        ToastService.showToast(
-          context,
-          backgroundColor: Theme.of(context).canvasColor,
-          shadowColor: Colors.transparent,
-          leading: const Icon(
-            Icons.error,
-            color: Colors.redAccent,
-          ),
-          message: 'Unexpected error: $e',
-        );
-      }
+      ToastService.showToast(
+        context,
+        backgroundColor: Theme.of(context).canvasColor,
+        shadowColor: Colors.transparent,
+        leading: const Icon(Icons.error, color: Colors.redAccent),
+        message: 'Re-authentication failed: $e',
+      );
+      return;
     }
-  }
 
-  Future<bool> _confirmDeleteAccountDialog(BuildContext context) async {
-    final result = await showDialog<bool>(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Delete Account'),
-          content: const Text(
-              'Are you sure you want to delete your account? This action cannot be undone.'),
-          actions: <Widget>[
-            TextButton(
-              child: const Text('Cancel'),
-              onPressed: () => Navigator.of(context).pop(false),
-            ),
-            TextButton(
-              child: const Text('Delete'),
-              onPressed: () => Navigator.of(context).pop(true),
-            ),
-          ],
-        );
-      },
+    final uid = currentUser.uid;
+    final result = action == 'deactivate'
+      ? await _accountLifecycleService.deactivateAccount(uid)
+      : await _accountLifecycleService.requestAccountDeletion(uid);
+
+    ToastService.showToast(
+      context,
+      backgroundColor: Theme.of(context).canvasColor,
+      shadowColor: Colors.transparent,
+      leading: Icon(
+        result.success ? Icons.check_circle : Icons.error,
+        color: result.success ? Colors.greenAccent : Colors.redAccent,
+      ),
+      message: result.message,
     );
-    return result ?? false;
+
+    if (!result.success) {
+      return;
+    }
+
+    try {
+      await Purchases.logOut();
+    } catch (_) {}
+
+    await AuthService().signOut();
+    if (mounted) {
+      context.go(Routes.onboarding);
+    }
   }
 
   /// Show reward ad for Free InCash
@@ -533,7 +750,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     // "Unity Game Test",
     "Privacy Policy",
     "Terms & Conditions",
-    "Delete Account",
+    "Manage Account",
     "LogOut"
   ];
   List<String> otherSubtitleList = [
@@ -543,7 +760,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     // "Test Unity web game integration",
     "Learn how we protect your personal information",
     "Understand the rules of using our services",
-    "Permanently delete your account and data",
+    "Deactivate account or request permanent deletion",
     "",
   ];
   List<VoidCallback> otherOnPressedList(BuildContext context) {
@@ -643,11 +860,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
           );
         }
       },
-      () async {
-        final confirmed = await _confirmDeleteAccountDialog(context);
-        if (confirmed) {
-          await _deleteAccount(context);
-        }
+      () {
+        _handleAccountLifecycleAction(context);
       },
       () {
         try {
@@ -703,9 +917,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ),
         ),
-        body: Padding(
-          padding: const EdgeInsets.all(15.0),
-          child: Column(
+        body: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.all(15.0),
+            child: Column(
             mainAxisAlignment: MainAxisAlignment.start,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -794,7 +1009,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     }),
                   ],
                 ),
-              )
+              ),
+              const SizedBox(height: 16),
 
               // Container(
               //   width: MediaQuery.of(context).size.width - 20,
@@ -887,6 +1103,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               //   ]),
               // ),
             ],
+          ),
           ),
         ),
       ),
