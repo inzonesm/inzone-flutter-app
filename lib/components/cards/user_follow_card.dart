@@ -11,6 +11,7 @@ class UserFollowCard extends StatelessWidget {
   final String profileImageUrl;
   final bool isCurrentUser;
   final bool isFollowersTab;
+  final bool showActionButtons;
   final VoidCallback? onUnfollow;
   final VoidCallback? onRemoveFollower;
   final VoidCallback onTap;
@@ -23,6 +24,7 @@ class UserFollowCard extends StatelessWidget {
     required this.profileImageUrl,
     required this.isCurrentUser,
     required this.isFollowersTab,
+    this.showActionButtons = true,
     this.onUnfollow,
     this.onRemoveFollower,
     required this.onTap,
@@ -176,7 +178,7 @@ class UserFollowCard extends StatelessWidget {
             ),
 
             // Action Buttons
-            if (!isCurrentUser) ...[
+            if (showActionButtons && !isCurrentUser) ...[
               const SizedBox(width: 12),
               if (!isFollowersTab)
                 // Unfollow button for following tab

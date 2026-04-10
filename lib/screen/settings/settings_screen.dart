@@ -340,12 +340,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               ),
                               const SizedBox(height: 8),
                               Text(
-                                'Your profile and posts become hidden until you reactivate your account.',
+                                'Your profile and posts become hidden until your next login, when your account is restored automatically.',
                                 style: Theme.of(context).textTheme.bodySmall,
                               ),
                               const SizedBox(height: 10),
                               Text(
-                                '• You can come back later and reactivate.\n• Firebase login remains active.\n• Your content is not permanently removed.',
+                                '• Login remains available.\n• On your next successful login, your account is reactivated automatically.\n• Your content is not permanently removed.',
                                 style: Theme.of(context).textTheme.bodySmall,
                               ),
                               const SizedBox(height: 12),
@@ -420,75 +420,96 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<Map<String, String>?> _showReauthDialog(BuildContext context) async {
-    final emailController = TextEditingController(
-      text: FirebaseAuth.instance.currentUser?.email ?? '',
-    );
-    final passwordController = TextEditingController();
+    String email = FirebaseAuth.instance.currentUser?.email ?? '';
+    String password = '';
     String? errorText;
 
-    final result = await showDialog<Map<String, String>>(
+    final result = await showModalBottomSheet<Map<String, String>>(
       context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
       builder: (BuildContext context) {
         return StatefulBuilder(
           builder: (BuildContext context, StateSetter setStateDialog) {
-            return AlertDialog(
-              title: const Text('Confirm your identity'),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextField(
-                    controller: emailController,
-                    keyboardType: TextInputType.emailAddress,
-                    decoration: const InputDecoration(labelText: 'Email'),
+            final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+            return SafeArea(
+              child: Padding(
+                padding: EdgeInsets.only(bottom: bottomInset),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).canvasColor,
+                    borderRadius:
+                        const BorderRadius.vertical(top: Radius.circular(20)),
                   ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: passwordController,
-                    obscureText: true,
-                    decoration: const InputDecoration(labelText: 'Password'),
+                  padding: const EdgeInsets.fromLTRB(18, 14, 18, 20),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Confirm your identity',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      const SizedBox(height: 10),
+                      TextFormField(
+                        keyboardType: TextInputType.emailAddress,
+                        initialValue: email,
+                        decoration: const InputDecoration(labelText: 'Email'),
+                        onChanged: (value) => email = value.trim(),
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        obscureText: true,
+                        decoration: const InputDecoration(labelText: 'Password'),
+                        onChanged: (value) => password = value,
+                      ),
+                      if (errorText != null) ...[
+                        const SizedBox(height: 10),
+                        Text(
+                          errorText!,
+                          style: const TextStyle(color: Colors.redAccent),
+                        )
+                      ],
+                      const SizedBox(height: 14),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextButton(
+                              child: const Text('Cancel'),
+                              onPressed: () => Navigator.of(context).pop(null),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: ElevatedButton(
+                              child: const Text('Continue'),
+                              onPressed: () {
+                                if (email.isEmpty || password.isEmpty) {
+                                  setStateDialog(() {
+                                    errorText =
+                                        'Email and password are required.';
+                                  });
+                                  return;
+                                }
+
+                                Navigator.of(context).pop({
+                                  'email': email,
+                                  'password': password,
+                                });
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
-                  if (errorText != null) ...[
-                    const SizedBox(height: 10),
-                    Text(
-                      errorText!,
-                      style: const TextStyle(color: Colors.redAccent),
-                    )
-                  ]
-                ],
+                ),
               ),
-              actions: <Widget>[
-                TextButton(
-                  child: const Text('Cancel'),
-                  onPressed: () => Navigator.of(context).pop(null),
-                ),
-                TextButton(
-                  child: const Text('Continue'),
-                  onPressed: () {
-                    final email = emailController.text.trim();
-                    final password = passwordController.text;
-
-                    if (email.isEmpty || password.isEmpty) {
-                      setStateDialog(() {
-                        errorText = 'Email and password are required.';
-                      });
-                      return;
-                    }
-
-                    Navigator.of(context).pop({
-                      'email': email,
-                      'password': password,
-                    });
-                  },
-                ),
-              ],
             );
           },
         );
       },
     );
-
-    emailController.dispose();
-    passwordController.dispose();
     return result;
   }
 
@@ -556,8 +577,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
     final uid = currentUser.uid;
     final result = action == 'deactivate'
-        ? await _accountLifecycleService.deactivateAccount(uid)
-        : await _accountLifecycleService.requestAccountDeletion(uid);
+      ? await _accountLifecycleService.deactivateAccount(uid)
+      : await _accountLifecycleService.requestAccountDeletion(uid);
 
     ToastService.showToast(
       context,
@@ -896,9 +917,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ),
         ),
-        body: Padding(
-          padding: const EdgeInsets.all(15.0),
-          child: Column(
+        body: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.all(15.0),
+            child: Column(
             mainAxisAlignment: MainAxisAlignment.start,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -987,7 +1009,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     }),
                   ],
                 ),
-              )
+              ),
+              const SizedBox(height: 16),
 
               // Container(
               //   width: MediaQuery.of(context).size.width - 20,
@@ -1080,6 +1103,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               //   ]),
               // ),
             ],
+          ),
           ),
         ),
       ),

@@ -389,8 +389,7 @@ class InZoneDatabase {
   }
 
   static Future<Map<String, dynamic>?> getCurrentUserProfile() async {
-    const String url =
-        'https://inzoneapi-912424781531.us-central1.run.app/user/get-profile';
+    final String url = ApiConfig.endpoint('/user/get-profile');
     String? currentUserUID;
     await InZoneDatabase.getCurrentUserUid().then((value) {
       if (value != null) {
@@ -437,8 +436,7 @@ class InZoneDatabase {
   }
 
   static Future<Map<String, dynamic>?> getUserProfile(String userID) async {
-    const String baseUrl =
-        'https://inzoneapi-912424781531.us-central1.run.app/user/get-profile';
+    final String baseUrl = ApiConfig.endpoint('/user/get-profile');
 
     try {
       // Create URL with query parameter
@@ -538,8 +536,7 @@ class InZoneDatabase {
 
   static Future<List<Map<String, dynamic>>?> getFollowers(
       String userUid) async {
-    final url = Uri.parse(
-        'https://inzoneapi-912424781531.us-central1.run.app/user/get-followers');
+    final url = Uri.parse(ApiConfig.endpoint('/user/get-followers'));
 
     try {
       final response = await http.post(
@@ -579,8 +576,7 @@ class InZoneDatabase {
 
   static Future<bool> followUser(
       String followedUid, String followedUserName) async {
-    final url = Uri.parse(
-        'https://inzoneapi-912424781531.us-central1.run.app/user/follow');
+    final url = Uri.parse(ApiConfig.endpoint('/user/follow'));
 
     final headers = {"Content-Type": "application/json"};
     String? currentUserUID;
@@ -594,36 +590,48 @@ class InZoneDatabase {
     // Get current user's name from Firebase Auth
     currentUserName = FirebaseAuth.instance.currentUser?.displayName;
 
-    // Updated to match the new API parameter names and include types
-    final body = jsonEncode({
-      "FollowerId": currentUserUID,
-      "FollowingId": followedUid,
-      "FollowerType": "human",
-      "FollowingType": "human",
-      "FollowerUserName": currentUserName,
-      "FollowingUserName": followedUserName
-    });
+    if (currentUserUID == null || followedUid.trim().isEmpty) {
+      return false;
+    }
+
+    Future<bool> _tryFollow(String followingType) async {
+      final body = jsonEncode({
+        "FollowerId": currentUserUID,
+        "FollowingId": followedUid,
+        "FollowerType": "human",
+        "FollowingType": followingType,
+        "FollowerUserName": currentUserName,
+        "FollowingUserName": followedUserName
+      });
+
+      final response = await http.post(url, headers: headers, body: body);
+      if (response.statusCode != 200) {
+        return false;
+      }
+
+      try {
+        final Map<String, dynamic> responseData = jsonDecode(response.body);
+        return responseData['success'] ?? true;
+      } catch (e) {
+        return true;
+      }
+    }
 
     try {
-      final response = await http.post(url, headers: headers, body: body);
-
-      if (response.statusCode == 200) {
-        try {
-          final Map<String, dynamic> responseData = jsonDecode(response.body);
-          return responseData['success'] ?? true;
-        } catch (e) {
-          return true;
-        }
+      final humanResult = await _tryFollow('human');
+      if (humanResult) {
+        return true;
       }
-      return false;
+
+      // Fallback for mixed/legacy lists where target can be AI.
+      return await _tryFollow('ai');
     } catch (e) {
       return false;
     }
   }
 
   static Future<bool> unfollowUser(String followedUid) async {
-    final url = Uri.parse(
-        'https://inzoneapi-912424781531.us-central1.run.app/user/unfollow');
+    final url = Uri.parse(ApiConfig.endpoint('/user/unfollow'));
 
     final headers = {"Content-Type": "application/json"};
     String? currentUserUID;
@@ -637,27 +645,40 @@ class InZoneDatabase {
     // Get current user's name from Firebase Auth
     currentUserName = FirebaseAuth.instance.currentUser?.displayName;
 
-    // Using the same parameter names as the follow function
-    final body = jsonEncode({
-      "FollowerId": currentUserUID,
-      "FollowingId": followedUid,
-      "FollowerType": "human",
-      "FollowingType": "human",
-      "FollowerUserName": currentUserName,
-    });
+    if (currentUserUID == null || followedUid.trim().isEmpty) {
+      return false;
+    }
+
+    Future<bool> _tryUnfollow(String followingType) async {
+      final body = jsonEncode({
+        "FollowerId": currentUserUID,
+        "FollowingId": followedUid,
+        "FollowerType": "human",
+        "FollowingType": followingType,
+        "FollowerUserName": currentUserName,
+      });
+
+      final response = await http.post(url, headers: headers, body: body);
+      if (response.statusCode != 200) {
+        return false;
+      }
+
+      try {
+        final Map<String, dynamic> responseData = jsonDecode(response.body);
+        return responseData['success'] ?? true;
+      } catch (e) {
+        return true;
+      }
+    }
 
     try {
-      final response = await http.post(url, headers: headers, body: body);
-
-      if (response.statusCode == 200) {
-        try {
-          final Map<String, dynamic> responseData = jsonDecode(response.body);
-          return responseData['success'] ?? true;
-        } catch (e) {
-          return true;
-        }
+      final humanResult = await _tryUnfollow('human');
+      if (humanResult) {
+        return true;
       }
-      return false;
+
+      // Fallback for mixed/legacy lists where target can be AI.
+      return await _tryUnfollow('ai');
     } catch (e) {
       return false;
     }
@@ -2071,8 +2092,7 @@ class InZoneDatabase {
   }
 
   static Future<bool> likePost(String postId) async {
-    const String url =
-        'https://inzoneapi-912424781531.us-central1.run.app/user/like-post';
+    final String url = ApiConfig.endpoint('/user/like-post');
 
     String? currentUserUID;
     await InZoneDatabase.getCurrentUserUid().then((value) {
@@ -2119,8 +2139,7 @@ class InZoneDatabase {
   }
 
   static Future<bool> unlikePost(String postId) async {
-    const String url =
-        'https://inzoneapi-912424781531.us-central1.run.app/user/unlike-post';
+    final String url = ApiConfig.endpoint('/user/unlike-post');
 
     String? currentUserUID;
     await InZoneDatabase.getCurrentUserUid().then((value) {
@@ -2167,8 +2186,7 @@ class InZoneDatabase {
   }
 
   static Future<bool> removeFromFollowing(String followingId) async {
-    const String url =
-        'https://inzoneapi-912424781531.us-central1.run.app/user/remove-from-following';
+    final String url = ApiConfig.endpoint('/user/remove-from-following');
 
     String? currentUserUID;
     await InZoneDatabase.getCurrentUserUid().then((value) {
@@ -2183,8 +2201,10 @@ class InZoneDatabase {
 
     // Build the request body
     Map<String, dynamic> requestBody = {
-      "FollowerId": currentUserUID, // Current user (who is following)
-      "FollowingId": followingId, // User to unfollow
+      "UserId": currentUserUID,
+      "FollowingId": followingId,
+      "UserType": "human",
+      "FollowingType": "human",
     };
 
     try {
@@ -2207,8 +2227,7 @@ class InZoneDatabase {
   }
 
   static Future<bool> removeFromFollowers(String followerId) async {
-    const String url =
-        'https://inzoneapi-912424781531.us-central1.run.app/user/remove-from-followers';
+    final String url = ApiConfig.endpoint('/user/remove-from-followers');
 
     String? currentUserUID;
     await InZoneDatabase.getCurrentUserUid().then((value) {
@@ -2223,8 +2242,10 @@ class InZoneDatabase {
 
     // Build the request body
     Map<String, dynamic> requestBody = {
-      "FollowerId": currentUserUID, // Current user (who is being followed)
-      "FollowingId": followerId, // User to remove as follower
+      "UserId": currentUserUID,
+      "FollowerId": followerId,
+      "UserType": "human",
+      "FollowerType": "human",
     };
 
     try {
@@ -2493,8 +2514,7 @@ class InZoneDatabase {
 
   // AI User Follow/Unfollow Functions
   static Future<bool> followAIUser(String aiUserId) async {
-    const String url =
-        'https://inzoneapi-912424781531.us-central1.run.app/user/follow';
+    final String url = ApiConfig.endpoint('/user/follow');
 
     String? currentUserUID = await getCurrentUserUid();
     String? currentUserName = FirebaseAuth.instance.currentUser?.displayName;
@@ -2529,8 +2549,7 @@ class InZoneDatabase {
   }
 
   static Future<bool> unfollowAIUser(String aiUserId) async {
-    const String url =
-        'https://inzoneapi-912424781531.us-central1.run.app/user/unfollow';
+    final String url = ApiConfig.endpoint('/user/unfollow');
 
     String? currentUserUID = await getCurrentUserUid();
     String? currentUserName = FirebaseAuth.instance.currentUser?.displayName;
@@ -2565,8 +2584,7 @@ class InZoneDatabase {
   }
 
   static Future<List<String>> getAIFollowers(String userId) async {
-    const String url =
-        'https://inzoneapi-912424781531.us-central1.run.app/api/ai/get-followers';
+    final String url = ApiConfig.endpoint('/api/ai/get-followers');
 
     try {
       final response = await http.post(
@@ -2590,8 +2608,7 @@ class InZoneDatabase {
   }
 
   static Future<List<String>> getAIFollowing(String userId) async {
-    const String url =
-        'https://inzoneapi-912424781531.us-central1.run.app/api/ai/get-following';
+    final String url = ApiConfig.endpoint('/api/ai/get-following');
 
     try {
       final response = await http.post(

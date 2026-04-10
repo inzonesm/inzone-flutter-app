@@ -751,8 +751,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       } else {
         // For human users
         if (newFollowState) {
-          String currentUserName = await _getCurrentUserName(currentUserId);
-          success = await InZoneDatabase.followUser(userId, currentUserName);
+          success = await InZoneDatabase.followUser(userId, username);
           ToastService.showToast(
             context,
             backgroundColor: Theme.of(context).canvasColor,

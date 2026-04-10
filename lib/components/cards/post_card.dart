@@ -780,10 +780,14 @@ class _PostCardState extends State<PostCard>
       if (currentUser == null || currentUser.uid.isEmpty) return;
 
       final String currentUid = currentUser.uid;
-      final collectionName = widget.post.isAi ? 'aiPosts' : 'humanPosts';
+        final String postId = widget.post.id;
+        final bool isRepost = postId.startsWith('repost_');
+        final collectionName = isRepost
+          ? 'reposts'
+          : (widget.post.isAi ? 'aiPosts' : 'humanPosts');
       final docRef = FirebaseFirestore.instance
           .collection(collectionName)
-          .doc(widget.post.id);
+          .doc(postId);
 
       try {
         final likeEntry = await _buildLikeEntryForCurrentUser(currentUid);

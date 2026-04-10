@@ -11,12 +11,33 @@ class AccountLifecycleResult {
 }
 
 class AccountLifecycleService {
+  Future<http.Response> _postWithFallback(
+    String path,
+    Map<String, dynamic> payload,
+  ) async {
+    final body = jsonEncode(payload);
+    final headers = {'Content-Type': 'application/json'};
+
+    try {
+      return await http.post(
+        Uri.parse(ApiConfig.endpoint(path)),
+        headers: headers,
+        body: body,
+      );
+    } catch (_) {
+      return await http.post(
+        Uri.parse('${ApiConfig.productionBackendUrl}$path'),
+        headers: headers,
+        body: body,
+      );
+    }
+  }
+
   Future<AccountLifecycleResult> requestAccountDeletion(String uid) async {
     try {
-      final response = await http.post(
-        Uri.parse(ApiConfig.endpoint('/user/request-account-deletion')),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'UID': uid}),
+      final response = await _postWithFallback(
+        '/user/request-account-deletion',
+        {'UID': uid},
       );
 
       final data = jsonDecode(response.body) as Map<String, dynamic>;
@@ -41,10 +62,9 @@ class AccountLifecycleService {
 
   Future<AccountLifecycleResult> deactivateAccount(String uid) async {
     try {
-      final response = await http.post(
-        Uri.parse(ApiConfig.endpoint('/user/deactivate-account')),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'UID': uid}),
+      final response = await _postWithFallback(
+        '/user/deactivate-account',
+        {'UID': uid},
       );
 
       final data = jsonDecode(response.body) as Map<String, dynamic>;
@@ -72,13 +92,12 @@ class AccountLifecycleService {
     bool cancelPendingDeletion = true,
   }) async {
     try {
-      final response = await http.post(
-        Uri.parse(ApiConfig.endpoint('/user/reactivate-account')),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
+      final response = await _postWithFallback(
+        '/user/reactivate-account',
+        {
           'UID': uid,
           'cancelPendingDeletion': cancelPendingDeletion,
-        }),
+        },
       );
 
       final data = jsonDecode(response.body) as Map<String, dynamic>;
