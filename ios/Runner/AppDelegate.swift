@@ -5,9 +5,10 @@ import Firebase
 import FirebaseMessaging
 import UserNotifications
 import google_mobile_ads
+import Appodeal
 
 @main
-@objc class AppDelegate: FlutterAppDelegate {
+@objc class AppDelegate: FlutterAppDelegate, AppodealInitializationDelegate {
   override func application(
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
@@ -31,6 +32,11 @@ import google_mobile_ads
     
     // Register for remote notifications
     application.registerForRemoteNotifications()
+
+    Appodeal.setAutocache(false, types: [.interstitial])
+    Appodeal.setLogLevel(.verbose)
+    Appodeal.setInitializationDelegate(self)
+    Appodeal.initialize(withApiKey: "6f0ca10375ecff6b10f7382c618c9991282ecb2e5e5aa1ab", types: [.banner, .interstitial, .rewardedVideo])
 
     GeneratedPluginRegistrant.register(with: self)
     let factory = NativeAdFactory()
@@ -61,6 +67,12 @@ import google_mobile_ads
   
   override func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) {
     print("❌ Failed to register for remote notifications: \(error.localizedDescription)")
+  }
+}
+
+extension AppDelegate {
+  func appodealSDKDidInitialize() {
+    print("✅ Appodeal SDK initialized")
   }
 }
 

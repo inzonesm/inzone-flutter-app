@@ -14,6 +14,15 @@ pluginManagement {
         google()
         mavenCentral()
         gradlePluginPortal()
+        maven { url = uri("https://artifactory.appodeal.com/appodeal") }
+    }
+}
+
+dependencyResolutionManagement {
+    repositories {
+        google()
+        mavenCentral()
+        maven { url = uri("https://artifactory.appodeal.com/appodeal") }
     }
 }
 
