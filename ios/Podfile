@@ -2,7 +2,6 @@
 platform :ios, '15.6'
 
 source 'https://github.com/appodeal/CocoaPods.git'
-source 'https://github.com/bidon-io/CocoaPods-Specs.git'
 source 'https://cdn.cocoapods.org'
 
 # CocoaPods analytics sends network stats synchronously affecting flutter build latency.
@@ -101,7 +100,10 @@ def appodeal
   pod 'AppodealBigoAdsAdapter', '5.0.0.0'
   pod 'AppodealDTExchangeAdapter', '8.4.1.0'
   pod 'AppodealFacebookAdapter', '18.0.1.0'
-  pod 'AppodealFirebaseAdapter', '12.4.0.1'
+  # AppodealFirebaseAdapter 12.4.0.1 requires Firebase iOS SDK 12.4.0 which is
+  # incompatible with Flutter's firebase_remote_config 5.5.0 (needs Firebase 11.x).
+  # Removed — ads still work, only Appodeal->Firebase Analytics forwarding is lost.
+  # pod 'AppodealFirebaseAdapter', '12.4.0.1'
   pod 'AppodealGoogleAdMobAdapter', '12.13.0.0'
   pod 'AppodealIABAdapter', '3.4.7.0'
   pod 'AppodealInMobiAdapter', '11.1.0.0'
@@ -123,8 +125,8 @@ target 'Runner' do
   flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
   appodeal
 
-  # Facebook SDK for iOS - required for attribution/analytics
-  pod 'FBSDKCoreKit', '~> 17.0'
+  # Facebook SDK for iOS - pulled in transitively by AppodealFacebookAdapter,
+  # so we don't pin it explicitly (prevents version-range conflicts).
 
   target 'RunnerTests' do
     inherit! :search_paths
@@ -132,6 +134,11 @@ target 'Runner' do
 end
 
 post_install do |installer|
+  # Unified EXCLUDED_ARCHS — FBAudienceNetwork wants 'i386' while
+  # IronSourceAdQualitySDK wants 'arm64e armv7 armv7s', which CocoaPods can't
+  # auto-merge into the aggregate xcconfig. We take the union.
+  excluded_simulator_archs = 'i386 arm64e armv7 armv7s'
+
   installer.pods_project.targets.each do |target|
     flutter_additional_ios_build_settings(target)
     target.build_configurations.each do |config|
@@ -139,6 +146,17 @@ post_install do |installer|
         '$(inherited)',
         'PERMISSION_MICROPHONE=1',
       ]
+      config.build_settings['EXCLUDED_ARCHS[sdk=iphonesimulator*]'] = excluded_simulator_archs
+    end
+  end
+
+  # Also override the aggregate xcconfigs (one per build config) so the Runner
+  # target inherits the unified value instead of CocoaPods silently dropping it.
+  installer.aggregate_targets.each do |aggregate_target|
+    aggregate_target.xcconfigs.each do |config_name, config_file|
+      config_file.attributes['EXCLUDED_ARCHS[sdk=iphonesimulator*]'] = excluded_simulator_archs
+      xcconfig_path = aggregate_target.xcconfig_path(config_name)
+      config_file.save_as(xcconfig_path)
     end
   end
 end
