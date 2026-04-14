@@ -7,6 +7,20 @@ class AuthNotifier extends ChangeNotifier {
   bool _isProfileCompleted = false;
   bool _isLoading = true;
 
+  bool _hasNonEmptyString(Map<String, dynamic>? data, List<String> keys) {
+    if (data == null) return false;
+
+    for (final key in keys) {
+      final value = data[key];
+      if (value == null) continue;
+      if (value is String && value.trim().isNotEmpty) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
   bool get isLoading => _isLoading;
   bool get isLoggedIn => _auth.currentUser != null;
   bool get isProfileCompleted => _isProfileCompleted;
@@ -45,11 +59,19 @@ class AuthNotifier extends ChangeNotifier {
           FirebaseFirestore.instance.collection('humanUsers').doc(user.uid);
       try {
         final docSnapshot = await docRef.get();
+        final data = docSnapshot.data();
+        final hasIdentity = _hasNonEmptyString(data, [
+          'username',
+          'name',
+        ]);
+
+        final hasCreatedAt = data?['createdAt'] != null;
+
         _isProfileCompleted =
-            docSnapshot.exists && docSnapshot.data()?['createdAt'] != null;
+            docSnapshot.exists && (hasIdentity || hasCreatedAt);
         print("AuthNotifier - Profile completion status: $_isProfileCompleted");
-        print(
-            "AuthNotifier - createdAt value: ${docSnapshot.data()?['createdAt']}");
+        print("AuthNotifier - createdAt value: ${data?['createdAt']}");
+        print("AuthNotifier - hasIdentity value: $hasIdentity");
       } catch (e) {
         _isProfileCompleted = false;
         print("AuthNotifier - Error checking profile: $e");

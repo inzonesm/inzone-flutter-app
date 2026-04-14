@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:inzone/auth/auth_work.dart';
 import 'package:inzone/components/chat/chat_app_bar.dart';
@@ -42,12 +43,30 @@ class _HumanChatScreenState extends State<HumanChatScreen> {
   String _otherUserProfileImageUrl = '';
   File? _pendingImage;
   File? _pendingVideo;
+  bool _isSendingMessage = false;
+  bool _didInitialAutoScroll = false;
+  int _lastRenderedMessageCount = 0;
+  String _lastSnapshotSignature = '';
+  final ValueNotifier<Map<String, bool>> _timestampVisibilityOverrides =
+      ValueNotifier<Map<String, bool>>({});
+  final Map<String, GlobalKey> _dateSectionKeys = {};
+  final Set<String> _activeDateKeys = {};
 
   @override
   void initState() {
     super.initState();
+    NotificationEventService.setActiveConversationId(widget.conversationId);
     _loadCurrentUser();
     _loadOtherUserProfileImage();
+  }
+
+  @override
+  void dispose() {
+    NotificationEventService.clearActiveConversationId(widget.conversationId);
+    _msgController.dispose();
+    _scrollController.dispose();
+    _timestampVisibilityOverrides.dispose();
+    super.dispose();
   }
 
   Future<void> _loadCurrentUser() async {
@@ -68,9 +87,6 @@ class _HumanChatScreenState extends State<HumanChatScreen> {
     setState(() {
       isLoading = false;
     });
-
-    // Scroll to bottom when messages load
-    _scrollToEnd();
   }
 
   Future<void> _loadOtherUserProfileImage() async {
@@ -111,12 +127,203 @@ class _HumanChatScreenState extends State<HumanChatScreen> {
     }
   }
 
+  String _dayKey(DateTime dateTime) {
+    return DateFormat('yyyy-MM-dd').format(dateTime.toLocal());
+  }
+
+  DateTime _normalizeDate(DateTime dateTime) {
+    final local = dateTime.toLocal();
+    return DateTime(local.year, local.month, local.day);
+  }
+
+  bool _shouldAutoShowTimestamp({
+    required DateTime current,
+    required bool isToday,
+    DateTime? next,
+    String? nextSenderId,
+    required String currentSenderId,
+  }) {
+    if (!isToday) return false;
+    if (next == null) return true;
+    if (nextSenderId != currentSenderId) return true;
+    return next.difference(current).inMinutes >= 5;
+  }
+
+  String _formatVisibleTimestamp(DateTime dateTime) {
+    return DateFormat('h:mm a').format(dateTime.toLocal());
+  }
+
+  String _formatExactTimestamp(DateTime dateTime) {
+    return DateFormat('EEE, MMM d, yyyy • h:mm a').format(dateTime.toLocal());
+  }
+
+  void _toggleTimestampVisibility(String messageId) {
+    final currentMap = _timestampVisibilityOverrides.value;
+    final nextMap = Map<String, bool>.from(currentMap);
+    final current = nextMap[messageId] ?? false;
+    nextMap[messageId] = !current;
+    _timestampVisibilityOverrides.value = nextMap;
+  }
+
+  bool _isNearBottom() {
+    if (!_scrollController.hasClients) return true;
+    return _scrollController.position.extentAfter < 160;
+  }
+
+  void _scheduleAutoScrollToLatest({bool force = false}) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_scrollController.hasClients) return;
+      if (!force && !_isNearBottom()) return;
+      _scrollToLatestSettled(force: force);
+    });
+  }
+
+  void _scrollToLatestSettled({bool force = false}) {
+    if (!_scrollController.hasClients) return;
+
+    final target = _scrollController.position.maxScrollExtent;
+    if ((target - _scrollController.position.pixels).abs() < 1.0) return;
+
+    if (force) {
+      _scrollController.jumpTo(target);
+      return;
+    }
+
+    _scrollController.animateTo(
+      target,
+      duration: const Duration(milliseconds: 160),
+      curve: Curves.easeOut,
+    );
+  }
+
+  Future<void> _showMessageDetails({
+    required BuildContext context,
+    required String messageText,
+    required DateTime? timestamp,
+    required bool isMe,
+    required String? statusLabel,
+  }) async {
+    if (timestamp == null) return;
+
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) {
+        return SafeArea(
+          child: Container(
+            margin: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Theme.of(sheetContext).cardColor,
+              borderRadius: BorderRadius.circular(18),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _formatExactTimestamp(timestamp),
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: Theme.of(sheetContext).textTheme.bodyMedium?.color,
+                  ),
+                ),
+                if (statusLabel != null) ...[
+                  const SizedBox(height: 6),
+                  Text(
+                    statusLabel,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Theme.of(sheetContext).textTheme.bodySmall?.color,
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 10),
+                Text(
+                  messageText,
+                  maxLines: 4,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: Theme.of(sheetContext).textTheme.bodySmall?.color,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _jumpToDate(DateTime dateTime) async {
+    final key = _dateSectionKeys[_dayKey(dateTime)];
+    if (key?.currentContext == null || !_scrollController.hasClients) return;
+
+    final targetContext = key!.currentContext!;
+    final renderObject = targetContext.findRenderObject();
+    if (renderObject == null || !renderObject.attached) return;
+
+    final viewport = RenderAbstractViewport.of(renderObject);
+    if (viewport == null) return;
+
+    final revealOffset = viewport.getOffsetToReveal(renderObject, 0.0).offset;
+    final min = _scrollController.position.minScrollExtent;
+    final max = _scrollController.position.maxScrollExtent;
+    final targetOffset = revealOffset.clamp(min, max).toDouble();
+
+    await _scrollController.animateTo(
+      targetOffset,
+      duration: const Duration(milliseconds: 280),
+      curve: Curves.easeOut,
+    );
+  }
+
+  Future<void> _showDatePickerForJump() async {
+    if (_activeDateKeys.isEmpty) return;
+
+    final activeDates = _activeDateKeys
+        .map((key) => DateFormat('yyyy-MM-dd').parse(key))
+        .toList()
+      ..sort();
+
+    final now = DateTime.now().toLocal();
+    final initialDate = activeDates.contains(_normalizeDate(now))
+        ? _normalizeDate(now)
+        : activeDates.last;
+
+    final selected = await showDatePicker(
+      context: context,
+      initialDate: initialDate,
+      firstDate: activeDates.first,
+      lastDate: activeDates.last,
+      selectableDayPredicate: (date) {
+        final normalized = _normalizeDate(date);
+        return _activeDateKeys.contains(_dayKey(normalized));
+      },
+      helpText: 'Jump to date',
+      confirmText: 'Go',
+      cancelText: 'Cancel',
+    );
+
+    if (selected != null) {
+      await _jumpToDate(selected);
+    }
+  }
+
   void _sendMessage() async {
+    if (_isSendingMessage) return;
+
     final String messageText = _msgController.text.trim();
     
     // Require either text or pending media
     if (messageText.isEmpty && _pendingImage == null && _pendingVideo == null) return;
     if (currentUserId == null) return;
+
+    setState(() {
+      _isSendingMessage = true;
+    });
 
     try {
       String? imageUrl;
@@ -288,19 +495,17 @@ class _HumanChatScreenState extends State<HumanChatScreen> {
         ),
         message: 'Failed to send message. Please try again.',
       );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSendingMessage = false;
+        });
+      }
     }
   }
 
   void _scrollToEnd() {
-    Future.delayed(const Duration(milliseconds: 300), () {
-      if (_scrollController.hasClients) {
-        _scrollController.animateTo(
-          _scrollController.position.maxScrollExtent,
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeOut,
-        );
-      }
-    });
+    _scheduleAutoScrollToLatest(force: true);
   }
 
   @override
@@ -361,7 +566,8 @@ class _HumanChatScreenState extends State<HumanChatScreen> {
                   .orderBy('timestamp', descending: false)
                   .snapshots(),
               builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
+                if (snapshot.connectionState == ConnectionState.waiting &&
+                    !snapshot.hasData) {
                   return const Center(child: CircularProgressIndicator());
                 }
 
@@ -371,139 +577,164 @@ class _HumanChatScreenState extends State<HumanChatScreen> {
                 }
 
                 final messages = snapshot.data!.docs;
+                final messageWidgets = <Widget>[];
+                final activeDayKeys = <String>{};
 
-                // Group messages by date
-                Map<String, List<DocumentSnapshot>> messagesByDate = {};
+                final sortedMessages = List<QueryDocumentSnapshot>.from(messages)
+                  ..sort((a, b) {
+                    final aData = a.data() as Map<String, dynamic>;
+                    final bData = b.data() as Map<String, dynamic>;
+                    final aTs = (aData['timestamp'] as Timestamp?)?.toDate();
+                    final bTs = (bData['timestamp'] as Timestamp?)?.toDate();
+                    if (aTs == null && bTs == null) return a.id.compareTo(b.id);
+                    if (aTs == null) return 1;
+                    if (bTs == null) return -1;
+                    final byTime = aTs.compareTo(bTs);
+                    if (byTime != 0) return byTime;
+                    return a.id.compareTo(b.id);
+                  });
+                final insertedDayHeaderKeys = <String>{};
 
-                for (var message in messages) {
-                  var messageData = message.data() as Map<String, dynamic>;
-                  Timestamp? timestamp = messageData['timestamp'] as Timestamp?;
+                for (int index = 0; index < sortedMessages.length; index++) {
+                  final message = sortedMessages[index];
+                  final messageData = message.data() as Map<String, dynamic>;
+                  final senderId = messageData['senderId']?.toString() ?? '';
+                  final messageText = messageData['text']?.toString() ?? '';
+                  final senderName = messageData['senderName']?.toString() ?? '';
+                  final Timestamp? timestamp = messageData['timestamp'] as Timestamp?;
+                  final imageUrl = messageData['imageUrl']?.toString();
+                  final videoUrl = messageData['videoUrl']?.toString();
+                  final videoThumbnailUrl = messageData['videoThumbnailUrl']?.toString();
+                  final bool isMe = senderId == currentUserId;
+                  final DateTime? messageDateTime = timestamp?.toDate().toLocal();
+                  final String messageId = message.id;
 
-                  if (timestamp != null) {
-                    final DateTime dateTime = timestamp.toDate().toUtc();
-                    final String dateKey = _getDateKey(dateTime);
+                  if (messageDateTime != null) {
+                    final dayKey = _dayKey(messageDateTime);
+                    activeDayKeys.add(dayKey);
 
-                    if (!messagesByDate.containsKey(dateKey)) {
-                      messagesByDate[dateKey] = [];
+                    if (!insertedDayHeaderKeys.contains(dayKey)) {
+                      insertedDayHeaderKeys.add(dayKey);
+                      final headerDate = _normalizeDate(messageDateTime);
+                      final sectionKey =
+                          _dateSectionKeys.putIfAbsent(dayKey, () => GlobalKey());
+
+                      messageWidgets.add(
+                        KeyedSubtree(
+                          key: sectionKey,
+                          child: DateHeader(
+                            dateTime: headerDate,
+                            showArrow: true,
+                            onTap: _showDatePickerForJump,
+                          ),
+                        ),
+                      );
                     }
 
-                    messagesByDate[dateKey]!.add(message);
-                  } else {
-                    // Handle messages without timestamp
-                    const String dateKey = 'No Date';
-                    if (!messagesByDate.containsKey(dateKey)) {
-                      messagesByDate[dateKey] = [];
-                    }
-                    messagesByDate[dateKey]!.add(message);
+                    final QueryDocumentSnapshot? nextMessage =
+                        (index + 1 < sortedMessages.length)
+                            ? sortedMessages[index + 1]
+                            : null;
+                    final nextData = nextMessage?.data() as Map<String, dynamic>?;
+                    final DateTime? nextTimestamp =
+                        (nextData?['timestamp'] as Timestamp?)?.toDate().toLocal();
+                    final bool isToday =
+                        _dayKey(messageDateTime) == _dayKey(DateTime.now());
+                    final bool autoShowTimestamp = _shouldAutoShowTimestamp(
+                      current: messageDateTime,
+                      isToday: isToday,
+                      next: nextTimestamp,
+                      nextSenderId: nextData?['senderId']?.toString(),
+                      currentSenderId: senderId,
+                    );
+                    final bool isLatestOwnMessage = isMe && index == (sortedMessages.length - 1);
+                    final String? statusLabel = isLatestOwnMessage
+                        ? (messageData['isRead'] == true ? 'Read' : 'Sent')
+                        : null;
+
+                    messageWidgets.add(
+                      ValueListenableBuilder<Map<String, bool>>(
+                        key: ValueKey('msg_$messageId'),
+                        valueListenable: _timestampVisibilityOverrides,
+                        builder: (context, overrides, _) {
+                          final showTimestamp =
+                              overrides[messageId] ?? autoShowTimestamp;
+                          return MessageBubble(
+                            message: messageText,
+                            isMe: isMe,
+                            timestamp: messageDateTime,
+                            timestampLabel: showTimestamp
+                                ? _formatVisibleTimestamp(messageDateTime)
+                                : null,
+                            showTimestamp: showTimestamp,
+                            statusLabel: statusLabel,
+                            senderName: isMe ? null : senderName,
+                            senderAvatar: isMe
+                                ? null
+                                : Container(
+                                    width: 35,
+                                    height: 35,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: Theme.of(context).cardColor,
+                                    ),
+                                    clipBehavior: Clip.antiAlias,
+                                    child: _otherUserProfileImageUrl.isNotEmpty
+                                        ? CachedNetworkImage(
+                                            imageUrl: _otherUserProfileImageUrl,
+                                            width: 35,
+                                            height: 35,
+                                            fit: BoxFit.cover,
+                                          )
+                                        : const Center(
+                                            child: Icon(Icons.account_circle,
+                                                size: 35),
+                                          ),
+                                  ),
+                            imageUrl: imageUrl,
+                            videoUrl: videoUrl,
+                            videoThumbnailUrl: videoThumbnailUrl,
+                            onTap: () => _toggleTimestampVisibility(messageId),
+                            onLongPress: () => _toggleTimestampVisibility(messageId),
+                          );
+                        },
+                      ),
+                    );
                   }
                 }
 
-                // Create a list of widgets with date headers and messages
-                List<Widget> messageWidgets = [];
+                _activeDateKeys
+                  ..clear()
+                  ..addAll(activeDayKeys);
 
-                messagesByDate.forEach((dateKey, messageDocs) {
-                  // Add date header
-                  if (dateKey != 'No Date') {
-                    DateTime headerDate;
-                    final now = DateTime.now().toUtc();
-                    final today = DateTime(now.year, now.month, now.day);
+                _dateSectionKeys.removeWhere((key, _) => !activeDayKeys.contains(key));
 
-                    if (dateKey == 'Today') {
-                      headerDate = today;
-                    } else if (dateKey == 'Yesterday') {
-                      headerDate = today.subtract(const Duration(days: 1));
-                    } else {
-                      // Parse the date from the format "MMMM d, yyyy"
-                      headerDate = DateFormat('MMMM d, yyyy').parse(dateKey);
-                    }
+                final lastData = messages.last.data() as Map<String, dynamic>;
+                final lastTs = (lastData['timestamp'] as Timestamp?)?.millisecondsSinceEpoch ?? 0;
+                final snapshotSignature = '${messages.length}_${messages.last.id}_$lastTs';
+                final dataChanged = snapshotSignature != _lastSnapshotSignature;
 
-                    messageWidgets.add(DateHeader(dateTime: headerDate));
-                  } else {
-                    // For messages without timestamp
-                    messageWidgets.add(
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 16.0),
-                        child: Center(
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 16, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: Colors.grey[200],
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                            child: const Text(
-                              'Updated Messages',
-                              style: TextStyle(
-                                color: Colors.grey,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    );
+                if (dataChanged) {
+                  _lastSnapshotSignature = snapshotSignature;
+                }
+
+                final shouldAutoScroll = dataChanged && (!_didInitialAutoScroll || _isNearBottom());
+                if (messages.length != _lastRenderedMessageCount || shouldAutoScroll) {
+                  _lastRenderedMessageCount = messages.length;
+                  if (shouldAutoScroll) {
+                    _scheduleAutoScrollToLatest(force: !_didInitialAutoScroll);
                   }
+                  _didInitialAutoScroll = true;
+                }
 
-                  // Add messages for this date
-                  for (var message in messageDocs) {
-                    var messageData = message.data() as Map<String, dynamic>;
-                    String senderId = messageData['senderId'] ?? '';
-                    String messageText = messageData['text'] ?? '';
-                    String senderName = messageData['senderName'] ?? '';
-                    Timestamp? timestamp =
-                        messageData['timestamp'] as Timestamp?;
-                    String? imageUrl = messageData['imageUrl'];
-                    String? videoUrl = messageData['videoUrl'];
-                    String? videoThumbnailUrl = messageData['videoThumbnailUrl'];
-
-                    // Check if message is from current user
-                    bool isMe = senderId == currentUserId;
-                    DateTime? messageDateTime = timestamp?.toDate().toUtc();
-
-                    messageWidgets.add(
-                      MessageBubble(
-                        message: messageText,
-                        isMe: isMe,
-                        timestamp: messageDateTime,
-                        senderName: isMe ? null : senderName,
-                        senderAvatar: isMe
-                            ? null
-                            : Container(
-                                width: 35,
-                                height: 35,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: Theme.of(context).cardColor,
-                                ),
-                                clipBehavior: Clip.antiAlias,
-                                child: _otherUserProfileImageUrl.isNotEmpty
-                                    ? CachedNetworkImage(
-                                        imageUrl: _otherUserProfileImageUrl,
-                                        width: 35,
-                                        height: 35,
-                                        fit: BoxFit.cover,
-                                      )
-                                    : const Center(
-                                        child: Icon(Icons.account_circle,
-                                            size: 35),
-                                      ),
-                              ),
-                        imageUrl: imageUrl,
-                        videoUrl: videoUrl,
-                        videoThumbnailUrl: videoThumbnailUrl,
-                      ),
-                    );
-                  }
-                });
-
-                return ListView.builder(
+                return SingleChildScrollView(
                   controller: _scrollController,
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 16),
-                  itemCount: messageWidgets.length,
-                  itemBuilder: (context, index) {
-                    return messageWidgets[index];
-                  },
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 16),
+                    child: Column(
+                      children: messageWidgets,
+                    ),
+                  ),
                 );
               },
             ),

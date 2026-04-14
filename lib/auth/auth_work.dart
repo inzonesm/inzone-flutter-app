@@ -5,10 +5,19 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:inzone/screen/chat/all_chats_screen.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:video_player/video_player.dart';
+import 'package:video_thumbnail/video_thumbnail.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:inzone/services/account_lifecycle_service.dart';
 import 'package:inzone/services/notification_event_service.dart';
+
+class UploadCancelledException implements Exception {
+  final String message;
+
+  UploadCancelledException([this.message = 'Upload cancelled by user']);
+
+  @override
+  String toString() => message;
+}
 
 class AuthWork {
   static FirebaseAuth auth = FirebaseAuth.instance;
@@ -30,12 +39,12 @@ class AuthWork {
       }
 
       final data = userDoc.data() ?? {};
-        final hasPendingDeletion = data['deletionStatus'] == 'pending_window' ||
+      final hasPendingDeletion = data['deletionStatus'] == 'pending_window' ||
           data['deletionRequestedAt'] != null ||
           data['deletionPurgeAfter'] != null;
-        final isDeactivated = data['is_deactivated'] == true ||
+      final isDeactivated = data['is_deactivated'] == true ||
           data['account_status'] == 'deactivated';
-        if (!isDeactivated && !hasPendingDeletion) {
+      if (!isDeactivated && !hasPendingDeletion) {
         return;
       }
 
@@ -51,6 +60,7 @@ class AuthWork {
       print('❌ Auto-reactivation check failed: $e');
     }
   }
+
   // static FirebaseStorage storage = FirebaseStorage.instance;
 
   //for gmail user
@@ -67,7 +77,10 @@ class AuthWork {
   //       .snapshots();
   // }
   static Future<Map<String, String>> sendPostVideo(
-      String chatUserID, File videoFile) async {
+    String chatUserID,
+    File videoFile, {
+    void Function(UploadTask task)? onVideoUploadTask,
+  }) async {
     try {
       // Getting video file extension
       final ext = videoFile.path.split('.').last;
@@ -76,16 +89,19 @@ class AuthWork {
       final ref = storage.ref().child(
           'videos/$chatUserID/${DateTime.now().toUtc().millisecondsSinceEpoch}.$ext');
 
+        final thumbnailFuture = generateThumbnail(videoFile);
+
       // Uploading video
-      await ref
-          .putFile(videoFile, SettableMetadata(contentType: 'video/$ext'))
-          .then((p0) {});
+        final uploadTask =
+          ref.putFile(videoFile, SettableMetadata(contentType: 'video/$ext'));
+        onVideoUploadTask?.call(uploadTask);
+        await uploadTask;
 
       // Getting video URL
       final videoUrl = await ref.getDownloadURL();
 
       // Generate thumbnail
-      final thumbnail = await generateThumbnail(videoFile);
+        final thumbnail = await thumbnailFuture;
 
       // Storage file ref with path for thumbnail
       final thumbnailRef = storage.ref().child(
@@ -97,8 +113,16 @@ class AuthWork {
       final thumbnailUrl = await thumbnailSnapshot.ref.getDownloadURL();
 
       return {"videoUrl": videoUrl, "thumbnailUrl": thumbnailUrl};
+    } on FirebaseException catch (e) {
+      if (e.code == 'canceled') {
+        throw UploadCancelledException();
+      }
+      throw Exception('Error uploading video: ${e.message ?? e.code}');
     } catch (e) {
-      throw Exception('Error uploading video: throwing an error');
+      if (e is UploadCancelledException) {
+        rethrow;
+      }
+      throw Exception('Error uploading video: $e');
     }
   }
 
@@ -127,31 +151,26 @@ class AuthWork {
   }
 
   static Future<File> generateThumbnail(File videoFile) async {
-    // Define the path for the thumbnail
     final tempDir = await getTemporaryDirectory();
-    final thumbnailPath =
-        '${tempDir.path}/${DateTime.now().toUtc().millisecondsSinceEpoch}_thumbnail.jpg';
 
     try {
-      final controller = VideoPlayerController.file(videoFile);
-      await controller.initialize();
+      final thumbnailPath = await VideoThumbnail.thumbnailFile(
+        video: videoFile.path,
+        thumbnailPath: tempDir.path,
+        imageFormat: ImageFormat.JPEG,
+        quality: 75,
+        maxWidth: 512,
+        timeMs: 1000,
+      );
 
-      controller.seekTo(const Duration(milliseconds: 1000));
-      await Future.delayed(const Duration(milliseconds: 100));
+      if (thumbnailPath != null) {
+        return File(thumbnailPath);
+      }
 
-      final thumbnailFile = File(thumbnailPath);
-
-      await thumbnailFile.writeAsBytes(List<int>.filled(1024, 0));
-
-      await controller.dispose();
-
-      return thumbnailFile;
+      throw Exception('Thumbnail generation returned null path');
     } catch (e) {
       print('Error generating thumbnail: $e');
-
-      final thumbnailFile = File(thumbnailPath);
-      await thumbnailFile.writeAsBytes(List<int>.filled(1024, 0));
-      return thumbnailFile;
+      rethrow;
     }
   }
 
@@ -518,18 +537,23 @@ class AuthWork {
 
       final currentUser = auth.currentUser;
       if (currentUser != null) {
-        final fallbackName = _buildFallbackDisplayName(currentUser);
-        final fallbackUsername = _buildFallbackUsername(currentUser);
-
-        await firestore.collection('humanUsers').doc(currentUser.uid).set({
+        final profileData = <String, dynamic>{
           'uid': currentUser.uid,
           'email': currentUser.email,
-          'name': fallbackName,
-          'username': fallbackUsername,
           'createdAt': FieldValue.serverTimestamp(),
           'interests': [],
-        }, SetOptions(merge: true));
-        
+        };
+
+        final displayName = currentUser.displayName?.trim();
+        if (displayName != null && displayName.isNotEmpty) {
+          profileData['name'] = displayName;
+        }
+
+        await firestore
+            .collection('humanUsers')
+            .doc(currentUser.uid)
+            .set(profileData, SetOptions(merge: true));
+
         // Re-register FCM token after successful Google sign-in
         try {
           await NotificationEventService.reRegisterFCMToken();
@@ -565,18 +589,23 @@ class AuthWork {
 
       final currentUser = auth.currentUser;
       if (currentUser != null) {
-        final fallbackName = _buildFallbackDisplayName(currentUser);
-        final fallbackUsername = _buildFallbackUsername(currentUser);
-
-        await firestore.collection('humanUsers').doc(currentUser.uid).set({
+        final profileData = <String, dynamic>{
           'uid': currentUser.uid,
           'email': currentUser.email,
-          'name': fallbackName,
-          'username': fallbackUsername,
           'createdAt': FieldValue.serverTimestamp(),
           'interests': [],
-        }, SetOptions(merge: true));
-        
+        };
+
+        final displayName = currentUser.displayName?.trim();
+        if (displayName != null && displayName.isNotEmpty) {
+          profileData['name'] = displayName;
+        }
+
+        await firestore
+            .collection('humanUsers')
+            .doc(currentUser.uid)
+            .set(profileData, SetOptions(merge: true));
+
         // Re-register FCM token after successful Apple sign-in
         try {
           await NotificationEventService.reRegisterFCMToken();
@@ -591,47 +620,6 @@ class AuthWork {
       print("❌ Sign in with Apple failed: $e");
       return null;
     }
-  }
-
-  String _buildFallbackDisplayName(User user) {
-    final displayName = user.displayName?.trim();
-    if (displayName != null && displayName.isNotEmpty) {
-      return displayName;
-    }
-
-    final emailLocalPart = _emailLocalPart(user.email);
-    if (emailLocalPart != null && emailLocalPart.isNotEmpty) {
-      return emailLocalPart;
-    }
-
-    return 'User';
-  }
-
-  String _buildFallbackUsername(User user) {
-    final emailLocalPart = _emailLocalPart(user.email);
-    if (emailLocalPart != null && emailLocalPart.isNotEmpty) {
-      return emailLocalPart;
-    }
-
-    final displayName = user.displayName?.trim();
-    if (displayName != null && displayName.isNotEmpty) {
-      return displayName;
-    }
-
-    return user.uid;
-  }
-
-  String? _emailLocalPart(String? email) {
-    if (email == null || email.trim().isEmpty) {
-      return null;
-    }
-
-    final parts = email.split('@');
-    if (parts.isEmpty) {
-      return null;
-    }
-
-    return parts.first.trim();
   }
 
   /* ----------------------email sign in-------------------------- */
@@ -652,14 +640,14 @@ class AuthWork {
       print('✅ Login successful for $email');
 
       await _autoReactivateIfDeactivated(auth.currentUser);
-      
+
       // Re-register FCM token after successful login
       try {
         await NotificationEventService.reRegisterFCMToken();
       } catch (e) {
         print('❌ Failed to re-register FCM token after login: $e');
       }
-      
+
       return null;
     } on FirebaseAuthException catch (e) {
       print("❌ Login failed: ${e.code}");

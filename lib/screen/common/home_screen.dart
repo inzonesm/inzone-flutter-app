@@ -73,6 +73,7 @@ class HomeScreenState extends State<HomeScreen> {
   final Set<String> _viewedPosts =
       {}; // Track posts whose view count has been incremented
   static const String _feedCacheKey = 'home_feed_cache_v1';
+  String? _profileImageUrl;
 
   @override
   void initState() {
@@ -80,6 +81,7 @@ class HomeScreenState extends State<HomeScreen> {
     _scrollController = widget.controller ?? ScrollController();
     _startTime = DateTime.now().toUtc();
 
+    _loadCurrentUserProfileImage();
     _bootstrapHomeFeed();
 
     _startAvatarTimer();
@@ -103,6 +105,31 @@ class HomeScreenState extends State<HomeScreen> {
       loadFeed(),
       loadAvatars(),
     ]);
+  }
+
+  Future<void> _loadCurrentUserProfileImage() async {
+    try {
+      final userProfile = await InZoneDatabase.getCurrentUserProfile();
+      if (userProfile == null || !mounted) return;
+
+      final profileUrl = [
+        userProfile['profilePictureURL'],
+        userProfile['profilePictureUrl'],
+        userProfile['profileImageUrl'],
+        userProfile['profilePicture'],
+        userProfile['profile_picture'],
+      ].whereType<String>().map((v) => v.trim()).firstWhere(
+            (v) => v.isNotEmpty,
+            orElse: () => '',
+          );
+
+      if (!mounted) return;
+      setState(() {
+        _profileImageUrl = profileUrl.isEmpty ? null : profileUrl;
+      });
+    } catch (e) {
+      print('Error loading current user profile image: $e');
+    }
   }
 
   void _startAvatarTimer() {
@@ -1223,7 +1250,7 @@ class HomeScreenState extends State<HomeScreen> {
                             isDebug:
                                 false, // Changed to false to show notification button
                             userPoints: "100",
-                            profileImageUrl: null,
+                            profileImageUrl: _profileImageUrl,
                             notificationCount:
                                 notificationCount, // Real-time unread count
                             onNotificationTap: () {
@@ -1313,7 +1340,7 @@ class HomeScreenState extends State<HomeScreen> {
                                 isDebug:
                                     false, // Changed to false to show notification button
                                 userPoints: "100",
-                                profileImageUrl: null,
+                                profileImageUrl: _profileImageUrl,
                                 notificationCount:
                                     notificationCount, // Real-time unread count
                                 onNotificationTap: () {

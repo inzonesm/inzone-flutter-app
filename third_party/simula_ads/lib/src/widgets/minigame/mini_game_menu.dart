@@ -84,11 +84,15 @@ class _MiniGameMenuState extends State<MiniGameMenu> {
     final lower = text.toLowerCase();
     int score = 0;
 
-    if (RegExp(r'\bscore\s*[:=-]?\s*\d+').hasMatch(lower)) score += 4;
+    if (RegExp(r'\bscore\s*[:=-]?\s*\d[\d,]*').hasMatch(lower)) score += 4;
+    if (RegExp(r'\b\d[\d,]*\s*score\b').hasMatch(lower)) score += 4;
     if (RegExp(r'\blevel\s*[:=-]?\s*\d+').hasMatch(lower)) score += 3;
+    if (RegExp(r'\blevel\s*\d+\s*cleared\b').hasMatch(lower)) score += 3;
+    if (RegExp(r'\b\d+\s*level\b').hasMatch(lower)) score += 2;
     if (RegExp(r'\bturns?\s*[:=-]?\s*\d+').hasMatch(lower)) score += 3;
     if (RegExp(r'\bcoins?\s*[:=-]?\s*\d+').hasMatch(lower)) score += 3;
     if (RegExp(r'\bdistance\s*[:=-]?\s*\d+').hasMatch(lower)) score += 3;
+    if (RegExp(r'\btime\s*bonus\b').hasMatch(lower)) score += 2;
     if (lower.contains('action: game_end')) score += 2;
     if (lower.contains('game over') || lower.contains('final score')) score += 2;
 
@@ -319,9 +323,10 @@ class _MiniGameMenuState extends State<MiniGameMenu> {
     });
   }
 
-  void _handleIframeClose(double? resizedHeight) async {
+  void _handleIframeClose(double? resizedHeight, String? closeGameOverText) async {
     // Store the resized height for use in ad overlay
     _resizedHeight = resizedHeight;
+    _lastGameOverText = _pickBetterGameOverText(_lastGameOverText, closeGameOverText);
     if (!_adFetched) {
       // Make API request and fetch / display ad.html here
       if (_currentAdId != null) {

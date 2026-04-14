@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
+import 'package:inzone/components/video/video_player_widget_post_screen.dart';
 
 class VideoPlayerWidget extends StatefulWidget {
   final String videoUrl;
@@ -78,6 +79,29 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
                   Icons.play_circle_outline,
                   color: Colors.white,
                   size: 60,
+                ),
+                Positioned(
+                  bottom: 8,
+                  right: 8,
+                  child: Material(
+                    color: Colors.black54,
+                    shape: const CircleBorder(),
+                    child: IconButton(
+                      icon: const Icon(
+                        Icons.fullscreen,
+                        color: Colors.white,
+                      ),
+                      onPressed: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (context) =>
+                                VideoPlayerWidgetPostScreen(widget.videoUrl),
+                            fullscreenDialog: true,
+                          ),
+                        );
+                      },
+                    ),
+                  ),
                 ),
               ],
             ),

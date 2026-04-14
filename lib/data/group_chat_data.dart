@@ -67,9 +67,24 @@ class GroupChatData {
   }
 
   static List<Participant> _parseParticipants(List<dynamic> participantsData) {
-    return participantsData
-        .map((participant) => Participant.fromMap(participant))
-        .toList();
+    final seen = <String>{};
+    final participants = <Participant>[];
+
+    for (final participant in participantsData) {
+      if (participant is! Map) continue;
+
+      final map = participant.cast<String, dynamic>();
+      final parsed = Participant.fromMap(map);
+      final dedupeKey = parsed.uid.isNotEmpty
+          ? 'uid:${parsed.uid}'
+          : 'type:${parsed.type}|name:${parsed.name.toLowerCase()}';
+
+      if (seen.add(dedupeKey)) {
+        participants.add(parsed);
+      }
+    }
+
+    return participants;
   }
 
   static List<ChatMessage> _parseMessages(List<dynamic> messagesData) {
@@ -123,10 +138,12 @@ class Participant {
   });
 
   factory Participant.fromMap(Map<String, dynamic> map) {
+    final username = map['username']?.toString().trim() ?? '';
+    final name = map['name']?.toString().trim() ?? '';
     return Participant(
       uid: map['uid'] ?? '',
       type: map['type'] ?? '',
-      name: map['name'] ?? '',
+      name: username.isNotEmpty ? username : name,
       profilePictureUrl: map['profile_picture_url'],
     );
   }
@@ -169,8 +186,12 @@ class ChatMessage {
         content: map['content']?.toString() ?? '',
         isProcessed: map['isProcessed'] == true,
         timestamp: map['timestamp'] != null
-            ? GroupChatData._parseTimestamp(map['timestamp'])
-            : null,
+          ? GroupChatData._parseTimestamp(map['timestamp'])
+          : (map['createdAt'] != null
+            ? GroupChatData._parseTimestamp(map['createdAt'])
+            : (map['updatedAt'] != null
+              ? GroupChatData._parseTimestamp(map['updatedAt'])
+              : null)),
         imageUrl: map['imageUrl']?.toString(),
         videoUrl: map['videoUrl']?.toString(),
         videoThumbnailUrl: map['videoThumbnailUrl']?.toString(),

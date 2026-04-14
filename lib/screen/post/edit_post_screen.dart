@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:colorful_safe_area/colorful_safe_area.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter_feather_icons/flutter_feather_icons.dart';
 import 'package:inzone/components/posts/shimmering.dart';
 import 'package:inzone/components/video/video_player_widget_post_screen.dart';
@@ -37,6 +38,7 @@ class _EditPostScreenState extends State<EditPostScreen> {
 
   bool isUploading = false;
   bool isSaving = false;
+  UploadTask? _activeVideoUploadTask;
 
   // Real-time sentiment analysis state
   bool isAnalyzingRealTime = false;
@@ -81,9 +83,45 @@ class _EditPostScreenState extends State<EditPostScreen> {
 
   @override
   void dispose() {
+    _activeVideoUploadTask?.cancel();
     postController.dispose();
     _focusNode.dispose();
     super.dispose();
+  }
+
+  bool get _hasRunningVideoUpload =>
+      _activeVideoUploadTask != null &&
+      _activeVideoUploadTask!.snapshot.state == TaskState.running;
+
+  Future<bool> _confirmCancelUploadIfNeeded() async {
+    if (!_hasRunningVideoUpload && !isUploading) return true;
+
+    final shouldLeave = await showDialog<bool>(
+          context: context,
+          builder: (dialogContext) => AlertDialog(
+            title: const Text('Cancel upload?'),
+            content: const Text(
+                'A media upload is in progress. Leaving now will cancel it.'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext, false),
+                child: const Text('Stay'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext, true),
+                child: const Text('Leave'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+
+    if (shouldLeave) {
+      await _activeVideoUploadTask?.cancel();
+      _activeVideoUploadTask = null;
+    }
+
+    return shouldLeave;
   }
 
   bool get _hasChanges {
@@ -391,6 +429,9 @@ class _EditPostScreenState extends State<EditPostScreen> {
   }
 
   Future<bool> _onWillPop() async {
+    final canLeaveUpload = await _confirmCancelUploadIfNeeded();
+    if (!canLeaveUpload) return false;
+
     if (!_hasChanges) return true;
 
     final shouldDiscard = await showDialog<bool>(
@@ -848,19 +889,40 @@ class _EditPostScreenState extends State<EditPostScreen> {
                     final XFile? image = await picker.pickImage(
                         source: ImageSource.gallery, imageQuality: 90);
                     if (image != null) {
-                      setState(() {
-                        isUploading = true;
-                      });
-                      await AuthWork.sendPostImage(
-                              FirebaseAuth.instance.currentUser!.uid,
-                              File(image.path))
-                          .then((value) {
+                      if (mounted) {
+                        setState(() {
+                          isUploading = true;
+                        });
+                      }
+                      try {
+                        final value = await AuthWork.sendPostImage(
+                          FirebaseAuth.instance.currentUser!.uid,
+                          File(image.path),
+                        );
+                        if (!mounted) return;
                         setState(() {
                           imageUrls.add(value);
-                          isUploading = false;
                         });
                         _analyzeContentRealTime();
-                      });
+                      } catch (_) {
+                        if (!mounted) return;
+                        ToastService.showToast(
+                          context,
+                          backgroundColor: Theme.of(context).canvasColor,
+                          shadowColor: Colors.transparent,
+                          leading: const Icon(
+                            FeatherIcons.xCircle,
+                            color: Colors.redAccent,
+                          ),
+                          message: "Failed to upload image",
+                        );
+                      } finally {
+                        if (mounted) {
+                          setState(() {
+                            isUploading = false;
+                          });
+                        }
+                      }
                     }
                   },
                   icon: Icon(
@@ -876,20 +938,47 @@ class _EditPostScreenState extends State<EditPostScreen> {
                         source: ImageSource.gallery,
                         maxDuration: const Duration(minutes: 5));
                     if (video != null) {
-                      setState(() {
-                        isUploading = true;
-                      });
-                      await AuthWork.sendPostVideo(
-                              FirebaseAuth.instance.currentUser!.uid,
-                              File(video.path))
-                          .then((value) {
+                      if (mounted) {
+                        setState(() {
+                          isUploading = true;
+                        });
+                      }
+
+                      try {
+                        final value = await AuthWork.sendPostVideo(
+                          FirebaseAuth.instance.currentUser!.uid,
+                          File(video.path),
+                          onVideoUploadTask: (task) {
+                            _activeVideoUploadTask = task;
+                          },
+                        );
+                        if (!mounted) return;
                         setState(() {
                           videoUrls.add(value["videoUrl"]!);
                           thumbnailUrls.add(value["thumbnailUrl"]!);
-                          isUploading = false;
                         });
                         _analyzeContentRealTime();
-                      });
+                      } on UploadCancelledException {
+                      } catch (_) {
+                        if (!mounted) return;
+                        ToastService.showToast(
+                          context,
+                          backgroundColor: Theme.of(context).canvasColor,
+                          shadowColor: Colors.transparent,
+                          leading: const Icon(
+                            FeatherIcons.xCircle,
+                            color: Colors.redAccent,
+                          ),
+                          message: "Failed to upload video",
+                        );
+                      } finally {
+                        _activeVideoUploadTask = null;
+                        if (mounted) {
+                          setState(() {
+                            isUploading = false;
+                          });
+                        }
+                      }
                     }
                   },
                   icon: Icon(
@@ -904,19 +993,40 @@ class _EditPostScreenState extends State<EditPostScreen> {
                     final XFile? image = await picker.pickImage(
                         source: ImageSource.camera, imageQuality: 90);
                     if (image != null) {
-                      setState(() {
-                        isUploading = true;
-                      });
-                      await AuthWork.sendPostImage(
-                              FirebaseAuth.instance.currentUser!.uid,
-                              File(image.path))
-                          .then((value) {
+                      if (mounted) {
+                        setState(() {
+                          isUploading = true;
+                        });
+                      }
+                      try {
+                        final value = await AuthWork.sendPostImage(
+                          FirebaseAuth.instance.currentUser!.uid,
+                          File(image.path),
+                        );
+                        if (!mounted) return;
                         setState(() {
                           imageUrls.add(value);
-                          isUploading = false;
                         });
                         _analyzeContentRealTime();
-                      });
+                      } catch (_) {
+                        if (!mounted) return;
+                        ToastService.showToast(
+                          context,
+                          backgroundColor: Theme.of(context).canvasColor,
+                          shadowColor: Colors.transparent,
+                          leading: const Icon(
+                            FeatherIcons.xCircle,
+                            color: Colors.redAccent,
+                          ),
+                          message: "Failed to upload image",
+                        );
+                      } finally {
+                        if (mounted) {
+                          setState(() {
+                            isUploading = false;
+                          });
+                        }
+                      }
                     }
                   },
                   icon: Icon(

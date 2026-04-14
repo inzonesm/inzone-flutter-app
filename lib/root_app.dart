@@ -90,16 +90,16 @@ class _RootAppState extends State<RootApp>
 
   final List<String> _bottomNavBarTitles = [
     'Home',
+    'Games',
     'Groups',
     'Chats',
-    'Profile',
   ];
 
   final List<String> _routes = [
     Routes.home,
+    '',
     Routes.groups,
     Routes.chats,
-    Routes.profile_tab,
   ];
 
   @override
@@ -124,9 +124,9 @@ class _RootAppState extends State<RootApp>
     // Initialize screens with the controller
     _screens = [
       HomeScreen(controller: _homeScrollController),
+      const SizedBox.shrink(),
       const GroupsExploreScreen(),
       AllChatsScreen(key: allChatsScreenKey),
-      const UserProfileScreen(),
     ];
 
     // Add scroll listener to handle navbar visibility
@@ -259,8 +259,8 @@ class _RootAppState extends State<RootApp>
   void _onItemTapped(int index) {
     HapticFeedback.lightImpact();
 
-    // Gamepad tab (index 3) opens MiniGameMenu instead of navigating
-    if (index == 3) {
+    // Gamepad tab (index 1) opens MiniGameMenu instead of navigating
+    if (index == 1) {
       if (!_miniGameMenuOpen) {
         setState(() {
           _miniGameMenuOpen = true;
@@ -620,19 +620,18 @@ class _RootAppState extends State<RootApp>
 
   // Function to return the title based on the current page
   String _getPageTitle(int page) {
-    if (page == 1) {
+    if (page == 2) {
       return 'Explore Groups';
     }
     return _bottomNavBarTitles[page];
   }
 
+
   final List<String> _iconifyPaths = [
     Ri.home_5_fill,
+    Mdi.gamepad_variant,
     Mdi.account_group,
     HeroiconsSolid.chat_bubble_oval_left_ellipsis,
-    // Ri.gamepad_fill
-    Mdi.gamepad_variant
-    // Ph.user,
   ];
 
   void _toggleExpanded() {
@@ -656,44 +655,56 @@ class _RootAppState extends State<RootApp>
   }
 
   List<int> _extractAllNumbers(String text) {
-    return RegExp(r'\b\d+\b')
+    return RegExp(r'\b\d{1,3}(?:,\d{3})+\b|\b\d+\b')
         .allMatches(text)
-        .map((m) => int.tryParse(m.group(0) ?? ''))
+        .map((m) {
+          final raw = (m.group(0) ?? '').replaceAll(',', '');
+          return int.tryParse(raw);
+        })
         .whereType<int>()
         .toList();
+  }
+
+  int? _parseExtractedNumber(String? rawValue) {
+    if (rawValue == null) return null;
+    final cleaned = rawValue.replaceAll(',', '').trim();
+    if (cleaned.isEmpty) return null;
+    final value = double.tryParse(cleaned);
+    if (value == null) return null;
+    return value.round();
   }
 
   int? _extractStatNumber(String text, String labelPattern) {
     final lowerText = text.toLowerCase();
 
     final labeledAfter = RegExp(
-      "(?:$labelPattern)\\s*[\"']?\\s*[:=-]?\\s*[\"']?(\\d+(?:\\.\\d+)?)",
+      "(?:$labelPattern)\\s*[\"']?\\s*[:=-]?\\s*[\"']?(\\d{1,3}(?:,\\d{3})+|\\d+(?:\\.\\d+)?)",
       caseSensitive: false,
     ).firstMatch(lowerText);
 
     if (labeledAfter != null) {
-      final value = double.tryParse(labeledAfter.group(1)!);
-      if (value != null) return value.round();
+      final parsed = _parseExtractedNumber(labeledAfter.group(1));
+      if (parsed != null) return parsed;
     }
 
     final labeledBefore = RegExp(
-      '(\\d+(?:\\.\\d+)?)\\s*(?:$labelPattern)',
+      '(\\d{1,3}(?:,\\d{3})+|\\d+(?:\\.\\d+)?)\\s*(?:$labelPattern)',
       caseSensitive: false,
     ).firstMatch(lowerText);
 
     if (labeledBefore != null) {
-      final value = double.tryParse(labeledBefore.group(1)!);
-      if (value != null) return value.round();
+      final parsed = _parseExtractedNumber(labeledBefore.group(1));
+      if (parsed != null) return parsed;
     }
 
     final jsonLike = RegExp(
-      "[\"']?(?:$labelPattern)[\"']?\\s*:\\s*[\"']?(\\d+(?:\\.\\d+)?)",
+      "[\"']?(?:$labelPattern)[\"']?\\s*:\\s*[\"']?(\\d{1,3}(?:,\\d{3})+|\\d+(?:\\.\\d+)?)",
       caseSensitive: false,
     ).firstMatch(lowerText);
 
     if (jsonLike != null) {
-      final value = double.tryParse(jsonLike.group(1)!);
-      if (value != null) return value.round();
+      final parsed = _parseExtractedNumber(jsonLike.group(1));
+      if (parsed != null) return parsed;
     }
 
     return null;
@@ -721,6 +732,50 @@ class _RootAppState extends State<RootApp>
 
     allNumbers.sort((a, b) => b.compareTo(a));
     return allNumbers.first;
+  }
+
+  int? _extractTilesScore(String text) {
+    final direct = _extractStatNumber(
+      text,
+      'userscore|user_score|score|points|best|best[_\\s-]?score|final|final[_\\s-]?score|total|total[_\\s-]?score|tile[_\\s-]?score|game[_\\s-]?score|high[_\\s-]?score',
+    );
+    if (direct != null) return direct;
+
+    return _extractLikelyScore(text);
+  }
+
+  int? _extractTilesLevel(String text) {
+    return _extractStatNumber(
+      text,
+      'level|stage|round|lvl|tile[_\\s-]?level|current[_\\s-]?level',
+    );
+  }
+
+  String _normalizeGameOverTextForParsing(String? rawText) {
+    if (rawText == null) return '';
+    String normalized = rawText.trim();
+    if (normalized.isEmpty) return '';
+
+    for (int i = 0; i < 2; i++) {
+      try {
+        final decoded = jsonDecode(normalized);
+        if (decoded is String) {
+          normalized = decoded.trim();
+          continue;
+        }
+        if (decoded is Map || decoded is List) {
+          normalized = jsonEncode(decoded);
+          break;
+        }
+      } catch (_) {
+        break;
+      }
+    }
+
+    return normalized
+        .replaceAll(r'\\"', '"')
+        .replaceAll(r'\n', ' ')
+        .trim();
   }
 
   String _buildGameCelebrationMessage(GameData? game) {
@@ -753,7 +808,7 @@ class _RootAppState extends State<RootApp>
 
   String _buildShareProgressText(GameData game, String? gameOverText) {
     final normalized = _normalizedGameName(game);
-    final source = gameOverText ?? '';
+    final source = _normalizeGameOverTextForParsing(gameOverText);
     final score = _extractLikelyScore(source);
     final level = _extractStatNumber(source, 'level|stage');
     final turns = _extractStatNumber(source, 'turns|moves');
@@ -774,6 +829,32 @@ class _RootAppState extends State<RootApp>
       return 'Just won a match on ${game.name} — your turn now.';
     }
 
+    final isTilesGame = normalized.contains('tiles') || normalized.contains('puzzle');
+    if (isTilesGame) {
+      final tilesScore = _extractTilesScore(source);
+      final tilesLevel = _extractTilesLevel(source);
+      final lowerSource = source.toLowerCase();
+      final hasLevelCompleteAction =
+          lowerSource.contains('action: level_complete') ||
+          lowerSource.contains('"action":"level_complete"') ||
+          lowerSource.contains('action=level_complete');
+
+      if (tilesScore != null && tilesLevel != null) {
+        return 'Just finished ${game.name} at Level $tilesLevel with $tilesScore points — can you beat this run?';
+      }
+      if (tilesScore != null) {
+        return 'Just scored $tilesScore on ${game.name} — can you top this?';
+      }
+      if (tilesLevel != null) {
+        return 'Just reached Level $tilesLevel on ${game.name} — can you go further?';
+      }
+      if (hasLevelCompleteAction) {
+        return 'Just cleared a level on ${game.name} — can you beat this run?';
+      }
+      debugPrint('[TilesShareFallback] source=$source');
+      return 'Just wrapped a run on ${game.name} — can you beat me?';
+    }
+
     final isScoreBased = normalized.contains('flappy') ||
         normalized.contains('fish') ||
         normalized.contains('property') ||
@@ -781,8 +862,7 @@ class _RootAppState extends State<RootApp>
         normalized.contains('apes') ||
         normalized.contains('tower') ||
         normalized.contains('defense') ||
-        normalized.contains('tasty') ||
-        normalized.contains('tiles');
+        normalized.contains('tasty');
 
     if (isScoreBased) {
       if (score != null && level != null) {
@@ -827,7 +907,7 @@ class _RootAppState extends State<RootApp>
     String? gameOverText,
   ) {
     final normalized = _normalizedGameName(game);
-    final source = gameOverText ?? '';
+    final source = _normalizeGameOverTextForParsing(gameOverText);
     final score = _extractLikelyScore(source);
     final level = _extractStatNumber(source, 'level|stage');
     final turns = _extractStatNumber(source, 'turns|moves');
@@ -848,6 +928,32 @@ class _RootAppState extends State<RootApp>
       return 'Challenge me on ${game.name} 🎮\n$challengeLink';
     }
 
+    final isTilesGame = normalized.contains('tiles') || normalized.contains('puzzle');
+    if (isTilesGame) {
+      final tilesScore = _extractTilesScore(source);
+      final tilesLevel = _extractTilesLevel(source);
+      final lowerSource = source.toLowerCase();
+      final hasLevelCompleteAction =
+          lowerSource.contains('action: level_complete') ||
+          lowerSource.contains('"action":"level_complete"') ||
+          lowerSource.contains('action=level_complete');
+
+      if (tilesScore != null && tilesLevel != null) {
+        return 'I finished ${game.name} at Level $tilesLevel with $tilesScore points — beat this run 🎯\n$challengeLink';
+      }
+      if (tilesScore != null) {
+        return 'I just scored $tilesScore on ${game.name} — beat me 🎯\n$challengeLink';
+      }
+      if (tilesLevel != null) {
+        return 'I reached Level $tilesLevel on ${game.name} — beat me 🎯\n$challengeLink';
+      }
+      if (hasLevelCompleteAction) {
+        return 'I just cleared a level on ${game.name} — beat this run 🎯\n$challengeLink';
+      }
+      debugPrint('[TilesChallengeFallback] source=$source');
+      return 'Challenge me on ${game.name} 🎮\n$challengeLink';
+    }
+
     final isScoreBased = normalized.contains('flappy') ||
         normalized.contains('fish') ||
         normalized.contains('property') ||
@@ -855,8 +961,7 @@ class _RootAppState extends State<RootApp>
         normalized.contains('apes') ||
         normalized.contains('tower') ||
         normalized.contains('defense') ||
-        normalized.contains('tasty') ||
-        normalized.contains('tiles');
+        normalized.contains('tasty');
 
     if (isScoreBased) {
       if (score != null) {
@@ -1514,6 +1619,7 @@ class _RootAppState extends State<RootApp>
                 });
               },
               onGameEnd: (completion) async {
+                debugPrint('[MiniGameCompletionHandoff] game=${completion.game?.id ?? 'unknown'} playedLikely=${completion.playedLikely} gameOverText=${completion.gameOverText ?? 'null'}');
                 if (_miniGameMenuOpen) {
                   setState(() {
                     _miniGameMenuOpen = false;

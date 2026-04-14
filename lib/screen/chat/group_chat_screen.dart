@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_feather_icons/flutter_feather_icons.dart';
 import 'package:get/get_connect/http/src/utils/utils.dart';
 import 'package:inzone/router/routes.dart';
@@ -14,6 +15,7 @@ import 'package:inzone/components/chat/message_bubble.dart';
 import 'package:inzone/data/group_data.dart';
 import 'package:inzone/data/group_chat_data.dart';
 import 'package:inzone/services/group_chat_service.dart';
+import 'package:inzone/services/notification_event_service.dart';
 import 'package:intl/intl.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -124,13 +126,22 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   final ScrollController _scrollController = ScrollController();
   final bool _isLoading = true;
   bool _isUploadingMedia = false;
+  bool _isSendingMessage = false;
   File? _pendingImage;
   File? _pendingVideo;
+  bool _didInitialAutoScroll = false;
+  int _lastRenderedMessageCount = 0;
+  String _lastSnapshotSignature = '';
+  final ValueNotifier<Map<String, bool>> _timestampVisibilityOverrides =
+      ValueNotifier<Map<String, bool>>({});
+  final Map<String, GlobalKey> _dateSectionKeys = {};
+  final Set<String> _activeDateKeys = {};
 
   GroupChatData? _groupChatData;
   late String _groupId;
   final Map<String, String> _userProfileImages =
       {}; // Cache for user profile images
+  final Map<String, String> _usernamesByUid = {};
 
   // Group Chat Activity Tracking
   late DateTime _sessionStartTime;
@@ -156,6 +167,8 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     _groupId = widget.group.id.contains('group_chat_')
         ? widget.group.id
         : GroupChatService.defaultGroupChatDocId;
+
+    NotificationEventService.setActiveGroupChatId(_groupId);
 
     print('Opening group chat with ID: $_groupId');
 
@@ -255,6 +268,8 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
   @override
   void dispose() {
+    NotificationEventService.clearActiveGroupChatId(_groupId);
+
     // End group chat session tracking
     GroupChatSessionTracker.endSession(_groupId, _currentUserId);
 
@@ -288,6 +303,8 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
         'timestamp': DateTime.now().millisecondsSinceEpoch,
       });
     }
+
+    _timestampVisibilityOverrides.dispose();
 
     super.dispose();
   }
@@ -359,6 +376,11 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                 if (userDoc.exists) {
                   final userData = userDoc.data();
                   if (userData != null) {
+                    final username = userData['username']?.toString().trim();
+                    if (username != null && username.isNotEmpty) {
+                      _usernamesByUid[uid] = username;
+                    }
+
                     // Try different possible field names for profile picture
                     String? profileUrl;
                     if (userData['profilePictureUrl'] != null &&
@@ -385,6 +407,43 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                     }
                   }
                 } else {
+                  final humanUserDoc = await FirebaseFirestore.instance
+                      .collection('humanUsers')
+                      .doc(uid)
+                      .get();
+
+                  if (humanUserDoc.exists) {
+                    final humanUserData = humanUserDoc.data();
+                    if (humanUserData != null) {
+                      final username =
+                          humanUserData['username']?.toString().trim();
+                      if (username != null && username.isNotEmpty) {
+                        _usernamesByUid[uid] = username;
+                      }
+
+                      String? profileUrl;
+                      if (humanUserData['profilePictureUrl'] != null &&
+                          humanUserData['profilePictureUrl']
+                              .toString()
+                              .isNotEmpty) {
+                        profileUrl =
+                            humanUserData['profilePictureUrl'].toString();
+                      } else if (humanUserData['profileImage'] != null &&
+                          humanUserData['profileImage'].toString().isNotEmpty) {
+                        profileUrl = humanUserData['profileImage'].toString();
+                      } else if (humanUserData['photoURL'] != null &&
+                          humanUserData['photoURL'].toString().isNotEmpty) {
+                        profileUrl = humanUserData['photoURL'].toString();
+                      }
+
+                      if (profileUrl != null) {
+                        setState(() {
+                          _userProfileImages[uid] = profileUrl!;
+                        });
+                      }
+                    }
+                  }
+
                   print('User document not found for $uid');
 
                   // As a fallback, try to get from auth user data
@@ -428,6 +487,191 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     }
   }
 
+  String _dayKey(DateTime dateTime) {
+    return DateFormat('yyyy-MM-dd').format(dateTime.toLocal());
+  }
+
+  DateTime _normalizeDate(DateTime dateTime) {
+    final local = dateTime.toLocal();
+    return DateTime(local.year, local.month, local.day);
+  }
+
+  bool _shouldAutoShowTimestamp({
+    required DateTime current,
+    required bool isToday,
+    DateTime? next,
+    String? nextSenderId,
+    required String currentSenderId,
+  }) {
+    if (!isToday) return false;
+    if (next == null) return true;
+    if (nextSenderId != currentSenderId) return true;
+    return next.difference(current).inMinutes >= 5;
+  }
+
+  String _formatVisibleTimestamp(DateTime dateTime) {
+    return DateFormat('h:mm a').format(dateTime.toLocal());
+  }
+
+  String _formatExactTimestamp(DateTime dateTime) {
+    return DateFormat('EEE, MMM d, yyyy • h:mm a').format(dateTime.toLocal());
+  }
+
+  void _toggleTimestampVisibility(String messageId) {
+    final currentMap = _timestampVisibilityOverrides.value;
+    final nextMap = Map<String, bool>.from(currentMap);
+    final current = nextMap[messageId] ?? false;
+    nextMap[messageId] = !current;
+    _timestampVisibilityOverrides.value = nextMap;
+  }
+
+  bool _isNearBottom() {
+    if (!_scrollController.hasClients) return true;
+    return _scrollController.position.extentAfter < 160;
+  }
+
+  void _scheduleAutoScrollToLatest({bool force = false}) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_scrollController.hasClients) return;
+      if (!force && !_isNearBottom()) return;
+      _scrollToLatestSettled(force: force);
+    });
+  }
+
+  void _scrollToLatestSettled({bool force = false}) {
+    if (!_scrollController.hasClients) return;
+
+    final target = _scrollController.position.maxScrollExtent;
+    if ((target - _scrollController.position.pixels).abs() < 1.0) return;
+
+    if (force) {
+      _scrollController.jumpTo(target);
+      return;
+    }
+
+    _scrollController.animateTo(
+      target,
+      duration: const Duration(milliseconds: 160),
+      curve: Curves.easeOut,
+    );
+  }
+
+  Future<void> _showMessageDetails({
+    required BuildContext context,
+    required String messageText,
+    required DateTime? timestamp,
+    required bool isMe,
+    required String? statusLabel,
+  }) async {
+    if (timestamp == null) return;
+
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) {
+        return SafeArea(
+          child: Container(
+            margin: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Theme.of(sheetContext).cardColor,
+              borderRadius: BorderRadius.circular(18),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _formatExactTimestamp(timestamp),
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: Theme.of(sheetContext).textTheme.bodyMedium?.color,
+                  ),
+                ),
+                if (statusLabel != null) ...[
+                  const SizedBox(height: 6),
+                  Text(
+                    statusLabel,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Theme.of(sheetContext).textTheme.bodySmall?.color,
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 10),
+                Text(
+                  messageText,
+                  maxLines: 4,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: Theme.of(sheetContext).textTheme.bodySmall?.color,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _jumpToDate(DateTime dateTime) async {
+    final key = _dateSectionKeys[_dayKey(dateTime)];
+    if (key?.currentContext == null || !_scrollController.hasClients) return;
+
+    final targetContext = key!.currentContext!;
+    final renderObject = targetContext.findRenderObject();
+    if (renderObject == null || !renderObject.attached) return;
+
+    final viewport = RenderAbstractViewport.of(renderObject);
+    if (viewport == null) return;
+
+    final revealOffset = viewport.getOffsetToReveal(renderObject, 0.0).offset;
+    final min = _scrollController.position.minScrollExtent;
+    final max = _scrollController.position.maxScrollExtent;
+    final targetOffset = revealOffset.clamp(min, max).toDouble();
+
+    await _scrollController.animateTo(
+      targetOffset,
+      duration: const Duration(milliseconds: 280),
+      curve: Curves.easeOut,
+    );
+  }
+
+  Future<void> _showDatePickerForJump() async {
+    if (_activeDateKeys.isEmpty) return;
+
+    final activeDates = _activeDateKeys
+        .map((key) => DateFormat('yyyy-MM-dd').parse(key))
+        .toList()
+      ..sort();
+
+    final now = DateTime.now().toLocal();
+    final initialDate = activeDates.contains(_normalizeDate(now))
+        ? _normalizeDate(now)
+        : activeDates.last;
+
+    final selected = await showDatePicker(
+      context: context,
+      initialDate: initialDate,
+      firstDate: activeDates.first,
+      lastDate: activeDates.last,
+      selectableDayPredicate: (date) {
+        final normalized = _normalizeDate(date);
+        return _activeDateKeys.contains(_dayKey(normalized));
+      },
+      helpText: 'Jump to date',
+      confirmText: 'Go',
+      cancelText: 'Cancel',
+    );
+
+    if (selected != null) {
+      await _jumpToDate(selected);
+    }
+  }
+
   // Method to check if user has paid for the group chat
   Future<bool> _hasPaidForGroup() async {
     try {
@@ -455,7 +699,12 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   }
 
   void _sendMessage() async {
+    if (_isSendingMessage) return;
     if (_msgController.text.trim().isEmpty && _pendingImage == null && _pendingVideo == null) return;
+
+    setState(() {
+      _isSendingMessage = true;
+    });
 
     final content = _msgController.text.trim();
     final messageLength = content.length;
@@ -475,6 +724,11 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
         ),
         message: 'You need to be logged in to send messages',
       );
+      if (mounted) {
+        setState(() {
+          _isSendingMessage = false;
+        });
+      }
       return;
     }
 
@@ -502,6 +756,11 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
             backgroundColor: Theme.of(context).colorScheme.error,
           ),
         );
+      }
+      if (mounted) {
+        setState(() {
+          _isSendingMessage = false;
+        });
       }
       return;
     }
@@ -542,6 +801,11 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
           ),
         );
       }
+      if (mounted) {
+        setState(() {
+          _isSendingMessage = false;
+        });
+      }
       return;
     }
 
@@ -575,19 +839,51 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
         // Get current user info for adding as participant
         final currentUser = FirebaseAuth.instance.currentUser!;
-        String displayName = currentUser.displayName ?? 't';
+        String displayName = currentUser.displayName?.trim() ?? '';
         if (displayName.length < 2) {
           try {
             // Try to get user profile from Firebase
             Map<String, dynamic>? userProfile =
                 await InZoneDatabase.getUserProfile(currentUser.uid);
             if (userProfile != null) {
-              displayName =
-                  userProfile["username"] ?? userProfile["username"] ?? 'User';
+              final profileName = userProfile['name']?.toString().trim();
+              final profileUsername = userProfile['username']?.toString().trim();
+              displayName = (profileName != null && profileName.isNotEmpty)
+                  ? profileName
+                  : ((profileUsername != null && profileUsername.isNotEmpty)
+                      ? profileUsername
+                      : '');
               // currentUser.updateDisplayName(displayName);
             }
           } catch (e) {
             print('Error fetching user name from database: $e');
+          }
+        }
+
+        String username = '';
+        try {
+          final userProfile = await InZoneDatabase.getUserProfile(currentUser.uid);
+          if (userProfile != null) {
+            username = userProfile['username']?.toString().trim() ?? '';
+          }
+        } catch (_) {}
+        if (username.isEmpty) {
+          final usersDoc = await FirebaseFirestore.instance
+              .collection('users')
+              .doc(currentUser.uid)
+              .get();
+          if (usersDoc.exists) {
+            username = usersDoc.data()?['username']?.toString().trim() ?? '';
+          }
+        }
+        if (username.isEmpty) {
+          final humanUsersDoc = await FirebaseFirestore.instance
+              .collection('humanUsers')
+              .doc(currentUser.uid)
+              .get();
+          if (humanUsersDoc.exists) {
+            username =
+                humanUsersDoc.data()?['username']?.toString().trim() ?? '';
           }
         }
 
@@ -596,6 +892,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
           'uid': currentUser.uid,
           'type': 'user',
           'name': displayName,
+          'username': username,
         };
 
         // Add current user to participants
@@ -628,10 +925,15 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       // Update message count expectation to prevent double scroll
       _previousMessageCount++;
       _scrollToBottom();
+      if (mounted) {
+        setState(() {
+          _isSendingMessage = false;
+        });
+      }
     } catch (e) {
       print('Error checking/updating participant status: $e');
       // Fallback to direct message send
-      GroupChatService.sendMessageToGroup(
+      await GroupChatService.sendMessageToGroup(
         _groupId,
         content,
         imageUrl: imageUrl,
@@ -648,15 +950,20 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       // Update message count expectation to prevent double scroll
       _previousMessageCount++;
       _scrollToBottom();
+      if (mounted) {
+        setState(() {
+          _isSendingMessage = false;
+        });
+      }
     }
   }
 
   void _scrollToBottom() {
     Future.delayed(const Duration(milliseconds: 300), () {
       if (_scrollController.hasClients) {
-        // For reversed ListView, scroll to position 0 (which is the bottom)
+        final target = _scrollController.position.maxScrollExtent;
         _scrollController.animateTo(
-          0,
+          target,
           duration: const Duration(milliseconds: 300),
           curve: Curves.easeOut,
         );
@@ -785,7 +1092,8 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                   if (data.containsKey('participants') &&
                       data['participants'] is List) {
                     final participantsList = data['participants'] as List;
-                    memberCount = '${participantsList.length} members';
+                    memberCount =
+                        '${_parseParticipantsList(participantsList).length} members';
                   }
 
                   // Get image from Firebase
@@ -973,7 +1281,8 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
               child: StreamBuilder<DocumentSnapshot>(
                 stream: GroupChatService.getGroupChatStreamById(_groupId),
                 builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
+                  if (snapshot.connectionState == ConnectionState.waiting &&
+                      !snapshot.hasData) {
                     return const Center(child: CircularProgressIndicator());
                   }
 
@@ -1022,17 +1331,31 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                     }
                     _sessionActivities.add('messages_viewed');
 
-                    // Only scroll to bottom when new messages are added (not on initial load)
                     final currentMessageCount = _groupChatData!.messages.length;
-                    if (_hasInitiallyScrolled &&
-                        currentMessageCount > _previousMessageCount) {
-                      WidgetsBinding.instance
-                          .addPostFrameCallback((_) => _scrollToBottom());
+                    final lastMessage = _groupChatData!.messages.last;
+                    final dynamic lastRawMessage = messagesData.last;
+                    String rawLastId = lastMessage.id;
+                    String rawLastTimestamp = '';
+                    if (lastRawMessage is Map<String, dynamic>) {
+                      rawLastId = lastRawMessage['id']?.toString() ?? rawLastId;
+                      rawLastTimestamp =
+                        lastRawMessage['timestamp']?.toString() ?? '';
+                    }
+                    final snapshotSignature =
+                      '${currentMessageCount}_${rawLastId}_$rawLastTimestamp';
+                    final dataChanged = snapshotSignature != _lastSnapshotSignature;
+
+                    if (dataChanged) {
+                      _lastSnapshotSignature = snapshotSignature;
                     }
 
-                    // Mark as initially loaded after first render
-                    if (!_hasInitiallyScrolled) {
-                      _hasInitiallyScrolled = true;
+                    final shouldAutoScroll = dataChanged && (!_didInitialAutoScroll || _isNearBottom());
+                    if (currentMessageCount != _lastRenderedMessageCount || shouldAutoScroll) {
+                      _lastRenderedMessageCount = currentMessageCount;
+                      if (shouldAutoScroll) {
+                        _scheduleAutoScrollToLatest(force: !_didInitialAutoScroll);
+                      }
+                      _didInitialAutoScroll = true;
                     }
                     _previousMessageCount = currentMessageCount;
 
@@ -1084,138 +1407,86 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       );
     }
 
-    // Create a single list of widgets if there are no timestamps
-    bool hasTimestamps = messages.any((msg) => msg.timestamp != null);
-
-    if (!hasTimestamps) {
-      List<Widget> messageWidgets = [];
-
-      // Add a "Today" header
-      messageWidgets.add(
-        Padding(
-          padding: const EdgeInsets.symmetric(vertical: 16.0),
-          child: Center(
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-              decoration: BoxDecoration(
-                color: Theme.of(context).dividerColor.withOpacity(0.05),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Text(
-                'Messages',
-                style: TextStyle(
-                  color: Theme.of(context).textTheme.bodySmall?.color,
-                  fontSize: 12,
-                ),
-              ),
-            ),
-          ),
-        ),
-      );
-
-      // Add all messages
-      for (var message in messages) {
-        messageWidgets.add(_buildMessageBubble(message));
-      }
-
-      return ListView.builder(
-        controller: _scrollController,
-        padding: const EdgeInsets.all(16),
-        reverse: true, // Start from bottom
-        itemCount: messageWidgets.length,
-        itemBuilder: (context, index) {
-          // Reverse the index to show messages in correct order
-          final reversedIndex = messageWidgets.length - 1 - index;
-          return messageWidgets[reversedIndex];
-        },
-      );
-    }
-
-    // Group messages by date (original implementation)
-    Map<String, List<ChatMessage>> messagesByDate = {};
-
-    for (var message in messages) {
-      if (message.timestamp == null) {
-        // Skip messages without timestamp or add to a "No Date" group
-        const String dateKey = 'No Date';
-        if (!messagesByDate.containsKey(dateKey)) {
-          messagesByDate[dateKey] = [];
-        }
-        messagesByDate[dateKey]!.add(message);
-        continue;
-      }
-
-      final String dateKey = _getDateKey(message.timestamp!);
-
-      if (!messagesByDate.containsKey(dateKey)) {
-        messagesByDate[dateKey] = [];
-      }
-
-      messagesByDate[dateKey]!.add(message);
-    }
-
-    // Create a list of widgets with date headers and messages
     List<Widget> messageWidgets = [];
 
-    messagesByDate.forEach((dateKey, messages) {
-      // Add date header
-      if (dateKey != 'No Date') {
-        DateTime headerDate;
-        final now = DateTime.now().toUtc();
-        final today = DateTime(now.year, now.month, now.day);
+    final sortedMessages = List<ChatMessage>.from(messages);
 
-        if (dateKey == 'Today') {
-          headerDate = today;
-        } else if (dateKey == 'Yesterday') {
-          headerDate = today.subtract(const Duration(days: 1));
-        } else {
-          // Parse the date from the format "MMMM d, yyyy"
-          headerDate = DateFormat('MMMM d, yyyy').parse(dateKey);
-        }
+    final activeDayKeys = <String>{};
+    final insertedDayHeaderKeys = <String>{};
 
-        messageWidgets.add(DateHeader(dateTime: headerDate));
-      } else {
-        // For messages without timestamp
-        messageWidgets.add(
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 16.0),
-            child: Center(
-              child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).dividerColor.withOpacity(0.05),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Text(
-                  'Updated Messages',
-                  style: TextStyle(
-                    color: Theme.of(context).textTheme.bodySmall?.color,
-                    fontSize: 12,
-                  ),
-                ),
+    for (int index = 0; index < sortedMessages.length; index++) {
+      final message = sortedMessages[index];
+      final messageDateTime = message.timestamp?.toLocal();
+
+      if (messageDateTime != null) {
+        final dayKey = _dayKey(messageDateTime);
+        activeDayKeys.add(dayKey);
+
+        if (!insertedDayHeaderKeys.contains(dayKey)) {
+          insertedDayHeaderKeys.add(dayKey);
+          final sectionKey = _dateSectionKeys.putIfAbsent(dayKey, () => GlobalKey());
+          messageWidgets.add(
+            KeyedSubtree(
+              key: sectionKey,
+              child: DateHeader(
+                dateTime: _normalizeDate(messageDateTime),
+                showArrow: true,
+                onTap: _showDatePickerForJump,
               ),
             ),
+          );
+        }
+
+        final ChatMessage? nextMessage =
+            (index + 1 < sortedMessages.length) ? sortedMessages[index + 1] : null;
+        final DateTime? nextTimestamp = nextMessage?.timestamp?.toLocal();
+        final bool isToday =
+            _dayKey(messageDateTime) == _dayKey(DateTime.now());
+        final autoShowTimestamp = _shouldAutoShowTimestamp(
+          current: messageDateTime,
+          isToday: isToday,
+          next: nextTimestamp,
+          nextSenderId: nextMessage?.sender.uid,
+          currentSenderId: message.sender.uid,
+        );
+        final bool isMe = message.sender.uid == FirebaseAuth.instance.currentUser?.uid;
+        final bool isLatestOwnMessage = isMe && index == (sortedMessages.length - 1);
+        final statusLabel = isLatestOwnMessage ? (message.isProcessed ? 'Delivered' : 'Sent') : null;
+
+        messageWidgets.add(
+          ValueListenableBuilder<Map<String, bool>>(
+            key: ValueKey('msg_${message.id}'),
+            valueListenable: _timestampVisibilityOverrides,
+            builder: (context, overrides, _) {
+              final showTimestamp = overrides[message.id] ?? autoShowTimestamp;
+              return _buildMessageBubble(
+                message,
+                showTimestamp: showTimestamp,
+                timestampLabel:
+                    showTimestamp ? _formatVisibleTimestamp(messageDateTime) : null,
+                statusLabel: statusLabel,
+              );
+            },
           ),
         );
-      }
-
-      // Add messages for this date
-      for (var message in messages) {
+      } else {
         messageWidgets.add(_buildMessageBubble(message));
       }
-    });
+    }
 
-    return ListView.builder(
+    _activeDateKeys
+      ..clear()
+      ..addAll(activeDayKeys);
+    _dateSectionKeys.removeWhere((key, _) => !activeDayKeys.contains(key));
+
+    return SingleChildScrollView(
       controller: _scrollController,
-      padding: const EdgeInsets.all(16),
-      reverse: true, // Start from bottom
-      itemCount: messageWidgets.length,
-      itemBuilder: (context, index) {
-        // Reverse the index to show messages in correct order
-        final reversedIndex = messageWidgets.length - 1 - index;
-        return messageWidgets[reversedIndex];
-      },
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: messageWidgets,
+        ),
+      ),
     );
   }
 
@@ -1234,7 +1505,12 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     }
   }
 
-  Widget _buildMessageBubble(ChatMessage message) {
+  Widget _buildMessageBubble(
+    ChatMessage message, {
+    bool showTimestamp = false,
+    String? timestampLabel,
+    String? statusLabel,
+  }) {
     final bool isMe =
         message.sender.uid == FirebaseAuth.instance.currentUser?.uid;
 
@@ -1270,6 +1546,15 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       imageUrl: message.imageUrl,
       videoUrl: message.videoUrl,
       videoThumbnailUrl: message.videoThumbnailUrl,
+      showTimestamp: showTimestamp,
+      timestampLabel: timestampLabel,
+      statusLabel: statusLabel,
+        onTap: message.timestamp == null
+            ? null
+            : () => _toggleTimestampVisibility(message.id),
+        onLongPress: message.timestamp == null
+            ? null
+            : () => _toggleTimestampVisibility(message.id),
     );
   }
 
@@ -1364,8 +1649,94 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     }
   }
 
+  Future<void> _ensureParticipantUsernamesLoaded() async {
+    try {
+      final groupDoc = await FirebaseFirestore.instance
+          .collection('groupChats')
+          .doc(_groupId)
+          .get();
+      if (!groupDoc.exists) return;
+
+      final data = groupDoc.data();
+      final participants = data?['participants'];
+      if (participants is! List) return;
+
+      final missingUids = <String>[];
+
+      for (final participant in participants) {
+        if (participant is! Map) continue;
+        final participantMap = participant.cast<String, dynamic>();
+        final type = participantMap['type']?.toString().trim() ?? '';
+        if (type != 'user') continue;
+
+        final uid = participantMap['uid']?.toString().trim() ?? '';
+        if (uid.isEmpty || _usernamesByUid.containsKey(uid)) continue;
+
+        final usernameFromParticipant =
+            participantMap['username']?.toString().trim() ?? '';
+        if (usernameFromParticipant.isNotEmpty) {
+          _usernamesByUid[uid] = usernameFromParticipant;
+          continue;
+        }
+
+        missingUids.add(uid);
+      }
+
+      if (missingUids.isEmpty) {
+        if (mounted) setState(() {});
+        return;
+      }
+
+      for (int i = 0; i < missingUids.length; i += 10) {
+        final chunk = missingUids.sublist(
+          i,
+          (i + 10 > missingUids.length) ? missingUids.length : i + 10,
+        );
+
+        final results = await Future.wait([
+          FirebaseFirestore.instance
+              .collection('users')
+              .where(FieldPath.documentId, whereIn: chunk)
+              .get(),
+          FirebaseFirestore.instance
+              .collection('humanUsers')
+              .where(FieldPath.documentId, whereIn: chunk)
+              .get(),
+        ]);
+
+        final usersSnapshot = results[0] as QuerySnapshot<Map<String, dynamic>>;
+        final humanUsersSnapshot =
+            results[1] as QuerySnapshot<Map<String, dynamic>>;
+
+        for (final doc in usersSnapshot.docs) {
+          final username = doc.data()['username']?.toString().trim() ?? '';
+          if (username.isNotEmpty) {
+            _usernamesByUid[doc.id] = username;
+          }
+        }
+
+        for (final doc in humanUsersSnapshot.docs) {
+          if (_usernamesByUid.containsKey(doc.id)) continue;
+          final username = doc.data()['username']?.toString().trim() ?? '';
+          if (username.isNotEmpty) {
+            _usernamesByUid[doc.id] = username;
+          }
+        }
+      }
+
+      if (mounted) {
+        setState(() {});
+      }
+    } catch (e) {
+      print('Error preloading participant usernames: $e');
+    }
+  }
+
   // Method to show the participants dialog
-  void _showParticipantsDialog(BuildContext context) {
+  Future<void> _showParticipantsDialog(BuildContext context) async {
+    await _ensureParticipantUsernamesLoaded();
+    if (!mounted) return;
+
     // Track participants dialog viewing
     _sessionActivities.add('participants_viewed');
     AppsFlyerService().logEvent('group_chat_participants_viewed', {
@@ -1612,26 +1983,47 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
   // Helper method to parse participants
   List<Participant> _parseParticipantsList(List<dynamic> participantsData) {
-    return participantsData.map((participant) {
-      if (participant is Map) {
-        Map<String, dynamic> participantMap =
-            participant.cast<String, dynamic>();
+    final seenKeys = <String>{};
+    final uniqueParticipants = <Participant>[];
 
-        // If this is a user (AI or regular) and we have a cached profile picture, add it to the map
-        if (participantMap['uid'] != null &&
-            _userProfileImages.containsKey(participantMap['uid'])) {
-          print(
-              'Adding cached profile picture to participant: ${participantMap['uid']}');
-          participantMap['profilePictureUrl'] =
-              _userProfileImages[participantMap['uid']];
+    for (final participant in participantsData) {
+      if (participant is! Map) continue;
+
+      final participantMap = participant.cast<String, dynamic>();
+      final uid = participantMap['uid']?.toString().trim() ?? '';
+      final type = participantMap['type']?.toString().trim() ?? '';
+      if (type == 'user') {
+        final usernameFromParticipant =
+            participantMap['username']?.toString().trim() ?? '';
+        final usernameFromCache = uid.isNotEmpty ? (_usernamesByUid[uid] ?? '') : '';
+        final username = usernameFromParticipant.isNotEmpty
+            ? usernameFromParticipant
+            : usernameFromCache;
+
+        if (username.isNotEmpty) {
+          participantMap['name'] = username;
         }
-
-        return Participant.fromMap(participantMap);
-      } else {
-        // Return a default participant if the format is unexpected
-        return Participant(uid: '', type: 'unknown', name: 'Unknown');
       }
-    }).toList();
+
+      final name = participantMap['name']?.toString().trim() ?? '';
+      final dedupeKey = uid.isNotEmpty
+          ? 'uid:$uid'
+          : 'type:$type|name:${name.toLowerCase()}';
+
+      if (seenKeys.contains(dedupeKey)) {
+        continue;
+      }
+      seenKeys.add(dedupeKey);
+
+      if (uid.isNotEmpty && _userProfileImages.containsKey(uid)) {
+        print('Adding cached profile picture to participant: $uid');
+        participantMap['profilePictureUrl'] = _userProfileImages[uid];
+      }
+
+      uniqueParticipants.add(Participant.fromMap(participantMap));
+    }
+
+    return uniqueParticipants;
   }
 
   // Build avatar for participant

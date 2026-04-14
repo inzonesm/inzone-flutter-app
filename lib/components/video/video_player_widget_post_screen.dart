@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:video_player/video_player.dart';
 
 class VideoPlayerWidgetPostScreen extends StatefulWidget {
@@ -17,12 +18,14 @@ class _VideoPlayerWidgetPostScreenState extends State<VideoPlayerWidgetPostScree
   late bool _isPlaying;
   bool _showControls = false;
   bool _isLoading = true;
+  bool _isFullscreen = false;
 
   @override
   void initState() {
     super.initState();
-    _controller = VideoPlayerController.network(widget.videoUrl)
+    _controller = VideoPlayerController.networkUrl(Uri.parse(widget.videoUrl))
       ..initialize().then((_) {
+        if (!mounted) return;
         setState(() {
           _isLoading = false;
         });
@@ -34,11 +37,37 @@ class _VideoPlayerWidgetPostScreenState extends State<VideoPlayerWidgetPostScree
 
   @override
   void dispose() {
+    _controller.removeListener(_videoListener);
+    SystemChrome.setPreferredOrientations([
+      DeviceOrientation.portraitUp,
+    ]);
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     _controller.dispose();
     super.dispose();
   }
 
+  Future<void> _toggleFullscreen() async {
+    setState(() {
+      _isFullscreen = !_isFullscreen;
+    });
+
+    if (_isFullscreen) {
+      await SystemChrome.setPreferredOrientations([
+        DeviceOrientation.landscapeLeft,
+        DeviceOrientation.landscapeRight,
+        DeviceOrientation.portraitUp,
+      ]);
+      await SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+    } else {
+      await SystemChrome.setPreferredOrientations([
+        DeviceOrientation.portraitUp,
+      ]);
+      await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+    }
+  }
+
   void _videoListener() {
+    if (!mounted) return;
     final bool isPlaying = _controller.value.isPlaying;
     if (isPlaying != _isPlaying) {
       setState(() {
@@ -70,7 +99,10 @@ class _VideoPlayerWidgetPostScreenState extends State<VideoPlayerWidgetPostScree
 
   @override
   Widget build(BuildContext context) {
-    final double aspectRatio = _controller.value.aspectRatio;
+    final double aspectRatio = _controller.value.isInitialized &&
+            _controller.value.aspectRatio > 0
+        ? _controller.value.aspectRatio
+        : 9 / 16;
     return GestureDetector(
       onTap: () {
         _togglePlay();
@@ -121,6 +153,15 @@ class _VideoPlayerWidgetPostScreenState extends State<VideoPlayerWidgetPostScree
                               ),
                             ),
                             const SizedBox(width: 15),
+                            IconButton(
+                              onPressed: _toggleFullscreen,
+                              icon: Icon(
+                                _isFullscreen
+                                    ? Icons.fullscreen_exit
+                                    : Icons.fullscreen,
+                                color: Colors.white,
+                              ),
+                            ),
                             Padding(
                               padding: const EdgeInsets.only(top: 5.0),
                               child: Text(
@@ -151,6 +192,10 @@ class _VideoPlayerWidgetPostScreenState extends State<VideoPlayerWidgetPostScree
                   color: Colors.white,
                 ),
                 onPressed: () {
+                  if (_isFullscreen) {
+                    _toggleFullscreen();
+                    return;
+                  }
                   Navigator.of(context).pop();
                 },
               ),

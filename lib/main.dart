@@ -195,15 +195,32 @@ Future<void> validateFirebaseSession() async {
       // Try to refresh the ID token in case it's about to expire
       await user.getIdToken(true);
       return;
-    } catch (e) {
-      print('Error validating user session: $e');
-      // Token is invalid, sign the user out
+    } on FirebaseAuthException catch (e) {
+      print('Firebase auth exception while validating session: ${e.code}');
+
+      const fatalSessionErrorCodes = {
+        'user-disabled',
+        'user-not-found',
+        'invalid-user-token',
+        'user-token-expired',
+      };
+
+      if (!fatalSessionErrorCodes.contains(e.code)) {
+        print(
+            'Keeping existing session; validation failure appears transient.');
+        return;
+      }
+
       try {
         await FirebaseAuth.instance.signOut();
-        print('User signed out due to invalid session');
+        print('User signed out due to invalid session (${e.code})');
       } catch (signOutError) {
         print('Error signing out: $signOutError');
       }
+    } catch (e) {
+      print('Non-auth error validating session: $e');
+      print(
+          'Keeping existing session; likely temporary network/startup issue.');
     }
   }
 }
@@ -211,7 +228,6 @@ Future<void> validateFirebaseSession() async {
 Future<void> initPlatformState() async {
   await Purchases.setLogLevel(LogLevel.debug);
 
-  PurchasesConfiguration configuration;
   if (Platform.isAndroid) {
     if (FirebaseAuth.instance.currentUser != null) {
       await Purchases.configure(
@@ -373,8 +389,8 @@ void main() async {
         }),
         InitTimer.measure('  └─ NotificationEventService.init', () async {
           try {
-            await NotificationEventService.initializePushNotifications().timeout(
-                const Duration(seconds: 8), onTimeout: () {
+            await NotificationEventService.initializePushNotifications()
+                .timeout(const Duration(seconds: 8), onTimeout: () {
               print(
                   '⚠️ NotificationEventService.init timed out after 8s; continuing startup');
             });

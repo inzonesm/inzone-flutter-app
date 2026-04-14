@@ -625,9 +625,9 @@ class _VideoWidgetState extends State<VideoWidget> with WidgetsBindingObserver {
     final aspectRatio = _androidController!.value.aspectRatio;
     final isPlaying = _androidController!.value.isPlaying;
 
-    Widget videoWidget = AspectRatio(
-      aspectRatio: aspectRatio > 0 ? aspectRatio : 9 / 16,
-      child: Stack(
+    final double safeAspectRatio = aspectRatio > 0 ? aspectRatio : 9 / 16;
+
+    final Widget videoContent = Stack(
         children: [
           // The video player
           vp.VideoPlayer(_androidController!),
@@ -739,7 +739,11 @@ class _VideoWidgetState extends State<VideoWidget> with WidgetsBindingObserver {
             ),
           ),
         ],
-      ),
+    );
+
+    final Widget videoWidget = AspectRatio(
+      aspectRatio: safeAspectRatio,
+      child: videoContent,
     );
 
     return VisibilityDetector(
@@ -795,9 +799,7 @@ class _VideoWidgetState extends State<VideoWidget> with WidgetsBindingObserver {
         showVideoProgressIndicator: true,
       );
 
-      final Widget yt = AspectRatio(
-        aspectRatio: ytAspect,
-        child: Stack(
+      final Widget ytContent = Stack(
           children: [
             Positioned.fill(child: ytCore),
             Positioned(
@@ -824,8 +826,13 @@ class _VideoWidgetState extends State<VideoWidget> with WidgetsBindingObserver {
                 ),
               ),
             ),
+
           ],
-        ),
+      );
+
+      final Widget yt = AspectRatio(
+        aspectRatio: ytAspect,
+        child: ytContent,
       );
 
       return VisibilityDetector(
@@ -1014,54 +1021,6 @@ class _VideoWidgetState extends State<VideoWidget> with WidgetsBindingObserver {
                 ),
               ),
             ),
-
-            // // Full screen button
-            // Positioned(
-            //   bottom: 10,
-            //   right: 56, // Position it to the left of the mute button
-            //   child: GestureDetector(
-            //     onTap: () {
-            //       // Toggle fullscreen
-            //       if (_mediaKitPlayer != null) {
-            //         setState(() {
-            //           _isFullscreen = !_isFullscreen;
-            //         });
-
-            //         if (_isFullscreen) {
-            //           // Enter fullscreen mode - always use portrait orientation
-            //           SystemChrome.setPreferredOrientations([
-            //             DeviceOrientation.portraitUp,
-            //           ]);
-
-            //           SystemChrome.setEnabledSystemUIMode(
-            //             SystemUiMode.immersiveSticky,
-            //           );
-            //         } else {
-            //           // Exit fullscreen mode
-            //           SystemChrome.setPreferredOrientations([
-            //             DeviceOrientation.portraitUp,
-            //           ]);
-            //           SystemChrome.setEnabledSystemUIMode(
-            //             SystemUiMode.edgeToEdge,
-            //           );
-            //         }
-            //       }
-            //     },
-            //     child: Container(
-            //       width: 36,
-            //       height: 36,
-            //       decoration: BoxDecoration(
-            //         color: Colors.black.withOpacity(0.6),
-            //         shape: BoxShape.circle,
-            //       ),
-            //       child: Icon(
-            //         _isFullscreen ? Icons.fullscreen_exit : Icons.fullscreen,
-            //         color: Colors.white,
-            //         size: 20,
-            //       ),
-            //     ),
-            //   ),
-            // ),
 
             // Timestamp overlay during scrubbing
             if (_isScrubbing)

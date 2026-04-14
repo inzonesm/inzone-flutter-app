@@ -11,6 +11,29 @@ class GroupChatService {
   // Get the document ID that we're using for all group chats
   static const String defaultGroupChatDocId = 'group_chat_20250410191513';
 
+  static Future<String> _resolveUsername(String uid) async {
+    try {
+      final userProfile = await InZoneDatabase.getUserProfile(uid);
+      final fromProfile = userProfile?['username']?.toString().trim() ?? '';
+      if (fromProfile.isNotEmpty) return fromProfile;
+    } catch (_) {}
+
+    final usersDoc = await _firestore.collection('users').doc(uid).get();
+    if (usersDoc.exists) {
+      final fromUsers = usersDoc.data()?['username']?.toString().trim() ?? '';
+      if (fromUsers.isNotEmpty) return fromUsers;
+    }
+
+    final humanUsersDoc = await _firestore.collection('humanUsers').doc(uid).get();
+    if (humanUsersDoc.exists) {
+      final fromHumanUsers =
+          humanUsersDoc.data()?['username']?.toString().trim() ?? '';
+      if (fromHumanUsers.isNotEmpty) return fromHumanUsers;
+    }
+
+    return '';
+  }
+
   // Get group chat data by specific ID
   static Stream<DocumentSnapshot> getGroupChatStreamById(String groupId) {
     return _firestore.collection('groupChats').doc(groupId).snapshots();
@@ -96,10 +119,13 @@ class GroupChatService {
         }
       }
 
+      final username = await _resolveUsername(currentUser.uid);
+
       final currentParticipant = {
         'uid': currentUser.uid,
         'type': 'user',
         'name': displayName,
+        'username': username,
       };
 
       // Create the message with Timestamp instead of DateTime for Firestore compatibility
@@ -162,12 +188,20 @@ class GroupChatService {
                 msgMap = (existingMessages[i] as Map).cast<String, dynamic>();
               }
 
-              // Add timestamp if it doesn't exist
-              if (!msgMap.containsKey('timestamp')) {
-                print('Adding missing timestamp to message $i');
-                msgMap['timestamp'] = timestamp;
-                existingMessages[i] = msgMap;
-                updatedExistingMessages = true;
+              // Add timestamp only from legacy date fields when missing.
+              // Do not backfill with "now" because it corrupts historical ordering.
+              if (!msgMap.containsKey('timestamp') || msgMap['timestamp'] == null) {
+                final legacyCreatedAt = msgMap['createdAt'];
+                final legacyUpdatedAt = msgMap['updatedAt'];
+                if (legacyCreatedAt != null) {
+                  msgMap['timestamp'] = legacyCreatedAt;
+                  existingMessages[i] = msgMap;
+                  updatedExistingMessages = true;
+                } else if (legacyUpdatedAt != null) {
+                  msgMap['timestamp'] = legacyUpdatedAt;
+                  existingMessages[i] = msgMap;
+                  updatedExistingMessages = true;
+                }
               }
             }
           }
@@ -265,10 +299,13 @@ class GroupChatService {
       print('Assigning user name temp');
     }
 
+    final username = await _resolveUsername(currentUser.uid);
+
     final currentParticipant = {
       'uid': currentUser.uid,
       'type': 'user',
       'name': displayName,
+      'username': username,
     };
 
     // Create a default Messi AI participant
@@ -333,10 +370,13 @@ class GroupChatService {
         print('Assigning user name temp');
       }
 
+      final username = await _resolveUsername(currentUser.uid);
+
       final currentParticipant = {
         'uid': currentUser.uid,
         'type': 'user',
         'name': displayName,
+        'username': username,
       };
 
       // Create the group data

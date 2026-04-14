@@ -61,6 +61,76 @@ class _CustomAppBarState extends State<CustomAppBar> {
   final MonetizationService _monetizationService = MonetizationService();
   String _userBalance = '0';
 
+  Widget _buildHomeProfileButton(BuildContext context) {
+    final hasProfileImage =
+        widget.profileImageUrl != null && widget.profileImageUrl!.trim().isNotEmpty;
+
+    return GestureDetector(
+      onTap: widget.onProfileTap,
+      child: SizedBox(
+        width: 36,
+        height: 36,
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Positioned.fill(
+              child: Material(
+                color: Theme.of(context).cardColor,
+                shape: const CircleBorder(),
+                child: hasProfileImage
+                    ? ClipOval(
+                        child: Image.network(
+                          widget.profileImageUrl!,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) {
+                            return Icon(
+                              Icons.person,
+                              size: 20,
+                              color: Theme.of(context).iconTheme.color,
+                            );
+                          },
+                        ),
+                      )
+                    : Icon(
+                        Icons.person,
+                        size: 20,
+                        color: Theme.of(context).iconTheme.color,
+                      ),
+              ),
+            ),
+            if (widget.notificationCount != null && widget.notificationCount! > 0)
+              Positioned(
+                right: -2,
+                top: -2,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                  decoration: const BoxDecoration(
+                    color: Colors.red,
+                    borderRadius: BorderRadius.all(Radius.circular(10)),
+                  ),
+                  constraints: const BoxConstraints(
+                    minWidth: 10,
+                    minHeight: 10,
+                  ),
+                  child: Text(
+                    widget.notificationCount! > 99
+                        ? '99+'
+                        : widget.notificationCount.toString(),
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 9,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   void initState() {
     super.initState();
@@ -273,10 +343,7 @@ class _CustomAppBarState extends State<CustomAppBar> {
                         !widget.isGroup &&
                         !widget.isChat &&
                         !widget.isSettings)
-                      AppbarIcon(
-                          icon: Icons.person,
-                          onTap: widget.onProfileTap,
-                          badgeCount: widget.notificationCount),
+                      _buildHomeProfileButton(context),
                   if (widget.isGroup && widget.onSearchTap != null)
                     GestureDetector(
                       onTap: widget.onSearchTap,

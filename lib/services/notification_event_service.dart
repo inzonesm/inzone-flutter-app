@@ -15,6 +15,28 @@ class NotificationEventService {
   
   // Firebase messaging instance
   static final FirebaseMessaging _firebaseMessaging = FirebaseMessaging.instance;
+  static String? _activeConversationId;
+  static String? _activeGroupChatId;
+
+  static void setActiveConversationId(String conversationId) {
+    _activeConversationId = conversationId;
+  }
+
+  static void clearActiveConversationId(String conversationId) {
+    if (_activeConversationId == conversationId) {
+      _activeConversationId = null;
+    }
+  }
+
+  static void setActiveGroupChatId(String groupId) {
+    _activeGroupChatId = groupId;
+  }
+
+  static void clearActiveGroupChatId(String groupId) {
+    if (_activeGroupChatId == groupId) {
+      _activeGroupChatId = null;
+    }
+  }
 
   /// Helper method to validate and resolve user ID for human users only
   /// This method is specifically for notifications and only returns human user IDs
@@ -1634,7 +1656,11 @@ class NotificationEventService {
               isMember: true,
               showRandomCharacters: true,
             );
-            AppRouter.router.push(Routes.groupChat, extra: groupData);
+            if (_activeGroupChatId == chatId) {
+              AppRouter.router.replace(Routes.groupChat, extra: groupData);
+            } else {
+              AppRouter.router.push(Routes.groupChat, extra: groupData);
+            }
           } else {
             print('⚠️ Invalid group chat ID: $chatId');
             AppRouter.router.push(Routes.home);
@@ -1693,11 +1719,17 @@ class NotificationEventService {
                 }
               }
               
-              AppRouter.router.push(Routes.chat, extra: {
+              final chatExtra = {
                 'conversationId': chatId,
                 'otherUserId': otherUserId,
                 'otherUserName': otherUserName,
-              });
+              };
+
+              if (_activeConversationId == chatId) {
+                AppRouter.router.replace(Routes.chat, extra: chatExtra);
+              } else {
+                AppRouter.router.push(Routes.chat, extra: chatExtra);
+              }
             } else {
               print('⚠️ Could not determine other user ID from chat ID: $chatId');
               AppRouter.router.push(Routes.home);

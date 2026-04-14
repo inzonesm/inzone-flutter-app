@@ -2409,6 +2409,7 @@ class _PostCardState extends State<PostCard>
   String? selectedCommentId;
   String? selectedCommentAuthor;
   bool showReplyComposer = false;
+  bool _isSubmittingCommentAction = false;
 
   // More persistent reply state
   final Map<String, dynamic> _replyState = {
@@ -2577,6 +2578,8 @@ class _PostCardState extends State<PostCard>
                     color: Theme.of(context).colorScheme.primary,
                     shape: const CircleBorder(),
                     onPressed: () async {
+                      if (_isSubmittingCommentAction) return;
+
                       print('Send button pressed - type: $type');
 
                       // If the text field currently has focus and the user is
@@ -2591,10 +2594,22 @@ class _PostCardState extends State<PostCard>
                         await Future.delayed(const Duration(milliseconds: 50));
                       }
 
-                      if (type == 'Reply') {
-                        _addReply();
-                      } else {
-                        _addComment();
+                      setState(() {
+                        _isSubmittingCommentAction = true;
+                      });
+
+                      try {
+                        if (type == 'Reply') {
+                          await _addReply();
+                        } else {
+                          await _addComment();
+                        }
+                      } finally {
+                        if (mounted) {
+                          setState(() {
+                            _isSubmittingCommentAction = false;
+                          });
+                        }
                       }
                     },
                     child: const Center(
@@ -2615,7 +2630,7 @@ class _PostCardState extends State<PostCard>
   }
 
   // Add comment to Firestore
-  void _addComment() async {
+  Future<void> _addComment() async {
     print(widget.post.id);
     String commentText = mySearchController.text.trim();
 
@@ -2915,7 +2930,7 @@ class _PostCardState extends State<PostCard>
   }
 
   // Add reply to a comment
-  void _addReply() async {
+  Future<void> _addReply() async {
     print('=== _addReply called ===');
     print('selectedCommentId: $selectedCommentId');
     print('selectedCommentAuthor: $selectedCommentAuthor');
@@ -4047,34 +4062,32 @@ class _VideoWidgetWrapperState extends State<_VideoWidgetWrapper> {
               widget.onAspectRatioUpdated(aspectRatio);
             },
           ),
-          // Add fullscreen button overlay
-          // Positioned(
-          //   bottom: 8,
-          //   right: 8,
-          //   child: Container(
-          //     decoration: BoxDecoration(
-          //       color: Colors.black.withOpacity(0.6),
-          //       borderRadius: BorderRadius.circular(20),
-          //     ),
-          //     child: IconButton(
-          //       icon: const Icon(
-          //         Icons.fullscreen,
-          //         color: Colors.white,
-          //         size: 20,
-          //       ),
-          //       onPressed: () {
-          //         // Open fullscreen video viewer
-          //         Navigator.of(context).push(
-          //           MaterialPageRoute(
-          //             builder: (context) =>
-          //                 _FullScreenVideoViewer(videoUrl: widget.videoUrl),
-          //             fullscreenDialog: true,
-          //           ),
-          //         );
-          //       },
-          //     ),
-          //   ),
-          // ),
+          Positioned(
+            bottom: 8,
+            right: 8,
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.black.withOpacity(0.6),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: IconButton(
+                icon: const Icon(
+                  Icons.fullscreen,
+                  color: Colors.white,
+                  size: 20,
+                ),
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (context) =>
+                          _FullScreenVideoViewer(videoUrl: widget.videoUrl),
+                      fullscreenDialog: true,
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
         ],
       ),
     );

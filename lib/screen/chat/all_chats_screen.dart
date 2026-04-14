@@ -16,6 +16,7 @@ import 'package:inzone/components/ui/appbar.dart';
 import 'package:inzone/theme/app_colors.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:inzone/data/group_data.dart';
+import 'package:intl/intl.dart';
 // import 'package:inzone/components/ui/inzone_text_field.dart';
 // import 'package:inzone/components/ui/my_button.dart';
 // import 'package:inzone/models/chat_model.dart';
@@ -506,21 +507,22 @@ class _ChatUserCardState extends State<ChatUserCard> {
   Widget build(BuildContext context) {
     String formattedTime = '';
     if (widget.userData.lastMessageTime != null) {
-      DateTime messageTime = widget.userData.lastMessageTime!.toDate().toUtc();
-      DateTime now = DateTime.now().toUtc();
+      DateTime messageTime = widget.userData.lastMessageTime!.toDate().toLocal();
+      DateTime now = DateTime.now().toLocal();
 
       if (now.difference(messageTime).inDays == 0) {
         // Today - show time
-        DateTime localTime = messageTime.toLocal();
-        formattedTime =
-            '${localTime.hour.toString().padLeft(2, '0')}:${localTime.minute.toString().padLeft(2, '0')}';
+        formattedTime = DateFormat('h:mm a').format(messageTime);
       } else if (now.difference(messageTime).inDays == 1) {
         // Yesterday
         formattedTime = 'Yesterday';
       } else {
         // Other days - show date
-        DateTime localTime = messageTime.toLocal();
-        formattedTime = '${localTime.day}/${localTime.month}/${localTime.year}';
+        if (messageTime.year == now.year) {
+          formattedTime = DateFormat('MMM d').format(messageTime);
+        } else {
+          formattedTime = DateFormat('M/d/yyyy').format(messageTime);
+        }
       }
     }
 

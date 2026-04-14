@@ -38,7 +38,7 @@ class UserPostsTab extends StatelessWidget {
           handle: NestedScrollView.sliverOverlapAbsorberHandleFor(context),
         ),
         SliverPadding(
-          padding: const EdgeInsets.all(15.0),
+          padding: const EdgeInsets.symmetric(horizontal: 4.0),
           sliver: SliverList(
             delegate: SliverChildBuilderDelegate(
               (context, index) {
