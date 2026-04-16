@@ -5,6 +5,7 @@ import 'package:firebase_remote_config/firebase_remote_config.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter/services.dart';
 import 'package:inzone/config/default_firebase_options.dart';
 import 'package:media_kit/media_kit.dart';
@@ -29,6 +30,8 @@ import 'package:inzone/services/reward_ad_service.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:inzone/services/ai_engagement_service.dart';
 import 'package:inzone/services/active_character_notifier.dart';
+import 'package:inzone/services/translation/free_translation_service.dart';
+import 'package:inzone/services/translation/translation_settings_controller.dart';
 import 'package:simula_ads/simula_ads.dart';
 
 // Key for storing first launch status in SharedPreferences
@@ -362,6 +365,9 @@ void main() async {
         providers: [
           ChangeNotifierProvider(create: (_) => ThemeManager()),
           ChangeNotifierProvider(create: (_) => ActiveCharacterNotifier()),
+          ChangeNotifierProvider(
+            create: (_) => TranslationSettingsController()..loadPreferences(),
+          ),
         ],
         child: MyApp(prefs: prefs, needsUpdate: needsUpdate),
       ),
@@ -556,6 +562,7 @@ class _MyAppState extends State<MyApp> {
 
   @override
   void dispose() {
+    FreeTranslationService.instance.dispose();
     AIEngagementService.dispose();
     super.dispose();
   }
@@ -564,6 +571,8 @@ class _MyAppState extends State<MyApp> {
   Widget build(BuildContext context) {
     // Get the ThemeManager from the Provider
     final themeManager = Provider.of<ThemeManager>(context);
+    final translationSettings =
+        Provider.of<TranslationSettingsController>(context);
 
     return SimulaProvider(
       apiKey: 'pub_6d4e9b1c8a3f5e2d7c0b41a9f6e38d2c',
@@ -576,6 +585,13 @@ class _MyAppState extends State<MyApp> {
         theme: themeManager.getLightTheme(),
         darkTheme: themeManager.getDarkTheme(),
         themeMode: themeManager.themeMode,
+        locale: translationSettings.locale,
+        supportedLocales: translationSettings.supportedUiLocales,
+        localizationsDelegates: const [
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
         routerConfig: AppRouter.router,
       ),
     );

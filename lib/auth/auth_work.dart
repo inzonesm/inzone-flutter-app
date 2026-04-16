@@ -61,6 +61,20 @@ class AuthWork {
     }
   }
 
+  // static Future<void> _upsertHumanUserFromAuth(User currentUser) async {
+  //   final fallbackName = _buildFallbackDisplayName(currentUser);
+  //   final fallbackUsername = _buildFallbackUsername(currentUser);
+
+  //   await firestore.collection('humanUsers').doc(currentUser.uid).set({
+  //     'uid': currentUser.uid,
+  //     'email': currentUser.email,
+  //     'name': fallbackName,
+  //     'username': fallbackUsername,
+  //     'createdAt': FieldValue.serverTimestamp(),
+  //     'interests': [],
+  //   }, SetOptions(merge: true));
+  // }
+
   // static FirebaseStorage storage = FirebaseStorage.instance;
 
   //for gmail user
@@ -537,22 +551,18 @@ class AuthWork {
 
       final currentUser = auth.currentUser;
       if (currentUser != null) {
-        final profileData = <String, dynamic>{
+        final fallbackName = _buildFallbackDisplayName(currentUser);
+        final fallbackUsername = _buildFallbackUsername(currentUser);
+
+        await firestore.collection('humanUsers').doc(currentUser.uid).set({
           'uid': currentUser.uid,
           'email': currentUser.email,
+          'name': fallbackName,
+          'username': fallbackUsername,
           'createdAt': FieldValue.serverTimestamp(),
           'interests': [],
-        };
-
-        final displayName = currentUser.displayName?.trim();
-        if (displayName != null && displayName.isNotEmpty) {
-          profileData['name'] = displayName;
-        }
-
-        await firestore
-            .collection('humanUsers')
-            .doc(currentUser.uid)
-            .set(profileData, SetOptions(merge: true));
+        }, SetOptions(merge: true));
+        // await _upsertHumanUserFromAuth(currentUser);
 
         // Re-register FCM token after successful Google sign-in
         try {
@@ -589,22 +599,17 @@ class AuthWork {
 
       final currentUser = auth.currentUser;
       if (currentUser != null) {
-        final profileData = <String, dynamic>{
+        final fallbackName = _buildFallbackDisplayName(currentUser);
+        final fallbackUsername = _buildFallbackUsername(currentUser);
+
+        await firestore.collection('humanUsers').doc(currentUser.uid).set({
           'uid': currentUser.uid,
           'email': currentUser.email,
+          'name': fallbackName,
+          'username': fallbackUsername,
           'createdAt': FieldValue.serverTimestamp(),
           'interests': [],
-        };
-
-        final displayName = currentUser.displayName?.trim();
-        if (displayName != null && displayName.isNotEmpty) {
-          profileData['name'] = displayName;
-        }
-
-        await firestore
-            .collection('humanUsers')
-            .doc(currentUser.uid)
-            .set(profileData, SetOptions(merge: true));
+        }, SetOptions(merge: true));
 
         // Re-register FCM token after successful Apple sign-in
         try {
@@ -620,6 +625,47 @@ class AuthWork {
       print("❌ Sign in with Apple failed: $e");
       return null;
     }
+  }
+
+  static String _buildFallbackDisplayName(User user) {
+    final displayName = user.displayName?.trim();
+    if (displayName != null && displayName.isNotEmpty) {
+      return displayName;
+    }
+
+    final emailLocalPart = _emailLocalPart(user.email);
+    if (emailLocalPart != null && emailLocalPart.isNotEmpty) {
+      return emailLocalPart;
+    }
+
+    return 'User';
+  }
+
+  static String _buildFallbackUsername(User user) {
+    final emailLocalPart = _emailLocalPart(user.email);
+    if (emailLocalPart != null && emailLocalPart.isNotEmpty) {
+      return emailLocalPart;
+    }
+
+    final displayName = user.displayName?.trim();
+    if (displayName != null && displayName.isNotEmpty) {
+      return displayName;
+    }
+
+    return user.uid;
+  }
+
+  static String? _emailLocalPart(String? email) {
+    if (email == null || email.trim().isEmpty) {
+      return null;
+    }
+
+    final parts = email.split('@');
+    if (parts.isEmpty) {
+      return null;
+    }
+
+    return parts.first.trim();
   }
 
   /* ----------------------email sign in-------------------------- */

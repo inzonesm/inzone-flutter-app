@@ -17,6 +17,10 @@ import 'package:inzone/services/monetization_service.dart';
 import 'package:inzone/services/auth_service.dart';
 import 'package:inzone/services/reward_ad_service.dart';
 import 'package:inzone/services/account_lifecycle_service.dart';
+import 'package:inzone/services/translation/translation_cache_service.dart';
+import 'package:inzone/services/translation/translation_metrics_service.dart';
+import 'package:inzone/services/translation/translation_settings_controller.dart';
+import 'package:provider/provider.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -287,7 +291,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
             height: MediaQuery.of(context).size.height * 0.82,
             decoration: BoxDecoration(
               color: Theme.of(context).canvasColor,
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(24)),
             ),
             child: Column(
               children: [
@@ -352,7 +357,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               SizedBox(
                                 width: double.infinity,
                                 child: ElevatedButton(
-                                  onPressed: () => Navigator.of(context).pop('deactivate'),
+                                  onPressed: () =>
+                                      Navigator.of(context).pop('deactivate'),
                                   child: const Text('Deactivate account'),
                                 ),
                               ),
@@ -388,7 +394,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               SizedBox(
                                 width: double.infinity,
                                 child: ElevatedButton(
-                                  onPressed: () => Navigator.of(context).pop('delete'),
+                                  onPressed: () =>
+                                      Navigator.of(context).pop('delete'),
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: Colors.redAccent,
                                     foregroundColor: Colors.white,
@@ -460,7 +467,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       const SizedBox(height: 12),
                       TextField(
                         obscureText: true,
-                        decoration: const InputDecoration(labelText: 'Password'),
+                        decoration:
+                            const InputDecoration(labelText: 'Password'),
                         onChanged: (value) => password = value,
                       ),
                       if (errorText != null) ...[
@@ -577,8 +585,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
     final uid = currentUser.uid;
     final result = action == 'deactivate'
-      ? await _accountLifecycleService.deactivateAccount(uid)
-      : await _accountLifecycleService.requestAccountDeletion(uid);
+        ? await _accountLifecycleService.deactivateAccount(uid)
+        : await _accountLifecycleService.requestAccountDeletion(uid);
 
     ToastService.showToast(
       context,
@@ -691,6 +699,304 @@ class _SettingsScreenState extends State<SettingsScreen> {
         message: 'Failed to show reward ad. Please try again.',
       );
     }
+  }
+
+  Future<void> _showTranslationSettingsSheet(
+    BuildContext context,
+    TranslationSettingsController translationSettings,
+  ) async {
+    bool localEnabled = translationSettings.translationEnabled;
+    bool localShowImprove = translationSettings.showImproveAction;
+    String localLanguage = translationSettings.targetLanguageCode;
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) {
+        return SafeArea(
+          child: StatefulBuilder(
+            builder: (context, setSheetState) {
+              return Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 20),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Feed Translation',
+                      style: Theme.of(context).textTheme.titleLarge,
+                    ),
+                    const SizedBox(height: 12),
+                    SwitchListTile.adaptive(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('Enable automatic translation'),
+                      value: localEnabled,
+                      onChanged: (value) {
+                        setSheetState(() {
+                          localEnabled = value;
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 8),
+                    DropdownButtonFormField<String>(
+                      decoration: const InputDecoration(
+                        labelText: 'Translate content to',
+                        border: OutlineInputBorder(),
+                      ),
+                      value: localLanguage,
+                      items: TranslationSettingsController.supportedLanguages
+                          .map(
+                            (option) => DropdownMenuItem<String>(
+                              value: option.code,
+                              child: Text(option.label),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: (value) {
+                        if (value == null) {
+                          return;
+                        }
+                        setSheetState(() {
+                          localLanguage = value;
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    SwitchListTile.adaptive(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('Show Improve translation action'),
+                      subtitle: const Text(
+                        'Routes nuanced translation requests to premium routing.',
+                      ),
+                      value: localShowImprove,
+                      onChanged: (value) {
+                        setSheetState(() {
+                          localShowImprove = value;
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: () async {
+                          await translationSettings
+                              .setTranslationEnabled(localEnabled);
+                          await translationSettings
+                              .setTargetLanguageCode(localLanguage);
+                          await translationSettings
+                              .setShowImproveAction(localShowImprove);
+                          if (!context.mounted) {
+                            return;
+                          }
+                          Navigator.of(context).pop();
+                        },
+                        child: const Text('Save'),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _showPreferredTranslationLanguageSheet(
+    BuildContext context,
+    TranslationSettingsController translationSettings,
+  ) async {
+    String localLanguage = translationSettings.targetLanguageCode;
+
+    await showModalBottomSheet<void>(
+      context: context,
+      builder: (context) {
+        return SafeArea(
+          child: StatefulBuilder(
+            builder: (context, setSheetState) {
+              return Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 20),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Preferred Translation Language',
+                      style: Theme.of(context).textTheme.titleLarge,
+                    ),
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      decoration: const InputDecoration(
+                        labelText: 'Translate feed content to',
+                        border: OutlineInputBorder(),
+                      ),
+                      value: localLanguage,
+                      items: TranslationSettingsController.supportedLanguages
+                          .map(
+                            (option) => DropdownMenuItem<String>(
+                              value: option.code,
+                              child: Text(option.label),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: (value) {
+                        if (value == null) {
+                          return;
+                        }
+                        setSheetState(() {
+                          localLanguage = value;
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: () async {
+                          await translationSettings
+                              .setTargetLanguageCode(localLanguage);
+                          await translationSettings.setTranslationEnabled(true);
+                          if (!context.mounted) {
+                            return;
+                          }
+                          Navigator.of(context).pop();
+                          ToastService.showToast(
+                            context,
+                            backgroundColor: Theme.of(context).canvasColor,
+                            shadowColor: Colors.transparent,
+                            leading: const Icon(
+                              Icons.check_circle,
+                              color: Colors.greenAccent,
+                            ),
+                            message:
+                                'Preferred translation language updated and translation enabled.',
+                          );
+                        },
+                        child: const Text('Save'),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _showAppLanguageSheet(
+    BuildContext context,
+    TranslationSettingsController translationSettings,
+  ) async {
+    String localLanguage = translationSettings.uiLocaleCode;
+
+    await showModalBottomSheet<void>(
+      context: context,
+      builder: (context) {
+        return SafeArea(
+          child: StatefulBuilder(
+            builder: (context, setSheetState) {
+              return Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 20),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'App Language',
+                      style: Theme.of(context).textTheme.titleLarge,
+                    ),
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      decoration: const InputDecoration(
+                        labelText: 'Select app language',
+                        border: OutlineInputBorder(),
+                      ),
+                      value: localLanguage,
+                      items: TranslationSettingsController.supportedLanguages
+                          .map(
+                            (option) => DropdownMenuItem<String>(
+                              value: option.code,
+                              child: Text(option.label),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: (value) {
+                        if (value == null) {
+                          return;
+                        }
+                        setSheetState(() {
+                          localLanguage = value;
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: () async {
+                          await translationSettings
+                              .setUiLocaleCode(localLanguage);
+                          if (!context.mounted) {
+                            return;
+                          }
+                          Navigator.of(context).pop();
+                        },
+                        child: const Text('Apply'),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _showTranslationStats(BuildContext context) async {
+    final metrics = await TranslationMetricsService.instance.snapshot();
+    final cacheCount = await TranslationCacheService.instance.count();
+
+    if (!context.mounted) {
+      return;
+    }
+
+    final DateTime? lastUpdatedAt = metrics['lastUpdatedAt'] as DateTime?;
+    final cacheHitRate = (metrics['cacheHitRate'] as double).toStringAsFixed(1);
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Translation Dashboard'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Requests: ${metrics['requestCount']}'),
+              Text('Cache hits: ${metrics['cacheHits']} ($cacheHitRate%)'),
+              Text('On-device success: ${metrics['onDeviceSuccess']}'),
+              Text('Fallback count: ${metrics['fallbackCount']}'),
+              Text('Premium route requests: ${metrics['premiumEscalations']}'),
+              Text('Cached entries: $cacheCount'),
+              if (lastUpdatedAt != null)
+                Text('Last update: ${lastUpdatedAt.toLocal()}'),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('Close'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   List<String> category = ["Personal", "Others"];
@@ -897,6 +1203,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final translationSettings = context.watch<TranslationSettingsController>();
+
     return ColorfulSafeArea(
       color: Theme.of(context).canvasColor,
       child: Scaffold(
@@ -921,189 +1229,272 @@ class _SettingsScreenState extends State<SettingsScreen> {
           child: Padding(
             padding: const EdgeInsets.all(15.0),
             child: Column(
-            mainAxisAlignment: MainAxisAlignment.start,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                decoration: BoxDecoration(
-                  color: Theme.of(context).cardColor,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                padding: const EdgeInsets.all(10),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 10),
-                      child: Text(
-                        category[0],
-                        style: Theme.of(context).textTheme.titleMedium,
+              mainAxisAlignment: MainAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).cardColor,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  padding: const EdgeInsets.all(10),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 10),
+                        child: Text(
+                          category[0],
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 10),
-                    ...List.generate(personalTitleList.length, (index) {
-                      return Column(
-                        children: [
-                          SettingsTile(
-                            title: personalTitleList[index],
-                            subtitle: personalSubtitleList[index],
-                            onPressed: personalOnPressedList(context)[index],
-                          ),
-                          if (index != personalTitleList.length - 1)
-                            Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 5),
-                              child: Divider(
-                                color: Theme.of(context)
-                                    .dividerColor
-                                    .withOpacity(0.05),
-                                thickness: 1,
-                              ),
+                      const SizedBox(height: 10),
+                      ...List.generate(personalTitleList.length, (index) {
+                        return Column(
+                          children: [
+                            SettingsTile(
+                              title: personalTitleList[index],
+                              subtitle: personalSubtitleList[index],
+                              onPressed: personalOnPressedList(context)[index],
                             ),
-                        ],
-                      );
-                    }),
-                  ],
+                            if (index != personalTitleList.length - 1)
+                              Padding(
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 5),
+                                child: Divider(
+                                  color: Theme.of(context)
+                                      .dividerColor
+                                      .withOpacity(0.05),
+                                  thickness: 1,
+                                ),
+                              ),
+                          ],
+                        );
+                      }),
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(height: 15),
-              Container(
-                decoration: BoxDecoration(
-                  color: Theme.of(context).cardColor,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                padding: const EdgeInsets.all(10),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 10),
-                      child: Text(
-                        category[1],
-                        style: Theme.of(context).textTheme.titleMedium,
+                const SizedBox(height: 15),
+                Container(
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).cardColor,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  padding: const EdgeInsets.all(10),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 10),
+                        child: Text(
+                          'Language & Translation',
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 10),
-                    ...List.generate(otherTitleList.length, (index) {
-                      return Column(
-                        children: [
-                          SettingsTile(
-                            title: otherTitleList[index],
-                            subtitle: otherSubtitleList[index],
-                            onPressed: otherOnPressedList(context)[index],
-                            isLogout: index == otherTitleList.length - 1,
-                          ),
-                          if (index != otherTitleList.length - 1)
-                            Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 5),
-                              child: Divider(
-                                color: Theme.of(context)
-                                    .dividerColor
-                                    .withOpacity(0.05),
-                                thickness: 1,
-                              ),
-                            ),
-                        ],
-                      );
-                    }),
-                  ],
+                      const SizedBox(height: 10),
+                      SettingsTile(
+                        title: 'Feed Translation',
+                        subtitle: translationSettings.translationEnabled
+                            ? 'On · ${translationSettings.languageLabelForCode(translationSettings.targetLanguageCode)}'
+                            : 'Off',
+                        onPressed: () => _showTranslationSettingsSheet(
+                          context,
+                          translationSettings,
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 5),
+                        child: Divider(
+                          color:
+                              Theme.of(context).dividerColor.withOpacity(0.05),
+                          thickness: 1,
+                        ),
+                      ),
+                      SettingsTile(
+                        title: 'Preferred Translation Language',
+                        subtitle: translationSettings.languageLabelForCode(
+                          translationSettings.targetLanguageCode,
+                        ),
+                        onPressed: () => _showPreferredTranslationLanguageSheet(
+                          context,
+                          translationSettings,
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 5),
+                        child: Divider(
+                          color:
+                              Theme.of(context).dividerColor.withOpacity(0.05),
+                          thickness: 1,
+                        ),
+                      ),
+                      SettingsTile(
+                        title: 'App Language',
+                        subtitle: translationSettings.languageLabelForCode(
+                            translationSettings.uiLocaleCode),
+                        onPressed: () => _showAppLanguageSheet(
+                          context,
+                          translationSettings,
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 5),
+                        child: Divider(
+                          color:
+                              Theme.of(context).dividerColor.withOpacity(0.05),
+                          thickness: 1,
+                        ),
+                      ),
+                      SettingsTile(
+                        title: 'Translation Dashboard',
+                        subtitle:
+                            'View requests, cache usage, and fallback stats',
+                        onPressed: () => _showTranslationStats(context),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(height: 16),
+                const SizedBox(height: 15),
+                Container(
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).cardColor,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  padding: const EdgeInsets.all(10),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 10),
+                        child: Text(
+                          category[1],
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      ...List.generate(otherTitleList.length, (index) {
+                        return Column(
+                          children: [
+                            SettingsTile(
+                              title: otherTitleList[index],
+                              subtitle: otherSubtitleList[index],
+                              onPressed: otherOnPressedList(context)[index],
+                              isLogout: index == otherTitleList.length - 1,
+                            ),
+                            if (index != otherTitleList.length - 1)
+                              Padding(
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 5),
+                                child: Divider(
+                                  color: Theme.of(context)
+                                      .dividerColor
+                                      .withOpacity(0.05),
+                                  thickness: 1,
+                                ),
+                              ),
+                          ],
+                        );
+                      }),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
 
-              // Container(
-              //   width: MediaQuery.of(context).size.width - 20,
-              //   decoration: BoxDecoration(
-              //       color: Colors.white, borderRadius: BorderRadius.circular(15)),
-              //   child: Column(children: [
-              //     // SettingsTile(
-              //     //     title: "InZone Schedule",
-              //     //     imagePath: "icons/settings/content_scheduling.svg",
-              //     //     onPressed: () {
-              //     //       // Navigator.of(context)
-              //     //       //     .push(MaterialPageRoute(builder: (context) {
-              //     //       //   return const InZoneSchedule();
-              //     //       // }));
-              //     //     }),
+                // Container(
+                //   width: MediaQuery.of(context).size.width - 20,
+                //   decoration: BoxDecoration(
+                //       color: Colors.white, borderRadius: BorderRadius.circular(15)),
+                //   child: Column(children: [
+                //     // SettingsTile(
+                //     //     title: "InZone Schedule",
+                //     //     imagePath: "icons/settings/content_scheduling.svg",
+                //     //     onPressed: () {
+                //     //       // Navigator.of(context)
+                //     //       //     .push(MaterialPageRoute(builder: (context) {
+                //     //       //   return const InZoneSchedule();
+                //     //       // }));
+                //     //     }),
 
-              //     SettingsTile(
-              //         title: "Content Selection",
-              //         // imagePath: "icons/settings/content_selection.svg",
-              //         onPressed: () {
-              //           Navigator.of(context)
-              //               .push(MaterialPageRoute(builder: (context) {
-              //             return const ContentSelectionSettingsScreen();
-              //           }));
-              //         }),
-              //   ]),
-              // ),
+                //     SettingsTile(
+                //         title: "Content Selection",
+                //         // imagePath: "icons/settings/content_selection.svg",
+                //         onPressed: () {
+                //           Navigator.of(context)
+                //               .push(MaterialPageRoute(builder: (context) {
+                //             return const ContentSelectionSettingsScreen();
+                //           }));
+                //         }),
+                //   ]),
+                // ),
 
-              // Container(
-              //   width: MediaQuery.of(context).size.width - 20,
-              //   decoration: BoxDecoration(
-              //       color: Colors.white, borderRadius: BorderRadius.circular(30)),
-              //   child: Column(children: [
-              //     SettingsTile(
-              //         title: "Privacy Policy",
-              //         // imagePath: "icons/settings/privacy_policy.svg",
-              //         onPressed: () {
-              //           _launchInBrowser("https://www.inzone.ai/privacypolicy");
-              //         }),
-              //     SettingsTile(
-              //         title: "Terms & Conditions",
-              //         // imagePath: "icons/settings/terms_and_conditions.svg",
-              //         onPressed: () {
-              //           _launchInBrowser("https://www.inzone.ai/terms-condition");
-              //         }),
-              //     SettingsTile(
-              //       title: "Delete Account",
-              //       // imagePath: "icons/settings/delete_account.svg",
-              //       onPressed: () {
-              //         showDialog(
-              //           context: context,
-              //           builder: (BuildContext context) {
-              //             return AlertDialog(
-              //               title: const Text('Delete Account'),
-              //               content: const Text(
-              //                   'Are you sure you want to delete your account? This cannot be undone.'),
-              //               actions: <Widget>[
-              //                 TextButton(
-              //                   child: const Text('Cancel'),
-              //                   onPressed: () {
-              //                     Navigator.of(context).pop();
-              //                   },
-              //                 ),
-              //                 TextButton(
-              //                   child: const Text('Delete'),
-              //                   onPressed: () {
-              //                     // Close the dialog, then call the delete account method
-              //                     Navigator.of(context).pop();
-              //                     _deleteAccount(context);
-              //                   },
-              //                 ),
-              //               ],
-              //             );
-              //           },
-              //         );
-              //       },
-              //     ),
-              //     SettingsTile(
-              //         title: "Logout",
-              //         // imagePath: "icons/settings/logout.svg",
-              //         onPressed: () {
-              //           FirebaseAuth.instance.signOut().then((value) {
-              //             Navigator.pushReplacement(
-              //                 context,
-              //                 MaterialPageRoute(
-              //                     builder: (context) =>
-              //                         const IntroductionScreen()));
-              //           });
-              //         }),
-              //   ]),
-              // ),
-            ],
-          ),
+                // Container(
+                //   width: MediaQuery.of(context).size.width - 20,
+                //   decoration: BoxDecoration(
+                //       color: Colors.white, borderRadius: BorderRadius.circular(30)),
+                //   child: Column(children: [
+                //     SettingsTile(
+                //         title: "Privacy Policy",
+                //         // imagePath: "icons/settings/privacy_policy.svg",
+                //         onPressed: () {
+                //           _launchInBrowser("https://www.inzone.ai/privacypolicy");
+                //         }),
+                //     SettingsTile(
+                //         title: "Terms & Conditions",
+                //         // imagePath: "icons/settings/terms_and_conditions.svg",
+                //         onPressed: () {
+                //           _launchInBrowser("https://www.inzone.ai/terms-condition");
+                //         }),
+                //     SettingsTile(
+                //       title: "Delete Account",
+                //       // imagePath: "icons/settings/delete_account.svg",
+                //       onPressed: () {
+                //         showDialog(
+                //           context: context,
+                //           builder: (BuildContext context) {
+                //             return AlertDialog(
+                //               title: const Text('Delete Account'),
+                //               content: const Text(
+                //                   'Are you sure you want to delete your account? This cannot be undone.'),
+                //               actions: <Widget>[
+                //                 TextButton(
+                //                   child: const Text('Cancel'),
+                //                   onPressed: () {
+                //                     Navigator.of(context).pop();
+                //                   },
+                //                 ),
+                //                 TextButton(
+                //                   child: const Text('Delete'),
+                //                   onPressed: () {
+                //                     // Close the dialog, then call the delete account method
+                //                     Navigator.of(context).pop();
+                //                     _deleteAccount(context);
+                //                   },
+                //                 ),
+                //               ],
+                //             );
+                //           },
+                //         );
+                //       },
+                //     ),
+                //     SettingsTile(
+                //         title: "Logout",
+                //         // imagePath: "icons/settings/logout.svg",
+                //         onPressed: () {
+                //           FirebaseAuth.instance.signOut().then((value) {
+                //             Navigator.pushReplacement(
+                //                 context,
+                //                 MaterialPageRoute(
+                //                     builder: (context) =>
+                //                         const IntroductionScreen()));
+                //           });
+                //         }),
+                //   ]),
+                // ),
+              ],
+            ),
           ),
         ),
       ),

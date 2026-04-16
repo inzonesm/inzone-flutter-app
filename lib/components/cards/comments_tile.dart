@@ -1,6 +1,7 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:inzone/components/translation/translatable_text.dart';
 import 'package:inzone/data/comment_class.dart';
 import 'package:inzone/router/routes.dart';
 
@@ -11,9 +12,12 @@ class CommentsTile extends StatefulWidget {
   final String timestamp;
   final String commentId;
   final String? parentCommentId;
-  final String? parentCommentAuthor; // Author of the parent comment being replied to
-  final String? postCreatorId; // ID of the post creator to identify if current user is creator
-  final String? commentAuthorId; // ID of the comment author to check if they are the post creator
+  final String?
+      parentCommentAuthor; // Author of the parent comment being replied to
+  final String?
+      postCreatorId; // ID of the post creator to identify if current user is creator
+  final String?
+      commentAuthorId; // ID of the comment author to check if they are the post creator
   final int replyCount;
   final bool isReply;
   final List<String> likedBy;
@@ -140,14 +144,16 @@ class _CommentsTileState extends State<CommentsTile> {
   Widget build(BuildContext context) {
     // Check if the comment author is the post creator
     // For AI posts, compare display names; for human posts, compare user IDs
-    final bool isCommentAuthorCreator = widget.postCreatorId != null && 
-                                       (widget.commentAuthorId == widget.postCreatorId ||
-                                        widget.author == widget.postCreatorId);
-    
+    final bool isCommentAuthorCreator = widget.postCreatorId != null &&
+        (widget.commentAuthorId == widget.postCreatorId ||
+            widget.author == widget.postCreatorId);
+
     return Container(
       margin: EdgeInsets.only(
         // Spacing between the comments and their replies
-        bottom: widget.isReply ? 8.0 : (widget.replyCount > 0 && widget.showReplies ? 3.6 : 12.0),
+        bottom: widget.isReply
+            ? 8.0
+            : (widget.replyCount > 0 && widget.showReplies ? 3.6 : 12.0),
         left: widget.isReply ? 40.0 : 0.0, // Indent replies
       ),
       child: Column(
@@ -160,8 +166,10 @@ class _CommentsTileState extends State<CommentsTile> {
               GestureDetector(
                 onTap: () {
                   // Navigate to user profile if commentAuthorId is available
-                  if (widget.commentAuthorId != null && widget.commentAuthorId!.isNotEmpty) {
-                    context.push(Routes.regularProfilePath(widget.commentAuthorId!));
+                  if (widget.commentAuthorId != null &&
+                      widget.commentAuthorId!.isNotEmpty) {
+                    context.push(
+                        Routes.regularProfilePath(widget.commentAuthorId!));
                   }
                 },
                 child: ClipRRect(
@@ -169,14 +177,17 @@ class _CommentsTileState extends State<CommentsTile> {
                   child: widget.profilePictureUrl.isNotEmpty
                       ? CachedNetworkImage(
                           imageUrl: widget.profilePictureUrl,
-                          width: widget.isReply ? 32 : 40, // Smaller for replies
+                          width:
+                              widget.isReply ? 32 : 40, // Smaller for replies
                           height: widget.isReply ? 32 : 40,
                           fit: BoxFit.cover,
                           placeholder: (context, url) => const SizedBox(),
-                          errorWidget: (context, url, error) =>
-                              Icon(Icons.account_circle, size: widget.isReply ? 32 : 40),
+                          errorWidget: (context, url, error) => Icon(
+                              Icons.account_circle,
+                              size: widget.isReply ? 32 : 40),
                         )
-                      : Icon(Icons.account_circle, size: widget.isReply ? 32 : 40),
+                      : Icon(Icons.account_circle,
+                          size: widget.isReply ? 32 : 40),
                 ),
               ),
               const SizedBox(width: 10),
@@ -195,16 +206,24 @@ class _CommentsTileState extends State<CommentsTile> {
                           GestureDetector(
                             onTap: () {
                               // Navigate to user profile if commentAuthorId is available
-                              if (widget.commentAuthorId != null && widget.commentAuthorId!.isNotEmpty) {
-                                context.push(Routes.regularProfilePath(widget.commentAuthorId!));
+                              if (widget.commentAuthorId != null &&
+                                  widget.commentAuthorId!.isNotEmpty) {
+                                context.push(Routes.regularProfilePath(
+                                    widget.commentAuthorId!));
                               }
                             },
                             child: Text(
                               widget.author,
-                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                  color: Theme.of(context).textTheme.titleMedium?.color,
-                                ),
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodySmall
+                                  ?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                    color: Theme.of(context)
+                                        .textTheme
+                                        .titleMedium
+                                        ?.color,
+                                  ),
                             ),
                           ),
                           // Only show the Author tag (with bullet) when the replier is the post creator.
@@ -212,7 +231,8 @@ class _CommentsTileState extends State<CommentsTile> {
                             const SizedBox(width: 4),
                             Container(
                               margin: const EdgeInsets.only(bottom: 4),
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 2),
                               decoration: BoxDecoration(
                                 color: Colors.red.withOpacity(0.1),
                                 borderRadius: BorderRadius.circular(12),
@@ -261,15 +281,23 @@ class _CommentsTileState extends State<CommentsTile> {
                           GestureDetector(
                             onTap: () {
                               // Navigate to user profile if commentAuthorId is available
-                              if (widget.commentAuthorId != null && widget.commentAuthorId!.isNotEmpty) {
-                                context.push(Routes.regularProfilePath(widget.commentAuthorId!));
+                              if (widget.commentAuthorId != null &&
+                                  widget.commentAuthorId!.isNotEmpty) {
+                                context.push(Routes.regularProfilePath(
+                                    widget.commentAuthorId!));
                               }
                             },
                             child: Text(
                               widget.author,
-                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodySmall
+                                  ?.copyWith(
                                     fontWeight: FontWeight.bold,
-                                    color: Theme.of(context).textTheme.titleMedium?.color,
+                                    color: Theme.of(context)
+                                        .textTheme
+                                        .titleMedium
+                                        ?.color,
                                   ),
                             ),
                           ),
@@ -290,8 +318,9 @@ class _CommentsTileState extends State<CommentsTile> {
                     const SizedBox(height: 4),
 
                     // Comment Text
-                    Text(
-                      widget.commentText,
+                    TranslatableText(
+                      text: widget.commentText,
+                      showImproveButton: false,
                       style: TextStyle(
                         color: Theme.of(context).textTheme.bodyMedium?.color,
                         fontWeight: FontWeight.normal,
@@ -394,7 +423,9 @@ class _CommentsTileState extends State<CommentsTile> {
                     ),
 
                     // View Replies button for parent comments
-                    if (!widget.isReply && widget.replyCount > 0 && widget.onToggleReplies != null)
+                    if (!widget.isReply &&
+                        widget.replyCount > 0 &&
+                        widget.onToggleReplies != null)
                       Padding(
                         padding: const EdgeInsets.only(top: 8.0),
                         child: InkWell(
@@ -430,9 +461,13 @@ class _CommentsTileState extends State<CommentsTile> {
           ),
 
           // Show replies if expanded and there are replies
-          if (!widget.isReply && showRepliesExpanded && widget.replies != null && widget.replies!.isNotEmpty)
+          if (!widget.isReply &&
+              showRepliesExpanded &&
+              widget.replies != null &&
+              widget.replies!.isNotEmpty)
             Padding(
-              padding: const EdgeInsets.only(top: 4.0), // Reduced from 8.0 to 4.0
+              padding:
+                  const EdgeInsets.only(top: 4.0), // Reduced from 8.0 to 4.0
               child: Column(
                 children: widget.replies!
                     .map((reply) => CommentsTile(
@@ -442,9 +477,12 @@ class _CommentsTileState extends State<CommentsTile> {
                           timestamp: reply.timestamp,
                           commentId: reply.id,
                           parentCommentId: reply.parentCommentId,
-                          parentCommentAuthor: widget.author, // Pass parent author
-                          postCreatorId: widget.postCreatorId, // Pass post creator ID
-                          commentAuthorId: reply.userId, // Pass comment author ID
+                          parentCommentAuthor:
+                              widget.author, // Pass parent author
+                          postCreatorId:
+                              widget.postCreatorId, // Pass post creator ID
+                          commentAuthorId:
+                              reply.userId, // Pass comment author ID
                           isReply: true,
                           likedBy: reply.likedBy ?? [],
                           dislikedBy: reply.dislikedBy ?? [],

@@ -27,6 +27,7 @@ import 'package:visibility_detector/visibility_detector.dart';
 import 'package:toasty_box/toast_service.dart';
 import 'package:inzone/components/cards/comments_tile.dart';
 import 'package:inzone/components/cards/tip_screen.dart';
+import 'package:inzone/components/translation/translatable_text.dart';
 import 'package:inzone/services/appsflyer_service.dart';
 import 'package:inzone/services/notification_event_service.dart';
 
@@ -135,7 +136,9 @@ class _PostCardState extends State<PostCard>
     }
 
     final currentEmail = currentUser.email?.trim().toLowerCase();
-    if (currentEmail != null && currentEmail.isNotEmpty && normalizedRef == currentEmail) {
+    if (currentEmail != null &&
+        currentEmail.isNotEmpty &&
+        normalizedRef == currentEmail) {
       return true;
     }
 
@@ -171,7 +174,8 @@ class _PostCardState extends State<PostCard>
         ToastService.showToast(
           context,
           backgroundColor: Colors.red,
-          message: 'Could not resolve this post ID. Please refresh and try again.',
+          message:
+              'Could not resolve this post ID. Please refresh and try again.',
           leading: const Icon(Icons.error, color: Colors.white),
         );
         return;
@@ -321,7 +325,8 @@ class _PostCardState extends State<PostCard>
         ToastService.showToast(
           context,
           backgroundColor: Colors.red,
-          message: 'Could not resolve this post ID. Please refresh and try again.',
+          message:
+              'Could not resolve this post ID. Please refresh and try again.',
           leading: const Icon(Icons.error, color: Colors.white),
         );
         return;
@@ -780,14 +785,12 @@ class _PostCardState extends State<PostCard>
       if (currentUser == null || currentUser.uid.isEmpty) return;
 
       final String currentUid = currentUser.uid;
-        final String postId = widget.post.id;
-        final bool isRepost = postId.startsWith('repost_');
-        final collectionName = isRepost
-          ? 'reposts'
-          : (widget.post.isAi ? 'aiPosts' : 'humanPosts');
-      final docRef = FirebaseFirestore.instance
-          .collection(collectionName)
-          .doc(postId);
+      final String postId = widget.post.id;
+      final bool isRepost = postId.startsWith('repost_');
+      final collectionName =
+          isRepost ? 'reposts' : (widget.post.isAi ? 'aiPosts' : 'humanPosts');
+      final docRef =
+          FirebaseFirestore.instance.collection(collectionName).doc(postId);
 
       try {
         final likeEntry = await _buildLikeEntryForCurrentUser(currentUid);
@@ -1441,8 +1444,8 @@ class _PostCardState extends State<PostCard>
                       padding: const EdgeInsets.only(left: 10, right: 10),
                       child: Align(
                         alignment: Alignment.centerLeft,
-                        child: Text(
-                          _currentTextContent,
+                        child: TranslatableText(
+                          text: _currentTextContent,
                           textAlign: TextAlign.start,
                           style: TextStyle(
                               height: 1,
