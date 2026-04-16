@@ -30,6 +30,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
+
 class _PopularCharacterOption {
   final String id;
   final String name;
@@ -259,20 +260,9 @@ class _RootAppState extends State<RootApp>
   void _onItemTapped(int index) {
     HapticFeedback.lightImpact();
 
-    // Gamepad tab (index 3) opens MiniGameMenu instead of navigating
+    // Gamepad tab (index 3) opens the Game Hub
     if (index == 3) {
-      if (!_miniGameMenuOpen) {
-        setState(() {
-          _miniGameMenuOpen = true;
-        });
-      }
-      _loadPopularCharacters();
-      final activeCharacter = context.read<ActiveCharacterNotifier>();
-      _refreshMiniGameMessages(
-        charID: activeCharacter.charID,
-        charName: activeCharacter.charName,
-        charDesc: activeCharacter.charDesc,
-      );
+      context.go(Routes.gameHub);
       return;
     }
 

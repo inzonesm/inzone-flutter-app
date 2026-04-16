@@ -40,6 +40,7 @@ import 'package:inzone/screen/3d_model/3d_model_prompt_screen.dart';
 import 'package:inzone/screen/3d_model/3d_model_select_screen.dart';
 import 'package:inzone/screen/3d_model/3d_model_intro.dart';
 import 'package:inzone/screen/settings/unity_webview_screen.dart';
+import 'package:inzone/screen/game_hub/game_hub_screen.dart';
 import 'package:inzone/components/cards/tip_screen.dart';
 import 'package:inzone/screen/chat/voice_screen.dart';
 
@@ -281,6 +282,14 @@ class AppRouter {
             pageBuilder: (context, state) {
               return const NoTransitionPage(
                 child: CharactersScreen(),
+              );
+            },
+          ),
+          GoRoute(
+            path: Routes.gameHub,
+            pageBuilder: (context, state) {
+              return const NoTransitionPage(
+                child: GameHubScreen(),
               );
             },
           ),

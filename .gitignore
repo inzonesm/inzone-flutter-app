@@ -143,8 +143,18 @@ z-inzoneapi/sync_to_gorse.py
 # Shorebird related (since you have shorebird.yaml)
 .shorebird/
 
+# Unity embedded framework (176MB+ binary, built from unity_ios_build via scripts/)
+ios/UnityFramework.framework/
+
+# Android build artifacts
+android/app/build/
+
+# Firebase service account keys (sensitive)
+scripts/service-account-key.json
+
 # Exceptions to above rules.
 !**/ios/**/default.mode1v3
 !**/ios/**/default.mode2v3
 !**/ios/**/default.pbxuser
 !**/ios/**/default.perspectivev3
+scripts/node_modules/

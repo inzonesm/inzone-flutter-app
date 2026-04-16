@@ -26,3 +26,8 @@ plugins {
 }
 
 include ":app"
+
+// Unity exported library – place the exported "unityLibrary" folder
+// inside android/ after running Unity > Build Settings > Export Project.
+include ":unityLibrary"
+project(":unityLibrary").projectDir = file("./unityLibrary")

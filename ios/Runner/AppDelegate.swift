@@ -33,6 +33,11 @@ import google_mobile_ads
     application.registerForRemoteNotifications()
 
     GeneratedPluginRegistrant.register(with: self)
+
+    // Register Unity bridge MethodChannel
+    if let flutterVC = window?.rootViewController as? FlutterViewController {
+        UnityBridge.shared.register(with: flutterVC)
+    }
     let factory = NativeAdFactory()
     let groupfactory = GroupNativeAdFactory()
 

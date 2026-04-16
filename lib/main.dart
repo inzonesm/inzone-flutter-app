@@ -30,6 +30,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:inzone/services/ai_engagement_service.dart';
 import 'package:inzone/services/active_character_notifier.dart';
 import 'package:simula_ads/simula_ads.dart';
+import 'package:inzone/services/unity_bridge.dart';
 
 // Key for storing first launch status in SharedPreferences
 const String FIRST_LAUNCH_KEY = 'is_first_launch';
@@ -271,6 +272,9 @@ void main() async {
   InitTimer.measureSync('MediaKit.ensureInitialized', () {
     MediaKit.ensureInitialized();
   });
+
+  // Initialize Unity bridge MethodChannel listener
+  UnityBridge.instance.init();
 
   // Run SharedPreferences and Firebase init in parallel
   late SharedPreferences prefs;
