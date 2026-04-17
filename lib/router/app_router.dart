@@ -582,6 +582,7 @@ class AppRouter {
             chat: extra['chat'] as String,
             avatarID: extra['avatarID'] as String,
             initialText: extra['initialText'] as String?,
+            minigameLink: extra['minigameLink'] as String?,
           );
         },
       ),

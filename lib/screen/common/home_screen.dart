@@ -867,6 +867,21 @@ class HomeScreenState extends State<HomeScreen> {
 
     String postType = actualPost['post_type'] ?? 'unknown';
 
+    // Some feed payloads omit post_type; infer it so reposts don't fall back to PostCard.
+    if (postType == 'unknown') {
+      final dynamic idValue = actualPost['id'];
+      final String idText = idValue?.toString() ?? '';
+      final bool looksLikeRepostId = idText.startsWith('repost_');
+      final bool hasRepostFields =
+          actualPost['ai_chat_content'] != null ||
+              actualPost['ai_profile_image_url'] != null ||
+              actualPost['ai_id'] != null;
+
+      if (looksLikeRepostId || hasRepostFields) {
+        postType = 'repost';
+      }
+    }
+
     // Insert avatar carousel after certain number of posts (adjust for ads)
     if (actualPostIndex > 0 &&
         actualPostIndex % 20 == 0 &&
@@ -903,6 +918,15 @@ class HomeScreenState extends State<HomeScreen> {
     try {
       // Extract the category for the post
       String category = _extractCategoryFromPost(actualPost);
+      final dynamic rawPostData = actualPost['post'];
+      final String? rawMinigameLink =
+          (actualPost['minigame_link'] ??
+                  actualPost['MinigameLink'] ??
+                  actualPost['minigameLink'] ??
+                  (rawPostData is Map ? rawPostData['minigame_link'] : null) ??
+                  (rawPostData is Map ? rawPostData['MinigameLink'] : null) ??
+                  (rawPostData is Map ? rawPostData['minigameLink'] : null))
+              ?.toString();
 
       switch (postType) {
         case 'repost':
@@ -922,6 +946,7 @@ class HomeScreenState extends State<HomeScreen> {
             userReference: postObj.userReference,
             mainCategory: postObj.mainCategory,
             isAi: false,
+            minigameLink: postObj.minigameLink ?? rawMinigameLink,
           );
           InZoneAvatar avatar = InZoneAvatar.fromRepostJson(actualPost);
           return RepostCard(
@@ -946,6 +971,7 @@ class HomeScreenState extends State<HomeScreen> {
             userReference: postObj.userReference,
             mainCategory: postObj.mainCategory,
             isAi: true,
+            minigameLink: postObj.minigameLink ?? rawMinigameLink,
           );
           return PostCard(
             post: postObj,
@@ -994,6 +1020,7 @@ class HomeScreenState extends State<HomeScreen> {
             mainCategory: postObj.mainCategory,
             isAi: false,
             characterInfo: postObj.characterInfo,
+            minigameLink: postObj.minigameLink ?? rawMinigameLink,
           );
           return PostCard(
             post: postObj,
@@ -1042,6 +1069,7 @@ class HomeScreenState extends State<HomeScreen> {
             mainCategory: postObj.mainCategory,
             isAi: false,
             characterInfo: postObj.characterInfo,
+            minigameLink: postObj.minigameLink ?? rawMinigameLink,
           );
           return PostCard(
             post: postObj,

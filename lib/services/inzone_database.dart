@@ -1027,6 +1027,7 @@ class InZoneDatabase {
     required String aiId,
     required List<String> imageRefs,
     required List<String> videoRefs,
+    String? minigameLink,
   }) async {
     try {
       // Enhanced sentiment analysis with media
@@ -1064,7 +1065,8 @@ class InZoneDatabase {
         "AIName": aiName,
         "AIProfileImageURL": aiProfileImageURL,
         "AIChatContent": aiChatContent,
-        "AiId": aiId
+        "AiId": aiId,
+        if (minigameLink != null) "MinigameLink": minigameLink,
       };
 
       final response = await http.post(

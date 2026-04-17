@@ -853,6 +853,109 @@ class _GameIframeState extends State<GameIframe> {
       }
     };
 
+    const findTopLeftCharacterElement = (doc, win) => {
+      if (!doc || !doc.querySelectorAll) return null;
+
+      const nodes = doc.querySelectorAll('img, button, div, span, canvas');
+      const vw = win.innerWidth || 0;
+      const vh = win.innerHeight || 0;
+
+      let best = null;
+      let bestScore = Number.POSITIVE_INFINITY;
+
+      for (let i = 0; i < nodes.length; i += 1) {
+        const node = nodes[i];
+        if (!isVisible(node, win)) continue;
+        if (!isCharacterElement(node, win)) continue;
+
+        const rect = node.getBoundingClientRect();
+        const nearTopLeft = rect.left < vw * 0.5 && rect.top < vh * 0.5;
+        if (!nearTopLeft) continue;
+
+        const score = (Math.max(0, rect.left) * 2) + Math.max(0, rect.top);
+        if (score < bestScore) {
+          best = node;
+          bestScore = score;
+        }
+      }
+
+      return best;
+    };
+
+    const ensureCharacterSelectorBadge = (doc, win) => {
+      if (!doc || !doc.body) return;
+
+      if (isGameStartMenuVisible(doc, win)) {
+        if (doc.__inzoneSelectorBadge && doc.__inzoneSelectorBadge.parentElement) {
+          doc.__inzoneSelectorBadge.parentElement.removeChild(doc.__inzoneSelectorBadge);
+        }
+        doc.__inzoneSelectorBadge = null;
+        return;
+      }
+
+      const anchor = findTopLeftCharacterElement(doc, win);
+      if (!anchor) {
+        if (doc.__inzoneSelectorBadge) {
+          doc.__inzoneSelectorBadge.style.display = 'none';
+        }
+        return;
+      }
+
+      const rect = anchor.getBoundingClientRect();
+      const badgeSize = 24;
+      const gap = 4;
+      const left = Math.max(8, rect.right - badgeSize * 0.5 + gap);
+      const top = Math.max(8, rect.bottom - badgeSize * 0.6);
+
+      let badge = doc.__inzoneSelectorBadge;
+      if (!badge) {
+        badge = doc.createElement('button');
+        badge.type = 'button';
+        badge.setAttribute('aria-label', 'Change character');
+        badge.setAttribute('title', 'Change character');
+        badge.style.position = 'fixed';
+        badge.style.width = badgeSize + 'px';
+        badge.style.height = badgeSize + 'px';
+        badge.style.borderRadius = '999px';
+        badge.style.border = '2px solid #DFF7FF';
+        badge.style.background = '#16C2E3';
+        badge.style.color = '#FFFFFF';
+        badge.style.display = 'flex';
+        badge.style.alignItems = 'center';
+        badge.style.justifyContent = 'center';
+        badge.style.fontSize = '16px';
+        badge.style.fontWeight = '700';
+        badge.style.lineHeight = '1';
+        badge.style.padding = '0';
+        badge.style.margin = '0';
+        badge.style.cursor = 'pointer';
+        badge.style.zIndex = '2147483647';
+        badge.style.boxShadow = '0 2px 10px rgba(0,0,0,0.22)';
+        badge.style.userSelect = 'none';
+        badge.style.webkitUserSelect = 'none';
+        badge.textContent = '⌄';
+
+        const trigger = (event) => {
+          if (event) {
+            if (event.preventDefault) event.preventDefault();
+            if (event.stopPropagation) event.stopPropagation();
+          }
+          sendTap();
+        };
+
+        badge.addEventListener('click', trigger, true);
+        badge.addEventListener('pointerup', trigger, true);
+        badge.addEventListener('touchend', trigger, true);
+
+        doc.body.appendChild(badge);
+        doc.__inzoneSelectorBadge = badge;
+      }
+
+      badge.style.display = 'flex';
+      badge.style.left = left + 'px';
+      badge.style.top = top + 'px';
+    };
+
     const installBridgeForDocument = (doc, win) => {
       if (!doc || !win) return;
       if (doc.__inzoneDocBridgeInstalled) return;
@@ -864,6 +967,7 @@ class _GameIframeState extends State<GameIframe> {
       doc.addEventListener('touchend', handler, true);
 
       maybeAttachDirectCircleListeners(doc, win);
+      ensureCharacterSelectorBadge(doc, win);
     };
 
     const installBridgesRecursively = () => {
@@ -878,10 +982,13 @@ class _GameIframeState extends State<GameIframe> {
           if (!subWin || !subDoc) continue;
           installBridgeForDocument(subDoc, subWin);
           maybeAttachDirectCircleListeners(subDoc, subWin);
+          ensureCharacterSelectorBadge(subDoc, subWin);
         } catch (_) {
           // Cross-origin iframe, ignore.
         }
       }
+
+      ensureCharacterSelectorBadge(document, window);
     };
 
     installBridgesRecursively();

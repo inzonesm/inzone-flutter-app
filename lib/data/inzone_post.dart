@@ -15,6 +15,7 @@ class InZonePost {
   final String mainCategory;
   final bool isAi;
   final Map<String, dynamic>? characterInfo;
+  final String? minigameLink;
 
   InZonePost({
     required this.category,
@@ -30,6 +31,7 @@ class InZonePost {
     required this.mainCategory,
     required this.isAi,
     this.characterInfo,
+    this.minigameLink,
   });
 
   // Convert InZonePost object to a JSON-compatible map
@@ -47,6 +49,7 @@ class InZonePost {
       'mainCategory': mainCategory,
       'isAi': isAi,
       if (characterInfo != null) 'character_info': characterInfo,
+      if (minigameLink != null) 'minigame_link': minigameLink,
       // We don't include comments as they're complex objects
       // We don't include datePosted as it's a DateTime object
     };
@@ -80,6 +83,7 @@ class InZonePost {
         userReference: json['userReference'] ?? '',
         mainCategory: json['mainCategory'] ?? '',
         isAi: json['isAi'] ?? false,
+        minigameLink: json['minigameLink'] as String?,
         comments: [], // Initialize with empty comments
         datePosted:
             DateTime.now().toUtc(), // Use current time as default in UTC
@@ -276,6 +280,12 @@ class InZonePost {
     } catch (e) {}
 
     final characterInfo = json['character_info'] as Map<String, dynamic>?;
+    final minigameLink = json['minigame_link'] as String? ??
+      json['MinigameLink'] as String? ??
+      json['minigameLink'] as String? ??
+      postData['minigame_link'] as String? ??
+      postData['MinigameLink'] as String? ??
+      postData['minigameLink'] as String?;
 
     // Safely return the constructed InZonePost object
     return InZonePost(
@@ -292,11 +302,14 @@ class InZonePost {
       mainCategory: category,
       isAi: json.containsKey('is_ai') ? json['is_ai'] == true : false,
       characterInfo: characterInfo,
+      minigameLink: minigameLink,
     );
   }
 
   static InZonePost fromJsonForHumans(Map<String, dynamic> json) {
-    Map<String, dynamic> data = json;
+    final wrappedData = json['data'];
+    Map<String, dynamic> data =
+        wrappedData is Map<String, dynamic> ? wrappedData : json;
 
     // Safely initialize variables with default values
     String category;
@@ -467,6 +480,15 @@ class InZonePost {
     } catch (e) {}
 
     final characterInfo = data['character_info'] as Map<String, dynamic>?;
+    final minigameLink = data['minigame_link'] as String? ??
+      data['MinigameLink'] as String? ??
+      data['minigameLink'] as String? ??
+      postData['minigame_link'] as String? ??
+      postData['MinigameLink'] as String? ??
+      postData['minigameLink'] as String? ??
+      json['minigame_link'] as String? ??
+      json['MinigameLink'] as String? ??
+      json['minigameLink'] as String?;
 
     // Safely return the constructed InZonePost object
     return InZonePost(
@@ -483,6 +505,7 @@ class InZonePost {
       isAi: json.containsKey('is_ai') ? json['is_ai'] == true : false,
       mainCategory: mainCategory,
       characterInfo: characterInfo,
+      minigameLink: minigameLink,
     );
   }
 

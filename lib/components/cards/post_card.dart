@@ -1456,6 +1456,7 @@ class _PostCardState extends State<PostCard>
               const SizedBox(height: 10),
               (validImages.isNotEmpty || validVideos.isNotEmpty)
                   ? _DynamicPageView(
+                      post: widget.post,
                       images: validImages,
                       videos: validVideos,
                       controller: _mediaPageController,
@@ -3621,12 +3622,14 @@ class _PostCardState extends State<PostCard>
 }
 
 class _DynamicPageView extends StatefulWidget {
+  final InZonePost post;
   final List<String> images;
   final List<String> videos;
   final PageController controller;
 
   const _DynamicPageView({
     super.key,
+    required this.post,
     required this.images,
     required this.videos,
     required this.controller,
@@ -3721,6 +3724,50 @@ class _DynamicPageViewState extends State<_DynamicPageView> {
         (url.startsWith('http://') || url.startsWith('https://'));
   }
 
+  String? _extractGameIdFromLink(String link) {
+    try {
+      final uri = Uri.parse(link);
+      final gameId = uri.queryParameters['gameId'];
+      if (gameId != null && gameId.trim().isNotEmpty) return gameId.trim();
+
+      final sub1 = uri.queryParameters['deep_link_sub1'];
+      if (sub1 != null && sub1.trim().isNotEmpty) return sub1.trim();
+
+      final afDp = uri.queryParameters['af_dp'];
+      if (afDp != null && afDp.trim().isNotEmpty) {
+        final decoded = Uri.decodeComponent(afDp);
+        final afUri = Uri.tryParse(decoded);
+        final afGameId = afUri?.queryParameters['gameId'];
+        if (afGameId != null && afGameId.trim().isNotEmpty) {
+          return afGameId.trim();
+        }
+      }
+    } catch (_) {}
+
+    return null;
+  }
+
+  Future<bool> _openMinigameFromPostTap() async {
+    final minigameLink = widget.post.minigameLink?.trim();
+    if (minigameLink == null || minigameLink.isEmpty) return false;
+
+    final gameId = _extractGameIdFromLink(minigameLink);
+    if (gameId == null || gameId.isEmpty) {
+      if (mounted) {
+        ToastService.showToast(
+          context,
+          backgroundColor: Colors.red,
+          message: 'Could not determine minigame for this post.',
+          leading: const Icon(Icons.error, color: Colors.white),
+        );
+      }
+      return true;
+    }
+
+    await AppsFlyerService().queueMinigameDeepLink(gameId);
+    return true;
+  }
+
   @override
   Widget build(BuildContext context) {
     final validImages = widget.images.where((url) => _isValidUrl(url)).toList();
@@ -3810,7 +3857,12 @@ class _DynamicPageViewState extends State<_DynamicPageView> {
                       child: ClipRRect(
                         // borderRadius: BorderRadius.circular(12),
                         child: GestureDetector(
-                          onTap: () {
+                          onTap: () async {
+                            final openedMinigame = await _openMinigameFromPostTap();
+                            if (openedMinigame) {
+                              return;
+                            }
+
                             Navigator.of(context).push(
                               MaterialPageRoute(
                                 builder: (context) =>
