@@ -10,7 +10,6 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:inzone/screen/chat/all_chats_screen.dart';
-import 'package:inzone/screen/chat/chat_screen.dart';
 import 'package:inzone/config/custom_icons.dart';
 import 'package:inzone/data/comment_class.dart';
 import 'package:inzone/data/inzone_avatar.dart';

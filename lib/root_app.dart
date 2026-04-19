@@ -723,6 +723,133 @@ class _RootAppState extends State<RootApp>
     return null;
   }
 
+  int? _extractChessMoves(String text) {
+    return _extractStatNumber(
+      text,
+      'moves?|move[_\\s-]?count|ply|turns?',
+    );
+  }
+
+  int? _extractChessCaptures(String text) {
+    return _extractStatNumber(
+      text,
+      'captures?|captured|capture[_\\s-]?count|pieces?[_\\s-]?captured',
+    );
+  }
+
+  String? _normalizeChessTitleValue(String? raw) {
+    if (raw == null) return null;
+    final source = raw.trim().toLowerCase();
+    if (source.isEmpty) return null;
+
+    if (source.contains('victory') ||
+        source.contains('win') ||
+        source.contains('won') ||
+        source.contains('checkmate')) {
+      return 'Victory';
+    }
+    if (source.contains('defeat') ||
+        source.contains('lose') ||
+        source.contains('loss') ||
+        source.contains('lost')) {
+      return 'Defeat';
+    }
+    if (source.contains('draw') ||
+        source.contains('stalemate') ||
+        source.contains('tie')) {
+      return 'Draw';
+    }
+
+    return null;
+  }
+
+  Map<String, dynamic> _extractChessResultFields(String text) {
+    final fields = <String, dynamic>{
+      'title': null,
+      'moves': null,
+      'captures': null,
+    };
+
+    try {
+      final decoded = jsonDecode(text);
+      if (decoded is Map) {
+        final map = decoded.cast<String, dynamic>();
+
+        String? valueFor(List<String> keys) {
+          for (final key in keys) {
+            for (final entry in map.entries) {
+              if (entry.key.toLowerCase() == key.toLowerCase()) {
+                final value = entry.value;
+                if (value == null) continue;
+                final text = value.toString().trim();
+                if (text.isNotEmpty && text.toLowerCase() != 'null') {
+                  return text;
+                }
+              }
+            }
+          }
+          return null;
+        }
+
+        final titleRaw = valueFor([
+          'title',
+          'result',
+          'resultTitle',
+          'result_title',
+          'outcome',
+          'status',
+          'winner',
+          'gameResult',
+          'game_result',
+        ]);
+        fields['title'] = _normalizeChessTitleValue(titleRaw);
+
+        final movesRaw = valueFor([
+          'moves',
+          'moveCount',
+          'move_count',
+          'turns',
+          'ply',
+          'turn_count',
+        ]);
+        fields['moves'] = _parseExtractedNumber(movesRaw);
+
+        final capturesRaw = valueFor([
+          'captures',
+          'captureCount',
+          'capture_count',
+          'piecesCaptured',
+          'pieces_captured',
+          'captured',
+        ]);
+        fields['captures'] = _parseExtractedNumber(capturesRaw);
+      }
+    } catch (_) {}
+
+    fields['title'] ??= _extractChessResultTitle(text);
+    fields['moves'] ??= _extractChessMoves(text);
+    fields['captures'] ??= _extractChessCaptures(text);
+
+    return fields;
+  }
+
+  String? _extractChessResultTitle(String text) {
+    final source = text.toLowerCase();
+
+    final labeled = RegExp(
+      r'''(?:title|result|outcome|status)\s*["']?\s*[:=-]?\s*["']?(victory|defeat|draw)''',
+      caseSensitive: false,
+    ).firstMatch(source);
+    if (labeled != null) {
+      final value = (labeled.group(1) ?? '').trim();
+      if (value.isNotEmpty) {
+        return value[0].toUpperCase() + value.substring(1).toLowerCase();
+      }
+    }
+
+    return _normalizeChessTitleValue(source);
+  }
+
   int? _extractLikelyScore(String text) {
     final direct = _extractStatNumber(
       text,
@@ -787,26 +914,88 @@ class _RootAppState extends State<RootApp>
     final normalized = _normalizedGameName(game);
 
     if (normalized.contains('chess')) {
-      return 'Well Played';
+      return 'Nice Match';
     }
 
     if (normalized.contains('property') || normalized.contains('pursuit')) {
-      return 'Good Run';
+      return 'Good Run, You Property Tycoon!';
     }
 
     if (normalized.contains('flappy') || normalized.contains('fish')) {
-      return 'Great Score';
+      return 'Life is like Flappy Fish';
     }
 
     if (normalized.contains('tower') || normalized.contains('defense')) {
-      return 'Strong Defense';
+      return 'Good job defending your base!';
     }
 
     if (normalized.contains('tiles') || normalized.contains('puzzle')) {
-      return 'Nice Move';
+      return 'Great Score';
     }
 
     return 'Great Run';
+  }
+
+  String _normalizeChessDifficultyLabel(String? difficulty) {
+    final value = (difficulty ?? '').trim().toLowerCase();
+    if (value == 'easy') return 'Easy';
+    if (value == 'medium') return 'Medium';
+    if (value == 'hard') return 'Hard';
+    return 'Unknown';
+  }
+
+  String _normalizeChessResultLabel(String? title) {
+    final value = (title ?? '').trim().toLowerCase();
+    if (value.contains('victory')) return 'Victory';
+    if (value.contains('defeat')) return 'Defeat';
+    if (value.contains('draw')) return 'Draw';
+    return 'Result';
+  }
+
+  String _buildChessNaturalSummary({
+    required String gameName,
+    required String actor,
+    required String? difficulty,
+    required String? title,
+    required int? moves,
+    required int? captures,
+  }) {
+    final difficultyLabel = _normalizeChessDifficultyLabel(difficulty);
+    final resultLabel = _normalizeChessResultLabel(title);
+    final movesText = moves != null ? '$moves moves' : 'moves n/a';
+    final capturesText = captures != null ? '$captures captures' : 'captures n/a';
+
+    if (resultLabel == 'Victory') {
+      if (difficultyLabel == 'Hard') {
+        return '$actor pulled off a hard-fought Victory on $gameName ($difficultyLabel) in $movesText with $capturesText.';
+      }
+      if (difficultyLabel == 'Medium') {
+        return '$actor secured a solid Victory on $gameName ($difficultyLabel) in $movesText with $capturesText.';
+      }
+      return '$actor closed out a confident Victory on $gameName ($difficultyLabel) in $movesText with $capturesText.';
+    }
+
+    if (resultLabel == 'Defeat') {
+      if (difficultyLabel == 'Hard') {
+        return '$actor took a Defeat on $gameName against $difficultyLabel AI after $movesText and $capturesText.';
+      }
+      if (difficultyLabel == 'Medium') {
+        return '$actor ended with a Defeat on $gameName ($difficultyLabel) after $movesText and $capturesText.';
+      }
+      return '$actor finished with a Defeat on $gameName ($difficultyLabel) after $movesText and $capturesText.';
+    }
+
+    if (resultLabel == 'Draw') {
+      if (difficultyLabel == 'Hard') {
+        return '$actor held a Draw on $gameName ($difficultyLabel) in $movesText with $capturesText.';
+      }
+      if (difficultyLabel == 'Medium') {
+        return '$actor played to a Draw on $gameName ($difficultyLabel) in $movesText with $capturesText.';
+      }
+      return '$actor finished with a Draw on $gameName ($difficultyLabel) in $movesText with $capturesText.';
+    }
+
+    return '$actor finished a chess run on $gameName in $movesText with $capturesText at $difficultyLabel difficulty.';
   }
 
   String _buildShareProgressText(GameData game, String? gameOverText, {String? accomplishmentLink}) {
@@ -820,16 +1009,19 @@ class _RootAppState extends State<RootApp>
     final difficulty = _extractDifficulty(source);
 
     if (normalized.contains('chess')) {
-      if (difficulty != null && turns != null) {
-        return 'Just beat the $difficulty AI on ${game.name} in $turns turns — can you top that?';
-      }
-      if (difficulty != null) {
-        return 'Just beat the $difficulty AI on ${game.name} — can you top that?';
-      }
-      if (turns != null) {
-        return 'Just beat the AI on ${game.name} in $turns turns — can you top that?';
-      }
-      return 'Just won a match on ${game.name} — your turn now.';
+      final chess = _extractChessResultFields(source);
+      final chessTitle = chess['title'] as String?;
+      final chessMoves = chess['moves'] as int?;
+      final chessCaptures = chess['captures'] as int?;
+      final summary = _buildChessNaturalSummary(
+        gameName: game.name,
+        actor: 'I',
+        difficulty: difficulty,
+        title: chessTitle,
+        moves: chessMoves,
+        captures: chessCaptures,
+      );
+      return '$summary Can you top that?';
     }
 
     final isTilesGame = normalized.contains('tiles') || normalized.contains('puzzle');
@@ -919,16 +1111,19 @@ class _RootAppState extends State<RootApp>
     final difficulty = _extractDifficulty(source);
 
     if (normalized.contains('chess')) {
-      if (difficulty != null && turns != null) {
-        return 'I just beat the $difficulty AI on ${game.name} in $turns turns — beat me 👀\n$challengeLink';
-      }
-      if (difficulty != null) {
-        return 'I just beat the $difficulty AI on ${game.name} — beat me 👀\n$challengeLink';
-      }
-      if (turns != null) {
-        return 'I just beat the AI on ${game.name} in $turns turns — beat me 👀\n$challengeLink';
-      }
-      return 'Challenge me on ${game.name} 🎮\n$challengeLink';
+      final chess = _extractChessResultFields(source);
+      final chessTitle = chess['title'] as String?;
+      final chessMoves = chess['moves'] as int?;
+      final chessCaptures = chess['captures'] as int?;
+      final summary = _buildChessNaturalSummary(
+        gameName: game.name,
+        actor: 'I',
+        difficulty: difficulty,
+        title: chessTitle,
+        moves: chessMoves,
+        captures: chessCaptures,
+      );
+      return '$summary Beat me 👀\n$challengeLink';
     }
 
     final isTilesGame = normalized.contains('tiles') || normalized.contains('puzzle');
@@ -1002,8 +1197,22 @@ class _RootAppState extends State<RootApp>
     final normalized = (gameName ?? '').toLowerCase();
     final lowerSource = source.toLowerCase();
 
+    // For chess: show dialog if we have any game stats
     if (normalized.contains('chess')) {
-      return _extractStatNumber(source, 'turns|moves') != null ||
+      // Check for any indicator of a completed chess game
+      return lowerSource.contains('victory') ||
+          lowerSource.contains('defeat') ||
+          lowerSource.contains('draw') ||
+          lowerSource.contains('stalemate') ||
+          lowerSource.contains('checkmate') ||
+          lowerSource.contains('won') ||
+          lowerSource.contains('lost') ||
+          lowerSource.contains('moves:') ||
+          lowerSource.contains('captures:') ||
+          lowerSource.contains('play again') ||
+          lowerSource.contains('game over') ||
+          _extractChessMoves(source) != null ||
+          _extractChessCaptures(source) != null ||
           _extractDifficulty(source) != null;
     }
 
@@ -1310,7 +1519,6 @@ class _RootAppState extends State<RootApp>
                                 color: Colors.transparent,
                                 child: InkWell(
                                   onTap: () {
-                                    Navigator.of(dialogContext).pop();
                                     if (!mounted) return;
                                     parentContext.push(Routes.postChat, extra: {
                                       'name': gameName,
@@ -1659,7 +1867,21 @@ class _RootAppState extends State<RootApp>
                 });
               },
               onGameEnd: (completion) async {
-                debugPrint('[MiniGameCompletionHandoff] game=${completion.game?.id ?? 'unknown'} playedLikely=${completion.playedLikely} gameOverText=${completion.gameOverText ?? 'null'}');
+                final handoffSource =
+                    _normalizeGameOverTextForParsing(completion.gameOverText);
+                final isChess =
+                    (completion.game?.id ?? '').toLowerCase().contains('chess');
+                if (isChess) {
+                  final chessFields = _extractChessResultFields(handoffSource);
+                  final handoffDifficulty = _extractDifficulty(handoffSource);
+                  debugPrint(
+                    '[MiniGameCompletionHandoff] game=${completion.game?.id ?? 'unknown'} playedLikely=${completion.playedLikely} title=${chessFields['title'] ?? 'n/a'} moves=${chessFields['moves'] ?? 'n/a'} captures=${chessFields['captures'] ?? 'n/a'} difficulty=${handoffDifficulty ?? 'n/a'} raw=${handoffSource.isEmpty ? 'null' : handoffSource}',
+                  );
+                } else {
+                  debugPrint(
+                    '[MiniGameCompletionHandoff] game=${completion.game?.id ?? 'unknown'} playedLikely=${completion.playedLikely} gameOverText=${completion.gameOverText ?? 'null'}',
+                  );
+                }
                 if (_miniGameMenuOpen) {
                   setState(() {
                     _miniGameMenuOpen = false;

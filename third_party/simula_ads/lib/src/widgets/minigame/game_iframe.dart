@@ -72,6 +72,8 @@ class _GameIframeState extends State<GameIframe> {
       _lastBottomSheetState; // Track last bottom sheet state to avoid redundant SystemChrome calls
   String? _lastGameOverTextSnapshot;
 
+  bool get _isChessGame => widget.gameId.toLowerCase().contains('chess');
+
   @override
   void initState() {
     super.initState();
@@ -237,20 +239,96 @@ class _GameIframeState extends State<GameIframe> {
   }
 
   String _buildLabeledTelemetryText(Map<String, dynamic> payload) {
+    final normalizedPayload = Map<String, dynamic>.from(payload);
+
+    String? normalizeChessTitle(String? value) {
+      if (!_isChessGame || value == null) return value;
+      final source = value.trim().toLowerCase();
+      if (source.isEmpty) return null;
+
+      if (source.contains('victory') ||
+          source.contains('win') ||
+          source.contains('won') ||
+          source.contains('checkmate')) {
+        return 'Victory';
+      }
+      if (source.contains('defeat') ||
+          source.contains('lose') ||
+          source.contains('loss') ||
+          source.contains('lost')) {
+        return 'Defeat';
+      }
+      if (source.contains('draw') ||
+          source.contains('stalemate') ||
+          source.contains('tie')) {
+        return 'Draw';
+      }
+
+      return value;
+    }
+
+    String? firstNonEmpty(List<dynamic> values) {
+      for (final value in values) {
+        if (value == null) continue;
+        final text = value.toString().trim();
+        if (text.isNotEmpty && text.toLowerCase() != 'null') return text;
+      }
+      return null;
+    }
+
+    if (_isChessGame) {
+      normalizedPayload['title'] = normalizeChessTitle(
+        firstNonEmpty([
+          normalizedPayload['title'],
+          normalizedPayload['resultTitle'],
+          normalizedPayload['result_title'],
+          normalizedPayload['result'],
+          normalizedPayload['outcome'],
+          normalizedPayload['status'],
+          normalizedPayload['winner'],
+        ]),
+      );
+
+      final difficulty = firstNonEmpty([
+        normalizedPayload['difficulty'],
+        normalizedPayload['levelName'],
+        normalizedPayload['level_name'],
+        normalizedPayload['aiDifficulty'],
+        normalizedPayload['ai_difficulty'],
+      ]);
+      if (difficulty != null) {
+        normalizedPayload['difficulty'] = difficulty;
+      }
+
+      final moves = firstNonEmpty([
+        normalizedPayload['moves'],
+        normalizedPayload['moveCount'],
+        normalizedPayload['move_count'],
+        normalizedPayload['turns'],
+        normalizedPayload['ply'],
+      ]);
+      if (moves != null) {
+        normalizedPayload['moves'] = moves;
+      }
+    }
+
     final buffer = StringBuffer();
 
     void append(String key, String label) {
-      final value = payload[key]?.toString().trim() ?? '';
+      final value = normalizedPayload[key]?.toString().trim() ?? '';
       if (value.isEmpty || value.toLowerCase() == 'null') return;
       if (buffer.isNotEmpty) buffer.write(' | ');
       buffer.write('$label: $value');
     }
 
-    final text = payload['text']?.toString().trim() ?? '';
+    final text = normalizedPayload['text']?.toString().trim() ?? '';
     if (text.isNotEmpty) buffer.write(text);
 
     append('score', 'Score');
     append('level', 'Level');
+    append('difficulty', 'Difficulty');
+    append('moves', 'Moves');
+    append('captures', 'Captures');
     append('turns', 'Turns');
     append('coins', 'Coins');
     append('distance', 'Distance');
@@ -268,6 +346,24 @@ class _GameIframeState extends State<GameIframe> {
         '''
 (() => {
   try {
+    const isChessGame = ${_isChessGame ? 'true' : 'false'};
+    const normalizeChessTitle = (value) => {
+      if (!value || typeof value !== 'string') return null;
+      const lower = value.toLowerCase();
+      if (lower.includes('victory') || lower.includes('win') || lower.includes('won') || lower.includes('checkmate')) return 'Victory';
+      if (lower.includes('defeat') || lower.includes('lose') || lower.includes('loss') || lower.includes('lost')) return 'Defeat';
+      if (lower.includes('draw') || lower.includes('stalemate') || lower.includes('tie')) return 'Draw';
+      return null;
+    };
+    const extractDifficulty = (value) => {
+      if (!value || typeof value !== 'string') return null;
+      const lower = value.toLowerCase();
+      const tokens = (' ' + lower.replace(/[^a-z]+/g, ' ') + ' ');
+      if (tokens.includes(' easy ')) return 'Easy';
+      if (tokens.includes(' medium ')) return 'Medium';
+      if (tokens.includes(' hard ')) return 'Hard';
+      return null;
+    };
     const collectLivePayload = () => {
       const lines = [];
 
@@ -283,20 +379,22 @@ class _GameIframeState extends State<GameIframe> {
 
       const collectFromDocument = (doc) => {
         if (!doc || !doc.querySelectorAll) return;
-        const nodes = doc.querySelectorAll('h1, h2, h3, h4, h5, h6, p, span, div, button, strong');
+        const nodes = doc.querySelectorAll('h1, h2, h3, h4, h5, h6, p, span, div, button, strong, td, th, li');
         for (let i = 0; i < nodes.length; i += 1) {
           const el = nodes[i];
           if (!isVisible(el)) continue;
+          if (el && el.getAttribute && el.getAttribute('data-inzone-selector-badge') === 'true') continue;
           const text = (el.innerText || el.textContent || '').replace(/\s+/g, ' ').trim();
+          if (text === '⌄') continue;
           if (!text) continue;
           lines.push(text);
-          if (lines.length >= 40) return;
+          if (lines.length >= 90) return;
         }
       };
 
       collectFromDocument(document);
 
-      if (lines.length < 40) {
+      if (lines.length < 90) {
         const iframes = document.querySelectorAll('iframe');
         for (let i = 0; i < iframes.length; i += 1) {
           const iframe = iframes[i];
@@ -304,7 +402,7 @@ class _GameIframeState extends State<GameIframe> {
             const subDoc = iframe.contentDocument || (iframe.contentWindow ? iframe.contentWindow.document : null);
             if (!subDoc) continue;
             collectFromDocument(subDoc);
-            if (lines.length >= 40) break;
+            if (lines.length >= 90) break;
           } catch (_) {
             // Cross-origin iframe; cannot inspect.
           }
@@ -322,11 +420,138 @@ class _GameIframeState extends State<GameIframe> {
         return String(Math.round(num));
       };
 
+      const extractLabeledStatFromDocument = (doc, labelPattern) => {
+        if (!doc || !doc.querySelectorAll) return null;
+
+        const parseNumberFromText = (text) => {
+          if (!text || typeof text !== 'string') return null;
+          const match = text.match(/\b(\d{1,6})\b/);
+          if (!match) return null;
+          return String(match[1]);
+        };
+
+        const nodes = doc.querySelectorAll('h1, h2, h3, h4, h5, h6, p, span, div, button, strong, td, th, li');
+        const labelToken = new RegExp('(?:^|\\b)(?:' + labelPattern + ')(?:\\b)', 'i');
+        const labelWithValue = new RegExp(labelPattern + '\\s*[:=-]?\\s*(\\d{1,6})', 'i');
+        const valueBeforeLabel = new RegExp('(\\d{1,6})\\s*' + labelPattern, 'i');
+
+        for (let i = 0; i < nodes.length; i += 1) {
+          const el = nodes[i];
+          if (!isVisible(el)) continue;
+          const text = (el.innerText || el.textContent || '').replace(/\s+/g, ' ').trim();
+          if (!text) continue;
+
+          const labeled = text.match(labelWithValue) || text.match(valueBeforeLabel);
+          if (labeled && labeled[1]) {
+            const parsed = parseNumberFromText(labeled[1]);
+            if (parsed !== null) return parsed;
+          }
+
+          if (!labelToken.test(text.toLowerCase()) || /\d/.test(text)) continue;
+
+          const parent = el.parentElement;
+          if (parent) {
+            const parentText = (parent.innerText || parent.textContent || '').replace(/\s+/g, ' ').trim();
+            const parentMatch = parentText.match(labelWithValue) || parentText.match(valueBeforeLabel);
+            if (parentMatch && parentMatch[1]) {
+              const parsed = parseNumberFromText(parentMatch[1]);
+              if (parsed !== null) return parsed;
+            }
+
+            const children = parent.children || [];
+            for (let c = 0; c < children.length; c += 1) {
+              const child = children[c];
+              if (child === el) continue;
+              const childText = (child.innerText || child.textContent || '').replace(/\s+/g, ' ').trim();
+              const parsed = parseNumberFromText(childText);
+              if (parsed !== null) return parsed;
+            }
+          }
+
+          const prev = el.previousElementSibling;
+          if (prev) {
+            const prevText = (prev.innerText || prev.textContent || '').replace(/\s+/g, ' ').trim();
+            const parsed = parseNumberFromText(prevText);
+            if (parsed !== null) return parsed;
+          }
+
+          const next = el.nextElementSibling;
+          if (next) {
+            const nextText = (next.innerText || next.textContent || '').replace(/\s+/g, ' ').trim();
+            const parsed = parseNumberFromText(nextText);
+            if (parsed !== null) return parsed;
+          }
+        }
+
+        return null;
+      };
+
+      const extractStatFromTextBlob = (text, labelPattern) => {
+        if (!text || typeof text !== 'string') return null;
+        const normalized = text.replace(/\s+/g, ' ').trim();
+        if (!normalized) return null;
+
+        const labeledAfter = new RegExp('["\\']?(?:' + labelPattern + ')["\\']?\\s*[:=-]?\\s*["\\']?(\\d{1,6})', 'i').exec(normalized);
+        if (labeledAfter && labeledAfter[1]) return String(labeledAfter[1]);
+
+        const labeledBefore = new RegExp('(\\d{1,6})\\s*(?:' + labelPattern + ')', 'i').exec(normalized);
+        if (labeledBefore && labeledBefore[1]) return String(labeledBefore[1]);
+
+        return null;
+      };
+
+      const collectWholeDocumentText = () => {
+        const chunks = [];
+        try {
+          if (document && document.body) {
+            chunks.push(String(document.body.innerText || document.body.textContent || ''));
+          }
+        } catch (_) {}
+
+        const iframes = document.querySelectorAll('iframe');
+        for (let i = 0; i < iframes.length; i += 1) {
+          const iframe = iframes[i];
+          try {
+            const subDoc = iframe.contentDocument || (iframe.contentWindow ? iframe.contentWindow.document : null);
+            if (!subDoc || !subDoc.body) continue;
+            chunks.push(String(subDoc.body.innerText || subDoc.body.textContent || ''));
+          } catch (_) {
+            // Cross-origin iframe; cannot inspect.
+          }
+        }
+
+        return chunks.join(' | ').replace(/\s+/g, ' ').trim();
+      };
+
+      const extractLabeledStatAcrossReachableDocs = (labelPattern) => {
+        let value = extractLabeledStatFromDocument(document, labelPattern);
+        if (value !== null) return value;
+
+        const iframes = document.querySelectorAll('iframe');
+        for (let i = 0; i < iframes.length; i += 1) {
+          const iframe = iframes[i];
+          try {
+            const subDoc = iframe.contentDocument || (iframe.contentWindow ? iframe.contentWindow.document : null);
+            if (!subDoc) continue;
+            value = extractLabeledStatFromDocument(subDoc, labelPattern);
+            if (value !== null) return value;
+          } catch (_) {
+            // Cross-origin iframe; cannot inspect.
+          }
+        }
+
+        return null;
+      };
+
       const findStatsInObjectGraph = () => {
         const queue = [];
         const seen = new Set();
         let foundScore = null;
         let foundLevel = null;
+        let foundMoves = null;
+        let foundCaptures = null;
+        let foundTitle = null;
+        let foundDifficulty = null;
 
         const pushCandidate = (obj) => {
           if (!obj || typeof obj !== 'object') return;
@@ -340,7 +565,7 @@ class _GameIframeState extends State<GameIframe> {
         const hardLimit = 700;
         let inspected = 0;
 
-        while (queue.length > 0 && inspected < hardLimit && (foundScore === null || foundLevel === null)) {
+        while (queue.length > 0 && inspected < hardLimit && (foundScore === null || foundLevel === null || foundMoves === null || foundCaptures === null || foundTitle === null || foundDifficulty === null)) {
           const current = queue.shift();
           inspected += 1;
 
@@ -371,6 +596,36 @@ class _GameIframeState extends State<GameIframe> {
               if (parsed !== null && parsed !== '0') foundLevel = parsed;
             }
 
+            if (foundMoves === null && (lowerKey.includes('move') || lowerKey.includes('turn'))) {
+              // Some chess engines expose a move list array; its length is the real move count.
+              if (Array.isArray(value) && value.length > 0) {
+                foundMoves = String(value.length);
+              } else {
+                // Fallback for scalar counters like moveCount/turns/ply when history arrays are absent.
+                const parsed = extractNumber(value);
+                if (parsed !== null && parsed !== '0') foundMoves = parsed;
+              }
+            }
+
+            if (foundCaptures === null && (lowerKey.includes('capture') || lowerKey.includes('taken'))) {
+              const parsed = extractNumber(value);
+              if (parsed !== null && parsed !== '0') foundCaptures = parsed;
+            }
+
+            if (foundTitle === null && (lowerKey.includes('title') || lowerKey.includes('result') || lowerKey.includes('outcome') || lowerKey.includes('status') || lowerKey.includes('winner'))) {
+              if (typeof value === 'string') {
+                const titleText = value.trim();
+                if (titleText) foundTitle = titleText;
+              }
+            }
+
+            if (foundDifficulty === null && lowerKey.includes('difficulty')) {
+              if (typeof value === 'string') {
+                const difficultyText = extractDifficulty(value);
+                if (difficultyText) foundDifficulty = difficultyText;
+              }
+            }
+
             if (value && typeof value === 'object') {
               pushCandidate(value);
             } else if (typeof value === 'string') {
@@ -382,16 +637,36 @@ class _GameIframeState extends State<GameIframe> {
                 const levelInText = value.match(/(?:level|stage)\s*[:=-]?\s*(\d+)/i) || value.match(/level\s*(\d+)\s*cleared/i);
                 if (levelInText) foundLevel = String(levelInText[1]);
               }
+              if (foundMoves === null) {
+                const movesInText = value.match(/(?:moves?|turns?)\s*[:=-]?\s*(\d+)/i) || value.match(/(\d+)\s*(?:moves?|turns?)\b/i);
+                if (movesInText) foundMoves = String(movesInText[1]);
+              }
+              if (foundCaptures === null) {
+                const capturesInText = value.match(/(?:captures?|captured|pieces?\s*captured)\s*[:=-]?\s*(\d+)/i) || value.match(/(\d+)\s*(?:captures?|pieces?\s*captured)\b/i);
+                if (capturesInText) foundCaptures = String(capturesInText[1]);
+              }
+              if (foundTitle === null) {
+                const titleInText = normalizeChessTitle(value);
+                if (titleInText) foundTitle = titleInText;
+              }
+              if (foundDifficulty === null) {
+                const difficultyInText = extractDifficulty(value);
+                if (difficultyInText) foundDifficulty = difficultyInText;
+              }
             }
           }
         }
 
-        return { score: foundScore, level: foundLevel };
+        return { score: foundScore, level: foundLevel, moves: foundMoves, captures: foundCaptures, title: foundTitle, difficulty: foundDifficulty };
       };
 
       const findStatsInStorage = () => {
         let storageScore = null;
         let storageLevel = null;
+        let storageMoves = null;
+        let storageCaptures = null;
+        let storageTitle = null;
+        let storageDifficulty = null;
 
         const inspectStorage = (storage) => {
           if (!storage) return;
@@ -410,13 +685,33 @@ class _GameIframeState extends State<GameIframe> {
               const match = v.match(/(?:level|stage)\s*[:=-]?\s*(\d+)/i) || v.match(/level\s*(\d+)\s*cleared/i);
               if (match) storageLevel = String(match[1]);
             }
+
+            if (storageMoves === null && (lk.includes('move') || lk.includes('turn') || v.toLowerCase().includes('move') || v.toLowerCase().includes('turn'))) {
+              const match = v.match(/(?:moves?|turns?)\s*[:=-]?\s*(\d+)/i) || v.match(/(\d+)\s*(?:moves?|turns?)\b/i);
+              if (match) storageMoves = String(match[1]);
+            }
+
+            if (storageCaptures === null && (lk.includes('capture') || v.toLowerCase().includes('capture'))) {
+              const match = v.match(/(?:captures?|captured|pieces?\s*captured)\s*[:=-]?\s*(\d+)/i) || v.match(/(\d+)\s*(?:captures?|pieces?\s*captured)\b/i);
+              if (match) storageCaptures = String(match[1]);
+            }
+
+            if (storageTitle === null && (lk.includes('title') || lk.includes('result') || lk.includes('outcome') || lk.includes('status') || lk.includes('winner') || v.toLowerCase().includes('victory') || v.toLowerCase().includes('defeat') || v.toLowerCase().includes('draw'))) {
+              const title = normalizeChessTitle(v);
+              if (title) storageTitle = title;
+            }
+
+            if (storageDifficulty === null && (lk.includes('difficulty') || v.toLowerCase().includes('easy') || v.toLowerCase().includes('medium') || v.toLowerCase().includes('hard'))) {
+              const difficulty = extractDifficulty(v);
+              if (difficulty) storageDifficulty = difficulty;
+            }
           }
         };
 
         try { inspectStorage(window.localStorage); } catch (_) {}
         try { inspectStorage(window.sessionStorage); } catch (_) {}
 
-        return { score: storageScore, level: storageLevel };
+        return { score: storageScore, level: storageLevel, moves: storageMoves, captures: storageCaptures, title: storageTitle, difficulty: storageDifficulty };
       };
 
       const scoreMatch =
@@ -425,17 +720,63 @@ class _GameIframeState extends State<GameIframe> {
       const levelMatch =
         lower.match(/(?:level|stage)\s*[:=-]?\s*(\d+)/i) ||
         lower.match(/level\s*(\d+)\s*cleared/i);
+      const movesMatch =
+        lower.match(/(?:moves?|turns?|move[_\s-]?count|movecount|ply|plies|full[_\s-]?moves?|half[_\s-]?moves?)\s*[:=-]?\s*(\d+)/i) ||
+        lower.match(/(\d+)\s*(?:moves?|turns?|ply|plies|full[_\s-]?moves?|half[_\s-]?moves?)\b/i) ||
+        lower.match(/move\s*#?\s*(\d+)/i);
+      const capturesMatch =
+        lower.match(/(?:captures?|captured|pieces?\s*captured)\s*[:=-]?\s*(\d+)/i) ||
+        lower.match(/(\d+)\s*(?:captures?|pieces?\s*captured)\b/i);
+      const wholeDocText = collectWholeDocumentText();
+      const chessTitleMatch = normalizeChessTitle(fullText) || normalizeChessTitle(wholeDocText);
+      const chessDifficulty = extractDifficulty(fullText) || extractDifficulty(wholeDocText);
+      const wholeDocMoves = extractStatFromTextBlob(wholeDocText, 'moves?|turns?|move_count|movecount|ply|plies|number\\s*of\\s*moves|moves?\\s*made|total\\s*moves?|move\\s*number');
+      const wholeDocCaptures = extractStatFromTextBlob(wholeDocText, 'captures?|captured|capture_count|pieces?[_\\s-]?captured');
+      const layoutMoves = extractLabeledStatAcrossReachableDocs('moves?|turns?|move_count|movecount|ply|plies|full\\s*moves?|half\\s*moves?|number\\s*of\\s*moves|moves?\\s*made|total\\s*moves?|move\\s*number');
+      const layoutCaptures = extractLabeledStatAcrossReachableDocs('captures?|captured|pieces?\\s*captured');
       const graphStats = findStatsInObjectGraph();
       const storageStats = findStatsInStorage();
+      const resolvedScore =
+        scoreMatch ? String(scoreMatch[1]).replace(/,/g, '') :
+        (graphStats.score !== null ? graphStats.score : storageStats.score);
+      const resolvedMoves = isChessGame
+        ? (movesMatch
+            ? String(movesMatch[1])
+            : (layoutMoves !== null
+                ? layoutMoves
+            : (wholeDocMoves !== null
+              ? wholeDocMoves
+              : (graphStats.moves !== null ? graphStats.moves : storageStats.moves))))
+        : null;
+      // Prefer explicit UI labels first, then whole-doc stats, then object/storage state for chess moves.
 
       return {
         text: fullText.substring(0, 800),
-        score:
-          scoreMatch ? String(scoreMatch[1]).replace(/,/g, '') :
-          (graphStats.score !== null ? graphStats.score : storageStats.score),
+        score: resolvedScore,
         level:
           levelMatch ? String(levelMatch[1]) :
           (graphStats.level !== null ? graphStats.level : storageStats.level),
+        moves: resolvedMoves,
+        turns: resolvedMoves,
+        captures: isChessGame
+          ? (capturesMatch
+              ? String(capturesMatch[1])
+              : (layoutCaptures !== null
+                  ? layoutCaptures
+              : (wholeDocCaptures !== null
+                ? wholeDocCaptures
+                : (graphStats.captures !== null ? graphStats.captures : storageStats.captures))))
+          : null,
+        title: isChessGame
+          ? (chessTitleMatch
+              ? chessTitleMatch
+              : (graphStats.title !== null ? graphStats.title : storageStats.title))
+          : null,
+        difficulty: isChessGame
+          ? (chessDifficulty
+              ? chessDifficulty
+              : (graphStats.difficulty !== null ? graphStats.difficulty : storageStats.difficulty))
+          : null,
       };
     };
 
@@ -450,11 +791,22 @@ class _GameIframeState extends State<GameIframe> {
       text: (live.text && live.text.length > 0) ? live.text : (cached && cached.text ? cached.text : ''),
       score: (live.score != null && live.score !== '') ? live.score : (cached && cached.score ? String(cached.score) : null),
       level: (live.level != null && live.level !== '') ? live.level : (cached && cached.level ? String(cached.level) : null),
-      turns: cached && cached.turns ? String(cached.turns) : null,
+      moves: isChessGame
+        ? ((live.moves != null && live.moves !== '') ? live.moves : (cached && cached.moves ? String(cached.moves) : null))
+        : null,
+      captures: isChessGame
+        ? ((live.captures != null && live.captures !== '') ? live.captures : (cached && cached.captures ? String(cached.captures) : null))
+        : null,
+      difficulty: isChessGame
+        ? ((live.difficulty != null && live.difficulty !== '') ? live.difficulty : (cached && cached.difficulty ? String(cached.difficulty) : null))
+        : null,
+      turns: (live.turns != null && live.turns !== '') ? live.turns : (cached && cached.turns ? String(cached.turns) : null),
       coins: cached && cached.coins ? String(cached.coins) : null,
       distance: cached && cached.distance ? String(cached.distance) : null,
       action: cached && cached.action ? String(cached.action) : null,
-      title: cached && cached.title ? String(cached.title) : null,
+      title: isChessGame
+        ? (normalizeChessTitle((live.title != null && live.title !== '') ? String(live.title) : (cached && cached.title ? String(cached.title) : '')) || ((live.title != null && live.title !== '') ? String(live.title) : (cached && cached.title ? String(cached.title) : null)))
+        : (cached && cached.title ? String(cached.title) : null),
     };
 
     const normalized = JSON.stringify(merged);
@@ -515,30 +867,8 @@ class _GameIframeState extends State<GameIframe> {
             try {
               final dynamic decoded = jsonDecode(message.message);
               if (decoded is Map) {
-                final buffer = StringBuffer();
-
-                final text = (decoded['text'] ?? '').toString().trim();
-                if (text.isNotEmpty) {
-                  buffer.write(text);
-                }
-
-                void appendLabeled(String key, String label) {
-                  final value = (decoded[key] ?? '').toString().trim();
-                  if (value.isNotEmpty && value.toLowerCase() != 'null') {
-                    if (buffer.isNotEmpty) buffer.write(' | ');
-                    buffer.write('$label: $value');
-                  }
-                }
-
-                appendLabeled('score', 'Score');
-                appendLabeled('level', 'Level');
-                appendLabeled('turns', 'Turns');
-                appendLabeled('coins', 'Coins');
-                appendLabeled('distance', 'Distance');
-                appendLabeled('action', 'Action');
-                appendLabeled('title', 'Title');
-
-                final finalText = buffer.toString().trim();
+                final finalText =
+                    _buildLabeledTelemetryText(decoded.cast<String, dynamic>());
                 if (finalText.isNotEmpty) {
                   _lastGameOverTextSnapshot = finalText;
                   widget.onGameOverText?.call(finalText);
@@ -662,9 +992,10 @@ class _GameIframeState extends State<GameIframe> {
     final controller = _webViewController;
     if (controller == null) return;
 
-    const script = '''
+    final script = '''
 (() => {
   try {
+    const isChessGame = ${_isChessGame ? 'true' : 'false'};
     if (window.__inzoneCharacterTapBridgeInstalled) return;
     window.__inzoneCharacterTapBridgeInstalled = true;
 
@@ -683,6 +1014,92 @@ class _GameIframeState extends State<GameIframe> {
       }
       const rect = el.getBoundingClientRect();
       return rect.width > 0 && rect.height > 0;
+    };
+
+    const extractLabeledStatFromDocument = (doc, labelPattern) => {
+      if (!doc || !doc.querySelectorAll) return null;
+
+      const parseNumberFromText = (text) => {
+        if (!text || typeof text !== 'string') return null;
+        const match = text.match(/\b(\d{1,6})\b/);
+        if (!match) return null;
+        return String(match[1]);
+      };
+
+      const nodes = doc.querySelectorAll('h1, h2, h3, h4, h5, h6, p, span, div, button, strong');
+      const labelToken = new RegExp('(?:^|\\b)(?:' + labelPattern + ')(?:\\b)', 'i');
+      const labelWithValue = new RegExp(labelPattern + '\\s*[:=-]?\\s*(\\d{1,6})', 'i');
+      const valueBeforeLabel = new RegExp('(\\d{1,6})\\s*' + labelPattern, 'i');
+
+      for (let i = 0; i < nodes.length; i += 1) {
+        const el = nodes[i];
+        if (!isVisible(el, window)) continue;
+        const text = (el.innerText || el.textContent || '').replace(/\s+/g, ' ').trim();
+        if (!text) continue;
+
+        const labeled = text.match(labelWithValue) || text.match(valueBeforeLabel);
+        if (labeled && labeled[1]) {
+          const parsed = parseNumberFromText(labeled[1]);
+          if (parsed !== null) return parsed;
+        }
+
+        if (!labelToken.test(text.toLowerCase()) || /\d/.test(text)) continue;
+
+        const parent = el.parentElement;
+        if (parent) {
+          const parentText = (parent.innerText || parent.textContent || '').replace(/\s+/g, ' ').trim();
+          const parentMatch = parentText.match(labelWithValue) || parentText.match(valueBeforeLabel);
+          if (parentMatch && parentMatch[1]) {
+            const parsed = parseNumberFromText(parentMatch[1]);
+            if (parsed !== null) return parsed;
+          }
+
+          const children = parent.children || [];
+          for (let c = 0; c < children.length; c += 1) {
+            const child = children[c];
+            if (child === el) continue;
+            const childText = (child.innerText || child.textContent || '').replace(/\s+/g, ' ').trim();
+            const parsed = parseNumberFromText(childText);
+            if (parsed !== null) return parsed;
+          }
+        }
+
+        const prev = el.previousElementSibling;
+        if (prev) {
+          const prevText = (prev.innerText || prev.textContent || '').replace(/\s+/g, ' ').trim();
+          const parsed = parseNumberFromText(prevText);
+          if (parsed !== null) return parsed;
+        }
+
+        const next = el.nextElementSibling;
+        if (next) {
+          const nextText = (next.innerText || next.textContent || '').replace(/\s+/g, ' ').trim();
+          const parsed = parseNumberFromText(nextText);
+          if (parsed !== null) return parsed;
+        }
+      }
+
+      return null;
+    };
+
+    const extractLabeledStatAcrossReachableDocs = (labelPattern) => {
+      let value = extractLabeledStatFromDocument(document, labelPattern);
+      if (value !== null) return value;
+
+      const iframes = document.querySelectorAll('iframe');
+      for (let i = 0; i < iframes.length; i += 1) {
+        const iframe = iframes[i];
+        try {
+          const subDoc = iframe.contentDocument || (iframe.contentWindow ? iframe.contentWindow.document : null);
+          if (!subDoc) continue;
+          value = extractLabeledStatFromDocument(subDoc, labelPattern);
+          if (value !== null) return value;
+        } catch (_) {
+          // Cross-origin iframe; cannot inspect.
+        }
+      }
+
+      return null;
     };
 
     const isGameStartMenuVisible = (doc, win) => {
@@ -756,6 +1173,32 @@ class _GameIframeState extends State<GameIframe> {
       return false;
     };
 
+    const isAvatarCandidate = (el, win) => {
+      if (!el || !win || !el.getBoundingClientRect) return false;
+      if (!isVisible(el, win)) return false;
+
+      const rect = el.getBoundingClientRect();
+      const vw = win.innerWidth || 0;
+      const vh = win.innerHeight || 0;
+      if (vw <= 0 || vh <= 0) return false;
+
+      const nearTopLeft = rect.left < vw * 0.5 && rect.top < vh * 0.5;
+      if (!nearTopLeft) return false;
+
+      const width = rect.width || 0;
+      const height = rect.height || 0;
+      const likelyCircleSize = width >= 24 && width <= 140 && height >= 24 && height <= 140 && Math.abs(width - height) <= 20;
+      if (!likelyCircleSize) return false;
+
+      const style = win.getComputedStyle ? win.getComputedStyle(el) : null;
+      const borderRadius = style ? (style.borderRadius || '').toLowerCase() : '';
+      const looksCircular = borderRadius.includes('50%') || borderRadius.includes('999') || borderRadius.includes('100%');
+      if (looksCircular) return true;
+
+      if (el.tagName === 'IMG' || el.tagName === 'BUTTON' || el.tagName === 'DIV') return true;
+      return false;
+    };
+
     let lastTapMs = 0;
 
     const sendTap = () => {
@@ -807,7 +1250,7 @@ class _GameIframeState extends State<GameIframe> {
       let depth = 0;
       while (node && depth < 8) {
         if (isStartMenuButton(node)) return;
-        if (isCharacterElement(node, win)) {
+        if (isCharacterElement(node, win) || isAvatarCandidate(node, win)) {
           sendTap();
           break;
         }
@@ -829,12 +1272,7 @@ class _GameIframeState extends State<GameIframe> {
 
       for (let i = 0; i < nodes.length; i += 1) {
         const node = nodes[i];
-        if (!isVisible(node, win)) continue;
-        if (!isCharacterElement(node, win)) continue;
-
-        const rect = node.getBoundingClientRect();
-        const nearTopLeft = rect.left < vw * 0.5 && rect.top < vh * 0.5;
-        if (!nearTopLeft) continue;
+        if (!isAvatarCandidate(node, win)) continue;
 
         if (node.__inzoneTapBound) continue;
         node.__inzoneTapBound = true;
@@ -865,14 +1303,21 @@ class _GameIframeState extends State<GameIframe> {
 
       for (let i = 0; i < nodes.length; i += 1) {
         const node = nodes[i];
-        if (!isVisible(node, win)) continue;
-        if (!isCharacterElement(node, win)) continue;
+        if (!isAvatarCandidate(node, win)) continue;
 
         const rect = node.getBoundingClientRect();
-        const nearTopLeft = rect.left < vw * 0.5 && rect.top < vh * 0.5;
-        if (!nearTopLeft) continue;
+        const isCharacter = isCharacterElement(node, win);
 
-        const score = (Math.max(0, rect.left) * 2) + Math.max(0, rect.top);
+        // Size filtering: prefer elements between 24-200px that are roughly square/circular
+        const width = rect.width || 0;
+        const height = rect.height || 0;
+        const reasonablySquare = width >= 24 && width <= 200 && height >= 24 && height <= 200 && Math.abs(width - height) < width * 0.4;
+        
+        // Scoring: character elements get priority, then size similarity, then top-left position
+        let score = (Math.max(0, rect.left) * 1.5) + Math.max(0, rect.top);
+        if (!isCharacter) score += 1000; // Penalty for non-character elements
+        if (!reasonablySquare) score += 500; // Penalty for non-square elements
+        
         if (score < bestScore) {
           best = node;
           bestScore = score;
@@ -890,6 +1335,7 @@ class _GameIframeState extends State<GameIframe> {
           doc.__inzoneSelectorBadge.parentElement.removeChild(doc.__inzoneSelectorBadge);
         }
         doc.__inzoneSelectorBadge = null;
+        doc.__inzoneSelectorBadgeHost = null;
         return;
       }
 
@@ -904,16 +1350,44 @@ class _GameIframeState extends State<GameIframe> {
       const rect = anchor.getBoundingClientRect();
       const badgeSize = 24;
       const gap = 4;
-      const left = Math.max(8, rect.right - badgeSize * 0.5 + gap);
-      const top = Math.max(8, rect.bottom - badgeSize * 0.6);
+      const getBadgeHost = () => {
+        let node = anchor.parentElement;
+        while (node && node !== doc.body) {
+          try {
+            const position = win.getComputedStyle(node).position;
+            if (position && position !== 'static') return node;
+          } catch (_) {}
+          node = node.parentElement;
+        }
+        return anchor.parentElement || doc.body;
+      };
+
+      const badgeHost = getBadgeHost();
+      try {
+        const hostStyle = win.getComputedStyle ? win.getComputedStyle(badgeHost) : null;
+        if (badgeHost !== doc.body && hostStyle && hostStyle.position === 'static') {
+          badgeHost.style.position = 'relative';
+        }
+      } catch (_) {}
+      const hostRect = badgeHost.getBoundingClientRect();
+      const left = Math.max(0, rect.right - hostRect.left - badgeSize * 0.5 + gap);
+      const top = Math.max(0, rect.bottom - hostRect.top - badgeSize * 0.6);
 
       let badge = doc.__inzoneSelectorBadge;
+      const currentHost = doc.__inzoneSelectorBadgeHost;
+      if (badge && currentHost !== badgeHost) {
+        if (badge.parentElement) badge.parentElement.removeChild(badge);
+        badge = null;
+        doc.__inzoneSelectorBadge = null;
+      }
+
       if (!badge) {
         badge = doc.createElement('button');
         badge.type = 'button';
+        badge.setAttribute('data-inzone-selector-badge', 'true');
         badge.setAttribute('aria-label', 'Change character');
         badge.setAttribute('title', 'Change character');
-        badge.style.position = 'fixed';
+        badge.style.position = 'absolute';
         badge.style.width = badgeSize + 'px';
         badge.style.height = badgeSize + 'px';
         badge.style.borderRadius = '999px';
@@ -947,13 +1421,20 @@ class _GameIframeState extends State<GameIframe> {
         badge.addEventListener('pointerup', trigger, true);
         badge.addEventListener('touchend', trigger, true);
 
-        doc.body.appendChild(badge);
+        badgeHost.appendChild(badge);
         doc.__inzoneSelectorBadge = badge;
+        doc.__inzoneSelectorBadgeHost = badgeHost;
       }
 
       badge.style.display = 'flex';
-      badge.style.left = left + 'px';
-      badge.style.top = top + 'px';
+      const currentLeft = Number.parseFloat((badge.style.left || '0').replace('px', ''));
+      const currentTop = Number.parseFloat((badge.style.top || '0').replace('px', ''));
+      if (!Number.isFinite(currentLeft) || Math.abs(currentLeft - left) > 1) {
+        badge.style.left = left + 'px';
+      }
+      if (!Number.isFinite(currentTop) || Math.abs(currentTop - top) > 1) {
+        badge.style.top = top + 'px';
+      }
     };
 
     const installBridgeForDocument = (doc, win) => {
@@ -999,9 +1480,10 @@ class _GameIframeState extends State<GameIframe> {
 
     controller.runJavaScript(script).catchError((_) {});
 
-    const gameOverTextScript = '''
+    final gameOverTextScript = '''
 (() => {
   try {
+    const isChessGame = ${_isChessGame ? 'true' : 'false'};
     if (window.__inzoneGameOverTextBridgeInstalled) return;
     window.__inzoneGameOverTextBridgeInstalled = true;
 
@@ -1009,18 +1491,55 @@ class _GameIframeState extends State<GameIframe> {
       action: '',
       score: null,
       level: null,
+      difficulty: null,
       turns: null,
+      moves: null,
+      captures: null,
       coins: null,
       distance: null,
+      title: '',
       gameResult: '',
+    };
+
+    const normalizeChessTitle = (value) => {
+      if (!value || typeof value !== 'string') return null;
+      const lower = value.toLowerCase();
+      if (lower.includes('victory') || lower.includes('you win') || lower.includes('win') || lower.includes('won') || lower.includes('checkmate')) return 'Victory';
+      if (lower.includes('defeat') || lower.includes('you lose') || lower.includes('lose') || lower.includes('loss') || lower.includes('lost')) return 'Defeat';
+      if (lower.includes('draw') || lower.includes('stalemate') || lower.includes('tie')) return 'Draw';
+      return null;
+    };
+
+    const extractDifficulty = (value) => {
+      if (!value || typeof value !== 'string') return null;
+      const lower = value.toLowerCase();
+      const tokens = (' ' + lower.replace(/[^a-z]+/g, ' ') + ' ');
+      if (tokens.includes(' easy ')) return 'Easy';
+      if (tokens.includes(' medium ')) return 'Medium';
+      if (tokens.includes(' hard ')) return 'Hard';
+      return null;
     };
 
     const toNumericString = (value) => {
       if (value === null || value === undefined) return null;
-      const num = Number(value);
+      const raw = String(value).trim();
+      if (!raw) return null;
+
+      const num = Number(raw.replace(/,/g, ''));
       if (!Number.isFinite(num)) return null;
       if (Math.abs(num - Math.round(num)) < 0.001) return String(Math.round(num));
       return String(Number(num.toFixed(2)));
+    };
+
+    const toNumericStringLoose = (value) => {
+      const direct = toNumericString(value);
+      if (direct !== null) return direct;
+      if (value === null || value === undefined) return null;
+
+      const raw = String(value).replace(/,/g, ' ');
+      const embedded = raw.match(/-?\d+(?:\.\d+)?/);
+      if (!embedded) return null;
+      return toNumericString(embedded[0]);
     };
 
     const extractStatsFromText = (text) => {
@@ -1028,6 +1547,7 @@ class _GameIframeState extends State<GameIframe> {
         return {
           score: null,
           level: null,
+          difficulty: null,
           turns: null,
           coins: null,
           distance: null,
@@ -1041,16 +1561,28 @@ class _GameIframeState extends State<GameIframe> {
       const levelMatch =
         lower.match(/(?:level|stage)\s*[:=-]?\s*(\d+)/i) ||
         lower.match(/level\s*(\d+)\s*cleared/i);
-      const turnsMatch = lower.match(/(?:turns|moves)\s*[:=-]?\s*(\d+)/i);
+      const turnsMatch =
+        lower.match(/(?:turns|moves?)\s*[:=-]?\s*(\d+)/i) ||
+        lower.match(/(?:turns|moves?)\D{0,14}(\d+)/i);
+      const capturesMatch =
+        lower.match(/(?:captures?|captured|pieces?\s*captured)\s*[:=-]?\s*(\d+)/i) ||
+        lower.match(/(\d+)\s*(?:captures?|pieces?\s*captured)\b/i);
+      const turnsMatchAlt = lower.match(/(\d+)\s*(?:turns|moves)\b/i);
       const coinsMatch = lower.match(/coins?\s*[:=-]?\s*(\d[\d,]*)/i);
       const distanceMatch = lower.match(/distance\s*[:=-]?\s*(\d[\d,]*)/i);
+      const chessTitle = normalizeChessTitle(text);
+      const difficulty = extractDifficulty(text);
 
       return {
         score: scoreMatch ? String(scoreMatch[1]).replace(/,/g, '') : null,
         level: levelMatch ? String(levelMatch[1]) : null,
+        difficulty,
         turns: turnsMatch ? String(turnsMatch[1]) : null,
+        moves: turnsMatch ? String(turnsMatch[1]) : (turnsMatchAlt ? String(turnsMatchAlt[1]) : null),
+        captures: capturesMatch ? String(capturesMatch[1]).replace(/,/g, '') : null,
         coins: coinsMatch ? String(coinsMatch[1]).replace(/,/g, '') : null,
         distance: distanceMatch ? String(distanceMatch[1]).replace(/,/g, '') : null,
+        title: chessTitle,
       };
     };
 
@@ -1058,16 +1590,56 @@ class _GameIframeState extends State<GameIframe> {
       if (!stats || typeof stats !== 'object') return;
       if (stats.score !== null && stats.score !== undefined) inzoneStats.score = String(stats.score);
       if (stats.level !== null && stats.level !== undefined) inzoneStats.level = String(stats.level);
+      if (stats.difficulty !== null && stats.difficulty !== undefined) inzoneStats.difficulty = String(stats.difficulty);
       if (stats.turns !== null && stats.turns !== undefined) inzoneStats.turns = String(stats.turns);
+      if (stats.moves !== null && stats.moves !== undefined) inzoneStats.moves = String(stats.moves);
+      if (stats.captures !== null && stats.captures !== undefined) inzoneStats.captures = String(stats.captures);
       if (stats.coins !== null && stats.coins !== undefined) inzoneStats.coins = String(stats.coins);
       if (stats.distance !== null && stats.distance !== undefined) inzoneStats.distance = String(stats.distance);
+      if (stats.title) inzoneStats.title = String(stats.title);
     };
 
     const updateStatsFromGamePayload = (gameData) => {
       if (!gameData || typeof gameData !== 'object') return;
 
+      const findNumericFromKeys = (obj, includeFragments) => {
+        if (!obj || typeof obj !== 'object') return null;
+        const keys = Object.keys(obj);
+        for (let i = 0; i < keys.length; i += 1) {
+          const key = keys[i];
+          const lowerKey = String(key).toLowerCase();
+          let matchesAll = true;
+          for (let j = 0; j < includeFragments.length; j += 1) {
+            if (!lowerKey.includes(includeFragments[j])) {
+              matchesAll = false;
+              break;
+            }
+          }
+          if (!matchesAll) continue;
+
+          const text = toNumericStringLoose(obj[key]);
+          if (text !== null) return text;
+        }
+        return null;
+      };
+
       if (gameData.action) inzoneStats.action = String(gameData.action);
       if (gameData.gameResult) inzoneStats.gameResult = String(gameData.gameResult);
+      if (isChessGame) {
+        const titleFromPayload = normalizeChessTitle(
+          String(
+            gameData.title ??
+            gameData.resultTitle ??
+            gameData.result_title ??
+            gameData.result ??
+            gameData.outcome ??
+            gameData.status ??
+            gameData.winner ??
+            '',
+          ),
+        );
+        if (titleFromPayload) inzoneStats.title = titleFromPayload;
+      }
 
       const scoreValue =
         gameData.userScore ??
@@ -1099,19 +1671,60 @@ class _GameIframeState extends State<GameIframe> {
         gameData.stage ??
         gameData.round ??
         gameData.lvl;
-      const turnsValue = gameData.turns ?? gameData.moves ?? gameData.moveCount ?? gameData.move_count;
+      const turnsValue =
+        gameData.turns ??
+        gameData.moves ??
+        gameData.moveCount ??
+        gameData.move_count ??
+        gameData.totalMoves ??
+        gameData.total_moves ??
+        gameData.moveNumber ??
+        gameData.move_number ??
+        gameData.currentMove ??
+        gameData.current_move ??
+        gameData.numMoves ??
+        gameData.num_moves ??
+        gameData.numberOfMoves ??
+        gameData.number_of_moves ??
+        gameData.ply ??
+        gameData.plies ??
+        gameData.fullMoves ??
+        gameData.full_moves ??
+        gameData.halfMoves ??
+        gameData.half_moves;
+      const difficultyValue =
+        gameData.difficulty ??
+        gameData.levelName ??
+        gameData.level_name ??
+        gameData.aiDifficulty ??
+        gameData.ai_difficulty;
+      const capturesValue =
+        gameData.captures ??
+        gameData.captureCount ??
+        gameData.capture_count ??
+        gameData.piecesCaptured ??
+        gameData.pieces_captured;
       const coinsValue = gameData.coins ?? gameData.coinCount ?? gameData.coin_count;
       const distanceValue = gameData.distance ?? gameData.maxDistance ?? gameData.max_distance;
 
-      const scoreText = toNumericString(scoreValue);
-      const levelText = toNumericString(levelValue);
-      const turnsText = toNumericString(turnsValue);
-      const coinsText = toNumericString(coinsValue);
-      const distanceText = toNumericString(distanceValue);
+      const scoreText = toNumericStringLoose(scoreValue);
+      const levelText = toNumericStringLoose(levelValue);
+      const inferredTurnsText =
+        findNumericFromKeys(gameData, ['move']) ||
+        findNumericFromKeys(gameData, ['turn']) ||
+        findNumericFromKeys(gameData, ['ply']);
+      const turnsText = toNumericStringLoose(turnsValue) ?? inferredTurnsText;
+      const difficultyText = extractDifficulty(String(difficultyValue ?? ''));
+      const capturesText = toNumericStringLoose(capturesValue);
+      const coinsText = toNumericStringLoose(coinsValue);
+      const distanceText = toNumericStringLoose(distanceValue);
 
       if (scoreText !== null) inzoneStats.score = scoreText;
       if (levelText !== null) inzoneStats.level = levelText;
       if (turnsText !== null) inzoneStats.turns = turnsText;
+      if (turnsText !== null) inzoneStats.moves = turnsText;
+      if (difficultyText !== null) inzoneStats.difficulty = difficultyText;
+      if (capturesText !== null) inzoneStats.captures = capturesText;
       if (coinsText !== null) inzoneStats.coins = coinsText;
       if (distanceText !== null) inzoneStats.distance = distanceText;
 
@@ -1153,9 +1766,14 @@ class _GameIframeState extends State<GameIframe> {
         k.includes('distance') ||
         k.includes('turn') ||
         k.includes('move') ||
+        k.includes('capture') ||
         k.includes('level') ||
         k.includes('stage') ||
         k.includes('result') ||
+        k.includes('outcome') ||
+        k.includes('status') ||
+        k.includes('winner') ||
+        k.includes('title') ||
         k === 'action'
       );
     };
@@ -1221,11 +1839,19 @@ class _GameIframeState extends State<GameIframe> {
           normalized.level ??
           normalized.currentlevel ??
           normalized.current_level,
+        difficulty:
+          normalized.difficulty ??
+          normalized.levelname ??
+          normalized.level_name ??
+          normalized.aidifficulty ??
+          normalized.ai_difficulty,
         stage: normalized.stage ?? normalized.round ?? normalized.lvl,
         turns: normalized.turns,
         moves: normalized.moves ?? normalized.movecount ?? normalized.move_count,
+        captures: normalized.captures ?? normalized.capturecount ?? normalized.capture_count ?? normalized.piecescaptured ?? normalized.pieces_captured,
         coins: normalized.coins ?? normalized.coincount ?? normalized.coin_count,
         distance: normalized.distance ?? normalized.maxdistance ?? normalized.max_distance,
+        title: normalized.title ?? normalized.resulttitle ?? normalized.result_title ?? normalized.outcome ?? normalized.status ?? normalized.winner,
       });
     };
 
@@ -1278,9 +1904,13 @@ class _GameIframeState extends State<GameIframe> {
         !lowerPayload.includes('best_score') &&
         !lowerPayload.includes('userscore') &&
         !lowerPayload.includes('user_score') &&
+        !lowerPayload.includes('moves') &&
+        !lowerPayload.includes('turns') &&
+        !lowerPayload.includes('capture') &&
         !lowerPayload.includes('coins') &&
         !lowerPayload.includes('distance') &&
-        !lowerPayload.includes('result')
+        !lowerPayload.includes('result') &&
+        !(isChessGame && (lowerPayload.includes('victory') || lowerPayload.includes('defeat') || lowerPayload.includes('draw')))
       ) {
         return;
       }
@@ -1446,16 +2076,18 @@ class _GameIframeState extends State<GameIframe> {
 
     function collect() {
       const doc = document;
-      const nodes = doc.querySelectorAll('h1, h2, h3, h4, h5, h6, p, span, div, button, strong');
+      const nodes = doc.querySelectorAll('h1, h2, h3, h4, h5, h6, p, span, div, button, strong, td, th, li');
       const lines = [];
 
       for (let i = 0; i < nodes.length; i += 1) {
         const el = nodes[i];
         if (!isVisible(el, window)) continue;
+        if (el && el.getAttribute && el.getAttribute('data-inzone-selector-badge') === 'true') continue;
         const text = (el.innerText || el.textContent || '').replace(/\s+/g, ' ').trim();
+        if (text === '⌄') continue;
         if (!text) continue;
         lines.push(text);
-        if (lines.length >= 20) break;
+        if (lines.length >= 90) break;
       }
 
       const fullText = lines.join(' | ');
@@ -1477,15 +2109,32 @@ class _GameIframeState extends State<GameIframe> {
       const levelMatch =
         lower.match(/(?:level|stage)\s*[:=-]?\s*(\d+)/i) ||
         lower.match(/level\s*(\d+)\s*cleared/i);
-      const turnsMatch = lower.match(/(?:turns|moves)\s*[:=-]?\s*(\d+)/i);
+      const turnsMatch =
+        lower.match(/["']?(?:turns|moves?|move_count|movecount|ply|plies|full\s*moves?|half\s*moves?|number\s*of\s*moves|moves?\s*made|total\s*moves?|move\s*number)["']?\s*[:=\-#]?\s*["']?(\d{1,6})/i) ||
+        lower.match(/(\d{1,6})\s*(?:turns|moves?|ply|plies|full\s*moves?|half\s*moves?|total\s*moves?)\b/i);
+      const capturesMatch =
+        lower.match(/["']?(?:captures?|captured|capture_count|pieces?\s*captured)["']?\s*[:=-]?\s*["']?(\d{1,6})/i) ||
+        lower.match(/(\d{1,6})\s*(?:captures?|pieces?\s*captured)\b/i);
+      const layoutMoves = extractLabeledStatAcrossReachableDocs('moves?|turns?|move_count|movecount|ply|plies|full\\s*moves?|half\\s*moves?|number\\s*of\\s*moves|moves?\\s*made|total\\s*moves?|move\\s*number');
+      const layoutCaptures = extractLabeledStatAcrossReachableDocs('captures?|captured|capture_count|pieces?\\s*captured');
+      const titleMatch = normalizeChessTitle(fullText) || normalizeChessTitle(document && document.title ? String(document.title) : '');
+      const difficultyMatch = extractDifficulty(fullText) || extractDifficulty(document && document.title ? String(document.title) : '');
+      const resolvedScore = inzoneStats.score || (scoreMatch ? String(scoreMatch[1]).replace(/,/g, '') : null);
+      const resolvedMoves = inzoneStats.moves || inzoneStats.turns || (turnsMatch ? turnsMatch[1] : (layoutMoves || null));
+      // Keep moves/turns aligned so downstream parsing and logs report the same chess move count.
 
       const payload = {
         text: fullText.substring(0, 600),
-        title: (document && document.title ? String(document.title) : '').substring(0, 120),
+        title: (isChessGame && inzoneStats.title)
+          ? inzoneStats.title
+          : (titleMatch || (document && document.title ? String(document.title) : '').substring(0, 120)),
         url: (window && window.location ? String(window.location.href) : '').substring(0, 200),
-        score: inzoneStats.score || (scoreMatch ? String(scoreMatch[1]).replace(/,/g, '') : null),
+        score: resolvedScore,
         level: inzoneStats.level || (levelMatch ? levelMatch[1] : null),
-        turns: inzoneStats.turns || (turnsMatch ? turnsMatch[1] : null),
+        difficulty: inzoneStats.difficulty || difficultyMatch,
+        moves: resolvedMoves,
+        turns: inzoneStats.turns || resolvedMoves,
+        captures: inzoneStats.captures || (capturesMatch ? capturesMatch[1] : (layoutCaptures || null)),
         coins: inzoneStats.coins,
         distance: inzoneStats.distance,
         action: inzoneStats.action || null,
