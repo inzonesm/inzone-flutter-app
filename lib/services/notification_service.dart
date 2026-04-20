@@ -7,7 +7,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest.dart' as tz;
-import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter/material.dart';
 import 'package:inzone/services/appsflyer_service.dart';
 import 'package:http/http.dart' as http;
@@ -120,11 +119,6 @@ class NotificationService {
     );
 
     print('FCM Permission granted: ${settings.authorizationStatus}');
-
-    // Request local notification permission (Android 13+)
-    if (Platform.isAndroid) {
-      await Permission.notification.request();
-    }
   }
 
   /// Configure local notifications
