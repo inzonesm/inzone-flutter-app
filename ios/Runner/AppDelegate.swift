@@ -7,7 +7,7 @@ import UserNotifications
 import google_mobile_ads
 
 @main
-@objc class AppDelegate: FlutterAppDelegate {
+@objc class AppDelegate: FlutterAppDelegate, FlutterImplicitEngineDelegate {
   override func application(
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
@@ -15,11 +15,11 @@ import google_mobile_ads
 
     // Configure Firebase
     FirebaseApp.configure()
-    
+
     // Set up notifications
     UNUserNotificationCenter.current().delegate = self
     Messaging.messaging().delegate = self
-    
+
     // Request notification permission
     UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge, .sound]) { granted, error in
       if granted {
@@ -28,29 +28,30 @@ import google_mobile_ads
         print("❌ iOS notification permission denied: \(error?.localizedDescription ?? "Unknown error")")
       }
     }
-    
+
     // Register for remote notifications
     application.registerForRemoteNotifications()
 
-    GeneratedPluginRegistrant.register(with: self)
+    return super.application(application, didFinishLaunchingWithOptions: launchOptions)
+  }
+
+  func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {
+    GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
+
     let factory = NativeAdFactory()
     let groupfactory = GroupNativeAdFactory()
 
-    // Pass 'self' as the registry, not binaryMessenger
     FLTGoogleMobileAdsPlugin.registerNativeAdFactory(
-      self,
+      engineBridge.pluginRegistry,
       factoryId: "listTileMedium",
       nativeAdFactory: factory
     )
-      
-      FLTGoogleMobileAdsPlugin.registerNativeAdFactory(
-           self,
-           factoryId: "groupTileSmall",
-           nativeAdFactory: groupfactory
-         )
 
-
-    return super.application(application, didFinishLaunchingWithOptions: launchOptions)
+    FLTGoogleMobileAdsPlugin.registerNativeAdFactory(
+      engineBridge.pluginRegistry,
+      factoryId: "groupTileSmall",
+      nativeAdFactory: groupfactory
+    )
   }
   
   // Handle APNs token registration
