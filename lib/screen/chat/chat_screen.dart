@@ -98,7 +98,6 @@ class _ChatScreenState extends State<ChatScreen> {
 
   bool _isSending = false;
   File? _pendingImage;
-  File? _pendingVideo;
 
   // AI Character Interaction Tracking
   late DateTime _chatStartTime;
@@ -122,8 +121,6 @@ class _ChatScreenState extends State<ChatScreen> {
   List<Widget> messageCards = [];
   List<Set> chatHistory = [];
   String? pendingImageUrl; // For image upload
-  String? pendingVideoUrl; // For video upload
-  String? pendingVideoThumbnailUrl; // For video thumbnail
 
   String? _firstNonEmptyString(List<dynamic> values) {
     for (final value in values) {
@@ -502,30 +499,21 @@ class _ChatScreenState extends State<ChatScreen> {
                 controller: msg,
                 scrollController: _scrollController,
                 pendingImage: _pendingImage,
-                pendingVideo: _pendingVideo,
                 onClearMedia: () {
                   setState(() {
                     _pendingImage = null;
-                    _pendingVideo = null;
                   });
                 },
                 onImagePicked: (File imageFile) {
                   setState(() {
                     _pendingImage = imageFile;
-                    _pendingVideo = null;
-                  });
-                },
-                onVideoPicked: (File videoFile) {
-                  setState(() {
-                    _pendingVideo = videoFile;
-                    _pendingImage = null;
                   });
                 },
                 onSend: () async {
                   if (_isSending ||
-                      (msg.text.trim().isEmpty &&
-                          _pendingImage == null &&
-                          _pendingVideo == null)) return;
+                      (msg.text.trim().isEmpty && _pendingImage == null)) {
+                    return;
+                  }
 
                   setState(() {
                     _isSending = true;
@@ -536,8 +524,6 @@ class _ChatScreenState extends State<ChatScreen> {
 
                   // Upload pending media if present
                   String? imageUrl;
-                  String? videoUrl;
-                  String? videoThumbnailUrl;
 
                   try {
                     if (_pendingImage != null) {
@@ -545,14 +531,6 @@ class _ChatScreenState extends State<ChatScreen> {
                         FirebaseAuth.instance.currentUser!.uid,
                         _pendingImage!,
                       );
-                    }
-                    if (_pendingVideo != null) {
-                      final result = await AuthWork.sendChatVideo(
-                        FirebaseAuth.instance.currentUser!.uid,
-                        _pendingVideo!,
-                      );
-                      videoUrl = result['videoUrl'];
-                      videoThumbnailUrl = result['thumbnailUrl'];
                     }
                   } catch (e) {
                     print('Error uploading media: $e');
@@ -581,15 +559,12 @@ class _ChatScreenState extends State<ChatScreen> {
                     userMessage,
                     true,
                     imageUrl: imageUrl,
-                    videoUrl: videoUrl,
-                    videoThumbnailUrl: videoThumbnailUrl,
                   );
                   msg.clear();
 
                   // Clear pending media
                   setState(() {
                     _pendingImage = null;
-                    _pendingVideo = null;
                   });
 
                   scrollToEnd();
@@ -609,8 +584,7 @@ class _ChatScreenState extends State<ChatScreen> {
                         widget.userData.email!,
                         widget.userData.chatId,
                         chatHistory,
-                        imageUrl: imageUrl,
-                        videoUrl: videoUrl);
+                        imageUrl: imageUrl);
                   } else {
                     if (kDebugMode) {
                       print("Chat id not found.");
@@ -618,7 +592,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
                     aiResponse = await InZoneDatabase.sendMessageToAI(
                         userMessage, widget.userData.email!, null, chatHistory,
-                        imageUrl: imageUrl, videoUrl: videoUrl);
+                        imageUrl: imageUrl);
                   }
 
                   if (aiResponse != null) {
