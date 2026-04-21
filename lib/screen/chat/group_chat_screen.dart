@@ -908,13 +908,13 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       }
 
       // Now send the message
-      await GroupChatService.sendMessageToGroup(
-        _groupId,
-        content,
-        imageUrl: imageUrl,
-        videoUrl: videoUrl,
-        videoThumbnailUrl: videoThumbnailUrl,
-      );
+        await GroupChatService.sendMessageToGroup(
+          _groupId,
+          content,
+          imageUrl: imageUrl,
+          videoUrl: videoUrl,
+          videoThumbnailUrl: videoThumbnailUrl,
+        );
       
       // Clear pending media state
       setState(() {

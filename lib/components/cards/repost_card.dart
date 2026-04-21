@@ -140,7 +140,9 @@ class _RepostCardState extends State<RepostCard>
     }
 
     final currentEmail = currentUser.email?.trim().toLowerCase();
-    if (currentEmail != null && currentEmail.isNotEmpty && normalizedRef == currentEmail) {
+    if (currentEmail != null &&
+        currentEmail.isNotEmpty &&
+        normalizedRef == currentEmail) {
       return true;
     }
 
@@ -164,7 +166,8 @@ class _RepostCardState extends State<RepostCard>
         ToastService.showToast(
           context,
           backgroundColor: Colors.red,
-          message: 'Could not resolve this repost ID. Please refresh and try again.',
+          message:
+              'Could not resolve this repost ID. Please refresh and try again.',
           leading: const Icon(Icons.error, color: Colors.white),
         );
         return;
@@ -218,7 +221,8 @@ class _RepostCardState extends State<RepostCard>
         ToastService.showToast(
           context,
           backgroundColor: Colors.red,
-          message: 'Could not resolve this repost ID. Please refresh and try again.',
+          message:
+              'Could not resolve this repost ID. Please refresh and try again.',
           leading: const Icon(Icons.error, color: Colors.white),
         );
         return;
@@ -379,12 +383,12 @@ class _RepostCardState extends State<RepostCard>
               const SizedBox(
                 height: 10,
               ),
-                _currentTextContent.isEmpty
+              _currentTextContent.isEmpty
                   ? const SizedBox()
                   : Align(
                       alignment: Alignment.centerLeft,
                       child: Text(
-                    _currentTextContent,
+                        _currentTextContent,
                         textAlign: TextAlign.start,
                         style:
                             const TextStyle(height: 1.5, color: Colors.black),
@@ -442,13 +446,15 @@ class _RepostCardState extends State<RepostCard>
                                   Image.network(
                                     widget.repost.profilePicture,
                                     fit: BoxFit.fitWidth,
-                                    width: MediaQuery.of(context).size.width - 60,
+                                    width:
+                                        MediaQuery.of(context).size.width - 60,
                                     errorBuilder: (context, object, st) {
                                       return const SizedBox();
                                     },
                                   ),
                                   // Show play icon if this is a minigame accomplishment
-                                  if (widget.post.minigameLink != null && widget.post.minigameLink!.isNotEmpty)
+                                  if (widget.post.minigameLink != null &&
+                                      widget.post.minigameLink!.isNotEmpty)
                                     Positioned.fill(
                                       child: Container(
                                         color: Colors.black.withOpacity(0.3),
@@ -706,89 +712,98 @@ class _RepostCardState extends State<RepostCard>
   String? selectedCommentId;
 
   Widget chatInput(String? commentId, String? name) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 15.0, vertical: 10),
-      child: Row(
-        children: [
-          Expanded(
-            child: Scrollbar(
-              controller: _scrollController,
-              child: Container(
-                constraints: const BoxConstraints(maxHeight: 100),
-                child: TextFormField(
-                  scrollController: _scrollController,
-                  cursorColor: Colors.black,
-                  style: const TextStyle(
-                    color: Colors.black,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                  ),
-                  controller:
-                      type == 'Reply' ? _replyController : mySearchController,
-                  onTap: () {},
-                  maxLines: null,
-                  keyboardType: TextInputType.multiline,
-                  // cursorHeight: 17,
-                  decoration: InputDecoration(
-                    suffixIconColor: Colors.grey.withOpacity(0.4),
-                    contentPadding:
-                        const EdgeInsets.only(top: 10, left: 16, right: 16),
-                    border: InputBorder.none,
-                    hintText: type == 'Reply' ? 'Add Reply' : 'Add Comment',
-                    hintStyle: const TextStyle(
+    return SafeArea(
+      top: false,
+      minimum: const EdgeInsets.only(bottom: 2),
+      child: Padding(
+        padding: EdgeInsets.only(
+          left: 15,
+          right: 15,
+          top: 10,
+          bottom: 6,
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Scrollbar(
+                controller: _scrollController,
+                child: Container(
+                  constraints: const BoxConstraints(maxHeight: 100),
+                  child: TextFormField(
+                    scrollController: _scrollController,
+                    cursorColor: Colors.black,
+                    style: const TextStyle(
+                      color: Colors.black,
                       fontSize: 14,
-                      fontWeight: FontWeight.w400,
-                      color: Colors.black26,
+                      fontWeight: FontWeight.w500,
                     ),
-                    filled: true,
-                    fillColor: Colors.grey.withOpacity(0.1),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(20),
-                      borderSide: const BorderSide(
-                        color: Colors.black38,
+                    controller:
+                        type == 'Reply' ? _replyController : mySearchController,
+                    onTap: () {},
+                    maxLines: null,
+                    keyboardType: TextInputType.multiline,
+                    // cursorHeight: 17,
+                    decoration: InputDecoration(
+                      suffixIconColor: Colors.grey.withOpacity(0.4),
+                      contentPadding:
+                          const EdgeInsets.only(top: 10, left: 16, right: 16),
+                      border: InputBorder.none,
+                      hintText: type == 'Reply' ? 'Add Reply' : 'Add Comment',
+                      hintStyle: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w400,
+                        color: Colors.black26,
                       ),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(20),
-                      borderSide: const BorderSide(
-                        color: Colors.black,
+                      filled: true,
+                      fillColor: Colors.grey.withOpacity(0.1),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(20),
+                        borderSide: const BorderSide(
+                          color: Colors.black38,
+                        ),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(20),
+                        borderSide: const BorderSide(
+                          color: Colors.black,
+                        ),
                       ),
                     ),
                   ),
                 ),
               ),
             ),
-          ),
-          MaterialButton(
-            minWidth: 43,
-            height: 43,
-            color: Colors.blue,
-            shape: const CircleBorder(),
-            onPressed: () {
-              if (type == 'Reply') {
-                if (selectedCommentId != null) {
-                  // _addReply(
-                  //     selectedCommentId!); // Pass stored commentId to _addReply function
-                  _replyController.clear();
-                  setState(() {
-                    type = '';
-                    selectedCommentId =
-                        null; // Clear selected comment ID after replying
-                  });
+            MaterialButton(
+              minWidth: 43,
+              height: 43,
+              color: Colors.blue,
+              shape: const CircleBorder(),
+              onPressed: () {
+                if (type == 'Reply') {
+                  if (selectedCommentId != null) {
+                    // _addReply(
+                    //     selectedCommentId!); // Pass stored commentId to _addReply function
+                    _replyController.clear();
+                    setState(() {
+                      type = '';
+                      selectedCommentId =
+                          null; // Clear selected comment ID after replying
+                    });
+                  }
+                } else {
+                  _addComment();
                 }
-              } else {
-                _addComment();
-              }
-            },
-            child: const Center(
-              child: Icon(
-                Icons.send,
-                color: Colors.white,
-                size: 18,
+              },
+              child: const Center(
+                child: Icon(
+                  Icons.send,
+                  color: Colors.white,
+                  size: 18,
+                ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
