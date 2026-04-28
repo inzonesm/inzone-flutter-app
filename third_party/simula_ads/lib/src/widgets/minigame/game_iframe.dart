@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kIsWeb, listEquals;
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -71,15 +71,44 @@ class _GameIframeState extends State<GameIframe> {
   bool?
       _lastBottomSheetState; // Track last bottom sheet state to avoid redundant SystemChrome calls
   String? _lastGameOverTextSnapshot;
+  String? _characterId;
+  String? _characterName;
+  String? _characterImage;
+  String? _characterDesc;
+  bool _delegateChar = true;
 
   bool get _isChessGame => widget.gameId.toLowerCase().contains('chess');
 
   @override
   void initState() {
     super.initState();
+    _characterId = widget.charID;
+    _characterName = widget.charName;
+    _characterImage = widget.charImage;
+    _characterDesc = widget.charDesc;
+    _delegateChar = widget.delegateChar;
     if (!kIsWeb) {
       _initWebView();
     }
+  }
+
+  void updateCharacterContext({
+    required String charID,
+    required String charName,
+    String? charImage,
+    String? charDesc,
+    required bool delegateChar,
+  }) {
+    _characterId = charID;
+    _characterName = charName;
+    _characterImage = charImage;
+    _characterDesc = charDesc;
+    _delegateChar = delegateChar;
+
+    if (!mounted) return;
+
+    _updateOverlay();
+    _injectCharacterUpdate();
   }
 
   @override
@@ -97,27 +126,93 @@ class _GameIframeState extends State<GameIframe> {
     }
   }
 
+  void _injectCharacterUpdate() {
+    final controller = _webViewController;
+    if (controller == null || _iframeUrl == null) return;
+
+    final charData = {
+        'charID': _characterId ?? widget.charID,
+        'charName': _characterName ?? widget.charName,
+        'charImage': _characterImage ?? widget.charImage ?? '',
+        'charDesc': _characterDesc ?? widget.charDesc ?? '',
+        'delegateChar': _delegateChar,
+    };
+
+    final json = jsonEncode(charData);
+    controller.runJavaScript('''
+  (() => {
+    try {
+      const payload = $json;
+      const message = { type: 'INZONE_CHARACTER_UPDATE', data: payload };
+
+      try {
+        window.__inzoneCharacterContext = payload;
+      } catch (_) {}
+
+      try {
+        window.postMessage(message, '*');
+      } catch (_) {}
+
+      try {
+        window.dispatchEvent(new CustomEvent('INZONE_CHARACTER_UPDATE', { detail: payload }));
+      } catch (_) {}
+
+      const iframes = document.querySelectorAll('iframe');
+      for (let i = 0; i < iframes.length; i += 1) {
+        const frame = iframes[i];
+        try {
+          if (frame.contentWindow) {
+            frame.contentWindow.postMessage(message, '*');
+          }
+        } catch (_) {
+          // Ignore cross-origin frame access failures.
+        }
+      }
+    } catch(_) {}
+  })();
+  ''').catchError((_) {});
+  }
+
   @override
   void didUpdateWidget(GameIframe oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // Reset current height if playableHeight prop changed
-    if (oldWidget.playableHeight != widget.playableHeight) {
-      setState(() {
-        _currentHeight = null;
-        _lastBottomSheetState = null; // Force SystemUI update
-      });
-      _updateOverlay();
-    }
 
     final characterContextChanged = oldWidget.charID != widget.charID ||
         oldWidget.charName != widget.charName ||
         oldWidget.charImage != widget.charImage ||
         oldWidget.charDesc != widget.charDesc ||
-        oldWidget.delegateChar != widget.delegateChar ||
-        oldWidget.messages.length != widget.messages.length;
+        oldWidget.delegateChar != widget.delegateChar;
 
-    if (characterContextChanged && _iframeUrl != null) {
-      _loadGame();
+    if (characterContextChanged) {
+      _characterId = widget.charID;
+      _characterName = widget.charName;
+      _characterImage = widget.charImage;
+      _characterDesc = widget.charDesc;
+      _delegateChar = widget.delegateChar;
+
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _updateOverlay();
+          _injectCharacterUpdate();
+        }
+      });
+    }
+
+    if (oldWidget.playableHeight != widget.playableHeight) {
+      setState(() {
+        _currentHeight = null;
+        _lastBottomSheetState = null;
+      });
+      _updateOverlay();
+    }
+
+    final messagesChanged = !listEquals(oldWidget.messages, widget.messages);
+    if (messagesChanged) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _updateOverlay();
+        }
+      });
     }
   }
 
@@ -150,11 +245,26 @@ class _GameIframeState extends State<GameIframe> {
         final fullScreenButtonTop = safeTop + 8.0;
         final closeButtonTop =
             isBottomSheet ? screenSize.height - containerHeight + 60 : fullScreenButtonTop;
+        final avatarRelayTop =
+          isBottomSheet ? screenSize.height - containerHeight + 60 : safeTop + 56;
         final touchBlockerTop =
             isBottomSheet ? screenSize.height - containerHeight + 8 : safeTop;
 
         return Stack(
           children: [
+            if (widget.onCharacterTap != null)
+              Positioned(
+                top: avatarRelayTop,
+                left: 8,
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: widget.onCharacterTap,
+                  child: const SizedBox(
+                    width: 72,
+                    height: 72,
+                  ),
+                ),
+              ),
             // Touch blocker area - prevents WebView from capturing touches in close button area
             Positioned(
               top: touchBlockerTop,
@@ -383,9 +493,7 @@ class _GameIframeState extends State<GameIframe> {
         for (let i = 0; i < nodes.length; i += 1) {
           const el = nodes[i];
           if (!isVisible(el)) continue;
-          if (el && el.getAttribute && el.getAttribute('data-inzone-selector-badge') === 'true') continue;
           const text = (el.innerText || el.textContent || '').replace(/\s+/g, ' ').trim();
-          if (text === '⌄') continue;
           if (!text) continue;
           lines.push(text);
           if (lines.length >= 90) return;
@@ -748,6 +856,39 @@ class _GameIframeState extends State<GameIframe> {
               ? wholeDocMoves
               : (graphStats.moves !== null ? graphStats.moves : storageStats.moves))))
         : null;
+      const resolvedCaptures = isChessGame
+        ? (capturesMatch
+            ? String(capturesMatch[1])
+            : (layoutCaptures !== null
+                ? layoutCaptures
+            : (wholeDocCaptures !== null
+              ? wholeDocCaptures
+              : (graphStats.captures !== null ? graphStats.captures : storageStats.captures))))
+        : null;
+
+      const toInt = (value) => {
+        if (value === null || value === undefined) return null;
+        const parsed = Number(String(value).replace(/,/g, '').trim());
+        if (!Number.isFinite(parsed)) return null;
+        return Math.round(parsed);
+      };
+
+      let normalizedMoves = resolvedMoves;
+      if (isChessGame && normalizedMoves !== null) {
+        const movesValue = toInt(normalizedMoves);
+        const capturesValue = toInt(resolvedCaptures);
+        const explicitMovesInVisibleText = fullText.match(/\bmoves?\s*[:=-]?\s*(\d{1,6})\b/i);
+        const explicitMovesValue = explicitMovesInVisibleText ? toInt(explicitMovesInVisibleText[1]) : null;
+
+        if (movesValue !== null) {
+          if (explicitMovesValue !== null && explicitMovesValue > movesValue) {
+            normalizedMoves = String(explicitMovesValue);
+          } else if (capturesValue !== null && capturesValue > 0) {
+            // Some engines expose a zero-based terminal move index (N-1) right at game end.
+            normalizedMoves = String(movesValue + 1);
+          }
+        }
+      }
       // Prefer explicit UI labels first, then whole-doc stats, then object/storage state for chess moves.
 
       return {
@@ -756,17 +897,9 @@ class _GameIframeState extends State<GameIframe> {
         level:
           levelMatch ? String(levelMatch[1]) :
           (graphStats.level !== null ? graphStats.level : storageStats.level),
-        moves: resolvedMoves,
-        turns: resolvedMoves,
-        captures: isChessGame
-          ? (capturesMatch
-              ? String(capturesMatch[1])
-              : (layoutCaptures !== null
-                  ? layoutCaptures
-              : (wholeDocCaptures !== null
-                ? wholeDocCaptures
-                : (graphStats.captures !== null ? graphStats.captures : storageStats.captures))))
-          : null,
+        moves: normalizedMoves,
+        turns: normalizedMoves,
+        captures: resolvedCaptures,
         title: isChessGame
           ? (chessTitleMatch
               ? chessTitleMatch
@@ -844,9 +977,11 @@ class _GameIframeState extends State<GameIframe> {
   }
 
   void _updateOverlay() {
-    if (_overlayEntry != null) {
-      _overlayEntry!.markNeedsBuild();
-    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _overlayEntry?.markNeedsBuild();
+      }
+    });
   }
 
   void _initWebView() {
@@ -917,6 +1052,7 @@ class _GameIframeState extends State<GameIframe> {
             },
             onPageFinished: (url) {
               _injectCharacterTapBridgeScript();
+              _injectCharacterUpdate();
             },
           ),
         );
@@ -1199,6 +1335,117 @@ class _GameIframeState extends State<GameIframe> {
       return false;
     };
 
+    const applyCharacterToDocument = (doc, win, charData) => {
+      if (!doc || !win || !charData) return;
+
+      const name = typeof charData.charName === 'string' ? charData.charName.trim() : '';
+      const image = typeof charData.charImage === 'string' ? charData.charImage.trim() : '';
+
+      const nodes = doc.querySelectorAll('img, button, div, span, a, p, h1, h2, h3, h4, h5, h6');
+      for (let i = 0; i < nodes.length; i += 1) {
+        const node = nodes[i];
+        if (!node) continue;
+
+        const attrHints = [
+          node.getAttribute ? node.getAttribute('data-testid') : null,
+          node.getAttribute ? node.getAttribute('id') : null,
+          node.getAttribute ? node.getAttribute('class') : null,
+          node.getAttribute ? node.getAttribute('aria-label') : null,
+          node.getAttribute ? node.getAttribute('title') : null,
+          node.getAttribute ? node.getAttribute('alt') : null,
+        ];
+
+        let looksLikeAvatar = false;
+        for (let j = 0; j < attrHints.length; j += 1) {
+          if (keywordMatch(attrHints[j])) {
+            looksLikeAvatar = true;
+            break;
+          }
+        }
+        if (!looksLikeAvatar && isAvatarCandidate(node, win)) {
+          looksLikeAvatar = true;
+        }
+        if (!looksLikeAvatar) continue;
+
+        if (image) {
+          if (node.tagName === 'IMG') {
+            try {
+              node.src = image;
+              if (node.setAttribute) node.setAttribute('src', image);
+            } catch (_) {}
+          } else {
+            try {
+              node.style.backgroundImage = 'url("' + image.replace(/"/g, '\\"') + '")';
+              node.style.backgroundSize = 'cover';
+              node.style.backgroundPosition = 'center';
+              node.style.backgroundRepeat = 'no-repeat';
+            } catch (_) {}
+          }
+        }
+
+        if (name && node.setAttribute) {
+          try {
+            node.setAttribute('aria-label', name + ' avatar');
+          } catch (_) {}
+        }
+      }
+
+      if (name) {
+        const textNodes = doc.querySelectorAll('span, div, p, h1, h2, h3, h4, h5, h6');
+        for (let i = 0; i < textNodes.length; i += 1) {
+          const node = textNodes[i];
+          if (!node || !isVisible(node, win)) continue;
+          const text = ((node.textContent || '') + '').trim();
+          if (!text || text.length > 42) continue;
+          if (!keywordMatch(text)) continue;
+          node.textContent = name;
+        }
+      }
+    };
+
+    const applyCharacterRecursively = (charData) => {
+      if (!charData || typeof charData !== 'object') return;
+
+      applyCharacterToDocument(document, window, charData);
+
+      const iframes = document.querySelectorAll('iframe');
+      for (let i = 0; i < iframes.length; i += 1) {
+        const iframe = iframes[i];
+        try {
+          const subWin = iframe.contentWindow;
+          const subDoc = subWin ? subWin.document : null;
+          if (!subWin || !subDoc) continue;
+          applyCharacterToDocument(subDoc, subWin, charData);
+        } catch (_) {
+          // Cross-origin iframe, ignore.
+        }
+      }
+    };
+
+    const installCharacterUpdateListeners = (targetWin) => {
+      if (!targetWin || targetWin.__inzoneCharacterListenerInstalled) return;
+      targetWin.__inzoneCharacterListenerInstalled = true;
+
+      targetWin.addEventListener('message', (event) => {
+        try {
+          const data = event ? event.data : null;
+          if (!data || typeof data !== 'object') return;
+          if (data.type !== 'INZONE_CHARACTER_UPDATE' || !data.data) return;
+          try { targetWin.__inzoneCharacterContext = data.data; } catch (_) {}
+          applyCharacterRecursively(data.data);
+        } catch (_) {}
+      }, true);
+
+      targetWin.addEventListener('INZONE_CHARACTER_UPDATE', (event) => {
+        try {
+          const data = event && event.detail ? event.detail : null;
+          if (!data || typeof data !== 'object') return;
+          try { targetWin.__inzoneCharacterContext = data; } catch (_) {}
+          applyCharacterRecursively(data);
+        } catch (_) {}
+      }, true);
+    };
+
     let lastTapMs = 0;
 
     const sendTap = () => {
@@ -1209,38 +1456,6 @@ class _GameIframeState extends State<GameIframe> {
       if (window.InzoneCharacterTap && window.InzoneCharacterTap.postMessage) {
         window.InzoneCharacterTap.postMessage('character_tap');
       }
-    };
-
-    const getEventPoint = (event) => {
-      if (!event) return null;
-      if (typeof event.clientX === 'number' && typeof event.clientY === 'number') {
-        return { x: event.clientX, y: event.clientY };
-      }
-      const touch = (event.changedTouches && event.changedTouches[0])
-        || (event.touches && event.touches[0]);
-      if (touch && typeof touch.clientX === 'number' && typeof touch.clientY === 'number') {
-        return { x: touch.clientX, y: touch.clientY };
-      }
-      return null;
-    };
-
-    const isInGameCircleZone = (event, win) => {
-      const point = getEventPoint(event);
-      if (!point) return false;
-
-      const vw = win.innerWidth || 0;
-      const vh = win.innerHeight || 0;
-      if (vw <= 0 || vh <= 0) return false;
-
-      const zoneLeft = 0;
-      const zoneTop = 52;
-      const zoneRight = Math.min(190, vw * 0.5);
-      const zoneBottom = Math.min(250, vh * 0.42);
-
-      return point.x >= zoneLeft &&
-        point.x <= zoneRight &&
-        point.y >= zoneTop &&
-        point.y <= zoneBottom;
     };
 
     const inspect = (doc, win, event) => {
@@ -1256,10 +1471,6 @@ class _GameIframeState extends State<GameIframe> {
         }
         node = node.parentElement;
         depth += 1;
-      }
-
-      if (isInGameCircleZone(event, win)) {
-        sendTap();
       }
     };
 
@@ -1291,152 +1502,6 @@ class _GameIframeState extends State<GameIframe> {
       }
     };
 
-    const findTopLeftCharacterElement = (doc, win) => {
-      if (!doc || !doc.querySelectorAll) return null;
-
-      const nodes = doc.querySelectorAll('img, button, div, span, canvas');
-      const vw = win.innerWidth || 0;
-      const vh = win.innerHeight || 0;
-
-      let best = null;
-      let bestScore = Number.POSITIVE_INFINITY;
-
-      for (let i = 0; i < nodes.length; i += 1) {
-        const node = nodes[i];
-        if (!isAvatarCandidate(node, win)) continue;
-
-        const rect = node.getBoundingClientRect();
-        const isCharacter = isCharacterElement(node, win);
-
-        // Size filtering: prefer elements between 24-200px that are roughly square/circular
-        const width = rect.width || 0;
-        const height = rect.height || 0;
-        const reasonablySquare = width >= 24 && width <= 200 && height >= 24 && height <= 200 && Math.abs(width - height) < width * 0.4;
-        
-        // Scoring: character elements get priority, then size similarity, then top-left position
-        let score = (Math.max(0, rect.left) * 1.5) + Math.max(0, rect.top);
-        if (!isCharacter) score += 1000; // Penalty for non-character elements
-        if (!reasonablySquare) score += 500; // Penalty for non-square elements
-        
-        if (score < bestScore) {
-          best = node;
-          bestScore = score;
-        }
-      }
-
-      return best;
-    };
-
-    const ensureCharacterSelectorBadge = (doc, win) => {
-      if (!doc || !doc.body) return;
-
-      if (isGameStartMenuVisible(doc, win)) {
-        if (doc.__inzoneSelectorBadge && doc.__inzoneSelectorBadge.parentElement) {
-          doc.__inzoneSelectorBadge.parentElement.removeChild(doc.__inzoneSelectorBadge);
-        }
-        doc.__inzoneSelectorBadge = null;
-        doc.__inzoneSelectorBadgeHost = null;
-        return;
-      }
-
-      const anchor = findTopLeftCharacterElement(doc, win);
-      if (!anchor) {
-        if (doc.__inzoneSelectorBadge) {
-          doc.__inzoneSelectorBadge.style.display = 'none';
-        }
-        return;
-      }
-
-      const rect = anchor.getBoundingClientRect();
-      const badgeSize = 24;
-      const gap = 4;
-      const getBadgeHost = () => {
-        let node = anchor.parentElement;
-        while (node && node !== doc.body) {
-          try {
-            const position = win.getComputedStyle(node).position;
-            if (position && position !== 'static') return node;
-          } catch (_) {}
-          node = node.parentElement;
-        }
-        return anchor.parentElement || doc.body;
-      };
-
-      const badgeHost = getBadgeHost();
-      try {
-        const hostStyle = win.getComputedStyle ? win.getComputedStyle(badgeHost) : null;
-        if (badgeHost !== doc.body && hostStyle && hostStyle.position === 'static') {
-          badgeHost.style.position = 'relative';
-        }
-      } catch (_) {}
-      const hostRect = badgeHost.getBoundingClientRect();
-      const left = Math.max(0, rect.right - hostRect.left - badgeSize * 0.5 + gap);
-      const top = Math.max(0, rect.bottom - hostRect.top - badgeSize * 0.6);
-
-      let badge = doc.__inzoneSelectorBadge;
-      const currentHost = doc.__inzoneSelectorBadgeHost;
-      if (badge && currentHost !== badgeHost) {
-        if (badge.parentElement) badge.parentElement.removeChild(badge);
-        badge = null;
-        doc.__inzoneSelectorBadge = null;
-      }
-
-      if (!badge) {
-        badge = doc.createElement('button');
-        badge.type = 'button';
-        badge.setAttribute('data-inzone-selector-badge', 'true');
-        badge.setAttribute('aria-label', 'Change character');
-        badge.setAttribute('title', 'Change character');
-        badge.style.position = 'absolute';
-        badge.style.width = badgeSize + 'px';
-        badge.style.height = badgeSize + 'px';
-        badge.style.borderRadius = '999px';
-        badge.style.border = '2px solid #DFF7FF';
-        badge.style.background = '#16C2E3';
-        badge.style.color = '#FFFFFF';
-        badge.style.display = 'flex';
-        badge.style.alignItems = 'center';
-        badge.style.justifyContent = 'center';
-        badge.style.fontSize = '16px';
-        badge.style.fontWeight = '700';
-        badge.style.lineHeight = '1';
-        badge.style.padding = '0';
-        badge.style.margin = '0';
-        badge.style.cursor = 'pointer';
-        badge.style.zIndex = '2147483647';
-        badge.style.boxShadow = '0 2px 10px rgba(0,0,0,0.22)';
-        badge.style.userSelect = 'none';
-        badge.style.webkitUserSelect = 'none';
-        badge.textContent = '⌄';
-
-        const trigger = (event) => {
-          if (event) {
-            if (event.preventDefault) event.preventDefault();
-            if (event.stopPropagation) event.stopPropagation();
-          }
-          sendTap();
-        };
-
-        badge.addEventListener('click', trigger, true);
-        badge.addEventListener('pointerup', trigger, true);
-        badge.addEventListener('touchend', trigger, true);
-
-        badgeHost.appendChild(badge);
-        doc.__inzoneSelectorBadge = badge;
-        doc.__inzoneSelectorBadgeHost = badgeHost;
-      }
-
-      badge.style.display = 'flex';
-      const currentLeft = Number.parseFloat((badge.style.left || '0').replace('px', ''));
-      const currentTop = Number.parseFloat((badge.style.top || '0').replace('px', ''));
-      if (!Number.isFinite(currentLeft) || Math.abs(currentLeft - left) > 1) {
-        badge.style.left = left + 'px';
-      }
-      if (!Number.isFinite(currentTop) || Math.abs(currentTop - top) > 1) {
-        badge.style.top = top + 'px';
-      }
-    };
-
     const installBridgeForDocument = (doc, win) => {
       if (!doc || !win) return;
       if (doc.__inzoneDocBridgeInstalled) return;
@@ -1448,10 +1513,10 @@ class _GameIframeState extends State<GameIframe> {
       doc.addEventListener('touchend', handler, true);
 
       maybeAttachDirectCircleListeners(doc, win);
-      ensureCharacterSelectorBadge(doc, win);
     };
 
     const installBridgesRecursively = () => {
+      installCharacterUpdateListeners(window);
       installBridgeForDocument(document, window);
 
       const iframes = document.querySelectorAll('iframe');
@@ -1461,15 +1526,19 @@ class _GameIframeState extends State<GameIframe> {
           const subWin = iframe.contentWindow;
           const subDoc = subWin ? subWin.document : null;
           if (!subWin || !subDoc) continue;
+          installCharacterUpdateListeners(subWin);
           installBridgeForDocument(subDoc, subWin);
           maybeAttachDirectCircleListeners(subDoc, subWin);
-          ensureCharacterSelectorBadge(subDoc, subWin);
         } catch (_) {
           // Cross-origin iframe, ignore.
         }
       }
 
-      ensureCharacterSelectorBadge(document, window);
+      try {
+        if (window.__inzoneCharacterContext) {
+          applyCharacterRecursively(window.__inzoneCharacterContext);
+        }
+      } catch (_) {}
     };
 
     installBridgesRecursively();
@@ -2082,9 +2151,7 @@ class _GameIframeState extends State<GameIframe> {
       for (let i = 0; i < nodes.length; i += 1) {
         const el = nodes[i];
         if (!isVisible(el, window)) continue;
-        if (el && el.getAttribute && el.getAttribute('data-inzone-selector-badge') === 'true') continue;
         const text = (el.innerText || el.textContent || '').replace(/\s+/g, ' ').trim();
-        if (text === '⌄') continue;
         if (!text) continue;
         lines.push(text);
         if (lines.length >= 90) break;
@@ -2121,6 +2188,31 @@ class _GameIframeState extends State<GameIframe> {
       const difficultyMatch = extractDifficulty(fullText) || extractDifficulty(document && document.title ? String(document.title) : '');
       const resolvedScore = inzoneStats.score || (scoreMatch ? String(scoreMatch[1]).replace(/,/g, '') : null);
       const resolvedMoves = inzoneStats.moves || inzoneStats.turns || (turnsMatch ? turnsMatch[1] : (layoutMoves || null));
+      const resolvedCaptures = inzoneStats.captures || (capturesMatch ? capturesMatch[1] : (layoutCaptures || null));
+
+      const toInt = (value) => {
+        if (value === null || value === undefined) return null;
+        const parsed = Number(String(value).replace(/,/g, '').trim());
+        if (!Number.isFinite(parsed)) return null;
+        return Math.round(parsed);
+      };
+
+      let normalizedMoves = resolvedMoves;
+      if (isChessGame && normalizedMoves != null) {
+        const movesValue = toInt(normalizedMoves);
+        const capturesValue = toInt(resolvedCaptures);
+        const explicitMovesInVisibleText = fullText.match(/\bmoves?\s*[:=-]?\s*(\d{1,6})\b/i);
+        const explicitMovesValue = explicitMovesInVisibleText ? toInt(explicitMovesInVisibleText[1]) : null;
+
+        if (movesValue !== null) {
+          if (explicitMovesValue !== null && explicitMovesValue > movesValue) {
+            normalizedMoves = String(explicitMovesValue);
+          } else if (capturesValue !== null && capturesValue > 0 && gameOverLikely) {
+            // Zero-based move index is common in internal payloads at game completion.
+            normalizedMoves = String(movesValue + 1);
+          }
+        }
+      }
       // Keep moves/turns aligned so downstream parsing and logs report the same chess move count.
 
       const payload = {
@@ -2132,9 +2224,9 @@ class _GameIframeState extends State<GameIframe> {
         score: resolvedScore,
         level: inzoneStats.level || (levelMatch ? levelMatch[1] : null),
         difficulty: inzoneStats.difficulty || difficultyMatch,
-        moves: resolvedMoves,
-        turns: inzoneStats.turns || resolvedMoves,
-        captures: inzoneStats.captures || (capturesMatch ? capturesMatch[1] : (layoutCaptures || null)),
+        moves: normalizedMoves,
+        turns: normalizedMoves,
+        captures: resolvedCaptures,
         coins: inzoneStats.coins,
         distance: inzoneStats.distance,
         action: inzoneStats.action || null,

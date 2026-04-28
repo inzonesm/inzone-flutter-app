@@ -77,11 +77,15 @@ class AppsFlyerService {
   // Store attribution data
   Map<String, dynamic>? _attributionData;
   Map<String, dynamic>? _conversionData;
-    final StreamController<String> _minigameDeepLinkController =
+  final StreamController<String> _minigameDeepLinkController =
       StreamController<String>.broadcast();
+  final StreamController<String?> _minigameMenuOpenController =
+      StreamController<String?>.broadcast();
 
-    Stream<String> get minigameDeepLinkStream =>
+  Stream<String> get minigameDeepLinkStream =>
       _minigameDeepLinkController.stream;
+  Stream<String?> get minigameMenuOpenStream =>
+      _minigameMenuOpenController.stream;
 
   factory AppsFlyerService() {
     return _instance;
@@ -213,6 +217,20 @@ class AppsFlyerService {
       _minigameDeepLinkController.add(normalized);
     }
     logEvent('minigame_deep_link_queued', {'game_id': normalized});
+  }
+
+  Future<void> openMinigameMenu({String? initialGameId}) async {
+    final normalized = initialGameId?.trim();
+    if (!_minigameMenuOpenController.isClosed) {
+      _minigameMenuOpenController
+          .add((normalized == null || normalized.isEmpty) ? null : normalized);
+    }
+
+    if (normalized != null && normalized.isNotEmpty) {
+      logEvent('minigame_menu_open_requested', {'game_id': normalized});
+    } else {
+      logEvent('minigame_menu_open_requested', {'game_id': null});
+    }
   }
 
   static Future<String?> consumePendingMinigameDeepLinkGameId() async {

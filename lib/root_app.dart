@@ -54,7 +54,7 @@ class RootApp extends StatefulWidget {
 }
 
 class _RootAppState extends State<RootApp>
-  with SingleTickerProviderStateMixin, WidgetsBindingObserver {
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   static const String _defaultMiniGameCharacterId = 'inzone-default';
   int _currentPage = 0; // Track selected tab index
   final ScrollController _homeScrollController = ScrollController();
@@ -74,6 +74,7 @@ class _RootAppState extends State<RootApp>
   AppLinks? _appLinks;
   StreamSubscription<Uri>? _appLinksSubscription;
   StreamSubscription<String>? _minigameDeepLinkSubscription;
+  StreamSubscription<String?>? _minigameMenuOpenSubscription;
   ActiveCharacterNotifier? _activeCharacterNotifier;
 
   /* --- in app review --- */
@@ -142,17 +143,33 @@ class _RootAppState extends State<RootApp>
       if (!mounted) return;
       _openMiniGameFromDeepLink(gameId);
     });
+    _minigameMenuOpenSubscription =
+        AppsFlyerService().minigameMenuOpenStream.listen((initialGameId) {
+      if (!mounted) return;
+      final normalized = initialGameId?.trim();
+      if (normalized != null && normalized.isNotEmpty) {
+        _openMiniGameFromDeepLink(normalized);
+        return;
+      }
+
+      setState(() {
+        _pendingMiniGameDeepLinkGameId = null;
+        _miniGameMenuOpen = true;
+      });
+      _loadPopularCharacters();
+      _refreshMiniGameForCurrentCharacter();
+    });
   }
 
   @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-  }
+  void didChangeAppLifecycleState(AppLifecycleState state) {}
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _appLinksSubscription?.cancel();
     _minigameDeepLinkSubscription?.cancel();
+    _minigameMenuOpenSubscription?.cancel();
     // _homeScrollController.removeListener(_handleScroll);
     _homeScrollController.dispose();
     _rootFocusNode.dispose();
@@ -186,12 +203,14 @@ class _RootAppState extends State<RootApp>
 
     String? gameId;
 
-    if (uri.scheme.toLowerCase() == 'inzone' && uri.host.toLowerCase() == 'minigame') {
+    if (uri.scheme.toLowerCase() == 'inzone' &&
+        uri.host.toLowerCase() == 'minigame') {
       gameId = uri.queryParameters['gameId'];
     }
 
     if (gameId == null || gameId.trim().isEmpty) {
-      final deepLinkValue = uri.queryParameters['deep_link_value']?.toLowerCase();
+      final deepLinkValue =
+          uri.queryParameters['deep_link_value']?.toLowerCase();
       if (deepLinkValue == 'minigame') {
         gameId = uri.queryParameters['deep_link_sub1'];
       }
@@ -226,7 +245,8 @@ class _RootAppState extends State<RootApp>
   }
 
   Future<void> _consumePendingMinigameDeepLink() async {
-    final gameId = await AppsFlyerService.consumePendingMinigameDeepLinkGameId();
+    final gameId =
+        await AppsFlyerService.consumePendingMinigameDeepLinkGameId();
     if (!mounted || gameId == null || gameId.trim().isEmpty) return;
 
     _openMiniGameFromDeepLink(gameId);
@@ -465,6 +485,7 @@ class _RootAppState extends State<RootApp>
       if (activeCharacter == null) return;
       final selected = await showModalBottomSheet<_PopularCharacterOption>(
         context: context,
+        useRootNavigator: true,
         isScrollControlled: true,
         backgroundColor: Theme.of(context).cardColor,
         shape: const RoundedRectangleBorder(
@@ -628,7 +649,6 @@ class _RootAppState extends State<RootApp>
     }
     return _bottomNavBarTitles[page];
   }
-
 
   final List<String> _iconifyPaths = [
     Ri.home_5_fill,
@@ -874,6 +894,13 @@ class _RootAppState extends State<RootApp>
     return _extractLikelyScore(text);
   }
 
+  int? _extractStrictTilesScore(String text) {
+    return _extractStatNumber(
+      text,
+      'userscore|user_score|score|points|best|best[_\\s-]?score|final|final[_\\s-]?score|total|total[_\\s-]?score|tile[_\\s-]?score|game[_\\s-]?score|high[_\\s-]?score',
+    );
+  }
+
   int? _extractTilesLevel(String text) {
     return _extractStatNumber(
       text,
@@ -902,10 +929,7 @@ class _RootAppState extends State<RootApp>
       }
     }
 
-    return normalized
-        .replaceAll(r'\\"', '"')
-        .replaceAll(r'\n', ' ')
-        .trim();
+    return normalized.replaceAll(r'\\"', '"').replaceAll(r'\n', ' ').trim();
   }
 
   String _buildGameCelebrationMessage(GameData? game) {
@@ -963,7 +987,8 @@ class _RootAppState extends State<RootApp>
     final difficultyLabel = _normalizeChessDifficultyLabel(difficulty);
     final resultLabel = _normalizeChessResultLabel(title);
     final movesText = moves != null ? '$moves moves' : 'moves n/a';
-    final capturesText = captures != null ? '$captures captures' : 'captures n/a';
+    final capturesText =
+        captures != null ? '$captures captures' : 'captures n/a';
 
     if (resultLabel == 'Victory') {
       if (difficultyLabel == 'Hard') {
@@ -998,7 +1023,8 @@ class _RootAppState extends State<RootApp>
     return '$actor finished a chess run on $gameName in $movesText with $capturesText at $difficultyLabel difficulty.';
   }
 
-  String _buildShareProgressText(GameData game, String? gameOverText, {String? accomplishmentLink}) {
+  String _buildShareProgressText(GameData game, String? gameOverText,
+      {String? accomplishmentLink}) {
     final normalized = _normalizedGameName(game);
     final source = _normalizeGameOverTextForParsing(gameOverText);
     final score = _extractLikelyScore(source);
@@ -1024,15 +1050,16 @@ class _RootAppState extends State<RootApp>
       return '$summary Can you top that?';
     }
 
-    final isTilesGame = normalized.contains('tiles') || normalized.contains('puzzle');
+    final isTilesGame =
+        normalized.contains('tiles') || normalized.contains('puzzle');
     if (isTilesGame) {
       final tilesScore = _extractTilesScore(source);
       final tilesLevel = _extractTilesLevel(source);
       final lowerSource = source.toLowerCase();
       final hasLevelCompleteAction =
           lowerSource.contains('action: level_complete') ||
-          lowerSource.contains('"action":"level_complete"') ||
-          lowerSource.contains('action=level_complete');
+              lowerSource.contains('"action":"level_complete"') ||
+              lowerSource.contains('action=level_complete');
 
       if (tilesScore != null && tilesLevel != null) {
         return 'Just finished ${game.name} at Level $tilesLevel with $tilesScore points — can you beat this run?';
@@ -1126,15 +1153,16 @@ class _RootAppState extends State<RootApp>
       return '$summary Beat me 👀\n$challengeLink';
     }
 
-    final isTilesGame = normalized.contains('tiles') || normalized.contains('puzzle');
+    final isTilesGame =
+        normalized.contains('tiles') || normalized.contains('puzzle');
     if (isTilesGame) {
       final tilesScore = _extractTilesScore(source);
       final tilesLevel = _extractTilesLevel(source);
       final lowerSource = source.toLowerCase();
       final hasLevelCompleteAction =
           lowerSource.contains('action: level_complete') ||
-          lowerSource.contains('"action":"level_complete"') ||
-          lowerSource.contains('action=level_complete');
+              lowerSource.contains('"action":"level_complete"') ||
+              lowerSource.contains('action=level_complete');
 
       if (tilesScore != null && tilesLevel != null) {
         return 'I finished ${game.name} at Level $tilesLevel with $tilesScore points — beat this run 🎯\n$challengeLink';
@@ -1195,34 +1223,35 @@ class _RootAppState extends State<RootApp>
     if (source.isEmpty) return false;
 
     final normalized = (gameName ?? '').toLowerCase();
-    final lowerSource = source.toLowerCase();
 
-    // For chess: show dialog if we have any game stats
+    // Chess completion is considered valid only when we have a valid title,
+    // captures, and moves. This prevents misreporting of results and false positives.
     if (normalized.contains('chess')) {
-      // Check for any indicator of a completed chess game
-      return lowerSource.contains('victory') ||
-          lowerSource.contains('defeat') ||
-          lowerSource.contains('draw') ||
-          lowerSource.contains('stalemate') ||
-          lowerSource.contains('checkmate') ||
-          lowerSource.contains('won') ||
-          lowerSource.contains('lost') ||
-          lowerSource.contains('moves:') ||
-          lowerSource.contains('captures:') ||
-          lowerSource.contains('play again') ||
-          lowerSource.contains('game over') ||
-          _extractChessMoves(source) != null ||
-          _extractChessCaptures(source) != null ||
-          _extractDifficulty(source) != null;
+      final chess = _extractChessResultFields(source);
+      final title = chess['title'] as String?;
+      final captures = chess['captures'] as int?;
+      final moves = chess['moves'] as int?;
+
+      // Title must be a valid chess result (Victory, Defeat, or Draw)
+      final lowerTitle = title?.toLowerCase() ?? '';
+      final hasValidTitle = lowerTitle == 'victory' ||
+          lowerTitle == 'defeat' ||
+          lowerTitle == 'draw';
+
+      // Must have captures and moves indicating actual gameplay
+      final hasGameplay =
+          captures != null && captures > 0 && moves != null && moves > 0;
+
+      return hasValidTitle && hasGameplay;
     }
 
+    // Tasty Tiles / puzzle completion requires a real score value.
     if (normalized.contains('tiles') || normalized.contains('puzzle')) {
-      return _extractTilesScore(source) != null ||
-          _extractTilesLevel(source) != null ||
-          lowerSource.contains('action: level_complete') ||
-          lowerSource.contains('"action":"level_complete"') ||
-          lowerSource.contains('action=level_complete');
+      final score = _extractStrictTilesScore(source);
+      return score != null && score > 0;
     }
+
+    final lowerSource = source.toLowerCase();
 
     return _extractLikelyScore(source) != null ||
         _extractStatNumber(source, 'level|stage') != null ||
@@ -1307,18 +1336,21 @@ class _RootAppState extends State<RootApp>
           completion.gameOverText ?? _lastCompletedMiniGameOverText;
 
       if (!completion.playedLikely ||
-          !_hasDerivableMiniGameResult(selectedGame?.name, resolvedGameOverText)) {
+          !_hasDerivableMiniGameResult(
+              selectedGame?.name, resolvedGameOverText)) {
         return;
       }
 
       final gameName = selectedGame?.name ?? 'this game';
       final gameId = selectedGame?.id ?? 'minigame';
       final gameIcon = selectedGame?.iconUrl ?? '';
-      final accomplishmentLink = selectedGame != null 
-          ? AppsFlyerService().generateMinigameAccomplishmentLink(selectedGame.id)
+      final accomplishmentLink = selectedGame != null
+          ? AppsFlyerService()
+              .generateMinigameAccomplishmentLink(selectedGame.id)
           : null;
       final prefilledText = selectedGame != null
-          ? _buildShareProgressText(selectedGame, resolvedGameOverText, accomplishmentLink: accomplishmentLink)
+          ? _buildShareProgressText(selectedGame, resolvedGameOverText,
+              accomplishmentLink: accomplishmentLink)
           : 'Just completed a run on $gameName — can you beat this?';
 
       showDialog(
@@ -1466,18 +1498,16 @@ class _RootAppState extends State<RootApp>
                                           id: gameId,
                                           name: gameName,
                                           iconUrl: gameIcon,
-                                          description: selectedGame
-                                                  ?.description ??
-                                              '',
-                                          iconFallback: selectedGame
-                                              ?.iconFallback,
+                                          description:
+                                              selectedGame?.description ?? '',
+                                          iconFallback:
+                                              selectedGame?.iconFallback,
                                         ),
                                         resolvedGameOverText);
                                   },
                                   borderRadius: BorderRadius.circular(14),
                                   child: const Row(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.center,
+                                    mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
                                       Icon(
                                         Icons.sports_esports,
@@ -1506,12 +1536,11 @@ class _RootAppState extends State<RootApp>
                             height: 56,
                             child: Container(
                               decoration: BoxDecoration(
-                                color: const Color(0xFF2196F3)
-                                    .withOpacity(0.1),
+                                color: const Color(0xFF2196F3).withOpacity(0.1),
                                 borderRadius: BorderRadius.circular(14),
                                 border: Border.all(
-                                  color: const Color(0xFF2196F3)
-                                      .withOpacity(0.4),
+                                  color:
+                                      const Color(0xFF2196F3).withOpacity(0.4),
                                   width: 2,
                                 ),
                               ),
@@ -1523,8 +1552,7 @@ class _RootAppState extends State<RootApp>
                                     parentContext.push(Routes.postChat, extra: {
                                       'name': gameName,
                                       'profileImageURL': gameIcon,
-                                      'chat':
-                                          'Completed a level in $gameName.',
+                                      'chat': 'Completed a level in $gameName.',
                                       'avatarID': gameId,
                                       'initialText': prefilledText,
                                       'minigameLink': accomplishmentLink,
@@ -1532,8 +1560,7 @@ class _RootAppState extends State<RootApp>
                                   },
                                   borderRadius: BorderRadius.circular(14),
                                   child: Row(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.center,
+                                    mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
                                       const Icon(
                                         Icons.share,

@@ -24,13 +24,14 @@ class SimulaApiClient {
   }) : assert(apiKey.isNotEmpty, 'API key cannot be empty');
 
   /// Create a session and return session ID
-  Future<String?> createSession({String? primaryUserID, String? idfa, bool? devMode}) async {
+  Future<String?> createSession(
+      {String? primaryUserID, String? idfa, bool? devMode}) async {
     try {
       final params = <String, String>{};
       if (primaryUserID != null && primaryUserID.isNotEmpty) {
         params['ppid'] = primaryUserID;
       }
-      
+
       // Add devMode as query parameter (backend expects string "true" or "false")
       if (devMode != null) {
         params['devMode'] = devMode.toString();
@@ -39,7 +40,8 @@ class SimulaApiClient {
       final queryString = params.isEmpty
           ? ''
           : '?${params.entries.map((e) => '${Uri.encodeComponent(e.key)}=${Uri.encodeComponent(e.value)}').join('&')}';
-      final url = Uri.parse('${SimulaConfig.apiBaseUrl}/session/create$queryString');
+      final url =
+          Uri.parse('${SimulaConfig.apiBaseUrl}/session/create$queryString');
 
       // Build headers
       final headers = <String, String>{
@@ -91,11 +93,12 @@ class SimulaApiClient {
         'slot': slot,
         'position': position,
         'context': context.toJson(),
-        if (width != null && width != double.infinity && !width.isNaN) 'width': (width + 5).ceil(), // add 5px to width so it fills container
+        if (width != null && width != double.infinity && !width.isNaN)
+          'width': (width + 5).ceil(), // add 5px to width so it fills container
       };
 
       final url = Uri.parse('${SimulaConfig.apiBaseUrl}/render_ad/ssp/native');
-      
+
       final response = await http.post(
         url,
         headers: {
@@ -107,7 +110,8 @@ class SimulaApiClient {
       );
 
       if (!response.statusCode.toString().startsWith('2')) {
-        throw Exception('HTTP error! status: ${response.statusCode}, body: ${response.body}');
+        throw Exception(
+            'HTTP error! status: ${response.statusCode}, body: ${response.body}');
       }
 
       final responseBody = response.body;
@@ -132,7 +136,8 @@ class SimulaApiClient {
       }
 
       final ad = AdData(
-        id: jsonResponse['ad_id'] as String? ?? 'ad_${DateTime.now().millisecondsSinceEpoch}',
+        id: jsonResponse['ad_id'] as String? ??
+            'ad_${DateTime.now().millisecondsSinceEpoch}',
         format: 'iframe',
         iframeUrl: iframeUrl,
         adInserted: adInserted,
@@ -151,7 +156,8 @@ class SimulaApiClient {
   /// Track impression for an ad
   Future<void> trackImpression(String adId) async {
     try {
-      final url = Uri.parse('${SimulaConfig.apiBaseUrl}/track/engagement/impression/$adId');
+      final url = Uri.parse(
+          '${SimulaConfig.apiBaseUrl}/track/engagement/impression/$adId');
       await http.post(
         url,
         headers: {
@@ -172,7 +178,8 @@ class SimulaApiClient {
     required String gameName,
   }) async {
     try {
-      final url = Uri.parse('${SimulaConfig.apiBaseUrl}/minigames/menu/track/click');
+      final url =
+          Uri.parse('${SimulaConfig.apiBaseUrl}/minigames/menu/track/click');
       await http.post(
         url,
         headers: {
@@ -193,7 +200,8 @@ class SimulaApiClient {
   /// Track viewport entry for an ad (when ad enters viewport)
   Future<void> trackViewportEntry(String adId) async {
     try {
-      final url = Uri.parse('${SimulaConfig.apiBaseUrl}/track/engagement/viewport_entry/$adId');
+      final url = Uri.parse(
+          '${SimulaConfig.apiBaseUrl}/track/engagement/viewport_entry/$adId');
       await http.post(
         url,
         headers: {
@@ -213,7 +221,8 @@ class SimulaApiClient {
   /// Track viewport exit for an ad (when ad leaves viewport or widget is disposed)
   Future<void> trackViewportExit(String adId) async {
     try {
-      final url = Uri.parse('${SimulaConfig.apiBaseUrl}/track/engagement/viewport_exit/$adId');
+      final url = Uri.parse(
+          '${SimulaConfig.apiBaseUrl}/track/engagement/viewport_exit/$adId');
       await http.post(
         url,
         headers: {
@@ -233,7 +242,8 @@ class SimulaApiClient {
   /// Report an ad
   Future<void> reportAd(String adId) async {
     try {
-      final url = Uri.parse('${SimulaConfig.apiBaseUrl}/track/engagement/report/$adId');
+      final url =
+          Uri.parse('${SimulaConfig.apiBaseUrl}/track/engagement/report/$adId');
       await http.post(
         url,
         headers: {
@@ -265,10 +275,10 @@ class SimulaApiClient {
       }
 
       final data = jsonDecode(response.body) as Map<String, dynamic>;
-      
+
       // Extract menu_id from response
       final menuId = data['menu_id'] as String? ?? '';
-      
+
       // Handle different response formats: direct catalog list or wrapped in 'data'
       List<dynamic> gamesList;
       if (data['catalog'] != null) {
@@ -287,14 +297,16 @@ class SimulaApiClient {
         // Fallback: try data['data'] for backwards compatibility
         gamesList = data['data'] as List<dynamic>? ?? [];
       }
-      
-      final games = gamesList.map((game) => GameData(
-        id: game['id'] as String,
-        name: game['name'] as String,
-        iconUrl: game['icon'] as String? ?? '',
-        description: game['description'] as String? ?? '',
-        iconFallback: game['iconFallback'] as String?,
-      )).toList();
+
+      final games = gamesList
+          .map((game) => GameData(
+                id: game['id'] as String,
+                name: game['name'] as String,
+                iconUrl: game['icon'] as String? ?? '',
+                description: game['description'] as String? ?? '',
+                iconFallback: game['iconFallback'] as String?,
+              ))
+          .toList();
 
       return CatalogResponse(
         menuId: menuId,
@@ -331,7 +343,8 @@ class SimulaApiClient {
         'char_name': charName,
         'char_image': charImage,
         if (charDesc != null) 'char_desc': charDesc,
-        if (messages != null) 'messages': messages.map((m) => m.toJson()).toList(),
+        if (messages != null)
+          'messages': messages.map((m) => m.toJson()).toList(),
         'currency_mode': currencyMode,
         'delegate_char': delegateChar,
         if (menuId != null) 'menu_id': menuId,
@@ -346,14 +359,15 @@ class SimulaApiClient {
         },
         body: jsonEncode(requestBody),
       );
-      
+
       if (!response.statusCode.toString().startsWith('2')) {
-        throw Exception('HTTP error! status: ${response.statusCode}, body: ${response.body}');
+        throw Exception(
+            'HTTP error! status: ${response.statusCode}, body: ${response.body}');
       }
 
       final data = jsonDecode(response.body) as Map<String, dynamic>;
       final adResponse = data['adResponse'] as Map<String, dynamic>;
-      
+
       return MinigameResponse(
         adId: adResponse['ad_id'] as String? ?? '',
         iframeUrl: adResponse['iframe_url'] as String? ?? '',
@@ -366,12 +380,13 @@ class SimulaApiClient {
   /// Fetch ad for minigame fallback
   Future<String?> fetchAdForMinigame(String adId) async {
     try {
-      final url = Uri.parse('${SimulaConfig.apiBaseUrl}/minigames/fallback_ad/$adId');
+      final url =
+          Uri.parse('${SimulaConfig.apiBaseUrl}/minigames/fallback_ad/$adId');
       final response = await http.post(
         url,
         headers: {
           'Content-Type': 'application/json',
-          'user-agent': Platform.operatingSystem, 
+          'user-agent': Platform.operatingSystem,
         },
       );
 
@@ -381,7 +396,7 @@ class SimulaApiClient {
 
       final data = jsonDecode(response.body) as Map<String, dynamic>;
       final adResponse = data['adResponse'] as Map<String, dynamic>;
-      
+
       return adResponse['iframe_url'] as String?;
     } catch (e) {
       return null;
@@ -422,7 +437,6 @@ class FetchAdResponse {
 
   FetchAdResponse({this.ad, this.error});
 }
-
 
 /// Response from minigame init API
 class MinigameResponse {

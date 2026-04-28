@@ -79,6 +79,8 @@ class _MiniGameMenuState extends State<MiniGameMenu> {
   bool _isGameDialogShowing = false; // Track if in-game overlay dialog is showing
   StateSetter?
       _dialogStateSetter; // Store dialog's StateSetter to trigger rebuilds
+    StateSetter?
+      _gameDialogStateSetter; // Store game dialog's StateSetter for live character refresh
 
   int _gameOverTextSignalScore(String? text) {
     if (text == null || text.trim().isEmpty) return 0;
@@ -186,6 +188,14 @@ class _MiniGameMenuState extends State<MiniGameMenu> {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted && _isDialogShowing) {
           _dialogStateSetter?.call(() {});
+        }
+      });
+    }
+
+    if (characterHeaderChanged && _isGameDialogShowing) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _isGameDialogShowing) {
+          _gameDialogStateSetter?.call(() {});
         }
       });
     }
@@ -316,38 +326,48 @@ class _MiniGameMenuState extends State<MiniGameMenu> {
       barrierColor: Colors.black,
       transitionDuration: const Duration(milliseconds: 120),
       pageBuilder: (dialogContext, animation, secondaryAnimation) {
-        return Material(
-          color: Colors.transparent,
-          child: GameIframe(
-            gameId: gameId,
-            onCharacterTap: widget.onCharacterTap,
-            onGameOverText: (text) {
-              _lastGameOverText =
-                  _pickBetterGameOverText(_lastGameOverText, text);
-            },
-            charID: widget.charID,
-            charName: widget.charName,
-            charImage: widget.charImage,
-            charDesc: widget.charDesc,
-            messages: widget.messages,
-            delegateChar: widget.delegateChar,
-            menuId: _menuId,
-            playableHeight: widget.theme?.playableHeight,
-            playableBorderColor: widget.theme?.playableBorderColor,
-            onAdIdReceived: _handleAdIdReceived,
-            onClose: (resizedHeight, closeGameOverText) async {
-              final rootNavigator =
-                  Navigator.of(dialogContext, rootNavigator: true);
-              if (rootNavigator.canPop()) {
-                rootNavigator.pop();
-              }
-              _handleIframeClose(resizedHeight, closeGameOverText);
-            },
-          ),
+        return StatefulBuilder(
+          builder: (context, setGameDialogState) {
+            _gameDialogStateSetter = setGameDialogState;
+            return Material(
+              color: Colors.transparent,
+              child: GameIframe(
+                // key: ValueKey(
+                //   '$gameId|${widget.charID}|${widget.charName}|${widget.charImage ?? ''}|${widget.messages.length}',
+                // ),
+                key: ValueKey(gameId),
+                gameId: gameId,
+                onCharacterTap: widget.onCharacterTap,
+                onGameOverText: (text) {
+                  _lastGameOverText =
+                      _pickBetterGameOverText(_lastGameOverText, text);
+                },
+                charID: widget.charID,
+                charName: widget.charName,
+                charImage: widget.charImage,
+                charDesc: widget.charDesc,
+                messages: widget.messages,
+                delegateChar: widget.delegateChar,
+                menuId: _menuId,
+                playableHeight: widget.theme?.playableHeight,
+                playableBorderColor: widget.theme?.playableBorderColor,
+                onAdIdReceived: _handleAdIdReceived,
+                onClose: (resizedHeight, closeGameOverText) async {
+                  final rootNavigator =
+                      Navigator.of(dialogContext, rootNavigator: true);
+                  if (rootNavigator.canPop()) {
+                    rootNavigator.pop();
+                  }
+                  _handleIframeClose(resizedHeight, closeGameOverText);
+                },
+              ),
+            );
+          },
         );
       },
     ).whenComplete(() {
       _isGameDialogShowing = false;
+      _gameDialogStateSetter = null;
     });
   }
 
