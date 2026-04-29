@@ -332,10 +332,7 @@ class _MiniGameMenuState extends State<MiniGameMenu> {
             return Material(
               color: Colors.transparent,
               child: GameIframe(
-                // key: ValueKey(
-                //   '$gameId|${widget.charID}|${widget.charName}|${widget.charImage ?? ''}|${widget.messages.length}',
-                // ),
-                key: ValueKey(gameId),
+                key: ValueKey('$gameId|${widget.charID}|${widget.charName}|${widget.charImage ?? ''}'),
                 gameId: gameId,
                 onCharacterTap: widget.onCharacterTap,
                 onGameOverText: (text) {

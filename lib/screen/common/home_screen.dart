@@ -6,6 +6,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:inzone/router/routes.dart';
 import 'package:inzone/components/cards/post_card.dart';
 import 'package:inzone/components/cards/repost_card.dart';
+import 'package:inzone/components/cards/featured_character_card.dart';
 import 'package:inzone/components/posts/shimmering.dart';
 import 'package:inzone/components/profile/avatar_card.dart';
 import 'package:inzone/components/profile/avatar_story_component.dart';
@@ -40,12 +41,17 @@ class HomeScreen extends StatefulWidget {
 }
 
 class HomeScreenState extends State<HomeScreen> {
+  static const String _launchCountKey = 'launch_count';
+
   late ScrollController _scrollController;
+  late final PageController _featuredPageController;
   final RefreshController _refreshController =
       RefreshController(initialRefresh: false);
 
   List<GameData> _miniGames = [];
   bool _miniGamesLoading = true;
+  bool _showFeaturedCard = true;
+  int _featuredPageIndex = 0;
 
   List<Widget> feedItems = [];
   List<Widget> originalFeedItems = []; // Store the original order of feed items
@@ -87,11 +93,13 @@ class HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _scrollController = widget.controller ?? ScrollController();
+    _featuredPageController = PageController();
     _startTime = DateTime.now().toUtc();
 
     _loadCurrentUserProfileImage();
     _bootstrapHomeFeed();
     _loadMiniGames();
+    _loadFeaturedVisibility();
 
     _startAvatarTimer();
     _scrollController.addListener(_onScroll);
@@ -198,6 +206,7 @@ class HomeScreenState extends State<HomeScreen> {
     if (widget.controller == null) {
       _scrollController.dispose();
     }
+    _featuredPageController.dispose();
     _refreshController.dispose(); // Dispose the RefreshController
     _scrollThrottleTimer?.cancel();
 
@@ -533,6 +542,23 @@ class HomeScreenState extends State<HomeScreen> {
         final prefs = await SharedPreferences.getInstance();
         await prefs.remove(_feedCacheKey);
       } catch (_) {}
+    }
+  }
+
+  Future<void> _loadFeaturedVisibility() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final count = prefs.getInt(_launchCountKey) ?? 1;
+      final show = count == 1 || ((count - 1) % 5 == 0);
+      if (!mounted) return;
+      setState(() {
+        _showFeaturedCard = show;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _showFeaturedCard = true;
+      });
     }
   }
 
@@ -997,14 +1023,14 @@ class HomeScreenState extends State<HomeScreen> {
           child: _miniGamesLoading
               ? ListView.separated(
                   scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
                   itemBuilder: (_, __) => _buildMiniGamePlaceholderCard(),
                   separatorBuilder: (_, __) => const SizedBox(width: 12),
                   itemCount: 3,
                 )
               : ListView.separated(
                   scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
                   itemBuilder: (context, index) {
                     return _buildMiniGameCard(games[index]);
                   },
@@ -1164,22 +1190,63 @@ class HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildFeaturedGameCard() {
+    if (!_showFeaturedCard) {
+      return const SizedBox.shrink();
+    }
+
     final featuredAvatars = _featuredAvatars();
 
     if (featuredAvatars.isEmpty) {
       return const SizedBox.shrink();
     }
 
-    return SizedBox(
-      height: 248,
-      child: PageView.builder(
-        controller: PageController(viewportFraction: 1.0),
-        itemCount: featuredAvatars.length,
-        itemBuilder: (context, index) {
-          final avatar = featuredAvatars[index];
-          return _buildFeaturedCharacterCard(avatar);
-        },
-      ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        const padding = EdgeInsets.symmetric(horizontal: 4);
+        final heights = <double>[];
+
+        for (final avatar in featuredAvatars) {
+          final height = FeaturedCharacterCard.estimateHeight(
+            context,
+            avatar,
+            constraints.maxWidth,
+            padding: padding,
+          );
+          if (height > 0) {
+            heights.add(height);
+          }
+        }
+
+        if (heights.isEmpty) {
+          return const SizedBox.shrink();
+        }
+
+        final resolvedIndex = _featuredPageIndex.clamp(0, heights.length - 1);
+        final currentHeight = heights[resolvedIndex];
+        return AnimatedContainer(
+          duration: const Duration(milliseconds: 250),
+          curve: Curves.easeOutCubic,
+          height: currentHeight,
+          child: PageView.builder(
+            controller: _featuredPageController,
+            itemCount: featuredAvatars.length,
+            onPageChanged: (index) {
+              setState(() {
+                _featuredPageIndex = index;
+              });
+            },
+            itemBuilder: (context, index) {
+              final avatar = featuredAvatars[index];
+              return FeaturedCharacterCard(
+                avatar: avatar,
+                onChat: () => _openChatForAvatar(avatar),
+                onPlay: () => _openMiniGameMenuForAvatar(avatar),
+                padding: padding,
+              );
+            },
+          ),
+        );
+      },
     );
   }
 
@@ -1203,178 +1270,6 @@ class HomeScreenState extends State<HomeScreen> {
         isHuman: false,
         profilePictureURL: avatar.profilePicture,
       ),
-    );
-  }
-
-  Widget _buildFeaturedCharacterCard(InZoneAvatar avatar) {
-    final theme = Theme.of(context);
-    final snippet = avatar.greeting?.isNotEmpty == true
-      ? avatar.greeting!
-      : (avatar.bio.isNotEmpty ? avatar.bio : 'Tap to chat with ${avatar.name}');
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 4),
-      child: LayoutBuilder(builder: (context, constraints) {
-        final cardWidth = constraints.maxWidth;
-        final isLong = snippet.length > 120; // don't aggressively clamp here
-        final imageHeight = isLong ? 180.0 : 168.0;
-        final contentPadding = const EdgeInsets.fromLTRB(14, 10, 14, 8);
-
-        // Estimate widths: reserve space for the buttons column
-        const buttonsReserve = 130.0; // chat + play buttons + spacing
-        final availableTextWidth = cardWidth - contentPadding.left - contentPadding.right - buttonsReserve;
-
-        // Measure the snippet height using TextPainter so we can size the card correctly
-        final snippetStyle = TextStyle(fontSize: 12, height: 1.25, color: theme.textTheme.bodySmall?.color);
-        final tp = TextPainter(
-          text: TextSpan(text: snippet, style: snippetStyle),
-          textDirection: TextDirection.ltr,
-          textAlign: TextAlign.left,
-          maxLines: null,
-        );
-        tp.layout(maxWidth: availableTextWidth > 40 ? availableTextWidth : cardWidth - 40);
-        final snippetHeight = tp.height;
-
-        // Title height approx
-        final titleStyle = TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: theme.textTheme.bodyLarge?.color);
-        final ttp = TextPainter(text: TextSpan(text: 'Play with ${avatar.name}', style: titleStyle), textDirection: TextDirection.ltr);
-        ttp.layout(maxWidth: availableTextWidth);
-        final titleHeight = ttp.height;
-
-        // Compute content area height
-        final contentHeight = titleHeight + 6.0 + snippetHeight; // small spacing
-
-        // Buttons area minimum
-        const buttonsArea = 48.0;
-
-        final totalCardHeight = imageHeight + contentPadding.top + contentPadding.bottom + max(contentHeight, buttonsArea) + 12.0;
-
-        return Container(
-          decoration: BoxDecoration(
-            color: theme.cardColor,
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(
-              color: theme.dividerColor.withValues(alpha: 0.08),
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.10),
-                blurRadius: 14,
-                offset: const Offset(0, 8),
-              ),
-            ],
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(18),
-            child: SizedBox(
-              height: totalCardHeight,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  SizedBox(
-                    height: imageHeight,
-                    child: Stack(
-                      fit: StackFit.expand,
-                      children: [
-                        if (avatar.profilePicture.isNotEmpty)
-                          Image(
-                            image: CachedNetworkImageProvider(avatar.profilePicture),
-                            fit: BoxFit.cover,
-                            gaplessPlayback: true,
-                          ),
-                        Positioned(
-                          top: 12,
-                          left: 12,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: Colors.black.withValues(alpha: 0.45),
-                              borderRadius: BorderRadius.circular(999),
-                            ),
-                            child: const Text(
-                              'Featured',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 10,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Padding(
-                    padding: contentPadding,
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                'Play with ${avatar.name}',
-                                maxLines: 2,
-                                overflow: TextOverflow.visible,
-                                style: titleStyle,
-                              ),
-                              const SizedBox(height: 6),
-                              Text(
-                                snippet,
-                                // show full greeting — no maxLines, no ellipsis
-                                style: snippetStyle,
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            TextButton(
-                              onPressed: () => _openChatForAvatar(avatar),
-                              style: TextButton.styleFrom(
-                                foregroundColor: theme.textTheme.bodyLarge?.color,
-                                textStyle: const TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                              child: const Text('Chat'),
-                            ),
-                            const SizedBox(width: 6),
-                            SizedBox(
-                              height: 40,
-                              child: ElevatedButton.icon(
-                                onPressed: () => _openMiniGameMenuForAvatar(avatar),
-                                icon: const Icon(Icons.play_arrow, size: 16),
-                                label: const Text('Play'),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.black.withValues(alpha: 0.86),
-                                  foregroundColor: Colors.white,
-                                  elevation: 0,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(20),
-                                  ),
-                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                                  textStyle: const TextStyle(
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-      }),
     );
   }
 
@@ -1976,9 +1871,6 @@ class HomeScreenState extends State<HomeScreen> {
                       //       ? _buildAvatarStories()
                       //       : const SizedBox.shrink(),
                       // ) Commented out Avatar Stories for now
-                      SliverToBoxAdapter(
-                        child: _buildSectionHeader(title: 'Feed'),
-                      ),
                       SliverList(
                         delegate: SliverChildBuilderDelegate(
                           (context, index) {
