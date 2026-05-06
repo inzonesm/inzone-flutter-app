@@ -3,12 +3,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_feather_icons/flutter_feather_icons.dart';
 import 'package:go_router/go_router.dart';
 import 'package:inzone/components/cards/post_card.dart';
+import 'package:inzone/components/cards/featured_character_card.dart';
 import 'package:inzone/components/profile/avatar_card.dart';
 import 'package:inzone/components/profile/avatar_story_component.dart';
 import 'package:inzone/components/posts/shimmering.dart';
 import 'package:inzone/data/inzone_avatar.dart';
 import 'package:inzone/data/inzone_post.dart';
 import 'package:inzone/services/inzone_database.dart';
+import 'package:inzone/services/active_character_notifier.dart';
+import 'package:inzone/screen/chat/all_chats_screen.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:async';
@@ -18,6 +21,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:inzone/services/appsflyer_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:provider/provider.dart';
 
 // Search Session Tracker
 class SearchSessionTracker {
@@ -113,6 +117,7 @@ class SearchExploreScreen extends StatefulWidget {
 class _SearchExploreScreenState extends State<SearchExploreScreen> {
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _searchFocusNode = FocusNode();
+  late final PageController _featuredPageController;
   bool isLoading = true;
   bool isSearching = false;
   bool isSearchLoading = false;
@@ -123,6 +128,7 @@ class _SearchExploreScreenState extends State<SearchExploreScreen> {
   List<InZonePost> recommendedPosts = [];
   List<InZonePost> searchResults = [];
   List<String> searchHistory = [];
+  int _featuredPageIndex = 0;
 
   // Search analytics tracking
   late DateTime _screenStartTime;
@@ -139,6 +145,7 @@ class _SearchExploreScreenState extends State<SearchExploreScreen> {
   @override
   void initState() {
     super.initState();
+    _featuredPageController = PageController();
 
     // Initialize search analytics
     _screenStartTime = DateTime.now();
@@ -163,6 +170,7 @@ class _SearchExploreScreenState extends State<SearchExploreScreen> {
 
   @override
   void dispose() {
+    _featuredPageController.dispose();
     SearchSessionTracker.endSession(_currentUserId);
 
     final sessionDuration =
@@ -289,11 +297,13 @@ class _SearchExploreScreenState extends State<SearchExploreScreen> {
   }
 
   void _processAvatars(List<dynamic> fetchedCharacters) {
+    avatars.clear();
     avatarCards.clear();
     avatarStoryComponents.clear();
     try {
       for (var characterData in fetchedCharacters) {
         InZoneAvatar avatar = InZoneAvatar.fromDirectJson(characterData);
+        avatars.add(avatar);
         avatarCards.add(AvatarCard(avatar: avatar));
         avatarStoryComponents.add(AvatarStoryComponent(avatar: avatar));
       }
@@ -304,6 +314,92 @@ class _SearchExploreScreenState extends State<SearchExploreScreen> {
     } catch (e) {
       debugPrint('Error processing avatars: $e');
     }
+  }
+
+  List<InZoneAvatar> _featuredAvatars() {
+    final items = List<InZoneAvatar>.from(avatars);
+    if (items.isEmpty) return const [];
+
+    items.sort((a, b) => b.popularity.compareTo(a.popularity));
+    if (items.length <= 3) return items;
+    return items.take(3).toList();
+  }
+
+  Future<void> _openMiniGameMenuForAvatar(InZoneAvatar avatar) async {
+    context.read<ActiveCharacterNotifier>().setActiveCharacter(
+          charName: avatar.name,
+          charID: avatar.id,
+          charImage: avatar.profilePicture,
+          charDesc: avatar.bio,
+        );
+    await AppsFlyerService().openMinigameMenu();
+  }
+
+  Future<void> _openChatForAvatar(InZoneAvatar avatar) async {
+    await context.pushNamed(
+      'chat',
+      extra: ChatUser(
+        name: avatar.name,
+        email: avatar.id,
+        chatId: null,
+        isHuman: false,
+        profilePictureURL: avatar.profilePicture,
+      ),
+    );
+  }
+
+  Widget _buildFeaturedCharacterCarousel() {
+    final featured = _featuredAvatars();
+    if (featured.isEmpty) return const SizedBox.shrink();
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        const padding = EdgeInsets.symmetric(horizontal: 12);
+        final heights = <double>[];
+
+        for (final avatar in featured) {
+          final height = FeaturedCharacterCard.estimateHeight(
+            context,
+            avatar,
+            constraints.maxWidth,
+            padding: padding,
+          );
+          if (height > 0) {
+            heights.add(height);
+          }
+        }
+
+        if (heights.isEmpty) {
+          return const SizedBox.shrink();
+        }
+
+        final resolvedIndex = _featuredPageIndex.clamp(0, heights.length - 1);
+        final currentHeight = heights[resolvedIndex];
+        return AnimatedContainer(
+          duration: const Duration(milliseconds: 250),
+          curve: Curves.easeOutCubic,
+          height: currentHeight,
+          child: PageView.builder(
+            controller: _featuredPageController,
+            itemCount: featured.length,
+            onPageChanged: (index) {
+              setState(() {
+                _featuredPageIndex = index;
+              });
+            },
+            itemBuilder: (context, index) {
+              final avatar = featured[index];
+              return FeaturedCharacterCard(
+                avatar: avatar,
+                onChat: () => _openChatForAvatar(avatar),
+                onPlay: () => _openMiniGameMenuForAvatar(avatar),
+                padding: padding,
+              );
+            },
+          ),
+        );
+      },
+    );
   }
 
   void _onSearchTextChanged(String text) {
@@ -772,6 +868,14 @@ class _SearchExploreScreenState extends State<SearchExploreScreen> {
           child: avatarStoryComponents.isNotEmpty
               ? _buildAvatarStories()
               : const SizedBox.shrink(),
+        ),
+
+        SliverToBoxAdapter(
+          child: _buildFeaturedCharacterCarousel(),
+        ),
+
+        const SliverToBoxAdapter(
+          child: SizedBox(height: 12),
         ),
 
         // Search History Section

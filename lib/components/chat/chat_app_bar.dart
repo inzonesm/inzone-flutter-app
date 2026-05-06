@@ -7,6 +7,7 @@ class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
   final String? avatarUrl;
   final String avatarId;
   final VoidCallback onBack;
+  final VoidCallback? onAvatarTap;
   final List<Widget>? actions;
 
   const ChatAppBar({
@@ -16,6 +17,7 @@ class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
     this.avatarUrl,
     required this.avatarId,
     required this.onBack,
+    this.onAvatarTap,
     this.actions,
   });
 
@@ -50,24 +52,28 @@ class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
       ),
       title: Row(
         children: [
-          Container(
-            width: 45,
-            height: 45,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: Theme.of(context).cardColor,
+          GestureDetector(
+            onTap: onAvatarTap,
+            behavior: HitTestBehavior.opaque,
+            child: Container(
+              width: 45,
+              height: 45,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Theme.of(context).cardColor,
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: avatarUrl != null && avatarUrl!.isNotEmpty
+                  ? CachedNetworkImage(
+                      imageUrl: avatarUrl!,
+                      width: 45,
+                      height: 45,
+                      fit: BoxFit.cover,
+                    )
+                  : const Center(
+                      child: Icon(Icons.account_circle, size: 45),
+                    ),
             ),
-            clipBehavior: Clip.antiAlias,
-            child: avatarUrl != null && avatarUrl!.isNotEmpty
-                ? CachedNetworkImage(
-                    imageUrl: avatarUrl!,
-                    width: 45,
-                    height: 45,
-                    fit: BoxFit.cover,
-                  )
-                : const Center(
-                    child: Icon(Icons.account_circle, size: 45),
-                  ),
           ),
           const SizedBox(width: 10),
           Expanded(

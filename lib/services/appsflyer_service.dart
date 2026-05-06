@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:convert';
+import 'dart:async';
 
 import 'package:appsflyer_sdk/appsflyer_sdk.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -76,6 +77,15 @@ class AppsFlyerService {
   // Store attribution data
   Map<String, dynamic>? _attributionData;
   Map<String, dynamic>? _conversionData;
+  final StreamController<String> _minigameDeepLinkController =
+      StreamController<String>.broadcast();
+  final StreamController<String?> _minigameMenuOpenController =
+      StreamController<String?>.broadcast();
+
+  Stream<String> get minigameDeepLinkStream =>
+      _minigameDeepLinkController.stream;
+  Stream<String?> get minigameMenuOpenStream =>
+      _minigameMenuOpenController.stream;
 
   factory AppsFlyerService() {
     return _instance;
@@ -194,9 +204,33 @@ class AppsFlyerService {
   }
 
   Future<void> _handleMinigameDeepLink(String gameId) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(pendingMinigameDeepLinkGameIdKey, gameId);
+    if (!_minigameDeepLinkController.isClosed) {
+      _minigameDeepLinkController.add(gameId);
+    }
     logEvent('minigame_deep_link_received', {'game_id': gameId});
+  }
+
+  Future<void> queueMinigameDeepLink(String gameId) async {
+    final normalized = gameId.trim();
+    if (normalized.isEmpty) return;
+    if (!_minigameDeepLinkController.isClosed) {
+      _minigameDeepLinkController.add(normalized);
+    }
+    logEvent('minigame_deep_link_queued', {'game_id': normalized});
+  }
+
+  Future<void> openMinigameMenu({String? initialGameId}) async {
+    final normalized = initialGameId?.trim();
+    if (!_minigameMenuOpenController.isClosed) {
+      _minigameMenuOpenController
+          .add((normalized == null || normalized.isEmpty) ? null : normalized);
+    }
+
+    if (normalized != null && normalized.isNotEmpty) {
+      logEvent('minigame_menu_open_requested', {'game_id': normalized});
+    } else {
+      logEvent('minigame_menu_open_requested', {'game_id': null});
+    }
   }
 
   static Future<String?> consumePendingMinigameDeepLinkGameId() async {
@@ -603,6 +637,26 @@ class AppsFlyerService {
     });
 
     return minigameOneLink.toString();
+  }
+
+  String generateMinigameAccomplishmentLink(String gameId) {
+    final Uri fallbackDeepLink = Uri(
+      scheme: 'inzone',
+      host: 'minigame',
+      queryParameters: {
+        'gameId': gameId,
+      },
+    );
+
+    final Uri accomplishmentOneLink = Uri.https('join-inzone.onelink.me', '/SACg', {
+      'af_xp': 'custom',
+      'pid': 'minigame_accomplishment',
+      'deep_link_value': 'minigame',
+      'deep_link_sub1': gameId,
+      'af_dp': fallbackDeepLink.toString(),
+    });
+
+    return accomplishmentOneLink.toString();
   }
 
   Future<bool?> trackSignupEvent(String referrerId) {

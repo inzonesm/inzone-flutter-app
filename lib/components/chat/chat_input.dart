@@ -69,231 +69,242 @@ class _ChatInputState extends State<ChatInput> {
     final bool hasMedia =
         widget.pendingImage != null || widget.pendingVideo != null;
 
-    return Container(
-      color: Theme.of(context).canvasColor,
-      child: Padding(
-        padding:
-            const EdgeInsets.only(left: 10.0, right: 10, bottom: 15, top: 5),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Media preview
-            if (hasMedia)
-              Container(
-                margin: const EdgeInsets.only(bottom: 8),
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).brightness == Brightness.dark
-                      ? Colors.grey.shade800
-                      : Colors.grey.shade200,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Stack(
-                  children: [
-                    if (widget.pendingImage != null)
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: Image.file(
-                          widget.pendingImage!,
-                          height: 150,
-                          fit: BoxFit.cover,
-                        ),
-                      ),
-                    if (widget.pendingVideo != null)
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: SizedBox(
-                          height: 150,
-                          child: _VideoPreview(videoFile: widget.pendingVideo!),
-                        ),
-                      ),
-                    Positioned(
-                      top: 4,
-                      right: 4,
-                      child: GestureDetector(
-                        onTap: widget.onClearMedia,
-                        child: Container(
-                          padding: const EdgeInsets.all(4),
-                          decoration: BoxDecoration(
-                            color: Colors.black.withOpacity(0.6),
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(
-                            Icons.close,
-                            color: Colors.white,
-                            size: 20,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            Row(
-              children: [
-                // Media buttons (image and video)
-                if (widget.onImagePicked != null ||
-                    widget.onVideoPicked != null)
-                  Row(
+    return SafeArea(
+      top: false,
+      minimum: const EdgeInsets.only(bottom: 2),
+      child: Container(
+        color: Theme.of(context).canvasColor,
+        child: Padding(
+          padding: EdgeInsets.only(
+            left: 10,
+            right: 10,
+            top: 5,
+            bottom: 6,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Media preview
+              if (hasMedia)
+                Container(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).brightness == Brightness.dark
+                        ? Colors.grey.shade800
+                        : Colors.grey.shade200,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Stack(
                     children: [
-                      if (widget.onImagePicked != null)
-                        IconButton(
-                          visualDensity: VisualDensity.compact,
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(),
-                          icon: Icon(
-                            FeatherIcons.image,
-                            color:
-                                Theme.of(context).brightness == Brightness.dark
-                                    ? Colors.grey.shade400
-                                    : Colors.blue.shade600,
-                            size: 20,
+                      if (widget.pendingImage != null)
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: Image.file(
+                            widget.pendingImage!,
+                            height: 150,
+                            fit: BoxFit.cover,
                           ),
-                          onPressed: () async {
-                            final ImagePicker picker = ImagePicker();
-                            final XFile? image = await picker.pickImage(
-                              source: ImageSource.gallery,
-                              imageQuality: 90,
-                            );
-                            if (image != null && widget.onImagePicked != null) {
-                              widget.onImagePicked!(File(image.path));
-                            }
-                          },
                         ),
-                      if (widget.onVideoPicked != null)
-                        IconButton(
-                          visualDensity: VisualDensity.compact,
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(),
-                          icon: Icon(
-                            FeatherIcons.video,
-                            color:
-                                Theme.of(context).brightness == Brightness.dark
-                                    ? Colors.grey.shade400
-                                    : Colors.blue.shade600,
-                            size: 20,
+                      if (widget.pendingVideo != null)
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: SizedBox(
+                            height: 150,
+                            child:
+                                _VideoPreview(videoFile: widget.pendingVideo!),
                           ),
-                          onPressed: () async {
-                            final ImagePicker picker = ImagePicker();
-                            final XFile? video = await picker.pickVideo(
-                              source: ImageSource.gallery,
-                              maxDuration: const Duration(minutes: 5),
-                            );
-                            if (video != null && widget.onVideoPicked != null) {
-                              widget.onVideoPicked!(File(video.path));
-                            }
-                          },
                         ),
+                      Positioned(
+                        top: 4,
+                        right: 4,
+                        child: GestureDetector(
+                          onTap: widget.onClearMedia,
+                          child: Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withOpacity(0.6),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.close,
+                              color: Colors.white,
+                              size: 20,
+                            ),
+                          ),
+                        ),
+                      ),
                     ],
                   ),
-                const SizedBox(width: 4),
-                Expanded(
-                  child: Scrollbar(
-                    controller: widget.scrollController,
-                    child: Container(
-                      constraints: const BoxConstraints(maxHeight: 100),
-                      child: TextFormField(
-                        scrollController: widget.scrollController,
-                        cursorColor:
-                            Theme.of(context).brightness == Brightness.dark
-                                ? Colors.grey.shade400
-                                : Colors.blue.shade600,
-                        controller: widget.controller,
-                        maxLines: null,
-                        keyboardType: TextInputType.multiline,
-                        onFieldSubmitted:
-                            _isTextEmpty ? null : (_) => widget.onSend(),
-                        textInputAction: TextInputAction.send,
-                        style: const TextStyle(fontSize: 14),
-                        decoration: InputDecoration(
-                          isDense: true,
-                          contentPadding: const EdgeInsets.symmetric(
-                              vertical: 8, horizontal: 12),
-                          border: InputBorder.none,
-                          hintText: widget.hintText,
-                          hintStyle: TextStyle(
-                            color:
-                                Theme.of(context).brightness == Brightness.dark
-                                    ? Colors.grey.shade400
-                                    : Colors.blue.shade600,
+                ),
+              Row(
+                children: [
+                  // Media buttons (image and video)
+                  if (widget.onImagePicked != null ||
+                      widget.onVideoPicked != null)
+                    Row(
+                      children: [
+                        if (widget.onImagePicked != null)
+                          IconButton(
+                            visualDensity: VisualDensity.compact,
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
+                            icon: Icon(
+                              FeatherIcons.image,
+                              color: Theme.of(context).brightness ==
+                                      Brightness.dark
+                                  ? Colors.grey.shade400
+                                  : Colors.blue.shade600,
+                              size: 20,
+                            ),
+                            onPressed: () async {
+                              final ImagePicker picker = ImagePicker();
+                              final XFile? image = await picker.pickImage(
+                                source: ImageSource.gallery,
+                                imageQuality: 90,
+                              );
+                              if (image != null &&
+                                  widget.onImagePicked != null) {
+                                widget.onImagePicked!(File(image.path));
+                              }
+                            },
                           ),
-                          filled: true,
-                          fillColor:
+                        if (widget.onVideoPicked != null)
+                          IconButton(
+                            visualDensity: VisualDensity.compact,
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
+                            icon: Icon(
+                              FeatherIcons.video,
+                              color: Theme.of(context).brightness ==
+                                      Brightness.dark
+                                  ? Colors.grey.shade400
+                                  : Colors.blue.shade600,
+                              size: 20,
+                            ),
+                            onPressed: () async {
+                              final ImagePicker picker = ImagePicker();
+                              final XFile? video = await picker.pickVideo(
+                                source: ImageSource.gallery,
+                                maxDuration: const Duration(minutes: 5),
+                              );
+                              if (video != null &&
+                                  widget.onVideoPicked != null) {
+                                widget.onVideoPicked!(File(video.path));
+                              }
+                            },
+                          ),
+                      ],
+                    ),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Scrollbar(
+                      controller: widget.scrollController,
+                      child: Container(
+                        constraints: const BoxConstraints(maxHeight: 100),
+                        child: TextFormField(
+                          scrollController: widget.scrollController,
+                          cursorColor:
                               Theme.of(context).brightness == Brightness.dark
-                                  ? Colors.grey.shade800
-                                  : Theme.of(context)
-                                      .colorScheme
-                                      .primary
-                                      .withOpacity(0.2),
-                          enabledBorder: OutlineInputBorder(
-                            borderSide: const BorderSide(
-                              color: Colors.transparent,
+                                  ? Colors.grey.shade400
+                                  : Colors.blue.shade600,
+                          controller: widget.controller,
+                          maxLines: null,
+                          keyboardType: TextInputType.multiline,
+                          onFieldSubmitted:
+                              _isTextEmpty ? null : (_) => widget.onSend(),
+                          textInputAction: TextInputAction.send,
+                          style: const TextStyle(fontSize: 14),
+                          decoration: InputDecoration(
+                            isDense: true,
+                            contentPadding: const EdgeInsets.symmetric(
+                                vertical: 8, horizontal: 12),
+                            border: InputBorder.none,
+                            hintText: widget.hintText,
+                            hintStyle: TextStyle(
+                              color: Theme.of(context).brightness ==
+                                      Brightness.dark
+                                  ? Colors.grey.shade400
+                                  : Colors.blue.shade600,
                             ),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderSide: const BorderSide(
-                              color: Colors.transparent,
+                            filled: true,
+                            fillColor:
+                                Theme.of(context).brightness == Brightness.dark
+                                    ? Colors.grey.shade800
+                                    : Theme.of(context)
+                                        .colorScheme
+                                        .primary
+                                        .withOpacity(0.2),
+                            enabledBorder: OutlineInputBorder(
+                              borderSide: const BorderSide(
+                                color: Colors.transparent,
+                              ),
+                              borderRadius: BorderRadius.circular(10),
                             ),
-                            borderRadius: BorderRadius.circular(10),
+                            focusedBorder: OutlineInputBorder(
+                              borderSide: const BorderSide(
+                                color: Colors.transparent,
+                              ),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
                           ),
                         ),
                       ),
                     ),
                   ),
-                ),
-                if (!widget.isGroupChat)
-                  MaterialButton(
-                    minWidth: 35,
-                    height: 35,
-                    elevation: 0,
-                    color: Theme.of(context).brightness == Brightness.dark
-                        ? Colors.grey.shade800
-                        : Theme.of(context)
-                            .colorScheme
-                            .primary
-                            .withOpacity(0.8),
-                    shape: const CircleBorder(),
-                    onPressed: (_isTextEmpty && !hasMedia)
-                        ? () => context.push('/chat/voice', extra: {
-                              'avatarUrl': widget.receiverAvatarUrl,
-                              'avatarId': widget.receiverAvatarId,
-                            })
-                        : widget.onSend,
-                    child: Center(
-                      child: Icon(
-                        (_isTextEmpty && !hasMedia)
-                            ? Icons.mic
-                            : FeatherIcons.arrowUp,
-                        color: Colors.white,
-                        size: 15,
+                  if (!widget.isGroupChat)
+                    MaterialButton(
+                      minWidth: 35,
+                      height: 35,
+                      elevation: 0,
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? Colors.grey.shade800
+                          : Theme.of(context)
+                              .colorScheme
+                              .primary
+                              .withOpacity(0.8),
+                      shape: const CircleBorder(),
+                      onPressed: (_isTextEmpty && !hasMedia)
+                          ? () => context.push('/chat/voice', extra: {
+                                'avatarUrl': widget.receiverAvatarUrl,
+                                'avatarId': widget.receiverAvatarId,
+                              })
+                          : widget.onSend,
+                      child: Center(
+                        child: Icon(
+                          (_isTextEmpty && !hasMedia)
+                              ? Icons.mic
+                              : FeatherIcons.arrowUp,
+                          color: Colors.white,
+                          size: 15,
+                        ),
                       ),
                     ),
-                  ),
-                if (widget.isGroupChat)
-                  MaterialButton(
-                    minWidth: 45,
-                    height: 50,
-                    elevation: 0,
-                    color: Theme.of(context).brightness == Brightness.dark
-                        ? Colors.grey.shade800
-                        : Theme.of(context)
-                            .colorScheme
-                            .primary
-                            .withOpacity(0.8),
-                    shape: const CircleBorder(),
-                    onPressed: widget.onSend,
-                    child: const Center(
-                      child: Icon(
-                        FeatherIcons.arrowUp,
-                        color: Colors.white,
-                        size: 20,
+                  if (widget.isGroupChat)
+                    MaterialButton(
+                      minWidth: 45,
+                      height: 50,
+                      elevation: 0,
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? Colors.grey.shade800
+                          : Theme.of(context)
+                              .colorScheme
+                              .primary
+                              .withOpacity(0.8),
+                      shape: const CircleBorder(),
+                      onPressed: widget.onSend,
+                      child: const Center(
+                        child: Icon(
+                          FeatherIcons.arrowUp,
+                          color: Colors.white,
+                          size: 20,
+                        ),
                       ),
                     ),
-                  ),
-              ],
-            ),
-          ],
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );

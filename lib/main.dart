@@ -33,6 +33,13 @@ import 'package:simula_ads/simula_ads.dart';
 
 // Key for storing first launch status in SharedPreferences
 const String FIRST_LAUNCH_KEY = 'is_first_launch';
+const String LAUNCH_COUNT_KEY = 'launch_count';
+
+Future<int> _incrementLaunchCount(SharedPreferences prefs) async {
+  final nextCount = (prefs.getInt(LAUNCH_COUNT_KEY) ?? 0) + 1;
+  await prefs.setInt(LAUNCH_COUNT_KEY, nextCount);
+  return nextCount;
+}
 
 /// Performance timing utility for measuring initialization times
 class InitTimer {
@@ -188,12 +195,9 @@ Future<void> validateFirebaseSession() async {
 
   if (user != null) {
     try {
-      // Try to reload the user to make sure their token is still valid
-      await user.reload();
+      // Try a lightweight token read first so we do not force a re-auth.
+      await user.getIdToken(false);
       print('User session validated: ${user.uid}');
-
-      // Try to refresh the ID token in case it's about to expire
-      await user.getIdToken(true);
       return;
     } on FirebaseAuthException catch (e) {
       print('Firebase auth exception while validating session: ${e.code}');
@@ -202,21 +206,17 @@ Future<void> validateFirebaseSession() async {
         'user-disabled',
         'user-not-found',
         'invalid-user-token',
-        'user-token-expired',
+        'user-token-expired'
       };
 
       if (!fatalSessionErrorCodes.contains(e.code)) {
-        print(
-            'Keeping existing session; validation failure appears transient.');
+        print('Keeping existing session; validation failure appears transient.');
         return;
       }
 
-      try {
-        await FirebaseAuth.instance.signOut();
-        print('User signed out due to invalid session (${e.code})');
-      } catch (signOutError) {
-        print('Error signing out: $signOutError');
-      }
+      // Do not force sign-out here. Let the auth state listener and
+      // Firebase persistence keep the user signed in unless auth fully fails.
+      print('Session appears invalid (${e.code}); leaving current auth state intact for now.');
     } catch (e) {
       print('Non-auth error validating session: $e');
       print(
@@ -300,6 +300,10 @@ void main() async {
               options: DefaultFirebaseOptions.currentPlatform)),
     ]);
     prefs = initFutures[0] as SharedPreferences;
+  });
+
+  await InitTimer.measure('LaunchCount', () async {
+    await _incrementLaunchCount(prefs);
   });
 
   // Register FCM background message handler (must be after Firebase init)
@@ -426,6 +430,31 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
+  bool _launchCountSynced = false;
+
+  Future<void> _syncLaunchCountToFirestore() async {
+    if (_launchCountSynced) return;
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    final launchCount = widget.prefs.getInt(LAUNCH_COUNT_KEY);
+    if (launchCount == null) return;
+
+    _launchCountSynced = true;
+
+    try {
+      await FirebaseFirestore.instance
+          .collection('humanUsers')
+          .doc(user.uid)
+          .set({
+        'launch_count': launchCount,
+      }, SetOptions(merge: true));
+    } catch (e) {
+      _launchCountSynced = false;
+      print('Failed to sync launch_count: $e');
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -450,57 +479,52 @@ class _MyAppState extends State<MyApp> {
         Future.delayed(const Duration(milliseconds: 500), () async {
           await NotificationEventService.handlePendingInitialMessage();
         });
+
+        _syncLaunchCountToFirestore();
       }
     });
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       FlutterNativeSplash.remove();
 
-      // If update is required, show force update screen
-      if (widget.needsUpdate) {
-        print("Force update required - showing update screen");
-        AppRouter.setInitialRoute(Routes.forceUpdate);
-        return;
-      }
-
-      // Check if this is the first launch
-      bool isFirstLaunch = widget.prefs.getBool(FIRST_LAUNCH_KEY) ?? true;
-
-      // Get current user
-      final currentUser = FirebaseAuth.instance.currentUser;
-
-      // Determine initial route based on login status
-      if (currentUser != null) {
-        // User is logged in - go to home
-        print("User is logged in - going to home");
-        AppRouter.setInitialRoute(Routes.home);
-
-        // Initialize reward ad service for logged-in users
-        _initializeRewardAds();
-
-        // Start AI engagement service for logged-in users
-        _startAIEngagementService();
-
-        // Handle any pending push notification
-        Future.delayed(const Duration(milliseconds: 1000), () async {
-          await NotificationEventService.handlePendingInitialMessage();
-        });
-
-        // Update first launch status if it was the first launch
-        if (isFirstLaunch) {
-          widget.prefs.setBool(FIRST_LAUNCH_KEY, false);
-        }
-      } else {
-        // User is not logged in - always show onboarding
-        print("User is not logged in - showing onboarding");
-        AppRouter.setInitialRoute(Routes.onboarding);
-
-        // Update first launch status if it was the first launch
-        if (isFirstLaunch) {
-          widget.prefs.setBool(FIRST_LAUNCH_KEY, false);
-        }
-      }
+      _resolveInitialRoute();
     });
+  }
+
+  Future<void> _resolveInitialRoute() async {
+    // If update is required, show force update screen first.
+    if (widget.needsUpdate) {
+      print('Force update required - showing update screen');
+      AppRouter.setInitialRoute(Routes.forceUpdate);
+      return;
+    }
+
+    final isFirstLaunch = widget.prefs.getBool(FIRST_LAUNCH_KEY) ?? true;
+
+    // Wait for Firebase Auth to settle before deciding where to send the user.
+    final currentUser = await FirebaseAuth.instance.authStateChanges().first;
+    if (!mounted) return;
+
+    if (currentUser != null) {
+      print('User is logged in - going to home');
+      AppRouter.setInitialRoute(Routes.home);
+
+      _initializeRewardAds();
+      _startAIEngagementService();
+
+      Future.delayed(const Duration(milliseconds: 1000), () async {
+        await NotificationEventService.handlePendingInitialMessage();
+      });
+
+      _syncLaunchCountToFirestore();
+    } else {
+      print('User is not logged in - showing onboarding');
+      AppRouter.setInitialRoute(Routes.onboarding);
+    }
+
+    if (isFirstLaunch) {
+      await widget.prefs.setBool(FIRST_LAUNCH_KEY, false);
+    }
   }
 
   /// Start AI engagement service for background operations

@@ -1,13 +1,15 @@
+import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:comment_tree/widgets/comment_tree_widget.dart';
 import 'package:comment_tree/widgets/tree_theme_data.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_feather_icons/flutter_feather_icons.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:inzone/screen/chat/all_chats_screen.dart';
-import 'package:inzone/screen/chat/chat_screen.dart';
 import 'package:inzone/config/custom_icons.dart';
 import 'package:inzone/data/comment_class.dart';
 import 'package:inzone/data/inzone_avatar.dart';
@@ -16,6 +18,7 @@ import 'package:inzone/services/inzone_database.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:inzone/router/routes.dart';
 import 'package:toasty_box/toast_service.dart';
+import 'package:inzone/services/appsflyer_service.dart';
 
 class RepostCard extends StatefulWidget {
   InZonePost post;
@@ -48,6 +51,46 @@ class _RepostCardState extends State<RepostCard>
 
   String get _currentTextContent =>
       _editedTextContent ?? widget.post.textContent;
+
+  String? _extractGameIdFromLink(String link) {
+    try {
+      final uri = Uri.parse(link);
+      final gameId = uri.queryParameters['gameId'];
+      if (gameId != null && gameId.trim().isNotEmpty) return gameId.trim();
+
+      final sub1 = uri.queryParameters['deep_link_sub1'];
+      if (sub1 != null && sub1.trim().isNotEmpty) return sub1.trim();
+
+      final afDp = uri.queryParameters['af_dp'];
+      if (afDp != null && afDp.trim().isNotEmpty) {
+        final decoded = Uri.decodeComponent(afDp);
+        final afUri = Uri.tryParse(decoded);
+        final afGameId = afUri?.queryParameters['gameId'];
+        if (afGameId != null && afGameId.trim().isNotEmpty) {
+          return afGameId.trim();
+        }
+      }
+    } catch (_) {}
+
+    return null;
+  }
+
+  String? _resolveGameIdForTap() {
+    final minigameLink = widget.post.minigameLink?.trim();
+    if (minigameLink != null && minigameLink.isNotEmpty) {
+      final gameIdFromLink = _extractGameIdFromLink(minigameLink);
+      if (gameIdFromLink != null && gameIdFromLink.isNotEmpty) {
+        return gameIdFromLink;
+      }
+    }
+
+    final aiId = widget.repost.id.trim();
+    if (aiId.isNotEmpty && aiId != '2') {
+      return aiId;
+    }
+
+    return null;
+  }
 
   Future<String?> _resolveBackendPostId() async {
     if (_resolvedPostId != null && _resolvedPostId!.isNotEmpty) {
@@ -97,7 +140,9 @@ class _RepostCardState extends State<RepostCard>
     }
 
     final currentEmail = currentUser.email?.trim().toLowerCase();
-    if (currentEmail != null && currentEmail.isNotEmpty && normalizedRef == currentEmail) {
+    if (currentEmail != null &&
+        currentEmail.isNotEmpty &&
+        normalizedRef == currentEmail) {
       return true;
     }
 
@@ -121,7 +166,8 @@ class _RepostCardState extends State<RepostCard>
         ToastService.showToast(
           context,
           backgroundColor: Colors.red,
-          message: 'Could not resolve this repost ID. Please refresh and try again.',
+          message:
+              'Could not resolve this repost ID. Please refresh and try again.',
           leading: const Icon(Icons.error, color: Colors.white),
         );
         return;
@@ -175,7 +221,8 @@ class _RepostCardState extends State<RepostCard>
         ToastService.showToast(
           context,
           backgroundColor: Colors.red,
-          message: 'Could not resolve this repost ID. Please refresh and try again.',
+          message:
+              'Could not resolve this repost ID. Please refresh and try again.',
           leading: const Icon(Icons.error, color: Colors.white),
         );
         return;
@@ -336,12 +383,12 @@ class _RepostCardState extends State<RepostCard>
               const SizedBox(
                 height: 10,
               ),
-                _currentTextContent.isEmpty
+              _currentTextContent.isEmpty
                   ? const SizedBox()
                   : Align(
                       alignment: Alignment.centerLeft,
                       child: Text(
-                    _currentTextContent,
+                        _currentTextContent,
                         textAlign: TextAlign.start,
                         style:
                             const TextStyle(height: 1.5, color: Colors.black),
@@ -362,15 +409,66 @@ class _RepostCardState extends State<RepostCard>
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Center(
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(8.0),
-                            child: Image.network(
-                              widget.repost.profilePicture,
-                              fit: BoxFit.fitWidth,
-                              width: MediaQuery.of(context).size.width - 60,
-                              errorBuilder: (context, object, st) {
-                                return const SizedBox();
-                              },
+                          child: GestureDetector(
+                            onTap: () async {
+                              final gameId = _resolveGameIdForTap();
+                              if (gameId == null || gameId.isEmpty) {
+                                if (!mounted) return;
+                                ToastService.showToast(
+                                  context,
+                                  backgroundColor: Colors.red,
+                                  message:
+                                      'Could not determine minigame for this repost.',
+                                  leading: const Icon(Icons.error,
+                                      color: Colors.white),
+                                );
+                                return;
+                              }
+
+                              try {
+                                await AppsFlyerService()
+                                    .queueMinigameDeepLink(gameId);
+                              } catch (_) {
+                                if (!mounted) return;
+                                ToastService.showToast(
+                                  context,
+                                  backgroundColor: Colors.red,
+                                  message: 'Could not open minigame.',
+                                  leading: const Icon(Icons.error,
+                                      color: Colors.white),
+                                );
+                              }
+                            },
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(8.0),
+                              child: Stack(
+                                children: [
+                                  Image.network(
+                                    widget.repost.profilePicture,
+                                    fit: BoxFit.fitWidth,
+                                    width:
+                                        MediaQuery.of(context).size.width - 60,
+                                    errorBuilder: (context, object, st) {
+                                      return const SizedBox();
+                                    },
+                                  ),
+                                  // Show play icon if this is a minigame accomplishment
+                                  if (widget.post.minigameLink != null &&
+                                      widget.post.minigameLink!.isNotEmpty)
+                                    Positioned.fill(
+                                      child: Container(
+                                        color: Colors.black.withOpacity(0.3),
+                                        child: const Center(
+                                          child: Icon(
+                                            Icons.play_circle_fill,
+                                            color: Colors.white,
+                                            size: 60,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                ],
+                              ),
                             ),
                           ),
                         )
@@ -614,89 +712,98 @@ class _RepostCardState extends State<RepostCard>
   String? selectedCommentId;
 
   Widget chatInput(String? commentId, String? name) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 15.0, vertical: 10),
-      child: Row(
-        children: [
-          Expanded(
-            child: Scrollbar(
-              controller: _scrollController,
-              child: Container(
-                constraints: const BoxConstraints(maxHeight: 100),
-                child: TextFormField(
-                  scrollController: _scrollController,
-                  cursorColor: Colors.black,
-                  style: const TextStyle(
-                    color: Colors.black,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                  ),
-                  controller:
-                      type == 'Reply' ? _replyController : mySearchController,
-                  onTap: () {},
-                  maxLines: null,
-                  keyboardType: TextInputType.multiline,
-                  // cursorHeight: 17,
-                  decoration: InputDecoration(
-                    suffixIconColor: Colors.grey.withOpacity(0.4),
-                    contentPadding:
-                        const EdgeInsets.only(top: 10, left: 16, right: 16),
-                    border: InputBorder.none,
-                    hintText: type == 'Reply' ? 'Add Reply' : 'Add Comment',
-                    hintStyle: const TextStyle(
+    return SafeArea(
+      top: false,
+      minimum: const EdgeInsets.only(bottom: 2),
+      child: Padding(
+        padding: EdgeInsets.only(
+          left: 15,
+          right: 15,
+          top: 10,
+          bottom: 6,
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Scrollbar(
+                controller: _scrollController,
+                child: Container(
+                  constraints: const BoxConstraints(maxHeight: 100),
+                  child: TextFormField(
+                    scrollController: _scrollController,
+                    cursorColor: Colors.black,
+                    style: const TextStyle(
+                      color: Colors.black,
                       fontSize: 14,
-                      fontWeight: FontWeight.w400,
-                      color: Colors.black26,
+                      fontWeight: FontWeight.w500,
                     ),
-                    filled: true,
-                    fillColor: Colors.grey.withOpacity(0.1),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(20),
-                      borderSide: const BorderSide(
-                        color: Colors.black38,
+                    controller:
+                        type == 'Reply' ? _replyController : mySearchController,
+                    onTap: () {},
+                    maxLines: null,
+                    keyboardType: TextInputType.multiline,
+                    // cursorHeight: 17,
+                    decoration: InputDecoration(
+                      suffixIconColor: Colors.grey.withOpacity(0.4),
+                      contentPadding:
+                          const EdgeInsets.only(top: 10, left: 16, right: 16),
+                      border: InputBorder.none,
+                      hintText: type == 'Reply' ? 'Add Reply' : 'Add Comment',
+                      hintStyle: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w400,
+                        color: Colors.black26,
                       ),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(20),
-                      borderSide: const BorderSide(
-                        color: Colors.black,
+                      filled: true,
+                      fillColor: Colors.grey.withOpacity(0.1),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(20),
+                        borderSide: const BorderSide(
+                          color: Colors.black38,
+                        ),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(20),
+                        borderSide: const BorderSide(
+                          color: Colors.black,
+                        ),
                       ),
                     ),
                   ),
                 ),
               ),
             ),
-          ),
-          MaterialButton(
-            minWidth: 43,
-            height: 43,
-            color: Colors.blue,
-            shape: const CircleBorder(),
-            onPressed: () {
-              if (type == 'Reply') {
-                if (selectedCommentId != null) {
-                  // _addReply(
-                  //     selectedCommentId!); // Pass stored commentId to _addReply function
-                  _replyController.clear();
-                  setState(() {
-                    type = '';
-                    selectedCommentId =
-                        null; // Clear selected comment ID after replying
-                  });
+            MaterialButton(
+              minWidth: 43,
+              height: 43,
+              color: Colors.blue,
+              shape: const CircleBorder(),
+              onPressed: () {
+                if (type == 'Reply') {
+                  if (selectedCommentId != null) {
+                    // _addReply(
+                    //     selectedCommentId!); // Pass stored commentId to _addReply function
+                    _replyController.clear();
+                    setState(() {
+                      type = '';
+                      selectedCommentId =
+                          null; // Clear selected comment ID after replying
+                    });
+                  }
+                } else {
+                  _addComment();
                 }
-              } else {
-                _addComment();
-              }
-            },
-            child: const Center(
-              child: Icon(
-                Icons.send,
-                color: Colors.white,
-                size: 18,
+              },
+              child: const Center(
+                child: Icon(
+                  Icons.send,
+                  color: Colors.white,
+                  size: 18,
+                ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -1194,6 +1301,153 @@ class _RepostCardState extends State<RepostCard>
           ],
         ),
       ),
+    );
+  }
+}
+
+// Fullscreen image viewer for repost images
+class _FullScreenImageViewer extends StatefulWidget {
+  final String imageUrl;
+
+  const _FullScreenImageViewer({required this.imageUrl});
+
+  @override
+  _FullScreenImageViewerState createState() => _FullScreenImageViewerState();
+}
+
+class _FullScreenImageViewerState extends State<_FullScreenImageViewer> {
+  bool _isLoading = true;
+  bool _isFullscreen = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadImageInfo();
+  }
+
+  Future<void> _loadImageInfo() async {
+    final imageProvider = NetworkImage(widget.imageUrl);
+    final completer = Completer<ImageInfo>();
+
+    final imageStream = imageProvider.resolve(const ImageConfiguration());
+    final listener = ImageStreamListener(
+      (ImageInfo info, bool _) {
+        completer.complete(info);
+      },
+      onError: (dynamic exception, StackTrace? stackTrace) {
+        completer.completeError(exception);
+      },
+    );
+
+    imageStream.addListener(listener);
+
+    try {
+      await completer.future;
+      setState(() {
+        _isLoading = false;
+      });
+    } catch (e) {
+      debugPrint('Error loading image: $e');
+      setState(() {
+        _isLoading = false;
+      });
+    } finally {
+      imageStream.removeListener(listener);
+    }
+  }
+
+  void _toggleFullscreen() {
+    setState(() {
+      _isFullscreen = !_isFullscreen;
+    });
+
+    if (_isFullscreen) {
+      // Always use portrait orientation for fullscreen
+      SystemChrome.setPreferredOrientations([
+        DeviceOrientation.portraitUp,
+      ]);
+
+      // Hide system UI
+      SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+    } else {
+      // Exit fullscreen - reset to portrait
+      SystemChrome.setPreferredOrientations([
+        DeviceOrientation.portraitUp,
+      ]);
+
+      // Show system UI
+      SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+    }
+  }
+
+  @override
+  void dispose() {
+    // Make sure to reset orientation and UI when viewer is closed
+    if (_isFullscreen) {
+      SystemChrome.setPreferredOrientations([
+        DeviceOrientation.portraitUp,
+      ]);
+      SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+    }
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const Scaffold(
+        backgroundColor: Colors.black,
+        body: Center(
+          child: CircularProgressIndicator(color: Colors.white),
+        ),
+      );
+    }
+
+    final Size screenSize = MediaQuery.of(context).size;
+
+    Widget imageWidget = CachedNetworkImage(
+      imageUrl: widget.imageUrl,
+      fit: BoxFit.contain,
+      placeholder: (context, url) => const Center(
+        child: CircularProgressIndicator(
+          color: Colors.white,
+        ),
+      ),
+      errorWidget: (context, url, error) => const Center(
+        child: Icon(Icons.broken_image, size: 64, color: Colors.white),
+      ),
+    );
+
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: _isFullscreen
+          ? null
+          : AppBar(
+              backgroundColor: Colors.black,
+              elevation: 0,
+              iconTheme: const IconThemeData(color: Colors.white),
+            ),
+      body: GestureDetector(
+        onTap: _toggleFullscreen,
+        child: _isFullscreen
+            ? Container(
+                width: screenSize.width,
+                height: screenSize.height,
+                color: Colors.black,
+                child: SafeArea(
+                  child: Center(child: imageWidget),
+                ),
+              )
+            : Center(child: imageWidget),
+      ),
+      floatingActionButton: !_isFullscreen
+          ? FloatingActionButton(
+              onPressed: _toggleFullscreen,
+              backgroundColor: Colors.black.withOpacity(0.7),
+              mini: true,
+              child: const Icon(Icons.fullscreen, color: Colors.white),
+            )
+          : null,
     );
   }
 }

@@ -135,7 +135,9 @@ class _PostCardState extends State<PostCard>
     }
 
     final currentEmail = currentUser.email?.trim().toLowerCase();
-    if (currentEmail != null && currentEmail.isNotEmpty && normalizedRef == currentEmail) {
+    if (currentEmail != null &&
+        currentEmail.isNotEmpty &&
+        normalizedRef == currentEmail) {
       return true;
     }
 
@@ -171,7 +173,8 @@ class _PostCardState extends State<PostCard>
         ToastService.showToast(
           context,
           backgroundColor: Colors.red,
-          message: 'Could not resolve this post ID. Please refresh and try again.',
+          message:
+              'Could not resolve this post ID. Please refresh and try again.',
           leading: const Icon(Icons.error, color: Colors.white),
         );
         return;
@@ -321,7 +324,8 @@ class _PostCardState extends State<PostCard>
         ToastService.showToast(
           context,
           backgroundColor: Colors.red,
-          message: 'Could not resolve this post ID. Please refresh and try again.',
+          message:
+              'Could not resolve this post ID. Please refresh and try again.',
           leading: const Icon(Icons.error, color: Colors.white),
         );
         return;
@@ -780,14 +784,12 @@ class _PostCardState extends State<PostCard>
       if (currentUser == null || currentUser.uid.isEmpty) return;
 
       final String currentUid = currentUser.uid;
-        final String postId = widget.post.id;
-        final bool isRepost = postId.startsWith('repost_');
-        final collectionName = isRepost
-          ? 'reposts'
-          : (widget.post.isAi ? 'aiPosts' : 'humanPosts');
-      final docRef = FirebaseFirestore.instance
-          .collection(collectionName)
-          .doc(postId);
+      final String postId = widget.post.id;
+      final bool isRepost = postId.startsWith('repost_');
+      final collectionName =
+          isRepost ? 'reposts' : (widget.post.isAi ? 'aiPosts' : 'humanPosts');
+      final docRef =
+          FirebaseFirestore.instance.collection(collectionName).doc(postId);
 
       try {
         final likeEntry = await _buildLikeEntryForCurrentUser(currentUid);
@@ -1456,6 +1458,7 @@ class _PostCardState extends State<PostCard>
               const SizedBox(height: 10),
               (validImages.isNotEmpty || validVideos.isNotEmpty)
                   ? _DynamicPageView(
+                      post: widget.post,
                       images: validImages,
                       videos: validVideos,
                       controller: _mediaPageController,
@@ -2497,130 +2500,140 @@ class _PostCardState extends State<PostCard>
               ),
 
             // Input field
-            Padding(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 15.0, vertical: 30),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Scrollbar(
-                      controller: _scrollController,
-                      child: Container(
-                        constraints: const BoxConstraints(maxHeight: 100),
-                        child: TextFormField(
-                          scrollController: _scrollController,
-                          focusNode: _textFieldFocusNode,
-                          cursorColor: Theme.of(context).colorScheme.primary,
-                          style: TextStyle(
-                            color:
-                                Theme.of(context).textTheme.bodyMedium?.color,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
-                          ),
-                          controller: type == 'Reply'
-                              ? _replyController
-                              : mySearchController,
-                          onTap: () {
-                            print('TextFormField tapped - current type: $type');
-                            // Always ensure focus when tapped
-                            if (!_textFieldFocusNode.hasFocus) {
-                              _textFieldFocusNode.requestFocus();
-                              print('Focus requested on tap');
-                            }
-                          },
-                          onChanged: (value) {
-                            // Optional: handle text changes if needed
-                          },
-                          maxLines: null,
-                          keyboardType: TextInputType.multiline,
-                          // cursorHeight: 17,
-                          decoration: InputDecoration(
-                            suffixIconColor: Theme.of(context)
-                                .colorScheme
-                                .onSurface
-                                .withOpacity(0.4),
-                            contentPadding: const EdgeInsets.only(
-                                top: 10, left: 16, right: 16),
-                            border: InputBorder.none,
-                            hintText:
-                                type == 'Reply' ? 'Add Reply' : 'Add Comment',
-                            hintStyle: TextStyle(
+            SafeArea(
+              top: false,
+              minimum: const EdgeInsets.only(bottom: 2),
+              child: Padding(
+                padding: EdgeInsets.only(
+                  left: 15,
+                  right: 15,
+                  top: 12,
+                  bottom: 8,
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Scrollbar(
+                        controller: _scrollController,
+                        child: Container(
+                          constraints: const BoxConstraints(maxHeight: 100),
+                          child: TextFormField(
+                            scrollController: _scrollController,
+                            focusNode: _textFieldFocusNode,
+                            cursorColor: Theme.of(context).colorScheme.primary,
+                            style: TextStyle(
+                              color:
+                                  Theme.of(context).textTheme.bodyMedium?.color,
                               fontSize: 14,
-                              fontWeight: FontWeight.w400,
-                              color: Theme.of(context).hintColor,
+                              fontWeight: FontWeight.w500,
                             ),
-                            filled: true,
-                            fillColor: Theme.of(context)
-                                .colorScheme
-                                .surfaceContainerHighest
-                                .withOpacity(0.3),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(20),
-                              borderSide: BorderSide(
-                                color: Theme.of(context).dividerColor,
+                            controller: type == 'Reply'
+                                ? _replyController
+                                : mySearchController,
+                            onTap: () {
+                              print(
+                                  'TextFormField tapped - current type: $type');
+                              // Always ensure focus when tapped
+                              if (!_textFieldFocusNode.hasFocus) {
+                                _textFieldFocusNode.requestFocus();
+                                print('Focus requested on tap');
+                              }
+                            },
+                            onChanged: (value) {
+                              // Optional: handle text changes if needed
+                            },
+                            maxLines: null,
+                            keyboardType: TextInputType.multiline,
+                            // cursorHeight: 17,
+                            decoration: InputDecoration(
+                              suffixIconColor: Theme.of(context)
+                                  .colorScheme
+                                  .onSurface
+                                  .withOpacity(0.4),
+                              contentPadding: const EdgeInsets.only(
+                                  top: 10, left: 16, right: 16),
+                              border: InputBorder.none,
+                              hintText:
+                                  type == 'Reply' ? 'Add Reply' : 'Add Comment',
+                              hintStyle: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w400,
+                                color: Theme.of(context).hintColor,
                               ),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(20),
-                              borderSide: BorderSide(
-                                color: Theme.of(context).colorScheme.primary,
+                              filled: true,
+                              fillColor: Theme.of(context)
+                                  .colorScheme
+                                  .surfaceContainerHighest
+                                  .withOpacity(0.3),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(20),
+                                borderSide: BorderSide(
+                                  color: Theme.of(context).dividerColor,
+                                ),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(20),
+                                borderSide: BorderSide(
+                                  color: Theme.of(context).colorScheme.primary,
+                                ),
                               ),
                             ),
                           ),
                         ),
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 10),
-                  MaterialButton(
-                    minWidth: 43,
-                    height: 43,
-                    color: Theme.of(context).colorScheme.primary,
-                    shape: const CircleBorder(),
-                    onPressed: () async {
-                      if (_isSubmittingCommentAction) return;
+                    const SizedBox(width: 10),
+                    MaterialButton(
+                      minWidth: 43,
+                      height: 43,
+                      color: Theme.of(context).colorScheme.primary,
+                      shape: const CircleBorder(),
+                      onPressed: () async {
+                        if (_isSubmittingCommentAction) return;
 
-                      print('Send button pressed - type: $type');
+                        print('Send button pressed - type: $type');
 
-                      // If the text field currently has focus and the user is
-                      // in the middle of an IME composition, the first tap
-                      // may only commit the composition instead of firing
-                      // the send logic. Unfocus first to ensure composition
-                      // is committed, then proceed to add the comment/reply.
-                      if (_textFieldFocusNode.hasFocus) {
-                        _textFieldFocusNode.unfocus();
-                        // Small delay to allow the framework/IME to commit
-                        // the composing text into the controller.
-                        await Future.delayed(const Duration(milliseconds: 50));
-                      }
-
-                      setState(() {
-                        _isSubmittingCommentAction = true;
-                      });
-
-                      try {
-                        if (type == 'Reply') {
-                          await _addReply();
-                        } else {
-                          await _addComment();
+                        // If the text field currently has focus and the user is
+                        // in the middle of an IME composition, the first tap
+                        // may only commit the composition instead of firing
+                        // the send logic. Unfocus first to ensure composition
+                        // is committed, then proceed to add the comment/reply.
+                        if (_textFieldFocusNode.hasFocus) {
+                          _textFieldFocusNode.unfocus();
+                          // Small delay to allow the framework/IME to commit
+                          // the composing text into the controller.
+                          await Future.delayed(
+                              const Duration(milliseconds: 50));
                         }
-                      } finally {
-                        if (mounted) {
-                          setState(() {
-                            _isSubmittingCommentAction = false;
-                          });
+
+                        setState(() {
+                          _isSubmittingCommentAction = true;
+                        });
+
+                        try {
+                          if (type == 'Reply') {
+                            await _addReply();
+                          } else {
+                            await _addComment();
+                          }
+                        } finally {
+                          if (mounted) {
+                            setState(() {
+                              _isSubmittingCommentAction = false;
+                            });
+                          }
                         }
-                      }
-                    },
-                    child: const Center(
-                      child: Icon(
-                        Icons.send,
-                        color: Colors.white,
-                        size: 18,
+                      },
+                      child: const Center(
+                        child: Icon(
+                          Icons.send,
+                          color: Colors.white,
+                          size: 18,
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ],
@@ -3621,12 +3634,14 @@ class _PostCardState extends State<PostCard>
 }
 
 class _DynamicPageView extends StatefulWidget {
+  final InZonePost post;
   final List<String> images;
   final List<String> videos;
   final PageController controller;
 
   const _DynamicPageView({
     super.key,
+    required this.post,
     required this.images,
     required this.videos,
     required this.controller,
@@ -3721,6 +3736,50 @@ class _DynamicPageViewState extends State<_DynamicPageView> {
         (url.startsWith('http://') || url.startsWith('https://'));
   }
 
+  String? _extractGameIdFromLink(String link) {
+    try {
+      final uri = Uri.parse(link);
+      final gameId = uri.queryParameters['gameId'];
+      if (gameId != null && gameId.trim().isNotEmpty) return gameId.trim();
+
+      final sub1 = uri.queryParameters['deep_link_sub1'];
+      if (sub1 != null && sub1.trim().isNotEmpty) return sub1.trim();
+
+      final afDp = uri.queryParameters['af_dp'];
+      if (afDp != null && afDp.trim().isNotEmpty) {
+        final decoded = Uri.decodeComponent(afDp);
+        final afUri = Uri.tryParse(decoded);
+        final afGameId = afUri?.queryParameters['gameId'];
+        if (afGameId != null && afGameId.trim().isNotEmpty) {
+          return afGameId.trim();
+        }
+      }
+    } catch (_) {}
+
+    return null;
+  }
+
+  Future<bool> _openMinigameFromPostTap() async {
+    final minigameLink = widget.post.minigameLink?.trim();
+    if (minigameLink == null || minigameLink.isEmpty) return false;
+
+    final gameId = _extractGameIdFromLink(minigameLink);
+    if (gameId == null || gameId.isEmpty) {
+      if (mounted) {
+        ToastService.showToast(
+          context,
+          backgroundColor: Colors.red,
+          message: 'Could not determine minigame for this post.',
+          leading: const Icon(Icons.error, color: Colors.white),
+        );
+      }
+      return true;
+    }
+
+    await AppsFlyerService().queueMinigameDeepLink(gameId);
+    return true;
+  }
+
   @override
   Widget build(BuildContext context) {
     final validImages = widget.images.where((url) => _isValidUrl(url)).toList();
@@ -3810,7 +3869,13 @@ class _DynamicPageViewState extends State<_DynamicPageView> {
                       child: ClipRRect(
                         // borderRadius: BorderRadius.circular(12),
                         child: GestureDetector(
-                          onTap: () {
+                          onTap: () async {
+                            final openedMinigame =
+                                await _openMinigameFromPostTap();
+                            if (openedMinigame) {
+                              return;
+                            }
+
                             Navigator.of(context).push(
                               MaterialPageRoute(
                                 builder: (context) =>

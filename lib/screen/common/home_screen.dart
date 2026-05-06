@@ -6,6 +6,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:inzone/router/routes.dart';
 import 'package:inzone/components/cards/post_card.dart';
 import 'package:inzone/components/cards/repost_card.dart';
+import 'package:inzone/components/cards/featured_character_card.dart';
 import 'package:inzone/components/posts/shimmering.dart';
 import 'package:inzone/components/profile/avatar_card.dart';
 import 'package:inzone/components/profile/avatar_story_component.dart';
@@ -17,9 +18,14 @@ import 'package:inzone/services/notification_badge_service.dart';
 import 'package:inzone/services/inzone_database.dart';
 import 'package:inzone/screen/common/search_explore_screen.dart';
 import 'package:inzone/screen/chat/all_chats_screen.dart';
+import 'package:inzone/services/active_character_notifier.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:simula_ads/simula_ads.dart';
+import 'package:http/http.dart' as http;
 import 'package:toasty_box/toast_service.dart';
 import 'package:pull_to_refresh_flutter3/pull_to_refresh_flutter3.dart';
 import 'package:inzone/services/appsflyer_service.dart';
+import 'package:provider/provider.dart';
 import 'dart:async';
 import 'dart:io';
 import 'dart:math';
@@ -35,9 +41,17 @@ class HomeScreen extends StatefulWidget {
 }
 
 class HomeScreenState extends State<HomeScreen> {
+  static const String _launchCountKey = 'launch_count';
+
   late ScrollController _scrollController;
+  late final PageController _featuredPageController;
   final RefreshController _refreshController =
       RefreshController(initialRefresh: false);
+
+  List<GameData> _miniGames = [];
+  bool _miniGamesLoading = true;
+  bool _showFeaturedCard = true;
+  int _featuredPageIndex = 0;
 
   List<Widget> feedItems = [];
   List<Widget> originalFeedItems = []; // Store the original order of feed items
@@ -79,10 +93,13 @@ class HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _scrollController = widget.controller ?? ScrollController();
+    _featuredPageController = PageController();
     _startTime = DateTime.now().toUtc();
 
     _loadCurrentUserProfileImage();
     _bootstrapHomeFeed();
+    _loadMiniGames();
+    _loadFeaturedVisibility();
 
     _startAvatarTimer();
     _scrollController.addListener(_onScroll);
@@ -189,6 +206,7 @@ class HomeScreenState extends State<HomeScreen> {
     if (widget.controller == null) {
       _scrollController.dispose();
     }
+    _featuredPageController.dispose();
     _refreshController.dispose(); // Dispose the RefreshController
     _scrollThrottleTimer?.cancel();
 
@@ -301,6 +319,61 @@ class HomeScreenState extends State<HomeScreen> {
         if (mounted) setState(() {});
       }
     } catch (e) {}
+  }
+
+  Future<void> _loadMiniGames() async {
+    try {
+      final response = await http.get(
+        Uri.parse('${SimulaConfig.apiBaseUrl}/minigames/catalogv2'),
+        headers: const {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+      );
+
+      if (!mounted) return;
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        setState(() {
+          _miniGamesLoading = false;
+        });
+        return;
+      }
+
+      final decoded = jsonDecode(response.body);
+      final catalog = decoded is Map<String, dynamic>
+          ? decoded['catalog'] ?? decoded['data']
+          : null;
+
+      final List<dynamic> rawGames = catalog is List
+          ? catalog
+          : catalog is Map && catalog['data'] is List
+              ? catalog['data'] as List<dynamic>
+              : const [];
+
+      final filteredGames = rawGames
+          .whereType<Map>()
+          .map((game) => GameData(
+                id: game['id']?.toString() ?? '',
+                name: game['name']?.toString() ?? '',
+                iconUrl: game['icon']?.toString() ?? '',
+                description: game['description']?.toString() ?? '',
+                iconFallback: game['iconFallback']?.toString(),
+              ))
+          .where((game) => game.id.isNotEmpty && !_isGamblingGame(game))
+          .toList();
+
+      if (!mounted) return;
+      setState(() {
+        _miniGames = filteredGames;
+        _miniGamesLoading = false;
+      });
+      _warmTopImageCache();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _miniGamesLoading = false;
+      });
+    }
   }
 
   Future<void> loadFeed({bool isRefresh = false}) async {
@@ -469,6 +542,23 @@ class HomeScreenState extends State<HomeScreen> {
         final prefs = await SharedPreferences.getInstance();
         await prefs.remove(_feedCacheKey);
       } catch (_) {}
+    }
+  }
+
+  Future<void> _loadFeaturedVisibility() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final count = prefs.getInt(_launchCountKey) ?? 1;
+      final show = count == 1 || ((count - 1) % 5 == 0);
+      if (!mounted) return;
+      setState(() {
+        _showFeaturedCard = show;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _showFeaturedCard = true;
+      });
     }
   }
 
@@ -739,9 +829,48 @@ class HomeScreenState extends State<HomeScreen> {
         avatarCards.add(AvatarCard(avatar: avatar));
         avatarStoryComponents.add(AvatarStoryComponent(avatar: avatar));
       }
+      await _precacheFeaturedAvatarImages();
+      _warmTopImageCache();
     } catch (e) {
       print('DEBUG: Error in _processAvatars: $e');
     }
+  }
+
+  Future<void> _precacheFeaturedAvatarImages() async {
+    if (!mounted) return;
+
+    final featured = _featuredAvatars();
+    if (featured.isEmpty) return;
+
+    final futures = featured
+        .where((avatar) => avatar.profilePicture.isNotEmpty)
+        .map((avatar) =>
+            precacheImage(CachedNetworkImageProvider(avatar.profilePicture), context))
+        .toList();
+
+    if (futures.isNotEmpty) {
+      await Future.wait(futures);
+    }
+  }
+
+  void _warmTopImageCache() {
+    if (!mounted) return;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+
+      for (final game in _miniGames.take(12)) {
+        if (game.iconUrl.isNotEmpty) {
+          precacheImage(CachedNetworkImageProvider(game.iconUrl), context);
+        }
+      }
+
+      for (final avatar in avatars.take(12)) {
+        if (avatar.profilePicture.isNotEmpty) {
+          precacheImage(CachedNetworkImageProvider(avatar.profilePicture), context);
+        }
+      }
+    });
   }
 
   // Extract the first category from a post
@@ -793,6 +922,355 @@ class HomeScreenState extends State<HomeScreen> {
       // Combine filtered posts with other posts
       posts = [...filteredPosts, ...otherPosts];
     });
+  }
+
+  Future<void> _handleMiniGameTap(String gameId) async {
+    if (gameId.trim().isEmpty) return;
+    try {
+      await AppsFlyerService().queueMinigameDeepLink(gameId);
+    } catch (_) {
+      if (!mounted) return;
+      ToastService.showToast(
+        context,
+        backgroundColor: Colors.red,
+        message: 'Could not open minigame.',
+        leading: const Icon(Icons.error, color: Colors.white),
+      );
+    }
+  }
+
+  bool _isGamblingGame(GameData game) {
+    final haystack = '${game.id} ${game.name} ${game.description}'.toLowerCase();
+    const gamblingTerms = [
+      'casino',
+      'poker',
+      'roulette',
+      'slot',
+      'slots',
+      'wager',
+      'gamble',
+      'gambling',
+      'jackpot',
+      'blackjack',
+    ];
+
+    return gamblingTerms.any(haystack.contains);
+  }
+
+  List<GameData> _visibleMiniGames() {
+    if (_miniGames.isEmpty) {
+      return const [];
+    }
+
+    return List<GameData>.from(_miniGames);
+  }
+
+  List<InZoneAvatar> _featuredAvatars() {
+    final items = List<InZoneAvatar>.from(avatars);
+    if (items.isEmpty) return const [];
+
+    items.sort((a, b) => b.popularity.compareTo(a.popularity));
+    if (items.length <= 3) return items;
+    return items.take(3).toList();
+  }
+
+  Widget _buildSectionHeader({
+    required String title,
+    String? trailing,
+    VoidCallback? onTrailingTap,
+  }) {
+    final textColor = Theme.of(context).textTheme.bodyLarge?.color;
+    final mutedColor = Theme.of(context).textTheme.bodySmall?.color;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: textColor,
+            ),
+          ),
+          if (trailing != null)
+            GestureDetector(
+              onTap: onTrailingTap,
+              child: Text(
+                trailing,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: mutedColor,
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMiniGameSection() {
+    final games = _visibleMiniGames();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          height: 172,
+          child: _miniGamesLoading
+              ? ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  itemBuilder: (_, __) => _buildMiniGamePlaceholderCard(),
+                  separatorBuilder: (_, __) => const SizedBox(width: 12),
+                  itemCount: 3,
+                )
+              : ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  itemBuilder: (context, index) {
+                    return _buildMiniGameCard(games[index]);
+                  },
+                  separatorBuilder: (_, __) => const SizedBox(width: 12),
+                  itemCount: games.length,
+                ),
+        ),
+        const SizedBox(height: 10),
+      ],
+    );
+  }
+
+  Widget _buildMiniGameCard(GameData game) {
+    final badgeText = game.name.toLowerCase().contains('beta') ? 'BETA' : 'LIVE';
+
+    return GestureDetector(
+      onTap: () => _handleMiniGameTap(game.id),
+      child: Container(
+        width: 148,
+        decoration: BoxDecoration(
+          color: Theme.of(context).cardColor,
+          borderRadius: BorderRadius.circular(18),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.10),
+              blurRadius: 12,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(18),
+          child: Stack(
+            children: [
+              Positioned.fill(
+                child: game.iconUrl.isNotEmpty
+                    ? CachedNetworkImage(
+                        imageUrl: game.iconUrl,
+                        fit: BoxFit.cover,
+                        placeholder: (context, url) => const SizedBox.shrink(),
+                        errorWidget: (context, url, error) => const SizedBox.shrink(),
+                      )
+                    : const SizedBox.shrink(),
+              ),
+              Positioned.fill(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        Colors.black.withValues(alpha: 0.08),
+                        Colors.black.withValues(alpha: 0.35),
+                      ],
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                    ),
+                  ),
+                ),
+              ),
+              Positioned(
+                top: 12,
+                left: 12,
+                right: 12,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.45),
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Text(
+                        badgeText,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.4,
+                        ),
+                      ),
+                    ),
+                    Container(
+                      width: 10,
+                      height: 10,
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFFF5D5D),
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Positioned(
+                left: 12,
+                right: 12,
+                bottom: 12,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      game.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.star,
+                          color: Colors.white70,
+                          size: 12,
+                        ),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            game.description.isNotEmpty
+                                ? game.description
+                                : 'Tap to play',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: Colors.white70,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMiniGamePlaceholderCard() {
+    return Container(
+      width: 148,
+      decoration: BoxDecoration(
+        color: Theme.of(context).dividerColor.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(18),
+      ),
+    );
+  }
+
+  Widget _buildFeaturedGameCard() {
+    if (!_showFeaturedCard) {
+      return const SizedBox.shrink();
+    }
+
+    final featuredAvatars = _featuredAvatars();
+
+    if (featuredAvatars.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        const padding = EdgeInsets.symmetric(horizontal: 4);
+        final heights = <double>[];
+
+        for (final avatar in featuredAvatars) {
+          final height = FeaturedCharacterCard.estimateHeight(
+            context,
+            avatar,
+            constraints.maxWidth,
+            padding: padding,
+          );
+          if (height > 0) {
+            heights.add(height);
+          }
+        }
+
+        if (heights.isEmpty) {
+          return const SizedBox.shrink();
+        }
+
+        final resolvedIndex = _featuredPageIndex.clamp(0, heights.length - 1);
+        final currentHeight = heights[resolvedIndex];
+        return AnimatedContainer(
+          duration: const Duration(milliseconds: 250),
+          curve: Curves.easeOutCubic,
+          height: currentHeight,
+          child: PageView.builder(
+            controller: _featuredPageController,
+            itemCount: featuredAvatars.length,
+            onPageChanged: (index) {
+              setState(() {
+                _featuredPageIndex = index;
+              });
+            },
+            itemBuilder: (context, index) {
+              final avatar = featuredAvatars[index];
+              return FeaturedCharacterCard(
+                avatar: avatar,
+                onChat: () => _openChatForAvatar(avatar),
+                onPlay: () => _openMiniGameMenuForAvatar(avatar),
+                padding: padding,
+              );
+            },
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _openMiniGameMenuForAvatar(InZoneAvatar avatar) async {
+    context.read<ActiveCharacterNotifier>().setActiveCharacter(
+          charName: avatar.name,
+          charID: avatar.id,
+          charImage: avatar.profilePicture,
+          charDesc: avatar.bio,
+        );
+    await AppsFlyerService().openMinigameMenu();
+  }
+
+  Future<void> _openChatForAvatar(InZoneAvatar avatar) async {
+    await context.pushNamed(
+      'chat',
+      extra: ChatUser(
+        name: avatar.name,
+        email: avatar.id,
+        chatId: null,
+        isHuman: false,
+        profilePictureURL: avatar.profilePicture,
+      ),
+    );
   }
 
   Widget _buildAvatarCarousel() {
@@ -1178,24 +1656,13 @@ class HomeScreenState extends State<HomeScreen> {
                         ),
                         padding: const EdgeInsets.all(2.0),
                         child: ClipOval(
-                          child: Image.network(
-                            a.profilePicture,
+                          child: CachedNetworkImage(
+                            imageUrl: a.profilePicture,
                             fit: BoxFit.cover,
                             width: 48,
                             height: 48,
-                            errorBuilder: (context, error, stackTrace) {
-                              return Center(
-                                child: Text(
-                                  a.name.isNotEmpty
-                                      ? a.name.substring(0, 1).toUpperCase()
-                                      : "?",
-                                  style: const TextStyle(
-                                    fontSize: 28,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              );
-                            },
+                            placeholder: (context, url) => const SizedBox.shrink(),
+                            errorWidget: (context, url, error) => const SizedBox.shrink(),
                           ),
                         ),
                       ),
@@ -1293,9 +1760,12 @@ class HomeScreenState extends State<HomeScreen> {
                         },
                       ),
                       Padding(
-                        padding: const EdgeInsets.only(top: 0.0, bottom: 35.0),
+                        padding: const EdgeInsets.only(top: 0.0, bottom: 8.0),
                         child: CategoryLoading(context),
                       ),
+                      _buildMiniGameSection(),
+                      const SizedBox(height: 4),
+                      _buildFeaturedGameCard(),
                       ...List<Widget>.generate(
                           5, (index) => PostLoading(context)),
                     ],
@@ -1388,10 +1858,19 @@ class HomeScreenState extends State<HomeScreen> {
                         ),
                       ),
                       SliverToBoxAdapter(
-                        child: avatarStoryComponents.isNotEmpty
-                            ? _buildAvatarStories()
-                            : const SizedBox.shrink(),
+                        child: _buildMiniGameSection(),
                       ),
+                      SliverToBoxAdapter(
+                        child: _buildFeaturedGameCard(),
+                      ),
+                      const SliverToBoxAdapter(
+                        child: SizedBox(height: 8),
+                      ),
+                      // SliverToBoxAdapter(
+                      //   child: avatarStoryComponents.isNotEmpty
+                      //       ? _buildAvatarStories()
+                      //       : const SizedBox.shrink(),
+                      // ) Commented out Avatar Stories for now
                       SliverList(
                         delegate: SliverChildBuilderDelegate(
                           (context, index) {
@@ -1555,4 +2034,24 @@ class CustomAppBarDelegate extends SliverPersistentHeaderDelegate {
   bool shouldRebuild(CustomAppBarDelegate oldDelegate) {
     return oldDelegate.child != child;
   }
+}
+
+class _MiniGamePromo {
+  final String id;
+  final String title;
+  final String status;
+  final String statText;
+  final IconData icon;
+  final List<Color> gradientColors;
+  final Color statusColor;
+
+  const _MiniGamePromo({
+    required this.id,
+    required this.title,
+    required this.status,
+    required this.statText,
+    required this.icon,
+    required this.gradientColors,
+    required this.statusColor,
+  });
 }

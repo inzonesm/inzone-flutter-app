@@ -15,6 +15,7 @@ class PostChatScreen extends StatefulWidget {
   String chat;
   String avatarID;
   String? initialText;
+  String? minigameLink;
 
   PostChatScreen(
       {super.key,
@@ -22,7 +23,8 @@ class PostChatScreen extends StatefulWidget {
       required this.profileImageURL,
       required this.chat,
       required this.avatarID,
-      this.initialText});
+      this.initialText,
+      this.minigameLink});
 
   @override
   State<PostChatScreen> createState() => _PostChatScreenState();
@@ -109,6 +111,7 @@ class _PostChatScreenState extends State<PostChatScreen> {
                       aiId: widget.avatarID,
                       imageRefs: imageRefs,
                       videoRefs: [],
+                      minigameLink: widget.minigameLink,
                     );
 
                     final int sentiment = (result["sentiment"] is int)

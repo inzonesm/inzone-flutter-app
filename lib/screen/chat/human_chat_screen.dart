@@ -11,6 +11,7 @@ import 'package:inzone/components/chat/message_bubble.dart';
 import 'package:inzone/services/inzone_database.dart';
 import 'package:inzone/services/notification_event_service.dart';
 import 'package:inzone/services/ai_engagement_service.dart';
+import 'package:inzone/router/routes.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter/foundation.dart';
 import 'package:go_router/go_router.dart';
@@ -41,6 +42,8 @@ class _HumanChatScreenState extends State<HumanChatScreen> {
   String currentUserName = "Me";
   bool isLoading = true;
   String _otherUserProfileImageUrl = '';
+  bool _isOtherUserHuman = false;
+  String? _otherUserResolvedUid;
   File? _pendingImage;
   File? _pendingVideo;
   bool _isSendingMessage = false;
@@ -58,6 +61,7 @@ class _HumanChatScreenState extends State<HumanChatScreen> {
     NotificationEventService.setActiveConversationId(widget.conversationId);
     _loadCurrentUser();
     _loadOtherUserProfileImage();
+    _resolveOtherUserTypeAndUid();
   }
 
   @override
@@ -125,6 +129,73 @@ class _HumanChatScreenState extends State<HumanChatScreen> {
     } catch (e) {
       print('Error loading other user profile image: $e');
     }
+  }
+
+  Future<void> _resolveOtherUserTypeAndUid() async {
+    try {
+      final humanUsersRef = FirebaseFirestore.instance.collection('humanUsers');
+      DocumentSnapshot<Map<String, dynamic>>? userDoc;
+
+      final byId = await humanUsersRef.doc(widget.otherUserId).get();
+      if (byId.exists) {
+        userDoc = byId;
+      } else {
+        final byUsername = await humanUsersRef
+            .where('username', isEqualTo: widget.otherUserId)
+            .limit(1)
+            .get();
+        if (byUsername.docs.isNotEmpty) {
+          userDoc = byUsername.docs.first;
+        } else {
+          final byUid = await humanUsersRef
+              .where('uid', isEqualTo: widget.otherUserId)
+              .limit(1)
+              .get();
+          if (byUid.docs.isNotEmpty) {
+            userDoc = byUid.docs.first;
+          } else {
+            final byDocId = await humanUsersRef
+                .where('user_document_id', isEqualTo: widget.otherUserId)
+                .limit(1)
+                .get();
+            if (byDocId.docs.isNotEmpty) {
+              userDoc = byDocId.docs.first;
+            }
+          }
+        }
+      }
+
+      if (!mounted) return;
+
+      if (userDoc != null && userDoc.exists) {
+        final data = userDoc.data();
+        setState(() {
+          _isOtherUserHuman = true;
+          _otherUserResolvedUid =
+              data?['uid']?.toString().trim().isNotEmpty == true
+                  ? data!['uid'].toString().trim()
+                  : userDoc!.id;
+        });
+      } else {
+        setState(() {
+          _isOtherUserHuman = false;
+          _otherUserResolvedUid = null;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error resolving DM recipient type/uid: $e');
+      if (!mounted) return;
+      setState(() {
+        _isOtherUserHuman = false;
+        _otherUserResolvedUid = null;
+      });
+    }
+  }
+
+  void _openOtherUserProfileIfHuman() {
+    final uid = _otherUserResolvedUid;
+    if (!_isOtherUserHuman || uid == null || uid.isEmpty) return;
+    context.push(Routes.regularProfilePath(uid));
   }
 
   String _dayKey(DateTime dateTime) {
@@ -316,9 +387,12 @@ class _HumanChatScreenState extends State<HumanChatScreen> {
     if (_isSendingMessage) return;
 
     final String messageText = _msgController.text.trim();
-    
+
     // Require either text or pending media
-    if (messageText.isEmpty && _pendingImage == null && _pendingVideo == null) return;
+    if (messageText.isEmpty && _pendingImage == null && _pendingVideo == null)
+      {
+        return;
+      }
     if (currentUserId == null) return;
 
     setState(() {
@@ -332,10 +406,12 @@ class _HumanChatScreenState extends State<HumanChatScreen> {
 
       // Upload pending media if exists
       if (_pendingImage != null) {
-        imageUrl = await AuthWork.sendChatImage(widget.otherUserId, _pendingImage!);
+        imageUrl =
+            await AuthWork.sendChatImage(widget.otherUserId, _pendingImage!);
       }
       if (_pendingVideo != null) {
-        final result = await AuthWork.sendChatVideo(widget.otherUserId, _pendingVideo!);
+        final result =
+            await AuthWork.sendChatVideo(widget.otherUserId, _pendingVideo!);
         videoUrl = result['videoUrl'];
         videoThumbnailUrl = result['thumbnailUrl'];
       }
@@ -346,9 +422,7 @@ class _HumanChatScreenState extends State<HumanChatScreen> {
 
       // Create a new message document
       final newMessage = {
-        'text': messageText.isEmpty 
-            ? (imageUrl != null ? '[Image]' : '[Video]') 
-            : messageText,
+        'text': messageText,
         'senderId': currentUserId,
         'senderName': currentUserName,
         'timestamp': FieldValue.serverTimestamp(),
@@ -369,9 +443,7 @@ class _HumanChatScreenState extends State<HumanChatScreen> {
       // Add message to the messages subcollection
       await conversationRef.collection('messages').add(newMessage);
 
-      final lastMessageText = messageText.isEmpty 
-          ? (imageUrl != null ? '[Image]' : '[Video]') 
-          : messageText;
+      final lastMessageText = messageText;
 
       // Update conversation metadata
       await conversationRef.set({
@@ -408,7 +480,8 @@ class _HumanChatScreenState extends State<HumanChatScreen> {
       try {
         final notifRef = FirebaseFirestore.instance.collection('notifications');
 
-        final humanUsersRef = FirebaseFirestore.instance.collection('humanUsers');
+        final humanUsersRef =
+            FirebaseFirestore.instance.collection('humanUsers');
         DocumentSnapshot? receiverDoc;
         String? resolvedReceiverUid;
         String resolvedReceiverName = widget.otherUserName;
@@ -418,15 +491,24 @@ class _HumanChatScreenState extends State<HumanChatScreen> {
           if (byId.exists) {
             receiverDoc = byId;
           } else {
-            final q1 = await humanUsersRef.where('username', isEqualTo: widget.otherUserId).limit(1).get();
+            final q1 = await humanUsersRef
+                .where('username', isEqualTo: widget.otherUserId)
+                .limit(1)
+                .get();
             if (q1.docs.isNotEmpty) {
               receiverDoc = q1.docs.first;
             } else {
-              final q2 = await humanUsersRef.where('uid', isEqualTo: widget.otherUserId).limit(1).get();
+              final q2 = await humanUsersRef
+                  .where('uid', isEqualTo: widget.otherUserId)
+                  .limit(1)
+                  .get();
               if (q2.docs.isNotEmpty) {
                 receiverDoc = q2.docs.first;
               } else {
-                final q3 = await humanUsersRef.where('user_document_id', isEqualTo: widget.otherUserId).limit(1).get();
+                final q3 = await humanUsersRef
+                    .where('user_document_id', isEqualTo: widget.otherUserId)
+                    .limit(1)
+                    .get();
                 if (q3.docs.isNotEmpty) receiverDoc = q3.docs.first;
               }
             }
@@ -435,16 +517,21 @@ class _HumanChatScreenState extends State<HumanChatScreen> {
           if (receiverDoc != null && receiverDoc.exists) {
             final data = receiverDoc.data() as Map<String, dynamic>;
             resolvedReceiverUid = data['uid'] ?? receiverDoc.id;
-            resolvedReceiverName = data['name'] ?? data['username'] ?? resolvedReceiverName;
-            debugPrint('Resolved DM receiver "${widget.otherUserId}" -> uid: $resolvedReceiverUid name: $resolvedReceiverName');
+            resolvedReceiverName =
+                data['name'] ?? data['username'] ?? resolvedReceiverName;
+            debugPrint(
+                'Resolved DM receiver "${widget.otherUserId}" -> uid: $resolvedReceiverUid name: $resolvedReceiverName');
           } else {
-            debugPrint('Could not resolve DM receiver "${widget.otherUserId}" to humanUsers doc; skipping fallback notification');
+            debugPrint(
+                'Could not resolve DM receiver "${widget.otherUserId}" to humanUsers doc; skipping fallback notification');
           }
         } catch (e) {
-          debugPrint('Error resolving receiver for DM fallback notification: $e');
+          debugPrint(
+              'Error resolving receiver for DM fallback notification: $e');
         }
 
-        if (resolvedReceiverUid != null && resolvedReceiverUid != currentUserId) {
+        if (resolvedReceiverUid != null &&
+            resolvedReceiverUid != currentUserId) {
           final query = await notifRef
               .where('userId', isEqualTo: resolvedReceiverUid)
               .where('data.chatId', isEqualTo: widget.conversationId)
@@ -458,7 +545,9 @@ class _HumanChatScreenState extends State<HumanChatScreen> {
               'userId': resolvedReceiverUid,
               'type': 'direct_message',
               'title': currentUserName,
-              'body': bodyText.length > 100 ? '${bodyText.substring(0, 100)}...' : bodyText,
+              'body': bodyText.length > 100
+                  ? '${bodyText.substring(0, 100)}...'
+                  : bodyText,
               'isRead': false,
               'createdAt': FieldValue.serverTimestamp(),
               'data': {
@@ -470,7 +559,8 @@ class _HumanChatScreenState extends State<HumanChatScreen> {
               // deeplink removed per notification deeplink deprecation
             });
 
-            debugPrint('Fallback DM notification written: ${added.id} -> user $resolvedReceiverUid');
+            debugPrint(
+                'Fallback DM notification written: ${added.id} -> user $resolvedReceiverUid');
           }
         }
       } catch (e) {
@@ -554,6 +644,7 @@ class _HumanChatScreenState extends State<HumanChatScreen> {
         avatarId: widget.otherUserId,
         avatarUrl: _otherUserProfileImageUrl,
         onBack: () => context.pop(),
+        onAvatarTap: _isOtherUserHuman ? _openOtherUserProfileIfHuman : null,
       ),
       body: Column(
         children: [
@@ -580,7 +671,8 @@ class _HumanChatScreenState extends State<HumanChatScreen> {
                 final messageWidgets = <Widget>[];
                 final activeDayKeys = <String>{};
 
-                final sortedMessages = List<QueryDocumentSnapshot>.from(messages)
+                final sortedMessages = List<QueryDocumentSnapshot>.from(
+                    messages)
                   ..sort((a, b) {
                     final aData = a.data() as Map<String, dynamic>;
                     final bData = b.data() as Map<String, dynamic>;
@@ -600,13 +692,17 @@ class _HumanChatScreenState extends State<HumanChatScreen> {
                   final messageData = message.data() as Map<String, dynamic>;
                   final senderId = messageData['senderId']?.toString() ?? '';
                   final messageText = messageData['text']?.toString() ?? '';
-                  final senderName = messageData['senderName']?.toString() ?? '';
-                  final Timestamp? timestamp = messageData['timestamp'] as Timestamp?;
+                  final senderName =
+                      messageData['senderName']?.toString() ?? '';
+                  final Timestamp? timestamp =
+                      messageData['timestamp'] as Timestamp?;
                   final imageUrl = messageData['imageUrl']?.toString();
                   final videoUrl = messageData['videoUrl']?.toString();
-                  final videoThumbnailUrl = messageData['videoThumbnailUrl']?.toString();
+                  final videoThumbnailUrl =
+                      messageData['videoThumbnailUrl']?.toString();
                   final bool isMe = senderId == currentUserId;
-                  final DateTime? messageDateTime = timestamp?.toDate().toLocal();
+                  final DateTime? messageDateTime =
+                      timestamp?.toDate().toLocal();
                   final String messageId = message.id;
 
                   if (messageDateTime != null) {
@@ -616,8 +712,8 @@ class _HumanChatScreenState extends State<HumanChatScreen> {
                     if (!insertedDayHeaderKeys.contains(dayKey)) {
                       insertedDayHeaderKeys.add(dayKey);
                       final headerDate = _normalizeDate(messageDateTime);
-                      final sectionKey =
-                          _dateSectionKeys.putIfAbsent(dayKey, () => GlobalKey());
+                      final sectionKey = _dateSectionKeys.putIfAbsent(
+                          dayKey, () => GlobalKey());
 
                       messageWidgets.add(
                         KeyedSubtree(
@@ -635,9 +731,12 @@ class _HumanChatScreenState extends State<HumanChatScreen> {
                         (index + 1 < sortedMessages.length)
                             ? sortedMessages[index + 1]
                             : null;
-                    final nextData = nextMessage?.data() as Map<String, dynamic>?;
+                    final nextData =
+                        nextMessage?.data() as Map<String, dynamic>?;
                     final DateTime? nextTimestamp =
-                        (nextData?['timestamp'] as Timestamp?)?.toDate().toLocal();
+                        (nextData?['timestamp'] as Timestamp?)
+                            ?.toDate()
+                            .toLocal();
                     final bool isToday =
                         _dayKey(messageDateTime) == _dayKey(DateTime.now());
                     final bool autoShowTimestamp = _shouldAutoShowTimestamp(
@@ -647,7 +746,8 @@ class _HumanChatScreenState extends State<HumanChatScreen> {
                       nextSenderId: nextData?['senderId']?.toString(),
                       currentSenderId: senderId,
                     );
-                    final bool isLatestOwnMessage = isMe && index == (sortedMessages.length - 1);
+                    final bool isLatestOwnMessage =
+                        isMe && index == (sortedMessages.length - 1);
                     final String? statusLabel = isLatestOwnMessage
                         ? (messageData['isRead'] == true ? 'Read' : 'Sent')
                         : null;
@@ -694,8 +794,12 @@ class _HumanChatScreenState extends State<HumanChatScreen> {
                             imageUrl: imageUrl,
                             videoUrl: videoUrl,
                             videoThumbnailUrl: videoThumbnailUrl,
+                            onSenderTap: _isOtherUserHuman
+                                ? _openOtherUserProfileIfHuman
+                                : null,
                             onTap: () => _toggleTimestampVisibility(messageId),
-                            onLongPress: () => _toggleTimestampVisibility(messageId),
+                            onLongPress: () =>
+                                _toggleTimestampVisibility(messageId),
                           );
                         },
                       ),
@@ -707,19 +811,25 @@ class _HumanChatScreenState extends State<HumanChatScreen> {
                   ..clear()
                   ..addAll(activeDayKeys);
 
-                _dateSectionKeys.removeWhere((key, _) => !activeDayKeys.contains(key));
+                _dateSectionKeys
+                    .removeWhere((key, _) => !activeDayKeys.contains(key));
 
                 final lastData = messages.last.data() as Map<String, dynamic>;
-                final lastTs = (lastData['timestamp'] as Timestamp?)?.millisecondsSinceEpoch ?? 0;
-                final snapshotSignature = '${messages.length}_${messages.last.id}_$lastTs';
+                final lastTs = (lastData['timestamp'] as Timestamp?)
+                        ?.millisecondsSinceEpoch ??
+                    0;
+                final snapshotSignature =
+                    '${messages.length}_${messages.last.id}_$lastTs';
                 final dataChanged = snapshotSignature != _lastSnapshotSignature;
 
                 if (dataChanged) {
                   _lastSnapshotSignature = snapshotSignature;
                 }
 
-                final shouldAutoScroll = dataChanged && (!_didInitialAutoScroll || _isNearBottom());
-                if (messages.length != _lastRenderedMessageCount || shouldAutoScroll) {
+                final shouldAutoScroll =
+                    dataChanged && (!_didInitialAutoScroll || _isNearBottom());
+                if (messages.length != _lastRenderedMessageCount ||
+                    shouldAutoScroll) {
                   _lastRenderedMessageCount = messages.length;
                   if (shouldAutoScroll) {
                     _scheduleAutoScrollToLatest(force: !_didInitialAutoScroll);
@@ -730,7 +840,8 @@ class _HumanChatScreenState extends State<HumanChatScreen> {
                 return SingleChildScrollView(
                   controller: _scrollController,
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 16),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 16),
                     child: Column(
                       children: messageWidgets,
                     ),
@@ -795,7 +906,6 @@ class _HumanChatScreenState extends State<HumanChatScreen> {
       if (aiCharacterDoc.exists) {
         print('🤖 Detected message to AI character: ${widget.otherUserName}');
         print('🚀 Triggering immediate AI response...');
-        
         // Trigger immediate AI response
         final result = await AIEngagementService.triggerDMAutoResponse(
           userId: currentUserId!,

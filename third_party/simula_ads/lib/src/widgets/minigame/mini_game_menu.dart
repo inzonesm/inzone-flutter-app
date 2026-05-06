@@ -76,8 +76,11 @@ class _MiniGameMenuState extends State<MiniGameMenu> {
   String?
       _previousAdIframeUrl; // Track previous ad overlay state for status bar
   bool _isDialogShowing = false; // Track if dialog is currently showing
+  bool _isGameDialogShowing = false; // Track if in-game overlay dialog is showing
   StateSetter?
       _dialogStateSetter; // Store dialog's StateSetter to trigger rebuilds
+    StateSetter?
+      _gameDialogStateSetter; // Store game dialog's StateSetter for live character refresh
 
   int _gameOverTextSignalScore(String? text) {
     if (text == null || text.trim().isEmpty) return 0;
@@ -189,6 +192,14 @@ class _MiniGameMenuState extends State<MiniGameMenu> {
       });
     }
 
+    if (characterHeaderChanged && _isGameDialogShowing) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _isGameDialogShowing) {
+          _gameDialogStateSetter?.call(() {});
+        }
+      });
+    }
+
     // Handle status bar for ad overlay
     final previousAdUrl = _previousAdIframeUrl;
     _previousAdIframeUrl = _adIframeUrl;
@@ -209,6 +220,7 @@ class _MiniGameMenuState extends State<MiniGameMenu> {
   }
 
   void _loadCatalog() async {
+    if (!mounted) return;
     setState(() {
       _catalogLoading = true;
       _catalogError = false;
@@ -217,6 +229,7 @@ class _MiniGameMenuState extends State<MiniGameMenu> {
     try {
       final notifier = Provider.of<SimulaNotifier>(context, listen: false);
       final catalogResponse = await notifier.apiClient.fetchCatalog();
+      if (!mounted) return;
       setState(() {
         _games = catalogResponse.games;
         _filteredGames = catalogResponse.games;
@@ -227,6 +240,7 @@ class _MiniGameMenuState extends State<MiniGameMenu> {
       // Trigger dialog rebuild if it's showing
       _dialogStateSetter?.call(() {});
     } catch (error) {
+      if (!mounted) return;
       setState(() {
         _catalogError = true;
         _games = [];
@@ -292,8 +306,66 @@ class _MiniGameMenuState extends State<MiniGameMenu> {
       _currentAdId = null;
       _resizedHeight = null; // Reset resized height when selecting a new game
     });
-    // Close the menu modal (but keep the widget mounted for the iframe)
-    widget.onClose();
+
+    if (_isDialogShowing) {
+      _dismissDialog();
+    }
+
+    _showGameDialog(gameId);
+  }
+
+  void _showGameDialog(String gameId) {
+    if (!mounted || _isGameDialogShowing) return;
+    _isGameDialogShowing = true;
+
+    showGeneralDialog(
+      context: context,
+      useRootNavigator: true,
+      barrierDismissible: false,
+      barrierLabel: 'Game',
+      barrierColor: Colors.black,
+      transitionDuration: const Duration(milliseconds: 120),
+      pageBuilder: (dialogContext, animation, secondaryAnimation) {
+        return StatefulBuilder(
+          builder: (context, setGameDialogState) {
+            _gameDialogStateSetter = setGameDialogState;
+            return Material(
+              color: Colors.transparent,
+              child: GameIframe(
+                key: ValueKey('$gameId|${widget.charID}|${widget.charName}|${widget.charImage ?? ''}'),
+                gameId: gameId,
+                onCharacterTap: widget.onCharacterTap,
+                onGameOverText: (text) {
+                  _lastGameOverText =
+                      _pickBetterGameOverText(_lastGameOverText, text);
+                },
+                charID: widget.charID,
+                charName: widget.charName,
+                charImage: widget.charImage,
+                charDesc: widget.charDesc,
+                messages: widget.messages,
+                delegateChar: widget.delegateChar,
+                menuId: _menuId,
+                playableHeight: widget.theme?.playableHeight,
+                playableBorderColor: widget.theme?.playableBorderColor,
+                onAdIdReceived: _handleAdIdReceived,
+                onClose: (resizedHeight, closeGameOverText) async {
+                  final rootNavigator =
+                      Navigator.of(dialogContext, rootNavigator: true);
+                  if (rootNavigator.canPop()) {
+                    rootNavigator.pop();
+                  }
+                  _handleIframeClose(resizedHeight, closeGameOverText);
+                },
+              ),
+            );
+          },
+        );
+      },
+    ).whenComplete(() {
+      _isGameDialogShowing = false;
+      _gameDialogStateSetter = null;
+    });
   }
 
   void _tryLaunchInitialGame() {
@@ -426,6 +498,7 @@ class _MiniGameMenuState extends State<MiniGameMenu> {
 
     showGeneralDialog(
       context: context,
+      useRootNavigator: true,
       barrierDismissible: true,
       barrierLabel: 'Dismiss menu',
       barrierColor: Colors.black.withValues(alpha: 0.5),
@@ -462,12 +535,13 @@ class _MiniGameMenuState extends State<MiniGameMenu> {
   }
 
   void _dismissDialog() {
-    if (mounted && _isDialogShowing && Navigator.of(context).canPop()) {
+    final rootNavigator = Navigator.of(context, rootNavigator: true);
+    if (mounted && _isDialogShowing && rootNavigator.canPop()) {
       setState(() {
         _isDialogShowing = false;
         _dialogStateSetter = null;
       });
-      Navigator.of(context).pop();
+      rootNavigator.pop();
     }
   }
 
@@ -479,30 +553,6 @@ class _MiniGameMenuState extends State<MiniGameMenu> {
 
     return Stack(
       children: [
-        // Game Iframe
-        if (_selectedGameId != null)
-          Positioned.fill(
-            child: GameIframe(
-              gameId: _selectedGameId!,
-              onCharacterTap: widget.onCharacterTap,
-              onGameOverText: (text) {
-                _lastGameOverText =
-                    _pickBetterGameOverText(_lastGameOverText, text);
-              },
-              charID: widget.charID,
-              charName: widget.charName,
-              charImage: widget.charImage,
-              charDesc: widget.charDesc,
-              messages: widget.messages,
-              delegateChar: widget.delegateChar,
-              onClose: _handleIframeClose,
-              onAdIdReceived: _handleAdIdReceived,
-              menuId: _menuId,
-              playableHeight: widget.theme?.playableHeight,
-              playableBorderColor: widget.theme?.playableBorderColor,
-            ),
-          ),
-
         // Ad Iframe
         if (_adIframeUrl != null)
           Positioned.fill(

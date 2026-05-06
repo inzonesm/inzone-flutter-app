@@ -1,10 +1,7 @@
 import 'package:flutter/cupertino.dart';
-import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:go_router/go_router.dart';
 import 'dart:convert';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:inzone/router/auth_notifier.dart';
 import 'package:inzone/root_app.dart';
 import 'package:inzone/screen/ai_character/ai_char_select_screen.dart';
@@ -582,6 +579,7 @@ class AppRouter {
             chat: extra['chat'] as String,
             avatarID: extra['avatarID'] as String,
             initialText: extra['initialText'] as String?,
+            minigameLink: extra['minigameLink'] as String?,
           );
         },
       ),
