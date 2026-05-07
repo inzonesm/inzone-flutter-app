@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:uuid/uuid.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../models/types.dart';
@@ -18,6 +19,9 @@ class MiniGameMenu extends StatefulWidget {
   final bool isOpen;
   final VoidCallback onClose;
   final ValueChanged<MiniGameCompletion>? onGameEnd;
+  final ValueChanged<MiniGameSessionStart>? onSessionStart;
+  final ValueChanged<MiniGameSessionEnd>? onSessionEnd;
+  final ValueChanged<MiniGameSessionCoinSpend>? onSessionCoinSpend;
   final VoidCallback? onCharacterTap;
   final String charName;
   final String charID;
@@ -38,6 +42,9 @@ class MiniGameMenu extends StatefulWidget {
     required this.isOpen,
     required this.onClose,
     this.onGameEnd,
+    this.onSessionStart,
+    this.onSessionEnd,
+    this.onSessionCoinSpend,
     this.onCharacterTap,
     required this.charName,
     required this.charID,
@@ -60,6 +67,9 @@ class _MiniGameMenuState extends State<MiniGameMenu> {
   GameData? _lastPlayedGame;
   String? _lastGameOverText;
   DateTime? _gameSessionStartedAt;
+  String? _sessionId;
+  int _coinsUsedInSession = 0;
+  bool _hasRecordedSessionEnd = false;
   bool _hasAttemptedInitialGameLaunch = false;
   List<GameData> _games = [];
   List<GameData> _filteredGames = [];
@@ -297,15 +307,26 @@ class _MiniGameMenuState extends State<MiniGameMenu> {
 
   void _handleGameSelect(String gameId) {
     final selectedGame = _games.where((game) => game.id == gameId).firstOrNull;
+    final startedAt = DateTime.now();
+    final sessionId = const Uuid().v4();
     setState(() {
       _selectedGameId = gameId;
       _lastPlayedGame = selectedGame;
       _lastGameOverText = null;
-      _gameSessionStartedAt = DateTime.now();
+      _gameSessionStartedAt = startedAt;
+      _sessionId = sessionId;
+      _coinsUsedInSession = 0;
+      _hasRecordedSessionEnd = false;
       _adFetched = false;
       _currentAdId = null;
       _resizedHeight = null; // Reset resized height when selecting a new game
     });
+
+    widget.onSessionStart?.call(MiniGameSessionStart(
+      sessionId: sessionId,
+      game: selectedGame,
+      openedAt: startedAt,
+    ));
 
     if (_isDialogShowing) {
       _dismissDialog();
@@ -349,6 +370,7 @@ class _MiniGameMenuState extends State<MiniGameMenu> {
                 playableHeight: widget.theme?.playableHeight,
                 playableBorderColor: widget.theme?.playableBorderColor,
                 onAdIdReceived: _handleAdIdReceived,
+                onCoinSpend: _handleCoinSpend,
                 onClose: (resizedHeight, closeGameOverText) async {
                   final rootNavigator =
                       Navigator.of(dialogContext, rootNavigator: true);
@@ -389,16 +411,61 @@ class _MiniGameMenuState extends State<MiniGameMenu> {
     return elapsed.inSeconds >= 8;
   }
 
+  void _recordSessionEnd({required String? gameOverText, required bool playedLikely}) {
+    if (_hasRecordedSessionEnd) return;
+
+    final sessionId = _sessionId;
+    if (sessionId == null) return;
+
+    final openedAt = _gameSessionStartedAt ?? DateTime.now();
+    final closedAt = DateTime.now();
+    final duration = closedAt.difference(openedAt);
+    final durationMs = duration.inMilliseconds;
+    final durationSeconds = duration.inSeconds;
+
+    widget.onSessionEnd?.call(MiniGameSessionEnd(
+      sessionId: sessionId,
+      game: _lastPlayedGame,
+      openedAt: openedAt,
+      closedAt: closedAt,
+      durationMs: durationMs,
+      durationSeconds: durationSeconds,
+      coinsUsed: _coinsUsedInSession,
+      playedLikely: playedLikely,
+      gameOverText: gameOverText,
+    ));
+
+    _hasRecordedSessionEnd = true;
+  }
+
   void _handleAdIdReceived(String adId) {
     setState(() {
       _currentAdId = adId;
     });
   }
 
+  void _handleCoinSpend(int coins) {
+    if (coins <= 0) return;
+    _coinsUsedInSession += coins;
+
+    final sessionId = _sessionId;
+    if (sessionId == null) return;
+
+    widget.onSessionCoinSpend?.call(MiniGameSessionCoinSpend(
+      sessionId: sessionId,
+      game: _lastPlayedGame,
+      coins: coins,
+      totalCoinsUsed: _coinsUsedInSession,
+      recordedAt: DateTime.now(),
+    ));
+  }
+
   void _handleIframeClose(double? resizedHeight, String? closeGameOverText) async {
     // Store the resized height for use in ad overlay
     _resizedHeight = resizedHeight;
     _lastGameOverText = _pickBetterGameOverText(_lastGameOverText, closeGameOverText);
+    final playedLikely = _inferPlayedLikely();
+    _recordSessionEnd(gameOverText: _lastGameOverText, playedLikely: playedLikely);
     if (!_adFetched) {
       // Make API request and fetch / display ad.html here
       if (_currentAdId != null) {
@@ -441,7 +508,7 @@ class _MiniGameMenuState extends State<MiniGameMenu> {
       });
       widget.onGameEnd?.call(MiniGameCompletion(
         game: _lastPlayedGame,
-        playedLikely: _inferPlayedLikely(),
+        playedLikely: playedLikely,
         gameOverText: _lastGameOverText,
       ));
     } else {
@@ -451,7 +518,7 @@ class _MiniGameMenuState extends State<MiniGameMenu> {
       });
       widget.onGameEnd?.call(MiniGameCompletion(
         game: _lastPlayedGame,
-        playedLikely: _inferPlayedLikely(),
+        playedLikely: playedLikely,
         gameOverText: _lastGameOverText,
       ));
     }
@@ -473,9 +540,11 @@ class _MiniGameMenuState extends State<MiniGameMenu> {
       _adIframeUrl = null;
       // Keep _adFetched as true so we don't show another ad
     });
+    final playedLikely = _inferPlayedLikely();
+    _recordSessionEnd(gameOverText: _lastGameOverText, playedLikely: playedLikely);
     widget.onGameEnd?.call(MiniGameCompletion(
       game: _lastPlayedGame,
-      playedLikely: _inferPlayedLikely(),
+      playedLikely: playedLikely,
       gameOverText: _lastGameOverText,
     ));
   }

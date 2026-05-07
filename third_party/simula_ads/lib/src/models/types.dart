@@ -234,9 +234,6 @@ class GameData {
 }
 
 /// Minigame completion payload used by host app callbacks.
-///
-/// `playedLikely` is a best-effort heuristic indicating whether the user
-/// actually engaged with gameplay before closing.
 class MiniGameCompletion {
   final GameData? game;
   final bool playedLikely;
@@ -246,6 +243,58 @@ class MiniGameCompletion {
     required this.game,
     required this.playedLikely,
     this.gameOverText,
+  });
+}
+
+class MiniGameSessionStart {
+  final String sessionId;
+  final GameData? game;
+  final DateTime openedAt;
+
+  MiniGameSessionStart({
+    required this.sessionId,
+    required this.game,
+    required this.openedAt,
+  });
+}
+
+class MiniGameSessionEnd {
+  final String sessionId;
+  final GameData? game;
+  final DateTime openedAt;
+  final DateTime closedAt;
+  final int durationMs;
+  final int durationSeconds;
+  final int coinsUsed;
+  final bool playedLikely;
+  final String? gameOverText;
+
+  MiniGameSessionEnd({
+    required this.sessionId,
+    required this.game,
+    required this.openedAt,
+    required this.closedAt,
+    required this.durationMs,
+    required this.durationSeconds,
+    required this.coinsUsed,
+    required this.playedLikely,
+    this.gameOverText,
+  });
+}
+
+class MiniGameSessionCoinSpend {
+  final String sessionId;
+  final GameData? game;
+  final int coins;
+  final int totalCoinsUsed;
+  final DateTime recordedAt;
+
+  MiniGameSessionCoinSpend({
+    required this.sessionId,
+    required this.game,
+    required this.coins,
+    required this.totalCoinsUsed,
+    required this.recordedAt,
   });
 }
 
