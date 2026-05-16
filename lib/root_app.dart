@@ -23,6 +23,9 @@ import 'package:app_links/app_links.dart';
 import 'package:inzone/services/active_character_notifier.dart';
 import 'package:inzone/services/appsflyer_service.dart';
 import 'package:inzone/services/inzone_database.dart';
+import 'package:inzone/data/hub_game.dart';
+import 'package:inzone/screen/common/community_game_screen.dart';
+import 'package:inzone/screen/common/game_hub_screen.dart';
 import 'package:toasty_box/toast_service.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -221,6 +224,31 @@ class _RootAppState extends State<RootApp>
     }
   }
 
+  void _openGameHubScreen() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => GameHubScreen(onPlay: _handleHubGameTap),
+        fullscreenDialog: true,
+      ),
+    );
+  }
+
+  void _handleHubGameTap(HubGame game) {
+    if (game.source == HubGameSource.community) {
+      final community = game.communityGame;
+      if (community == null || community.gameUrl.isEmpty) return;
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => CommunityGameScreen(game: community),
+          fullscreenDialog: true,
+        ),
+      );
+      return;
+    }
+    _loadPopularCharacters();
+    _openMiniGameFromDeepLink(game.id);
+  }
+
   void _openMiniGameFromDeepLink(String gameId) {
     final normalized = gameId.trim();
     if (!mounted || normalized.isEmpty) return;
@@ -285,15 +313,9 @@ class _RootAppState extends State<RootApp>
   void _onItemTapped(int index) {
     HapticFeedback.lightImpact();
 
-    // Gamepad tab (index 1) opens MiniGameMenu instead of navigating
+    // Gamepad tab (index 1) opens the unified Game Hub screen instead of navigating.
     if (index == 1) {
-      if (!_miniGameMenuOpen) {
-        setState(() {
-          _miniGameMenuOpen = true;
-        });
-      }
-      _loadPopularCharacters();
-      _refreshMiniGameForCurrentCharacter();
+      _openGameHubScreen();
       return;
     }
 

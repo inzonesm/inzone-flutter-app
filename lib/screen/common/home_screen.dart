@@ -13,6 +13,10 @@ import 'package:inzone/components/profile/avatar_story_component.dart';
 import 'package:inzone/components/ui/appbar.dart';
 import 'package:inzone/data/inzone_avatar.dart';
 import 'package:inzone/data/inzone_post.dart';
+import 'package:inzone/data/community_game.dart';
+import 'package:inzone/data/hub_game.dart';
+import 'package:inzone/services/community_game_service.dart';
+import 'package:inzone/screen/common/community_game_screen.dart';
 import 'package:inzone/screen/notifications/notification_center_screen.dart';
 import 'package:inzone/services/notification_badge_service.dart';
 import 'package:inzone/services/inzone_database.dart';
@@ -49,6 +53,7 @@ class HomeScreenState extends State<HomeScreen> {
       RefreshController(initialRefresh: false);
 
   List<GameData> _miniGames = [];
+  List<CommunityGame> _communityGames = [];
   bool _miniGamesLoading = true;
   bool _showFeaturedCard = true;
   int _featuredPageIndex = 0;
@@ -322,6 +327,21 @@ class HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _loadMiniGames() async {
+    final results = await Future.wait([
+      _fetchSimulaCatalog(),
+      _fetchCommunityCatalog(),
+    ]);
+
+    if (!mounted) return;
+    setState(() {
+      _miniGames = results[0] as List<GameData>;
+      _communityGames = results[1] as List<CommunityGame>;
+      _miniGamesLoading = false;
+    });
+    _warmTopImageCache();
+  }
+
+  Future<List<GameData>> _fetchSimulaCatalog() async {
     try {
       final response = await http.get(
         Uri.parse('${SimulaConfig.apiBaseUrl}/minigames/catalogv2'),
@@ -331,12 +351,8 @@ class HomeScreenState extends State<HomeScreen> {
         },
       );
 
-      if (!mounted) return;
       if (response.statusCode < 200 || response.statusCode >= 300) {
-        setState(() {
-          _miniGamesLoading = false;
-        });
-        return;
+        return const [];
       }
 
       final decoded = jsonDecode(response.body);
@@ -350,7 +366,7 @@ class HomeScreenState extends State<HomeScreen> {
               ? catalog['data'] as List<dynamic>
               : const [];
 
-      final filteredGames = rawGames
+      return rawGames
           .whereType<Map>()
           .map((game) => GameData(
                 id: game['id']?.toString() ?? '',
@@ -359,20 +375,24 @@ class HomeScreenState extends State<HomeScreen> {
                 description: game['description']?.toString() ?? '',
                 iconFallback: game['iconFallback']?.toString(),
               ))
-          .where((game) => game.id.isNotEmpty && !_isGamblingGame(game))
+          .where((game) =>
+              game.id.isNotEmpty &&
+              !_isGamblingByText(game.id, game.name, game.description))
           .toList();
+    } catch (_) {
+      return const [];
+    }
+  }
 
-      if (!mounted) return;
-      setState(() {
-        _miniGames = filteredGames;
-        _miniGamesLoading = false;
-      });
-      _warmTopImageCache();
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _miniGamesLoading = false;
-      });
+  Future<List<CommunityGame>> _fetchCommunityCatalog() async {
+    try {
+      final games = await CommunityGameService.fetchAll();
+      return games
+          .where((g) =>
+              !_isGamblingByText(g.id, g.name, g.description))
+          .toList();
+    } catch (_) {
+      return const [];
     }
   }
 
@@ -859,10 +879,12 @@ class HomeScreenState extends State<HomeScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
 
-      for (final game in _miniGames.take(12)) {
-        if (game.iconUrl.isNotEmpty) {
-          precacheImage(CachedNetworkImageProvider(game.iconUrl), context);
-        }
+      final urls = <String>[
+        ..._communityGames.map((g) => g.iconUrl),
+        ..._miniGames.map((g) => g.iconUrl),
+      ].where((u) => u.isNotEmpty).take(12);
+      for (final url in urls) {
+        precacheImage(CachedNetworkImageProvider(url), context);
       }
 
       for (final avatar in avatars.take(12)) {
@@ -924,7 +946,20 @@ class HomeScreenState extends State<HomeScreen> {
     });
   }
 
-  Future<void> _handleMiniGameTap(String gameId) async {
+  Future<void> _handleMiniGameTap(HubGame game) async {
+    if (game.source == HubGameSource.community) {
+      final community = game.communityGame!;
+      if (community.gameUrl.isEmpty) return;
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => CommunityGameScreen(game: community),
+          fullscreenDialog: true,
+        ),
+      );
+      return;
+    }
+
+    final gameId = game.id;
     if (gameId.trim().isEmpty) return;
     try {
       await AppsFlyerService().queueMinigameDeepLink(gameId);
@@ -939,8 +974,8 @@ class HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  bool _isGamblingGame(GameData game) {
-    final haystack = '${game.id} ${game.name} ${game.description}'.toLowerCase();
+  bool _isGamblingByText(String id, String name, String description) {
+    final haystack = '$id $name $description'.toLowerCase();
     const gamblingTerms = [
       'casino',
       'poker',
@@ -957,12 +992,12 @@ class HomeScreenState extends State<HomeScreen> {
     return gamblingTerms.any(haystack.contains);
   }
 
-  List<GameData> _visibleMiniGames() {
-    if (_miniGames.isEmpty) {
-      return const [];
-    }
-
-    return List<GameData>.from(_miniGames);
+  List<HubGame> _visibleMiniGames() {
+    final mixed = <HubGame>[
+      ..._communityGames.map(HubGame.community),
+      ..._miniGames.map(HubGame.simula),
+    ];
+    return mixed;
   }
 
   List<InZoneAvatar> _featuredAvatars() {
@@ -1043,11 +1078,14 @@ class HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildMiniGameCard(GameData game) {
-    final badgeText = game.name.toLowerCase().contains('beta') ? 'BETA' : 'LIVE';
+  Widget _buildMiniGameCard(HubGame game) {
+    final isCommunity = game.source == HubGameSource.community;
+    final badgeText = isCommunity
+        ? 'COMMUNITY'
+        : (game.name.toLowerCase().contains('beta') ? 'BETA' : 'LIVE');
 
     return GestureDetector(
-      onTap: () => _handleMiniGameTap(game.id),
+      onTap: () => _handleMiniGameTap(game),
       child: Container(
         width: 148,
         decoration: BoxDecoration(
