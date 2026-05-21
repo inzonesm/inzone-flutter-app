@@ -30,6 +30,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:inzone/services/ai_engagement_service.dart';
 import 'package:inzone/services/active_character_notifier.dart';
 import 'package:simula_ads/simula_ads.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 // Key for storing first launch status in SharedPreferences
 const String FIRST_LAUNCH_KEY = 'is_first_launch';
@@ -222,6 +223,32 @@ Future<void> validateFirebaseSession() async {
       print(
           'Keeping existing session; likely temporary network/startup issue.');
     }
+  }
+}
+
+/// Try to restore a previously-signed-in Google user silently on cold start.
+Future<void> tryRestoreAuth() async {
+  if (FirebaseAuth.instance.currentUser != null) return;
+
+  try {
+    final googleSignIn = GoogleSignIn(
+      scopes: ['email'],
+      serverClientId:
+          '912424781531-vru85aelna5oro0lrnkl11jd49oc74ss.apps.googleusercontent.com',
+    );
+
+    final account = await googleSignIn.signInSilently();
+    if (account != null) {
+      final gAuth = await account.authentication;
+      final credential = GoogleAuthProvider.credential(
+        accessToken: gAuth.accessToken,
+        idToken: gAuth.idToken,
+      );
+      await FirebaseAuth.instance.signInWithCredential(credential);
+      print('✅ Restored Google sign-in silently');
+    }
+  } catch (e) {
+    print('⚠️ Silent Google restore failed: $e');
   }
 }
 
@@ -500,6 +527,9 @@ class _MyAppState extends State<MyApp> {
     }
 
     final isFirstLaunch = widget.prefs.getBool(FIRST_LAUNCH_KEY) ?? true;
+
+    // Try to restore provider sign-ins (Google) silently before resolving auth.
+    await tryRestoreAuth();
 
     // Wait for Firebase Auth to settle before deciding where to send the user.
     final currentUser = await FirebaseAuth.instance.authStateChanges().first;

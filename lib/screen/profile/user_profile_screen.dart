@@ -549,7 +549,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                   )
                 else
                   Padding(
-                    padding: const EdgeInsets.all(15.0),
+                    padding: const EdgeInsets.symmetric(horizontal: 4.0),
                     child: Column(
                       children: [
                         ...List.generate(_posts.length, (index) {
