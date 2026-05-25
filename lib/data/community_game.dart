@@ -7,6 +7,7 @@ class CommunityGame {
   final String iconUrl;
   final String gameUrl;
   final String uploaderId;
+  final String? gameKey;
   final DateTime? createdAt;
 
   CommunityGame({
@@ -16,6 +17,7 @@ class CommunityGame {
     required this.iconUrl,
     required this.gameUrl,
     required this.uploaderId,
+    this.gameKey,
     this.createdAt,
   });
 
@@ -29,6 +31,10 @@ class CommunityGame {
       iconUrl: (data['iconUrl'] as String? ?? '').trim(),
       gameUrl: (data['gameUrl'] as String? ?? '').trim(),
       uploaderId: (data['uploaderId'] as String? ?? '').trim(),
+      gameKey: (() {
+        final value = (data['gameKey'] as String? ?? data['game_key'] as String? ?? '').trim();
+        return value.isEmpty ? null : value;
+      })(),
       createdAt: ts is Timestamp ? ts.toDate() : null,
     );
   }
