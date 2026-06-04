@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:colorful_safe_area/colorful_safe_area.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -891,9 +892,10 @@ class _CommunityGamePageState extends State<_CommunityGamePage> {
 }
 
 /// A fully interactive community game embedded directly inside a home-feed
-/// post slot. Unlike the vertical Game Hub feed, this renders a single live
-/// [_CommunityGamePage] inside a fixed-height card with a small header, so the
-/// user can play without leaving the home screen.
+/// post slot. This is styled to match the regular home-feed post cards: same
+/// width, card color, corner radius and shadow, with a header that mirrors a
+/// post's avatar+username row (the game icon + game title), an optional
+/// description, and the live [_CommunityGamePage] as the card body.
 class InlineCommunityGameCard extends StatelessWidget {
   final CommunityGame game;
 
@@ -906,70 +908,100 @@ class InlineCommunityGameCard extends StatelessWidget {
     // Tall enough to be genuinely playable; capped so it never dominates the
     // whole viewport on short screens.
     final gameHeight = (screenHeight * 0.6).clamp(360.0, 620.0);
+    final description = game.description.trim();
+    final iconUrl = game.iconUrl.trim();
 
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
-      decoration: BoxDecoration(
-        color: Colors.black,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.18),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(16),
+    return Padding(
+      // Mirror the bottom spacing used by the regular post cards.
+      padding: const EdgeInsets.only(bottom: 20.0),
+      child: Container(
+        // Match the regular post card width (full width minus the 8px the feed
+        // reserves on each side).
+        width: MediaQuery.of(context).size.width - 8,
+        decoration: BoxDecoration(
+          color: theme.cardColor,
+          borderRadius: BorderRadius.circular(15),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 8,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              color: theme.primaryColor.withOpacity(0.12),
+            // Header — mirrors the post card avatar+username row: the game icon
+            // in the top-left circle and the game title beside it. No options
+            // (three-dot) menu, per spec.
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
               child: Row(
                 children: [
-                  Icon(
-                    Icons.sports_esports,
-                    size: 20,
-                    color: theme.primaryColor,
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(20),
+                    child: iconUrl.isNotEmpty
+                        ? CachedNetworkImage(
+                            imageUrl: iconUrl,
+                            width: 40,
+                            height: 40,
+                            fit: BoxFit.cover,
+                            placeholder: (context, url) => const SizedBox(
+                              width: 40,
+                              height: 40,
+                            ),
+                            errorWidget: (context, url, error) => const Icon(
+                              Icons.sports_esports,
+                              size: 40,
+                            ),
+                          )
+                        : const Icon(Icons.sports_esports, size: 40),
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 10),
                   Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          game.name,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.titleSmall?.copyWith(
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        Text(
-                          'Mini game · tap to play',
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.hintColor,
-                          ),
-                        ),
-                      ],
+                    child: Text(
+                      game.name,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: theme.textTheme.titleLarge?.color,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 20,
+                      ),
                     ),
                   ),
                 ],
               ),
             ),
-            // Live, interactive game body.
-            SizedBox(
-              height: gameHeight,
-              width: double.infinity,
-              child: _CommunityGamePage(
-                key: ValueKey('inline_game_${game.id}'),
-                game: game,
-                isActive: true,
-                onClose: () async {},
+            // Optional game description — only shown when it has real text.
+            if (description.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(left: 10, right: 10, bottom: 8),
+                child: Text(
+                  description,
+                  style: TextStyle(
+                    color: theme.textTheme.bodyMedium?.color,
+                    fontSize: 14,
+                    height: 1.2,
+                  ),
+                ),
+              ),
+            // Live, interactive game body. Clip only the bottom corners so it
+            // fits the card's rounded base.
+            ClipRRect(
+              borderRadius: const BorderRadius.vertical(
+                bottom: Radius.circular(15),
+              ),
+              child: SizedBox(
+                height: gameHeight,
+                width: double.infinity,
+                child: _CommunityGamePage(
+                  key: ValueKey('inline_game_${game.id}'),
+                  game: game,
+                  isActive: true,
+                  onClose: () async {},
+                ),
               ),
             ),
           ],
