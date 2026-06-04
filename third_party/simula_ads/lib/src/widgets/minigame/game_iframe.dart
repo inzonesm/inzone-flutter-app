@@ -25,6 +25,7 @@ class GameIframe extends StatefulWidget {
   final String? charDesc;
   final Function(double?, String?)? onClose; // Callback with optional resized height and final game-over text
   final Function(String)? onAdIdReceived;
+  final ValueChanged<int>? onCoinSpend;
   final String? menuId;
 
   /// Controls the height of the Mini Game iframe.
@@ -51,6 +52,7 @@ class GameIframe extends StatefulWidget {
     this.charDesc,
     required this.onClose,
     this.onAdIdReceived,
+    this.onCoinSpend,
     this.menuId,
     this.playableHeight,
     this.playableBorderColor,
@@ -346,6 +348,29 @@ class _GameIframeState extends State<GameIframe> {
       return text;
     }
     return raw.toString().trim();
+  }
+
+  int? _parseCoinSpendPayload(dynamic raw) {
+    if (raw == null) return null;
+    if (raw is num) {
+      return raw.isFinite ? raw.round() : null;
+    }
+    if (raw is String) {
+      final text = raw.trim();
+      if (text.isEmpty) return null;
+      try {
+        final decoded = jsonDecode(text);
+        if (decoded is num) return decoded.isFinite ? decoded.round() : null;
+        if (decoded is Map) {
+          final value = decoded['coins'] ?? decoded['coinAmount'] ?? decoded['amount'];
+          if (value is num) return value.isFinite ? value.round() : null;
+          if (value is String) return int.tryParse(value.replaceAll(',', ''));
+        }
+      } catch (_) {
+        return int.tryParse(text.replaceAll(',', ''));
+      }
+    }
+    return null;
   }
 
   String _buildLabeledTelemetryText(Map<String, dynamic> payload) {
@@ -1012,6 +1037,15 @@ class _GameIframeState extends State<GameIframe> {
             } catch (_) {}
           },
         )
+        ..addJavaScriptChannel(
+          'InzoneCoinSpend',
+          onMessageReceived: (message) {
+            final coins = _parseCoinSpendPayload(message.message);
+            if (coins != null && coins > 0) {
+              widget.onCoinSpend?.call(coins);
+            }
+          },
+        )
         ..setNavigationDelegate(
           NavigationDelegate(
             onNavigationRequest: (NavigationRequest request) {
@@ -1052,6 +1086,7 @@ class _GameIframeState extends State<GameIframe> {
             },
             onPageFinished: (url) {
               _injectCharacterTapBridgeScript();
+              _injectCoinSpendBridgeScript();
               _injectCharacterUpdate();
             },
           ),
@@ -2253,6 +2288,69 @@ class _GameIframeState extends State<GameIframe> {
 ''';
 
   controller.runJavaScript(gameOverTextScript).catchError((_) {});
+  }
+
+  void _injectCoinSpendBridgeScript() {
+    final controller = _webViewController;
+    if (controller == null) return;
+
+    const script = r'''
+(() => {
+  try {
+    if (window.__inzoneCoinSpendBridgeInstalled) return;
+    window.__inzoneCoinSpendBridgeInstalled = true;
+
+    const extractCoins = (payload) => {
+      if (!payload) return null;
+      if (typeof payload === 'number' && Number.isFinite(payload)) return Math.round(payload);
+      if (typeof payload === 'string') {
+        const cleaned = payload.replace(/,/g, '').trim();
+        if (!cleaned) return null;
+        const parsed = Number(cleaned);
+        return Number.isFinite(parsed) ? Math.round(parsed) : null;
+      }
+      if (typeof payload === 'object') {
+        const value = payload.coins ?? payload.coinAmount ?? payload.amount;
+        return extractCoins(value);
+      }
+      return null;
+    };
+
+    const postCoins = (payload) => {
+      try {
+        if (!window.InzoneCoinSpend || !window.InzoneCoinSpend.postMessage) return;
+        const coins = extractCoins(payload);
+        if (coins === null) return;
+        window.InzoneCoinSpend.postMessage(JSON.stringify({ coins }));
+      } catch (_) {}
+    };
+
+    window.addEventListener('message', (event) => {
+      try {
+        const data = event && event.data ? event.data : null;
+        if (!data) return;
+        const type = typeof data === 'object' ? data.type : null;
+        if (type && (type === 'INZONE_COIN_SPEND' || type === 'INZONE_COIN_USED')) {
+          postCoins(data);
+          return;
+        }
+        if (typeof data === 'object' && (data.coins || data.coinAmount || data.amount)) {
+          postCoins(data);
+        }
+      } catch (_) {}
+    });
+
+    window.addEventListener('INZONE_COIN_SPEND', (event) => {
+      try {
+        const detail = event && event.detail ? event.detail : event;
+        postCoins(detail);
+      } catch (_) {}
+    });
+  } catch (_) {}
+})();
+''';
+
+    controller.runJavaScript(script).catchError((_) {});
   }
 
   /// Calculate container height based on playableHeight prop

@@ -13,6 +13,10 @@ import 'package:inzone/components/profile/avatar_story_component.dart';
 import 'package:inzone/components/ui/appbar.dart';
 import 'package:inzone/data/inzone_avatar.dart';
 import 'package:inzone/data/inzone_post.dart';
+import 'package:inzone/data/community_game.dart';
+import 'package:inzone/data/hub_game.dart';
+import 'package:inzone/services/community_game_service.dart';
+import 'package:inzone/screen/common/community_game_screen.dart';
 import 'package:inzone/screen/notifications/notification_center_screen.dart';
 import 'package:inzone/services/notification_badge_service.dart';
 import 'package:inzone/services/inzone_database.dart';
@@ -49,6 +53,7 @@ class HomeScreenState extends State<HomeScreen> {
       RefreshController(initialRefresh: false);
 
   List<GameData> _miniGames = [];
+  List<CommunityGame> _communityGames = [];
   bool _miniGamesLoading = true;
   bool _showFeaturedCard = true;
   int _featuredPageIndex = 0;
@@ -232,22 +237,21 @@ class HomeScreenState extends State<HomeScreen> {
   }
 
   void _onScroll() {
-    if (_scrollThrottleTimer?.isActive ?? false) return;
+    if (!_scrollController.hasClients) return;
 
+    final position = _scrollController.position;
+    if (position.pixels >= position.maxScrollExtent - 1500 &&
+        !isLoadingMore &&
+        hasMorePosts) {
+      _loadMorePosts();
+    }
+
+    // ANALYTICS: keep behavior tracking throttled so it doesn't run on every
+    // pixel of movement.
+    if (_scrollThrottleTimer?.isActive ?? false) return;
     _scrollThrottleTimer = Timer(const Duration(milliseconds: 500), () {
       if (!_scrollController.hasClients) return;
       _trackScrollBehavior();
-
-      // SIMPLIFIED: Only trigger when very close to the absolute bottom
-      // Removed the "remaining items" check which was causing premature loading
-      if (_scrollController.position.pixels >=
-              _scrollController.position.maxScrollExtent - 200 &&
-          !isLoadingMore &&
-          hasMorePosts) {
-        print(
-            '🎯 Scroll trigger: Near bottom (within 200px), loading more posts...');
-        _loadMorePosts();
-      }
     });
   }
 
@@ -322,6 +326,21 @@ class HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _loadMiniGames() async {
+    final results = await Future.wait([
+      _fetchSimulaCatalog(),
+      _fetchCommunityCatalog(),
+    ]);
+
+    if (!mounted) return;
+    setState(() {
+      _miniGames = results[0] as List<GameData>;
+      _communityGames = results[1] as List<CommunityGame>;
+      _miniGamesLoading = false;
+    });
+    _warmTopImageCache();
+  }
+
+  Future<List<GameData>> _fetchSimulaCatalog() async {
     try {
       final response = await http.get(
         Uri.parse('${SimulaConfig.apiBaseUrl}/minigames/catalogv2'),
@@ -331,12 +350,8 @@ class HomeScreenState extends State<HomeScreen> {
         },
       );
 
-      if (!mounted) return;
       if (response.statusCode < 200 || response.statusCode >= 300) {
-        setState(() {
-          _miniGamesLoading = false;
-        });
-        return;
+        return const [];
       }
 
       final decoded = jsonDecode(response.body);
@@ -350,7 +365,7 @@ class HomeScreenState extends State<HomeScreen> {
               ? catalog['data'] as List<dynamic>
               : const [];
 
-      final filteredGames = rawGames
+      return rawGames
           .whereType<Map>()
           .map((game) => GameData(
                 id: game['id']?.toString() ?? '',
@@ -359,20 +374,24 @@ class HomeScreenState extends State<HomeScreen> {
                 description: game['description']?.toString() ?? '',
                 iconFallback: game['iconFallback']?.toString(),
               ))
-          .where((game) => game.id.isNotEmpty && !_isGamblingGame(game))
+          .where((game) =>
+              game.id.isNotEmpty &&
+              !_isGamblingByText(game.id, game.name, game.description))
           .toList();
+    } catch (_) {
+      return const [];
+    }
+  }
 
-      if (!mounted) return;
-      setState(() {
-        _miniGames = filteredGames;
-        _miniGamesLoading = false;
-      });
-      _warmTopImageCache();
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _miniGamesLoading = false;
-      });
+  Future<List<CommunityGame>> _fetchCommunityCatalog() async {
+    try {
+      final games = await CommunityGameService.fetchAll();
+      return games
+          .where((g) =>
+              !_isGamblingByText(g.id, g.name, g.description))
+          .toList();
+    } catch (_) {
+      return const [];
     }
   }
 
@@ -413,8 +432,6 @@ class HomeScreenState extends State<HomeScreen> {
           .where((id) => id.isNotEmpty)
           .toList();
 
-      // CONSISTENT PAGINATION: Always use page 1 for fresh batch
-      // _currentPage tracks client-side pagination within the batch
       final response = await InZoneDatabase.getFeed(
         page: 1,
         batchNumber:
@@ -592,9 +609,6 @@ class HomeScreenState extends State<HomeScreen> {
           .where((id) => id.isNotEmpty)
           .toList();
 
-      // PAGINATION FIX: Keep same batch, just load next page
-      // page: _currentPage + 1 = next page in current batch
-      // batchNumber: reloadCount = stay in same batch
       final response = await InZoneDatabase.getFeed(
         page: _currentPage + 1,
         batchNumber: reloadCount, // Keep same batch for consistent pagination
@@ -859,10 +873,12 @@ class HomeScreenState extends State<HomeScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
 
-      for (final game in _miniGames.take(12)) {
-        if (game.iconUrl.isNotEmpty) {
-          precacheImage(CachedNetworkImageProvider(game.iconUrl), context);
-        }
+      final urls = <String>[
+        ..._communityGames.map((g) => g.iconUrl),
+        ..._miniGames.map((g) => g.iconUrl),
+      ].where((u) => u.isNotEmpty).take(12);
+      for (final url in urls) {
+        precacheImage(CachedNetworkImageProvider(url), context);
       }
 
       for (final avatar in avatars.take(12)) {
@@ -924,7 +940,23 @@ class HomeScreenState extends State<HomeScreen> {
     });
   }
 
-  Future<void> _handleMiniGameTap(String gameId) async {
+  Future<void> _handleMiniGameTap(HubGame game) async {
+    if (game.source == HubGameSource.community) {
+      final community = game.communityGame!;
+      if (community.gameUrl.isEmpty) return;
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => CommunityGameScreen(
+            game: community,
+            playlist: _communityGames,
+          ),
+          fullscreenDialog: true,
+        ),
+      );
+      return;
+    }
+
+    final gameId = game.id;
     if (gameId.trim().isEmpty) return;
     try {
       await AppsFlyerService().queueMinigameDeepLink(gameId);
@@ -939,8 +971,8 @@ class HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  bool _isGamblingGame(GameData game) {
-    final haystack = '${game.id} ${game.name} ${game.description}'.toLowerCase();
+  bool _isGamblingByText(String id, String name, String description) {
+    final haystack = '$id $name $description'.toLowerCase();
     const gamblingTerms = [
       'casino',
       'poker',
@@ -957,12 +989,12 @@ class HomeScreenState extends State<HomeScreen> {
     return gamblingTerms.any(haystack.contains);
   }
 
-  List<GameData> _visibleMiniGames() {
-    if (_miniGames.isEmpty) {
-      return const [];
-    }
-
-    return List<GameData>.from(_miniGames);
+  List<HubGame> _visibleMiniGames() {
+    final mixed = <HubGame>[
+      ..._communityGames.map(HubGame.community),
+      ..._miniGames.map(HubGame.simula),
+    ];
+    return mixed;
   }
 
   List<InZoneAvatar> _featuredAvatars() {
@@ -1043,11 +1075,14 @@ class HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildMiniGameCard(GameData game) {
-    final badgeText = game.name.toLowerCase().contains('beta') ? 'BETA' : 'LIVE';
+  Widget _buildMiniGameCard(HubGame game) {
+    final isCommunity = game.source == HubGameSource.community;
+    final badgeText = isCommunity
+        ? 'COMMUNITY'
+        : (game.name.toLowerCase().contains('beta') ? 'BETA' : 'LIVE');
 
     return GestureDetector(
-      onTap: () => _handleMiniGameTap(game.id),
+      onTap: () => _handleMiniGameTap(game),
       child: Container(
         width: 148,
         decoration: BoxDecoration(
@@ -1310,18 +1345,28 @@ class HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildPostWidget(dynamic post, int index) {
-    // Calculate the actual post index (accounting for inserted ads)
-    int actualPostIndex = index - (index ~/ 11);
+    // The home feed repeats in 12-item cycles:
+    //   positions 0-9  -> posts
+    //   position  10   -> an interactive community game card
+    //   position  11   -> an ad
+    // (The trailing partial cycle only contains the remaining posts.)
+    final int group = index ~/ 12;
+    final int pos = index % 12;
 
-    // Return empty widget if we've run out of posts
-    if (actualPostIndex >= posts.length) {
-      return const SizedBox.shrink();
+    // Interactive game slot (placed right before the ad).
+    if (pos == 10) {
+      if (_communityGames.isEmpty) {
+        return const SizedBox.shrink();
+      }
+      final game = _communityGames[group % _communityGames.length];
+      return InlineCommunityGameCard(
+        key: ValueKey('inline_game_slot_$index'),
+        game: game,
+      );
     }
 
-    // Get the actual post data using the calculated index
-    dynamic actualPost = posts[actualPostIndex];
-
-    if ((index + 1) % 11 == 0) {
+    // Ad slot.
+    if (pos == 11) {
       InZonePost adPost = InZonePost(
         category: '',
         userName: '',
@@ -1343,9 +1388,20 @@ class HomeScreenState extends State<HomeScreen> {
       );
     }
 
+    // Otherwise this is a post slot.
+    final int actualPostIndex = group * 10 + pos;
+
+    // Return empty widget if we've run out of posts
+    if (actualPostIndex >= posts.length) {
+      return const SizedBox.shrink();
+    }
+
+    // Get the actual post data using the calculated index
+    dynamic actualPost = posts[actualPostIndex];
+
     String postType = actualPost['post_type'] ?? 'unknown';
 
-    // Insert avatar carousel after certain number of posts (adjust for ads)
+    // Insert avatar carousel after certain number of posts
     if (actualPostIndex > 0 &&
         actualPostIndex % 20 == 0 &&
         avatarCards.isNotEmpty) {
@@ -1874,9 +1930,11 @@ class HomeScreenState extends State<HomeScreen> {
                       SliverList(
                         delegate: SliverChildBuilderDelegate(
                           (context, index) {
-                            // Calculate total items including ads
-                            int totalItemsWithAds =
-                                posts.length + (posts.length ~/ 10);
+                            // Each complete group of 10 posts inserts 2 extra
+                            // items: an interactive game card + an ad.
+                            final int completeGroups = posts.length ~/ 10;
+                            final int totalItemsWithAds =
+                                posts.length + (2 * completeGroups);
 
                             if (index == totalItemsWithAds && isLoadingMore) {
                               // Show loading indicator at the bottom
@@ -1910,9 +1968,9 @@ class HomeScreenState extends State<HomeScreen> {
                           childCount: posts.isEmpty
                               ? 1 // Just show bottom padding if no posts
                               : posts.length +
-                                  (posts.length ~/ 10) +
+                                  (2 * (posts.length ~/ 10)) +
                                   (isLoadingMore ? 1 : 0) +
-                                  1, // +ads +loading +bottom padding
+                                  1, // +games +ads +loading +bottom padding
                           // Enable automatic keep alives to maintain built widgets
                           addAutomaticKeepAlives: true,
                           // Enable repaint boundaries for better performance

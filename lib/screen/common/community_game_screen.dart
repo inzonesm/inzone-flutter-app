@@ -1,0 +1,1477 @@
+import 'dart:async';
+import 'dart:convert';
+import 'dart:math';
+
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:colorful_safe_area/colorful_safe_area.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_inappwebview/flutter_inappwebview.dart';
+import 'package:http/http.dart' as http;
+import 'package:inzone/data/community_game.dart';
+import 'package:inzone/data/hub_game.dart';
+import 'package:inzone/services/active_character_notifier.dart';
+import 'package:inzone/services/community_game_service.dart';
+import 'package:inzone/services/game_session_analytics.dart';
+import 'package:provider/provider.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:simula_ads/simula_ads.dart';
+
+/// Full-screen, TikTok-style community game player.
+///
+/// Renders the supplied [game] and lets the user slide vertically (up/down) to
+/// move between the other games in the `html_games` Firestore collection, in
+/// the same way the Astrocade game feed works. The playlist can be supplied up
+/// front via [playlist]; otherwise the screen lazily fetches the full catalog.
+class CommunityGameScreen extends StatefulWidget {
+  final CommunityGame game;
+
+  /// Optional pre-loaded list of community games to slide between. When null
+  /// (or when it does not contain [game]) the screen fetches the catalog and
+  /// merges the active game in.
+  final List<CommunityGame>? playlist;
+
+  const CommunityGameScreen({
+    super.key,
+    required this.game,
+    this.playlist,
+  });
+
+  @override
+  State<CommunityGameScreen> createState() => _CommunityGameScreenState();
+}
+
+class _CommunityGameScreenState extends State<CommunityGameScreen> {
+  late final PageController _pageController;
+  late List<HubGame> _games;
+  int _currentIndex = 0;
+  bool _loadingPlaylist = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _games = _buildInitialPlaylist();
+    _currentIndex = _games
+        .indexWhere((g) =>
+            g.source == HubGameSource.community && g.id == widget.game.id)
+        .clamp(0, _games.length - 1);
+    _pageController = PageController(initialPage: _currentIndex);
+    // Expand to the full roster (community + Simula) after the first frame so
+    // setState/Provider access happen with a mounted, built context.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _loadFullPlaylist();
+    });
+  }
+
+  /// The initial, instantly-rendered playlist is built from whatever community
+  /// games we were handed (or just the active game). Simula games are merged in
+  /// asynchronously by [_loadFullPlaylist].
+  List<HubGame> _buildInitialPlaylist() {
+    final provided = widget.playlist;
+    final List<CommunityGame> base;
+    if (provided != null && provided.isNotEmpty) {
+      base = provided.any((g) => g.id == widget.game.id)
+          ? List<CommunityGame>.from(provided)
+          : [widget.game, ...provided];
+    } else {
+      base = [widget.game];
+    }
+    return base.map(HubGame.community).toList();
+  }
+
+  /// Fetch the full roster — every approved community game plus the Simula
+  /// minigame catalog — so the user can slide through all of them. Community
+  /// games come first (matching the Home/Hub grids), then Simula games.
+  Future<void> _loadFullPlaylist() async {
+    setState(() => _loadingPlaylist = true);
+
+    final notifier = Provider.of<SimulaNotifier>(context, listen: false);
+
+    Future<List<CommunityGame>> communityFuture() async {
+      try {
+        final all = await CommunityGameService.fetchAll();
+        return all
+            .where((g) => g.gameUrl.isNotEmpty && g.name.isNotEmpty)
+            .toList();
+      } catch (_) {
+        return const [];
+      }
+    }
+
+    Future<List<GameData>> simulaFuture() async {
+      try {
+        final response = await notifier.apiClient.fetchCatalog();
+        return response.games;
+      } catch (_) {
+        return const [];
+      }
+    }
+
+    try {
+      final results = await Future.wait([communityFuture(), simulaFuture()]);
+      if (!mounted) return;
+
+      final community = results[0] as List<CommunityGame>;
+      final simula = results[1] as List<GameData>;
+
+      // Guarantee the active community game is present and keep it current.
+      final orderedCommunity = community.any((g) => g.id == widget.game.id)
+          ? community
+          : <CommunityGame>[widget.game, ...community];
+
+      final merged = <HubGame>[
+        ...orderedCommunity.map(HubGame.community),
+        ...simula.map(HubGame.simula),
+      ];
+
+      if (merged.isEmpty) {
+        setState(() => _loadingPlaylist = false);
+        return;
+      }
+
+      final newIndex = merged
+          .indexWhere((g) =>
+              g.source == HubGameSource.community && g.id == widget.game.id)
+          .clamp(0, merged.length - 1);
+
+      setState(() {
+        _games = merged;
+        _currentIndex = newIndex;
+        _loadingPlaylist = false;
+      });
+      // Jump the controller to the active game without animating.
+      if (_pageController.hasClients) {
+        _pageController.jumpToPage(newIndex);
+      }
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _loadingPlaylist = false);
+    }
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _exitToApp() async {
+    if (!mounted) return;
+    await Navigator.of(context).maybePop();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final activeTitle = _games.isEmpty
+        ? widget.game.name
+        : _games[_currentIndex.clamp(0, _games.length - 1)].name;
+
+    return ColorfulSafeArea(
+      color: Colors.black,
+      child: Scaffold(
+        backgroundColor: Colors.black,
+        body: Stack(
+          children: [
+            // Vertical, TikTok-style game feed.
+            PageView.builder(
+              controller: _pageController,
+              scrollDirection: Axis.vertical,
+              itemCount: _games.length,
+              onPageChanged: (index) {
+                if (!mounted) return;
+                setState(() => _currentIndex = index);
+              },
+              itemBuilder: (context, index) {
+                final hub = _games[index];
+                final isActive = index == _currentIndex;
+                if (hub.source == HubGameSource.community) {
+                  return _CommunityGamePage(
+                    key: ValueKey('community-${hub.id}'),
+                    game: hub.communityGame!,
+                    isActive: isActive,
+                    onClose: _exitToApp,
+                  );
+                }
+                return _SimulaGamePage(
+                  key: ValueKey('simula-${hub.id}'),
+                  game: hub.simulaGame!,
+                  isActive: isActive,
+                  onClose: _exitToApp,
+                );
+              },
+            ),
+
+            // Title + back button overlay (no solid bar — a soft scrim only).
+            _GameTopOverlay(
+              title: activeTitle,
+              onBack: () => unawaited(_exitToApp()),
+            ),
+
+            // Subtle hint that more games live above/below (only when >1 game).
+            if (_games.length > 1)
+              const Positioned(
+                right: 10,
+                top: 0,
+                bottom: 0,
+                child: _SlideHint(),
+              ),
+
+            if (_loadingPlaylist)
+              Positioned(
+                bottom: 24,
+                left: 0,
+                right: 0,
+                child: Center(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.5),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        SizedBox(
+                          width: 12,
+                          height: 12,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: theme.primaryColor,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        const Text(
+                          'Loading more games…',
+                          style: TextStyle(color: Colors.white, fontSize: 12),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Lightweight up/down chevrons hinting that the feed scrolls vertically.
+class _SlideHint extends StatelessWidget {
+  const _SlideHint();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(Icons.keyboard_arrow_up, color: Colors.white24, size: 22),
+        SizedBox(height: 240),
+        Icon(Icons.keyboard_arrow_down, color: Colors.white24, size: 22),
+      ],
+    );
+  }
+}
+
+/// The title/back overlay shown on top of every game. Uses a translucent
+/// gradient scrim instead of a solid app bar so it does not draw a black bar
+/// around the title text.
+class _GameTopOverlay extends StatelessWidget {
+  final String title;
+  final VoidCallback onBack;
+
+  const _GameTopOverlay({required this.title, required this.onBack});
+
+  @override
+  Widget build(BuildContext context) {
+    return Positioned(
+      top: 0,
+      left: 0,
+      right: 0,
+      child: IgnorePointer(
+        ignoring: false,
+        child: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Color(0x66000000),
+                Color(0x00000000),
+              ],
+            ),
+          ),
+          child: SafeArea(
+            bottom: false,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+              child: Row(
+                children: [
+                  IconButton(
+                    icon: const Icon(
+                      Icons.arrow_back_ios_new,
+                      color: Colors.white,
+                    ),
+                    onPressed: onBack,
+                  ),
+                  Expanded(
+                    child: Text(
+                      title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                        shadows: [
+                          Shadow(
+                            color: Color(0x99000000),
+                            blurRadius: 6,
+                            offset: Offset(0, 1),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// A single playable community game inside the vertical feed. Owns its own
+/// webview, InZone SDK bridge, and analytics session.
+class _CommunityGamePage extends StatefulWidget {
+  final CommunityGame game;
+  final bool isActive;
+  final Future<void> Function() onClose;
+
+  const _CommunityGamePage({
+    super.key,
+    required this.game,
+    required this.isActive,
+    required this.onClose,
+  });
+
+  @override
+  State<_CommunityGamePage> createState() => _CommunityGamePageState();
+}
+
+class _CommunityGamePageState extends State<_CommunityGamePage> {
+  static const String _fixtureAssetPath =
+      'assets/html/social_loop_tap_targets.html';
+
+  InAppWebViewController? _controller;
+  bool _isLoading = true;
+  String _loadError = '';
+  late final bool _useLocalFixture;
+  late final Future<String> _fixtureHtmlFuture;
+  late final String _sessionId;
+  late final String _backendBaseUrl;
+  late final String? _playerId;
+  late final String? _gameKey;
+  late final DateTime _sessionOpenedAt;
+  Future<void>? _sessionEndFuture;
+  int _sessionCoinsSpent = 0;
+  String? _lastSharedChallengeKey;
+
+  @override
+  void initState() {
+    super.initState();
+    _useLocalFixture = _isLocalFixtureUrl(widget.game.gameUrl);
+    _fixtureHtmlFuture = _useLocalFixture
+        ? rootBundle.loadString(_fixtureAssetPath)
+        : Future.value('');
+    _sessionId = DateTime.now().microsecondsSinceEpoch.toString();
+    _sessionOpenedAt = DateTime.now();
+    _backendBaseUrl = _resolveBackendBaseUrl();
+    final currentUserId = FirebaseAuth.instance.currentUser?.uid.trim();
+    _playerId = (currentUserId != null && currentUserId.isNotEmpty)
+        ? currentUserId
+        : null;
+    final key = widget.game.gameKey?.trim();
+    _gameKey = key != null && key.isNotEmpty ? key : null;
+    unawaited(_recordSessionStart());
+  }
+
+  @override
+  void dispose() {
+    unawaited(_recordSessionEnd());
+    super.dispose();
+  }
+
+  bool _isLocalFixtureUrl(String gameUrl) {
+    final normalized = gameUrl.trim().toLowerCase();
+    return normalized.isEmpty ||
+        normalized == 'inzone-test://social-loop' ||
+        normalized == 'asset://social-loop-tap-targets';
+  }
+
+  String _resolveBackendBaseUrl() {
+    switch (defaultTargetPlatform) {
+      case TargetPlatform.android:
+        return 'http://10.0.2.2:8080';
+      case TargetPlatform.iOS:
+      case TargetPlatform.macOS:
+      case TargetPlatform.windows:
+      case TargetPlatform.linux:
+      case TargetPlatform.fuchsia:
+        return ' http://192.168.1.189:8080';
+    }
+  }
+
+  Future<Map<String, dynamic>> _handleSocialLoopAction(
+    String action,
+    Map<String, dynamic> payload,
+  ) async {
+    final overrideBaseUrl = _extractBackendBaseUrl(payload);
+    final client = _SocialLoopBackendClient(
+      baseUrl: overrideBaseUrl ?? _backendBaseUrl,
+      gameKey: _gameKey,
+    );
+
+    Map<String, dynamic> mergePayload(Map<String, dynamic> extra) {
+      return {
+        'gameId': widget.game.id,
+        'gameName': widget.game.name,
+        'gameKey': _gameKey,
+        'sessionId': _sessionId,
+        'userId': _playerId,
+        'playerId': _playerId,
+        ...payload,
+        ...extra,
+      };
+    }
+
+    switch (action) {
+      case 'getConfig':
+        return {
+          'success': true,
+          'data': {
+            'gameId': widget.game.id,
+            'gameName': widget.game.name,
+            'gameKey': _gameKey,
+            'sessionId': _sessionId,
+            'userId': _playerId,
+            'backendBaseUrl': _backendBaseUrl,
+            'fixtureMode': _useLocalFixture,
+          },
+        };
+      case 'openSocialScreen':
+        return client.openSocialScreen(mergePayload({}));
+      case 'gameState':
+        return client.gameState(mergePayload({}));
+      case 'dashboard':
+        return client.dashboard(mergePayload({}));
+      case 'postScore':
+        return client.postScore(mergePayload({}));
+      case 'sendChallenge':
+        final response = await client.sendChallenge(mergePayload({}));
+        unawaited(_shareFromSendChallengeResponse(response));
+        return response;
+      case 'shareCard':
+        return client.shareCard(mergePayload({}));
+      case 'openChat':
+        return client.openChat(mergePayload({}));
+      case 'notifyShare':
+        final response = payload['response'] is Map
+            ? Map<String, dynamic>.from(payload['response'] as Map)
+            : <String, dynamic>{};
+        if (response.isNotEmpty) {
+          unawaited(_shareFromSendChallengeResponse(response));
+        }
+        return {'success': true};
+      case 'purchaseCoinTier':
+        final coins = (payload['coins'] as num?)?.toInt();
+        if (coins == null) {
+          throw ArgumentError('coins is required for purchaseCoinTier');
+        }
+        final response = await client.purchaseCoinTier(
+            coins, mergePayload({'coins': coins}));
+        _sessionCoinsSpent += coins;
+        unawaited(_recordSessionCoinSpend(coins));
+        return response;
+      case 'close':
+        await widget.onClose();
+        return {'success': true};
+      default:
+        throw ArgumentError('Unknown social loop action: $action');
+    }
+  }
+
+  String? _extractBackendBaseUrl(Map<String, dynamic> payload) {
+    final raw = payload['backendBaseUrl']?.toString().trim();
+    if (raw == null || raw.isEmpty) return null;
+    return raw;
+  }
+
+  Future<void> _recordSessionStart() async {
+    final userId = _playerId;
+    if (userId == null) return;
+
+    try {
+      await GameSessionAnalytics.recordSessionStart(
+        gameId: widget.game.id,
+        sessionId: _sessionId,
+        userId: userId,
+        openedAt: _sessionOpenedAt,
+        gameName: widget.game.name,
+      );
+    } catch (_) {
+      // Session analytics must not block game playback.
+    }
+  }
+
+  Future<void> _recordSessionCoinSpend(int coins) async {
+    if (coins <= 0) return;
+    final userId = _playerId;
+    if (userId == null) return;
+
+    try {
+      await GameSessionAnalytics.recordSessionCoinSpend(
+        gameId: widget.game.id,
+        sessionId: _sessionId,
+        coins: coins,
+      );
+    } catch (_) {
+      // The final session write will persist the total if this update fails.
+    }
+  }
+
+  Future<void> _recordSessionEnd() {
+    final ongoing = _sessionEndFuture;
+    if (ongoing != null) return ongoing;
+
+    final userId = _playerId;
+    if (userId == null) {
+      return Future.value();
+    }
+
+    final closedAt = DateTime.now();
+    final future = GameSessionAnalytics.recordSessionEnd(
+      gameId: widget.game.id,
+      sessionId: _sessionId,
+      userId: userId,
+      openedAt: _sessionOpenedAt,
+      closedAt: closedAt,
+      coinsSpent: _sessionCoinsSpent,
+      gameName: widget.game.name,
+    );
+    _sessionEndFuture = future.catchError((_) {
+      // The session should fail quietly if Firestore is unavailable.
+    });
+    return _sessionEndFuture!;
+  }
+
+  Future<void> _shareFromSendChallengeResponse(
+      Map<String, dynamic> response) async {
+    final shareText =
+        CommunityGameService.buildShareTextFromSendChallenge(response);
+    if (shareText == null || shareText.isEmpty) return;
+
+    final shareKey =
+        CommunityGameService.extractShareKeyFromSendChallenge(response);
+    if (shareKey != null && shareKey.isNotEmpty) {
+      if (shareKey == _lastSharedChallengeKey) return;
+      _lastSharedChallengeKey = shareKey;
+    }
+
+    final subject =
+        CommunityGameService.buildShareSubjectFromSendChallenge(response);
+    final params = (subject == null || subject.isEmpty)
+        ? ShareParams(text: shareText)
+        : ShareParams(text: shareText, subject: subject);
+
+    await SharePlus.instance.share(params);
+  }
+
+  String _bridgeInjectionScript() {
+    final config = jsonEncode({
+      'gameId': widget.game.id,
+      'gameName': widget.game.name,
+      'gameKey': _gameKey,
+      'sessionId': _sessionId,
+      'userId': _playerId,
+      'backendBaseUrl': _backendBaseUrl,
+      'fixtureMode': _useLocalFixture,
+      'gameUrl': widget.game.gameUrl,
+    });
+
+    return '''
+      (function () {
+        const config = $config;
+        window.__INZONE_SOCIAL_LOOP_CONFIG__ = config;
+
+        if (window.InZoneSDK && window.InZoneSDK.__inzoneInjected) {
+          window.InZoneSDK.config = config;
+          window.dispatchEvent(new CustomEvent('inzone:sdk-ready', { detail: config }));
+          return;
+        }
+
+        const callBridge = (action, payload) => {
+          if (!window.flutter_inappwebview || !window.flutter_inappwebview.callHandler) {
+            return Promise.reject(new Error('InZone bridge is unavailable'));
+          }
+          return window.flutter_inappwebview.callHandler('socialLoop', {
+            action: action,
+            payload: payload || {},
+          });
+        };
+
+        window.InZoneSDK = {
+          __inzoneInjected: true,
+          config: config,
+          getConfig: function () {
+            return Promise.resolve(config);
+          },
+          openSocialScreen: function (payload) {
+            return callBridge('openSocialScreen', payload);
+          },
+          gameState: function (payload) {
+            return callBridge('gameState', payload);
+          },
+          dashboard: function (payload) {
+            return callBridge('dashboard', payload);
+          },
+          postScore: function (payload) {
+            return callBridge('postScore', payload);
+          },
+          sendChallenge: function (payload) {
+            return callBridge('sendChallenge', payload);
+          },
+          shareCard: function (payload) {
+            return callBridge('shareCard', payload);
+          },
+          openChat: function (payload) {
+            return callBridge('openChat', payload);
+          },
+          purchaseCoinTier: function (coins, payload) {
+            return callBridge('purchaseCoinTier', Object.assign({ coins: coins }, payload || {}));
+          },
+          close: function () {
+            return callBridge('close', {});
+          },
+        };
+
+        if (!window.__INZONE_SOCIAL_LOOP_INTERCEPTOR__) {
+          window.__INZONE_SOCIAL_LOOP_INTERCEPTOR__ = true;
+
+          const shouldIntercept = (url) => {
+            if (!url) return false;
+            return url.indexOf('/api/game-sdk/send-challenge') !== -1;
+          };
+
+          const notifyShare = (data) => {
+            try {
+              callBridge('notifyShare', { response: data || {} });
+            } catch (e) {
+            }
+          };
+
+          if (window.fetch) {
+            const originalFetch = window.fetch;
+            window.fetch = function (input, init) {
+              const url = typeof input === 'string' ? input : (input && input.url);
+              const isMatch = shouldIntercept(url || '');
+              return originalFetch.apply(this, arguments).then((resp) => {
+                if (!isMatch) return resp;
+                try {
+                  const cloned = resp.clone();
+                  cloned.text().then((text) => {
+                    try {
+                      const data = JSON.parse(text);
+                      notifyShare(data);
+                    } catch (e) {
+                    }
+                  });
+                } catch (e) {
+                }
+                return resp;
+              });
+            };
+          }
+
+          if (window.XMLHttpRequest) {
+            const originalOpen = window.XMLHttpRequest.prototype.open;
+            const originalSend = window.XMLHttpRequest.prototype.send;
+
+            window.XMLHttpRequest.prototype.open = function (method, url) {
+              this.__inzone_url = url;
+              return originalOpen.apply(this, arguments);
+            };
+
+            window.XMLHttpRequest.prototype.send = function (body) {
+              const url = this.__inzone_url || '';
+              if (shouldIntercept(url)) {
+                this.addEventListener('load', () => {
+                  try {
+                    const data = JSON.parse(this.responseText || '{}');
+                    notifyShare(data);
+                  } catch (e) {
+                  }
+                });
+              }
+              return originalSend.apply(this, arguments);
+            };
+          }
+        }
+
+        window.dispatchEvent(new CustomEvent('inzone:sdk-ready', { detail: config }));
+      })();
+    ''';
+  }
+
+  Widget _buildWebView(ThemeData theme, {String? initialHtml}) {
+    return Stack(
+      children: [
+        InAppWebView(
+          initialData: initialHtml == null
+              ? null
+              : InAppWebViewInitialData(
+                  data: initialHtml,
+                  baseUrl: WebUri('https://inzone.local'),
+                  mimeType: 'text/html',
+                  encoding: 'utf-8',
+                ),
+          initialUrlRequest: initialHtml == null
+              ? URLRequest(url: WebUri(widget.game.gameUrl))
+              : null,
+          initialSettings: InAppWebViewSettings(
+            mediaPlaybackRequiresUserGesture: false,
+            allowsInlineMediaPlayback: true,
+            iframeAllow: 'camera; microphone; geolocation; encrypted-media',
+            iframeAllowFullscreen: true,
+            javaScriptEnabled: true,
+            domStorageEnabled: true,
+            databaseEnabled: true,
+            hardwareAcceleration: true,
+            supportZoom: true,
+            builtInZoomControls: false,
+            displayZoomControls: false,
+            useWideViewPort: true,
+            loadWithOverviewMode: true,
+          ),
+          onWebViewCreated: (controller) {
+            _controller = controller;
+            controller.addJavaScriptHandler(
+              handlerName: 'socialLoop',
+              callback: (args) async {
+                final raw = args.isNotEmpty && args.first is Map
+                    ? Map<String, dynamic>.from(args.first as Map)
+                    : <String, dynamic>{};
+                final action = raw['action']?.toString() ?? '';
+                final payload = raw['payload'] is Map
+                    ? Map<String, dynamic>.from(raw['payload'] as Map)
+                    : <String, dynamic>{};
+                return _handleSocialLoopAction(action, payload);
+              },
+            );
+          },
+          onLoadStart: (_, __) {
+            if (!mounted) return;
+            setState(() {
+              _isLoading = true;
+              _loadError = '';
+            });
+          },
+          onLoadStop: (controller, __) async {
+            if (!mounted) return;
+            await controller.evaluateJavascript(
+                source: _bridgeInjectionScript());
+            if (!mounted) return;
+            setState(() {
+              _isLoading = false;
+            });
+          },
+          onReceivedError: (_, __, error) {
+            if (!mounted) return;
+            setState(() {
+              _isLoading = false;
+              _loadError = 'Failed to load game: ${error.description}';
+            });
+          },
+        ),
+        if (_isLoading)
+          Container(
+            color: theme.canvasColor,
+            child: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  CircularProgressIndicator(color: theme.primaryColor),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Loading ${widget.game.name}…',
+                    style: theme.textTheme.titleMedium,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        if (_loadError.isNotEmpty && !_isLoading)
+          Container(
+            color: theme.canvasColor,
+            child: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.error_outline, size: 64, color: Colors.red),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Error Loading Game',
+                    style: theme.textTheme.titleLarge,
+                  ),
+                  const SizedBox(height: 8),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 32),
+                    child: Text(
+                      _loadError,
+                      textAlign: TextAlign.center,
+                      style: theme.textTheme.bodyMedium,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  ElevatedButton(
+                    onPressed: () {
+                      setState(() {
+                        _loadError = '';
+                        _isLoading = true;
+                      });
+                      _controller?.reload();
+                    },
+                    child: const Text('Retry'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return ColoredBox(
+      color: Colors.black,
+      child: _useLocalFixture
+          ? FutureBuilder<String>(
+              future: _fixtureHtmlFuture,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState != ConnectionState.done) {
+                  return Center(
+                    child:
+                        CircularProgressIndicator(color: theme.primaryColor),
+                  );
+                }
+                if (snapshot.hasError || !snapshot.hasData) {
+                  return Center(
+                    child: Text(
+                      'Failed to load social loop test page.',
+                      style: theme.textTheme.bodyMedium,
+                    ),
+                  );
+                }
+                return _buildWebView(theme, initialHtml: snapshot.data!);
+              },
+            )
+          : _buildWebView(theme),
+    );
+  }
+}
+
+/// A fully interactive community game embedded directly inside a home-feed
+/// post slot. Unlike the vertical Game Hub feed, this renders a single live
+/// [_CommunityGamePage] inside a fixed-height card with a small header, so the
+/// user can play without leaving the home screen.
+class InlineCommunityGameCard extends StatelessWidget {
+  final CommunityGame game;
+
+  const InlineCommunityGameCard({super.key, required this.game});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final screenHeight = MediaQuery.of(context).size.height;
+    // Tall enough to be genuinely playable; capped so it never dominates the
+    // whole viewport on short screens.
+    final gameHeight = (screenHeight * 0.6).clamp(360.0, 620.0);
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.black,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.18),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Header
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              color: theme.primaryColor.withOpacity(0.12),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.sports_esports,
+                    size: 20,
+                    color: theme.primaryColor,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          game.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        Text(
+                          'Mini game · tap to play',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.hintColor,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            // Live, interactive game body.
+            SizedBox(
+              height: gameHeight,
+              width: double.infinity,
+              child: _CommunityGamePage(
+                key: ValueKey('inline_game_${game.id}'),
+                game: game,
+                isActive: true,
+                onClose: () async {},
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Resolved character context used to launch a feed Simula game.
+class _FeedCharacterContext {
+  final String charId;
+  final String charName;
+  final String? charImage;
+  final String? charDesc;
+
+  const _FeedCharacterContext({
+    required this.charId,
+    required this.charName,
+    this.charImage,
+    this.charDesc,
+  });
+}
+
+/// Session-scoped cache so every feed Simula game in one session uses the same
+/// randomly chosen fallback character (rather than re-rolling per game).
+_FeedCharacterContext? _cachedRandomFeedCharacter;
+
+String? _firstNonEmptyField(List<dynamic> values) {
+  for (final value in values) {
+    if (value == null) continue;
+    final text = value.toString().trim();
+    if (text.isNotEmpty) return text;
+  }
+  return null;
+}
+
+/// Decide which character a feed Simula game should launch with.
+///
+/// Primary choice is the character the user most recently interacted with
+/// ([ActiveCharacterNotifier]). When none has been chosen yet, the default
+/// "InZone" placeholder has no avatar — which renders as a grayed-out box in
+/// the game — so we instead pick a random real character (one that actually has
+/// a profile image) from the `popularCharacters` collection. If that lookup
+/// fails we fall back to whatever the notifier provides.
+Future<_FeedCharacterContext> _resolveFeedCharacter(
+  ActiveCharacterNotifier active,
+) async {
+  if (active.hasActiveCharacter) {
+    return _FeedCharacterContext(
+      charId: active.charID,
+      charName: active.charName,
+      charImage: active.charImage,
+      charDesc: active.charDesc,
+    );
+  }
+
+  final cached = _cachedRandomFeedCharacter;
+  if (cached != null) return cached;
+
+  try {
+    final snapshot = await FirebaseFirestore.instance
+        .collection('popularCharacters')
+        .orderBy('numberOfChats', descending: true)
+        .limit(100)
+        .get();
+
+    final withImages = snapshot.docs.where((doc) {
+      final data = doc.data();
+      final image = _firstNonEmptyField([
+        data['profile_picture_url'],
+        data['profilePicture'],
+        data['profile_picture'],
+        data['avatar'],
+      ]);
+      return image != null && image.isNotEmpty;
+    }).toList();
+
+    if (withImages.isNotEmpty) {
+      final doc = withImages[Random().nextInt(withImages.length)];
+      final data = doc.data();
+      final chosen = _FeedCharacterContext(
+        charId: doc.id,
+        charName: _firstNonEmptyField([
+              data['name'],
+              data['displayName'],
+              data['username'],
+            ]) ??
+            'AI Character',
+        charImage: _firstNonEmptyField([
+          data['profile_picture_url'],
+          data['profilePicture'],
+          data['profile_picture'],
+          data['avatar'],
+        ]),
+        charDesc: _firstNonEmptyField([
+          data['personality'],
+          data['greeting'],
+          data['description'],
+        ]),
+      );
+      _cachedRandomFeedCharacter = chosen;
+      return chosen;
+    }
+  } catch (_) {
+    // Fall through to the notifier default below.
+  }
+
+  return _FeedCharacterContext(
+    charId: active.charID,
+    charName: active.charName,
+    charImage: active.charImage,
+    charDesc: active.charDesc,
+  );
+}
+
+/// A single playable Simula minigame inside the vertical feed.
+///
+/// Unlike the Simula `MiniGameMenu`/`GameIframe` path (which presents a popup
+/// menu and a dialog with its own global overlay), this page resolves the
+/// game's `iframeUrl` directly via `apiClient.getMinigame(...)` and loads it as
+/// a plain full-screen webview — exactly like a community game's `gameUrl`. No
+/// menu, dialog, or extra overlay is ever shown, so it slots cleanly into the
+/// feed without the menu "popping up". Character context comes from the user's
+/// last-used character ([ActiveCharacterNotifier]); when none is active it
+/// falls back to the default "InZone" character the notifier provides.
+class _SimulaGamePage extends StatefulWidget {
+  final GameData game;
+  final bool isActive;
+  final Future<void> Function() onClose;
+
+  const _SimulaGamePage({
+    super.key,
+    required this.game,
+    required this.isActive,
+    required this.onClose,
+  });
+
+  @override
+  State<_SimulaGamePage> createState() => _SimulaGamePageState();
+}
+
+class _SimulaGamePageState extends State<_SimulaGamePage> {
+  InAppWebViewController? _controller;
+  String? _iframeUrl;
+  bool _resolving = true;
+  bool _webLoading = true;
+  String _error = '';
+  bool _resolved = false;
+
+  late final String _sessionId;
+  late final DateTime _sessionOpenedAt;
+  late final String? _playerId;
+  Future<void>? _sessionEndFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _sessionId = DateTime.now().microsecondsSinceEpoch.toString();
+    _sessionOpenedAt = DateTime.now();
+    final currentUserId = FirebaseAuth.instance.currentUser?.uid.trim();
+    _playerId = (currentUserId != null && currentUserId.isNotEmpty)
+        ? currentUserId
+        : null;
+    unawaited(_recordSessionStart());
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Resolve the iframe once, after the providers/MediaQuery are available.
+    if (!_resolved) {
+      _resolved = true;
+      unawaited(_resolveIframe());
+    }
+  }
+
+  @override
+  void dispose() {
+    unawaited(_recordSessionEnd());
+    super.dispose();
+  }
+
+  Future<void> _resolveIframe() async {
+    if (!mounted) return;
+    setState(() {
+      _resolving = true;
+      _error = '';
+    });
+
+    final notifier = Provider.of<SimulaNotifier>(context, listen: false);
+    final session = notifier.sessionId;
+    if (session == null || session.isEmpty) {
+      if (!mounted) return;
+      setState(() {
+        _resolving = false;
+        _error = 'Session not available. Pull to retry.';
+      });
+      return;
+    }
+
+    final active = Provider.of<ActiveCharacterNotifier>(
+      context,
+      listen: false,
+    );
+    final size = MediaQuery.of(context).size;
+
+    // Resolve the character context: the user's last-used character if one
+    // exists, otherwise a random AI character so the avatar box is never the
+    // grayed-out default placeholder.
+    final character = await _resolveFeedCharacter(active);
+    if (!mounted) return;
+
+    try {
+      final response = await notifier.apiClient.getMinigame(
+        gameType: widget.game.id,
+        sessionId: session,
+        w: size.width.toInt() + 5,
+        h: size.height.toInt() + 5,
+        charId: character.charId,
+        charName: character.charName,
+        charImage: character.charImage ?? '',
+        charDesc: character.charDesc,
+        messages: [
+          Message(
+            role: 'assistant',
+            content:
+                'Current game is ${widget.game.id}. Keep responses concise and useful for this specific game context.',
+          ),
+        ],
+        delegateChar: true,
+      );
+      if (!mounted) return;
+      final url = response.iframeUrl;
+      if (url.isEmpty) {
+        setState(() {
+          _resolving = false;
+          _error = 'This game is unavailable right now.';
+        });
+        return;
+      }
+      setState(() {
+        _iframeUrl = url;
+        _resolving = false;
+        _webLoading = true;
+      });
+      // If the webview is already alive (a retry), load the new URL directly.
+      if (_controller != null) {
+        unawaited(_controller!.loadUrl(
+          urlRequest: URLRequest(url: WebUri(url)),
+        ));
+      }
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _resolving = false;
+        _error = 'Failed to load game. Please try again.';
+      });
+    }
+  }
+
+  Future<void> _recordSessionStart() async {
+    final userId = _playerId;
+    if (userId == null) return;
+    try {
+      await GameSessionAnalytics.recordSessionStart(
+        gameId: widget.game.id,
+        sessionId: _sessionId,
+        userId: userId,
+        openedAt: _sessionOpenedAt,
+        gameName: widget.game.name,
+      );
+    } catch (_) {
+      // Analytics must never block playback.
+    }
+  }
+
+  Future<void> _recordSessionEnd() {
+    final ongoing = _sessionEndFuture;
+    if (ongoing != null) return ongoing;
+
+    final userId = _playerId;
+    if (userId == null) return Future.value();
+
+    final future = GameSessionAnalytics.recordSessionEnd(
+      gameId: widget.game.id,
+      sessionId: _sessionId,
+      userId: userId,
+      openedAt: _sessionOpenedAt,
+      closedAt: DateTime.now(),
+      coinsSpent: 0,
+      gameName: widget.game.name,
+    );
+    _sessionEndFuture = future.catchError((_) {
+      // Fail quietly if Firestore is unavailable.
+    });
+    return _sessionEndFuture!;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final showLoading = _resolving || (_iframeUrl != null && _webLoading);
+
+    return ColoredBox(
+      color: Colors.black,
+      child: Stack(
+        children: [
+          if (_iframeUrl != null)
+            InAppWebView(
+              initialUrlRequest: URLRequest(url: WebUri(_iframeUrl!)),
+              initialSettings: InAppWebViewSettings(
+                mediaPlaybackRequiresUserGesture: false,
+                allowsInlineMediaPlayback: true,
+                iframeAllow: 'camera; microphone; geolocation; encrypted-media',
+                iframeAllowFullscreen: true,
+                javaScriptEnabled: true,
+                domStorageEnabled: true,
+                databaseEnabled: true,
+                hardwareAcceleration: true,
+                supportZoom: true,
+                builtInZoomControls: false,
+                displayZoomControls: false,
+                useWideViewPort: true,
+                loadWithOverviewMode: true,
+              ),
+              onWebViewCreated: (controller) => _controller = controller,
+              onLoadStart: (_, __) {
+                if (!mounted) return;
+                setState(() => _webLoading = true);
+              },
+              onLoadStop: (_, __) {
+                if (!mounted) return;
+                setState(() => _webLoading = false);
+              },
+              onReceivedError: (_, __, error) {
+                if (!mounted) return;
+                setState(() {
+                  _webLoading = false;
+                  _error = 'Failed to load game: ${error.description}';
+                });
+              },
+            ),
+          if (showLoading && _error.isEmpty)
+            Container(
+              color: theme.canvasColor,
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    CircularProgressIndicator(color: theme.primaryColor),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Loading ${widget.game.name}…',
+                      style: theme.textTheme.titleMedium,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          if (_error.isNotEmpty)
+            Container(
+              color: theme.canvasColor,
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.error_outline, size: 64, color: Colors.red),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Error Loading Game',
+                      style: theme.textTheme.titleLarge,
+                    ),
+                    const SizedBox(height: 8),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 32),
+                      child: Text(
+                        _error,
+                        textAlign: TextAlign.center,
+                        style: theme.textTheme.bodyMedium,
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    ElevatedButton(
+                      onPressed: () => unawaited(_resolveIframe()),
+                      child: const Text('Retry'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SocialLoopBackendClient {
+  _SocialLoopBackendClient({required this.baseUrl, required this.gameKey});
+
+  final String baseUrl;
+  final String? gameKey;
+
+  Future<Map<String, dynamic>> openSocialScreen(Map<String, dynamic> payload) {
+    return _postJson('/api/game-sdk/open-social-screen', payload,
+        attachGameKey: false);
+  }
+
+  Future<Map<String, dynamic>> gameState(Map<String, dynamic> payload) {
+    return _getJson('/api/game-sdk/game-state', payload, attachGameKey: true);
+  }
+
+  Future<Map<String, dynamic>> dashboard(Map<String, dynamic> payload) {
+    return _getJson('/api/game-sdk/dashboard', payload, attachGameKey: true);
+  }
+
+  Future<Map<String, dynamic>> postScore(Map<String, dynamic> payload) {
+    return _postJson('/api/game-sdk/post-score', payload, attachGameKey: false);
+  }
+
+  Future<Map<String, dynamic>> sendChallenge(Map<String, dynamic> payload) {
+    return _postJson('/api/game-sdk/send-challenge', payload,
+        attachGameKey: false);
+  }
+
+  Future<Map<String, dynamic>> shareCard(Map<String, dynamic> payload) {
+    return _postJson('/api/game-sdk/share-card', payload, attachGameKey: false);
+  }
+
+  Future<Map<String, dynamic>> openChat(Map<String, dynamic> payload) {
+    return _postJson('/api/game-sdk/open-chat', payload, attachGameKey: false);
+  }
+
+  Future<Map<String, dynamic>> purchaseCoinTier(
+      int coins, Map<String, dynamic> payload) {
+    return _postJson('/api/game-sdk/coins/tier-$coins', payload,
+        attachGameKey: true);
+  }
+
+  Future<Map<String, dynamic>> _getJson(
+    String path,
+    Map<String, dynamic> payload, {
+    required bool attachGameKey,
+  }) async {
+    final uri = _buildUri(path, payload);
+    final response =
+        await http.get(uri, headers: _headers(attachGameKey: attachGameKey));
+    return _decodeResponse(response);
+  }
+
+  Future<Map<String, dynamic>> _postJson(
+    String path,
+    Map<String, dynamic> payload, {
+    required bool attachGameKey,
+  }) async {
+    final uri = Uri.parse('$baseUrl$path');
+    final body = Map<String, dynamic>.from(payload);
+    if (attachGameKey && gameKey != null && gameKey!.isNotEmpty) {
+      body['gameKey'] = gameKey;
+    }
+    final response = await http.post(
+      uri,
+      headers: _headers(attachGameKey: attachGameKey),
+      body: jsonEncode(body),
+    );
+    return _decodeResponse(response);
+  }
+
+  Uri _buildUri(String path, Map<String, dynamic> payload) {
+    final query = Map<String, String>.fromEntries(
+      payload.entries
+          .where((entry) => entry.value != null)
+          .map((entry) => MapEntry(entry.key, entry.value.toString())),
+    );
+    if (gameKey != null && gameKey!.isNotEmpty) {
+      query.putIfAbsent('gameKey', () => gameKey!);
+    }
+    return Uri.parse('$baseUrl$path').replace(queryParameters: query);
+  }
+
+  Map<String, String> _headers({required bool attachGameKey}) {
+    final headers = <String, String>{
+      'Content-Type': 'application/json',
+    };
+    if (attachGameKey && gameKey != null && gameKey!.isNotEmpty) {
+      headers['X-Game-Key'] = gameKey!;
+    }
+    return headers;
+  }
+
+  Map<String, dynamic> _decodeResponse(http.Response response) {
+    final body = response.body.trim();
+    final decoded = body.isEmpty ? <String, dynamic>{} : jsonDecode(body);
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      final errorMessage = decoded is Map<String, dynamic>
+          ? decoded['error']?.toString() ?? 'Request failed'
+          : 'Request failed';
+      throw Exception(errorMessage);
+    }
+    if (decoded is Map<String, dynamic>) {
+      return decoded;
+    }
+    return <String, dynamic>{'success': true, 'data': decoded};
+  }
+}
