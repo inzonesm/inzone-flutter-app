@@ -237,22 +237,21 @@ class HomeScreenState extends State<HomeScreen> {
   }
 
   void _onScroll() {
-    if (_scrollThrottleTimer?.isActive ?? false) return;
+    if (!_scrollController.hasClients) return;
 
+    final position = _scrollController.position;
+    if (position.pixels >= position.maxScrollExtent - 1500 &&
+        !isLoadingMore &&
+        hasMorePosts) {
+      _loadMorePosts();
+    }
+
+    // ANALYTICS: keep behavior tracking throttled so it doesn't run on every
+    // pixel of movement.
+    if (_scrollThrottleTimer?.isActive ?? false) return;
     _scrollThrottleTimer = Timer(const Duration(milliseconds: 500), () {
       if (!_scrollController.hasClients) return;
       _trackScrollBehavior();
-
-      // SIMPLIFIED: Only trigger when very close to the absolute bottom
-      // Removed the "remaining items" check which was causing premature loading
-      if (_scrollController.position.pixels >=
-              _scrollController.position.maxScrollExtent - 200 &&
-          !isLoadingMore &&
-          hasMorePosts) {
-        print(
-            '🎯 Scroll trigger: Near bottom (within 200px), loading more posts...');
-        _loadMorePosts();
-      }
     });
   }
 
@@ -433,8 +432,6 @@ class HomeScreenState extends State<HomeScreen> {
           .where((id) => id.isNotEmpty)
           .toList();
 
-      // CONSISTENT PAGINATION: Always use page 1 for fresh batch
-      // _currentPage tracks client-side pagination within the batch
       final response = await InZoneDatabase.getFeed(
         page: 1,
         batchNumber:
@@ -612,9 +609,6 @@ class HomeScreenState extends State<HomeScreen> {
           .where((id) => id.isNotEmpty)
           .toList();
 
-      // PAGINATION FIX: Keep same batch, just load next page
-      // page: _currentPage + 1 = next page in current batch
-      // batchNumber: reloadCount = stay in same batch
       final response = await InZoneDatabase.getFeed(
         page: _currentPage + 1,
         batchNumber: reloadCount, // Keep same batch for consistent pagination
@@ -952,7 +946,10 @@ class HomeScreenState extends State<HomeScreen> {
       if (community.gameUrl.isEmpty) return;
       await Navigator.of(context).push(
         MaterialPageRoute(
-          builder: (_) => CommunityGameScreen(game: community),
+          builder: (_) => CommunityGameScreen(
+            game: community,
+            playlist: _communityGames,
+          ),
           fullscreenDialog: true,
         ),
       );
@@ -1348,18 +1345,28 @@ class HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildPostWidget(dynamic post, int index) {
-    // Calculate the actual post index (accounting for inserted ads)
-    int actualPostIndex = index - (index ~/ 11);
+    // The home feed repeats in 12-item cycles:
+    //   positions 0-9  -> posts
+    //   position  10   -> an interactive community game card
+    //   position  11   -> an ad
+    // (The trailing partial cycle only contains the remaining posts.)
+    final int group = index ~/ 12;
+    final int pos = index % 12;
 
-    // Return empty widget if we've run out of posts
-    if (actualPostIndex >= posts.length) {
-      return const SizedBox.shrink();
+    // Interactive game slot (placed right before the ad).
+    if (pos == 10) {
+      if (_communityGames.isEmpty) {
+        return const SizedBox.shrink();
+      }
+      final game = _communityGames[group % _communityGames.length];
+      return InlineCommunityGameCard(
+        key: ValueKey('inline_game_slot_$index'),
+        game: game,
+      );
     }
 
-    // Get the actual post data using the calculated index
-    dynamic actualPost = posts[actualPostIndex];
-
-    if ((index + 1) % 11 == 0) {
+    // Ad slot.
+    if (pos == 11) {
       InZonePost adPost = InZonePost(
         category: '',
         userName: '',
@@ -1381,9 +1388,20 @@ class HomeScreenState extends State<HomeScreen> {
       );
     }
 
+    // Otherwise this is a post slot.
+    final int actualPostIndex = group * 10 + pos;
+
+    // Return empty widget if we've run out of posts
+    if (actualPostIndex >= posts.length) {
+      return const SizedBox.shrink();
+    }
+
+    // Get the actual post data using the calculated index
+    dynamic actualPost = posts[actualPostIndex];
+
     String postType = actualPost['post_type'] ?? 'unknown';
 
-    // Insert avatar carousel after certain number of posts (adjust for ads)
+    // Insert avatar carousel after certain number of posts
     if (actualPostIndex > 0 &&
         actualPostIndex % 20 == 0 &&
         avatarCards.isNotEmpty) {
@@ -1912,9 +1930,11 @@ class HomeScreenState extends State<HomeScreen> {
                       SliverList(
                         delegate: SliverChildBuilderDelegate(
                           (context, index) {
-                            // Calculate total items including ads
-                            int totalItemsWithAds =
-                                posts.length + (posts.length ~/ 10);
+                            // Each complete group of 10 posts inserts 2 extra
+                            // items: an interactive game card + an ad.
+                            final int completeGroups = posts.length ~/ 10;
+                            final int totalItemsWithAds =
+                                posts.length + (2 * completeGroups);
 
                             if (index == totalItemsWithAds && isLoadingMore) {
                               // Show loading indicator at the bottom
@@ -1948,9 +1968,9 @@ class HomeScreenState extends State<HomeScreen> {
                           childCount: posts.isEmpty
                               ? 1 // Just show bottom padding if no posts
                               : posts.length +
-                                  (posts.length ~/ 10) +
+                                  (2 * (posts.length ~/ 10)) +
                                   (isLoadingMore ? 1 : 0) +
-                                  1, // +ads +loading +bottom padding
+                                  1, // +games +ads +loading +bottom padding
                           // Enable automatic keep alives to maintain built widgets
                           addAutomaticKeepAlives: true,
                           // Enable repaint boundaries for better performance

@@ -196,17 +196,35 @@
   }
 
   async function ensureBridge() {
-    if (window.InZoneSDK && typeof window.InZoneSDK.getConfig === 'function') {
-      return window.InZoneSDK.getConfig();
+    if (window.__INZONE_SOCIAL_LOOP_CONFIG__) {
+      hydrateFromConfig(window.__INZONE_SOCIAL_LOOP_CONFIG__);
+      return window.__INZONE_SOCIAL_LOOP_CONFIG__;
     }
-    return new Promise((resolve) => {
+    if (window.InZoneSDK && typeof window.InZoneSDK.getConfig === 'function') {
+      try {
+        const config = await window.InZoneSDK.getConfig();
+        hydrateFromConfig(config);
+        return config;
+      } catch (error) {
+        console.warn('Failed to read SDK config', error);
+      }
+    }
+    return await new Promise((resolve) => {
       const listener = (event) => {
         hydrateFromConfig(event.detail);
         window.removeEventListener('inzone:sdk-ready', listener);
         resolve(event.detail);
       };
       window.addEventListener('inzone:sdk-ready', listener, { once: true });
+      setTimeout(() => {
+        window.removeEventListener('inzone:sdk-ready', listener);
+        resolve(window.__INZONE_SOCIAL_LOOP_CONFIG__ || sdkConfig());
+      }, 250);
     });
+  }
+
+  function hasBridge() {
+    return !!(window.InZoneSDK && typeof window.InZoneSDK.getConfig === 'function');
   }
 
   function sdkConfig() {
@@ -447,6 +465,39 @@
     updateHeader();
     log('Social loop page ready.');
     start();
+    if (hasBridge()) {
+      void syncSocialLoopEndpoints();
+    } else {
+      log('Bridge unavailable; running local demo mode.', 'info');
+    }
+  }
+
+  async function syncSocialLoopEndpoints() {
+    const basePayload = {
+      gameId: state.gameId,
+      gameName: state.gameName,
+      sessionId: state.sessionId,
+      userId: state.userId,
+      playerId: state.userId,
+      gameKey: state.gameKey,
+    };
+
+    const actions = [
+      ['openSocialScreen', Object.assign({ platform: 'flutter-webview', clientBuild: 'tap-targets' }, basePayload)],
+      ['gameState', basePayload],
+      ['dashboard', basePayload],
+    ];
+
+    for (const [action, payload] of actions) {
+      try {
+        const response = await callSdk(action, payload);
+        if (action === 'dashboard' && response && response.dashboard) {
+          log(`dashboard ready: ${JSON.stringify(response.dashboard).slice(0, 220)}`, 'good');
+        }
+      } catch (error) {
+        log(`${action} failed: ${error.message}`, 'error');
+      }
+    }
   }
 
   playAgainBtn.addEventListener('click', requireReplayPurchase);

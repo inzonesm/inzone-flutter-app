@@ -66,7 +66,9 @@ class _GameHubScreenState extends State<GameHubScreen> {
   }
 
   void _handleTap(HubGame game) {
-    Navigator.of(context).pop();
+    // Keep the Game Hub in the navigation stack so backing out of a game
+    // returns the user here (the screen they launched it from) rather than
+    // jumping all the way back to Home.
     widget.onPlay(game);
   }
 
@@ -154,7 +156,13 @@ class _GameHubTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isCommunity = game.source == HubGameSource.community;
-    final fallback = Container(
+    final badgeText = isCommunity
+        ? 'COMMUNITY'
+        : (game.name.toLowerCase().contains('beta') ? 'BETA' : 'LIVE');
+    final subtitle =
+        game.description.isNotEmpty ? game.description : 'Tap to play';
+
+    final fallback = ColoredBox(
       color: theme.dividerColor.withValues(alpha: 0.2),
       child: Center(
         child: Text(
@@ -164,69 +172,132 @@ class _GameHubTile extends StatelessWidget {
       ),
     );
 
-    return Material(
-      color: theme.cardColor,
-      borderRadius: BorderRadius.circular(14),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Expanded(
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  if (game.iconUrl.isEmpty)
-                    fallback
-                  else
-                    CachedNetworkImage(
-                      imageUrl: game.iconUrl,
-                      fit: BoxFit.cover,
-                      errorWidget: (_, __, ___) => fallback,
-                    ),
-                  if (isCommunity)
-                    Positioned(
-                      top: 6,
-                      left: 6,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 6,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withValues(alpha: 0.55),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: const Text(
-                          'COMMUNITY',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 8,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: 0.4,
-                          ),
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
-              child: Text(
-                game.name,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: theme.textTheme.bodyLarge?.color,
-                ),
-              ),
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        decoration: BoxDecoration(
+          color: theme.cardColor,
+          borderRadius: BorderRadius.circular(18),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.10),
+              blurRadius: 12,
+              offset: const Offset(0, 6),
             ),
           ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(18),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              // Full-bleed cover image (or emoji fallback).
+              if (game.iconUrl.isEmpty)
+                fallback
+              else
+                CachedNetworkImage(
+                  imageUrl: game.iconUrl,
+                  fit: BoxFit.cover,
+                  // No placeholder: the home screen pre-warms these icon URLs
+                  // (see _warmTopImageCache), so they paint instantly from
+                  // cache. A placeholder would force a fade-in on every build
+                  // and on every reopen of the hub.
+                  fadeInDuration: Duration.zero,
+                  fadeOutDuration: Duration.zero,
+                  errorWidget: (_, __, ___) => fallback,
+                ),
+              // Gradient scrim so the title stays legible over the image —
+              // no solid bar.
+              const DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Color(0x14000000),
+                      Color(0x59000000),
+                    ],
+                  ),
+                ),
+              ),
+              // Badge in the top-left corner.
+              Positioned(
+                top: 8,
+                left: 8,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 3,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.45),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Text(
+                    badgeText,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 8,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.4,
+                    ),
+                  ),
+                ),
+              ),
+              // Title + subtitle overlaid at the bottom of the image.
+              Positioned(
+                left: 8,
+                right: 8,
+                bottom: 8,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      game.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        shadows: [
+                          Shadow(
+                            color: Color(0x99000000),
+                            blurRadius: 6,
+                            offset: Offset(0, 1),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.star,
+                          color: Colors.white70,
+                          size: 11,
+                        ),
+                        const SizedBox(width: 3),
+                        Expanded(
+                          child: Text(
+                            subtitle,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: Colors.white70,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

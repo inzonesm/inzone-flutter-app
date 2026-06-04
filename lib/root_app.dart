@@ -237,6 +237,8 @@ class _RootAppState extends State<RootApp>
     if (game.source == HubGameSource.community) {
       final community = game.communityGame;
       if (community == null || community.gameUrl.isEmpty) return;
+      // Push the game on top of the Game Hub so the back button returns the
+      // user to the hub (the screen they launched the game from).
       Navigator.of(context).push(
         MaterialPageRoute(
           builder: (_) => CommunityGameScreen(game: community),
@@ -245,6 +247,9 @@ class _RootAppState extends State<RootApp>
       );
       return;
     }
+    // Simula minigames render as an overlay on top of Home, so the Game Hub
+    // route must be dismissed first to reveal it.
+    Navigator.of(context).maybePop();
     _loadPopularCharacters();
     _openMiniGameFromDeepLink(game.id);
   }
