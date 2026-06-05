@@ -13,6 +13,7 @@ import 'package:inzone/components/profile/avatar_story_component.dart';
 import 'package:inzone/components/ui/appbar.dart';
 import 'package:inzone/data/inzone_avatar.dart';
 import 'package:inzone/data/inzone_post.dart';
+import 'package:inzone/components/live_players_indicator.dart';
 import 'package:inzone/data/community_game.dart';
 import 'package:inzone/data/hub_game.dart';
 import 'package:inzone/services/community_game_service.dart';
@@ -1077,9 +1078,8 @@ class HomeScreenState extends State<HomeScreen> {
 
   Widget _buildMiniGameCard(HubGame game) {
     final isCommunity = game.source == HubGameSource.community;
-    final badgeText = isCommunity
-        ? 'COMMUNITY'
-        : (game.name.toLowerCase().contains('beta') ? 'BETA' : 'LIVE');
+    // Only used for Simula games now — community games show a live player count.
+    final badgeText = game.name.toLowerCase().contains('beta') ? 'BETA' : 'LIVE';
 
     return GestureDetector(
       onTap: () => _handleMiniGameTap(game),
@@ -1131,25 +1131,74 @@ class HomeScreenState extends State<HomeScreen> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withValues(alpha: 0.45),
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                      child: Text(
-                        badgeText,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 0.4,
+                    // Community games show a live "N playing" pill (hidden when
+                    // nobody's playing); Simula games keep their BETA/LIVE tag.
+                    if (isCommunity)
+                      LivePlayersIndicator(
+                        gameId: game.id,
+                        builder: (context, players, pulse) => Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withValues(alpha: 0.45),
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              FadeTransition(
+                                opacity: pulse,
+                                child: Container(
+                                  width: 7,
+                                  height: 7,
+                                  decoration: const BoxDecoration(
+                                    color: kLivePlayersGreen,
+                                    shape: BoxShape.circle,
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: kLivePlayersGreen,
+                                        blurRadius: 6,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 5),
+                              Text(
+                                '$players playing',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: 0.4,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      )
+                    else
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.45),
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: Text(
+                          badgeText,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 0.4,
+                          ),
                         ),
                       ),
-                    ),
                     Container(
                       width: 10,
                       height: 10,
