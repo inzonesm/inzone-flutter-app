@@ -11,6 +11,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:http/http.dart' as http;
+import 'package:inzone/components/live_players_indicator.dart';
 import 'package:inzone/data/community_game.dart';
 import 'package:inzone/data/hub_game.dart';
 import 'package:inzone/services/active_character_notifier.dart';
@@ -961,14 +962,53 @@ class InlineCommunityGameCard extends StatelessWidget {
                   ),
                   const SizedBox(width: 10),
                   Expanded(
-                    child: Text(
-                      game.name,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: theme.textTheme.titleLarge?.color,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 20,
-                      ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          game.name,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: theme.textTheme.titleLarge?.color,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 20,
+                          ),
+                        ),
+                        // Live "N playing now" — hidden when nobody's in the game,
+                        // same signal as the game-hub cards.
+                        LivePlayersIndicator(
+                          gameId: game.id,
+                          builder: (context, players, pulse) => Padding(
+                            padding: const EdgeInsets.only(top: 2),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                FadeTransition(
+                                  opacity: pulse,
+                                  child: Container(
+                                    width: 7,
+                                    height: 7,
+                                    decoration: const BoxDecoration(
+                                      color: kLivePlayersGreen,
+                                      shape: BoxShape.circle,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  '$players playing now',
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                    color: kLivePlayersGreen,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],

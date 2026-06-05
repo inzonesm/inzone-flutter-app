@@ -537,22 +537,25 @@ class AuthWork {
 
       final currentUser = auth.currentUser;
       if (currentUser != null) {
-        final profileData = <String, dynamic>{
-          'uid': currentUser.uid,
-          'email': currentUser.email,
-          'createdAt': FieldValue.serverTimestamp(),
-          'interests': [],
-        };
+        final docRef = firestore.collection('humanUsers').doc(currentUser.uid);
 
-        final displayName = currentUser.displayName?.trim();
-        if (displayName != null && displayName.isNotEmpty) {
-          profileData['name'] = displayName;
+        // Only seed a profile doc for BRAND-NEW users, and WITHOUT `createdAt`,
+        // so they go through profile/interests setup — the interests screen sets
+        // `createdAt` as the real "onboarding complete" marker. Returning users
+        // are left untouched, so re-signing-in never resets their name/interests
+        // or re-stamps createdAt.
+        final snap = await docRef.get();
+        if (!snap.exists) {
+          final profileData = <String, dynamic>{
+            'uid': currentUser.uid,
+            'email': currentUser.email,
+          };
+          final displayName = currentUser.displayName?.trim();
+          if (displayName != null && displayName.isNotEmpty) {
+            profileData['name'] = displayName;
+          }
+          await docRef.set(profileData);
         }
-
-        await firestore
-            .collection('humanUsers')
-            .doc(currentUser.uid)
-            .set(profileData, SetOptions(merge: true));
 
         // Re-register FCM token after successful Google sign-in
         try {
@@ -589,22 +592,25 @@ class AuthWork {
 
       final currentUser = auth.currentUser;
       if (currentUser != null) {
-        final profileData = <String, dynamic>{
-          'uid': currentUser.uid,
-          'email': currentUser.email,
-          'createdAt': FieldValue.serverTimestamp(),
-          'interests': [],
-        };
+        final docRef = firestore.collection('humanUsers').doc(currentUser.uid);
 
-        final displayName = currentUser.displayName?.trim();
-        if (displayName != null && displayName.isNotEmpty) {
-          profileData['name'] = displayName;
+        // Only seed a profile doc for BRAND-NEW users, and WITHOUT `createdAt`,
+        // so they go through profile/interests setup — the interests screen sets
+        // `createdAt` as the real "onboarding complete" marker. Returning users
+        // are left untouched, so re-signing-in never resets their name/interests
+        // or re-stamps createdAt.
+        final snap = await docRef.get();
+        if (!snap.exists) {
+          final profileData = <String, dynamic>{
+            'uid': currentUser.uid,
+            'email': currentUser.email,
+          };
+          final displayName = currentUser.displayName?.trim();
+          if (displayName != null && displayName.isNotEmpty) {
+            profileData['name'] = displayName;
+          }
+          await docRef.set(profileData);
         }
-
-        await firestore
-            .collection('humanUsers')
-            .doc(currentUser.uid)
-            .set(profileData, SetOptions(merge: true));
 
         // Re-register FCM token after successful Apple sign-in
         try {

@@ -40,6 +40,25 @@ class CommunityGameService {
     return games;
   }
 
+  /// How many people are playing this game right now — the count of its open
+  /// sessions (`html_games/<id>/sessions` where status == 'open'), the same
+  /// live signal the dashboard uses. Uses a server-side aggregate count (no doc
+  /// payloads) and is best-effort: a missing subcollection or denied read
+  /// resolves to 0.
+  static Future<int> fetchLivePlayerCount(String gameId) async {
+    if (gameId.isEmpty) return 0;
+    try {
+      final snapshot = await _gameRef(gameId)
+          .collection('sessions')
+          .where('status', isEqualTo: 'open')
+          .count()
+          .get();
+      return snapshot.count ?? 0;
+    } catch (_) {
+      return 0;
+    }
+  }
+
   static Future<void> recordSessionStart({
     required String gameId,
     required String sessionId,
