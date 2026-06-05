@@ -7,8 +7,6 @@ import 'package:go_router/go_router.dart';
 import 'package:inzone/components/settings/topic_selector_widget.dart';
 import 'package:inzone/router/routes.dart';
 import 'package:inzone/services/inzone_database.dart';
-import 'package:inzone/screen/auth/loading_screen.dart';
-import 'package:inzone/root_app.dart';
 import 'package:toasty_box/toast_service.dart'; // Import this to detect the platform
 
 class SignUpScreens extends StatefulWidget {

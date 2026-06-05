@@ -33,6 +33,9 @@ migrate_working_dir/
 .pub-preload-cache/
 .pub/
 /build/
+# Nested Gradle/native build outputs (the /build/ rule above only covers the
+# project root, so android/app/build, android/build, etc. would otherwise leak).
+**/build/
 flutter_*.png
 linked_*.ds
 unlinked.ds

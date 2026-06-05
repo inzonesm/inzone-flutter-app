@@ -1,19 +1,16 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:colorful_safe_area/colorful_safe_area.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:inzone/auth/auth_work.dart';
 import 'package:inzone/router/routes.dart';
 import 'package:inzone/router/app_router.dart';
-import 'package:inzone/screen/auth/profile_screen.dart';
 import 'package:inzone/screen/auth/signin_login_screen.dart';
 import 'package:inzone/theme/app_colors.dart';
 import 'package:toasty_box/toast_service.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:inzone/screen/common/home_screen.dart';
 
 class IntroductionScreen extends StatefulWidget {
   const IntroductionScreen({super.key});

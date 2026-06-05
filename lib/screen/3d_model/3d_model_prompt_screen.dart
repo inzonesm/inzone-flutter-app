@@ -1,11 +1,8 @@
-import 'dart:io';
 import 'dart:math' as math;
 import 'package:colorful_safe_area/colorful_safe_area.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_feather_icons/flutter_feather_icons.dart';
 import 'package:go_router/go_router.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:inzone/components/ui/button.dart';
 import 'package:inzone/router/routes.dart';
 import 'package:flutter_3d_controller/flutter_3d_controller.dart';

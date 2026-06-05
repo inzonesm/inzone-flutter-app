@@ -13,7 +13,6 @@ import 'package:inzone/services/notification_event_service.dart';
 import 'package:inzone/services/ai_engagement_service.dart';
 import 'package:inzone/router/routes.dart';
 import 'package:intl/intl.dart';
-import 'package:flutter/foundation.dart';
 import 'package:go_router/go_router.dart';
 import 'package:toasty_box/toast_service.dart';
 
@@ -337,7 +336,6 @@ class _HumanChatScreenState extends State<HumanChatScreen> {
     if (renderObject == null || !renderObject.attached) return;
 
     final viewport = RenderAbstractViewport.of(renderObject);
-    if (viewport == null) return;
 
     final revealOffset = viewport.getOffsetToReveal(renderObject, 0.0).offset;
     final min = _scrollController.position.minScrollExtent;

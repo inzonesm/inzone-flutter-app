@@ -3,7 +3,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_feather_icons/flutter_feather_icons.dart';
-import 'package:inzone/components/ui/button.dart';
 import 'package:inzone/services/inzone_database.dart';
 import 'package:colorful_safe_area/colorful_safe_area.dart';
 import 'package:lottie/lottie.dart';

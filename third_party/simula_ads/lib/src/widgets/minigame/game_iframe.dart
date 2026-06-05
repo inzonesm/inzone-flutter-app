@@ -518,7 +518,7 @@ class _GameIframeState extends State<GameIframe> {
         for (let i = 0; i < nodes.length; i += 1) {
           const el = nodes[i];
           if (!isVisible(el)) continue;
-          const text = (el.innerText || el.textContent || '').replace(/\s+/g, ' ').trim();
+          const text = (el.innerText || el.textContent || '').replace(/s+/g, ' ').trim();
           if (!text) continue;
           lines.push(text);
           if (lines.length >= 90) return;
@@ -558,7 +558,7 @@ class _GameIframeState extends State<GameIframe> {
 
         const parseNumberFromText = (text) => {
           if (!text || typeof text !== 'string') return null;
-          const match = text.match(/\b(\d{1,6})\b/);
+          const match = text.match(/\b(d{1,6})\b/);
           if (!match) return null;
           return String(match[1]);
         };
@@ -571,7 +571,7 @@ class _GameIframeState extends State<GameIframe> {
         for (let i = 0; i < nodes.length; i += 1) {
           const el = nodes[i];
           if (!isVisible(el)) continue;
-          const text = (el.innerText || el.textContent || '').replace(/\s+/g, ' ').trim();
+          const text = (el.innerText || el.textContent || '').replace(/s+/g, ' ').trim();
           if (!text) continue;
 
           const labeled = text.match(labelWithValue) || text.match(valueBeforeLabel);
@@ -580,11 +580,11 @@ class _GameIframeState extends State<GameIframe> {
             if (parsed !== null) return parsed;
           }
 
-          if (!labelToken.test(text.toLowerCase()) || /\d/.test(text)) continue;
+          if (!labelToken.test(text.toLowerCase()) || /d/.test(text)) continue;
 
           const parent = el.parentElement;
           if (parent) {
-            const parentText = (parent.innerText || parent.textContent || '').replace(/\s+/g, ' ').trim();
+            const parentText = (parent.innerText || parent.textContent || '').replace(/s+/g, ' ').trim();
             const parentMatch = parentText.match(labelWithValue) || parentText.match(valueBeforeLabel);
             if (parentMatch && parentMatch[1]) {
               const parsed = parseNumberFromText(parentMatch[1]);
@@ -595,7 +595,7 @@ class _GameIframeState extends State<GameIframe> {
             for (let c = 0; c < children.length; c += 1) {
               const child = children[c];
               if (child === el) continue;
-              const childText = (child.innerText || child.textContent || '').replace(/\s+/g, ' ').trim();
+              const childText = (child.innerText || child.textContent || '').replace(/s+/g, ' ').trim();
               const parsed = parseNumberFromText(childText);
               if (parsed !== null) return parsed;
             }
@@ -603,14 +603,14 @@ class _GameIframeState extends State<GameIframe> {
 
           const prev = el.previousElementSibling;
           if (prev) {
-            const prevText = (prev.innerText || prev.textContent || '').replace(/\s+/g, ' ').trim();
+            const prevText = (prev.innerText || prev.textContent || '').replace(/s+/g, ' ').trim();
             const parsed = parseNumberFromText(prevText);
             if (parsed !== null) return parsed;
           }
 
           const next = el.nextElementSibling;
           if (next) {
-            const nextText = (next.innerText || next.textContent || '').replace(/\s+/g, ' ').trim();
+            const nextText = (next.innerText || next.textContent || '').replace(/s+/g, ' ').trim();
             const parsed = parseNumberFromText(nextText);
             if (parsed !== null) return parsed;
           }
@@ -621,7 +621,7 @@ class _GameIframeState extends State<GameIframe> {
 
       const extractStatFromTextBlob = (text, labelPattern) => {
         if (!text || typeof text !== 'string') return null;
-        const normalized = text.replace(/\s+/g, ' ').trim();
+        const normalized = text.replace(/s+/g, ' ').trim();
         if (!normalized) return null;
 
         const labeledAfter = new RegExp('["\\']?(?:' + labelPattern + ')["\\']?\\s*[:=-]?\\s*["\\']?(\\d{1,6})', 'i').exec(normalized);
@@ -653,7 +653,7 @@ class _GameIframeState extends State<GameIframe> {
           }
         }
 
-        return chunks.join(' | ').replace(/\s+/g, ' ').trim();
+        return chunks.join(' | ').replace(/s+/g, ' ').trim();
       };
 
       const extractLabeledStatAcrossReachableDocs = (labelPattern) => {
@@ -763,19 +763,19 @@ class _GameIframeState extends State<GameIframe> {
               pushCandidate(value);
             } else if (typeof value === 'string') {
               if (foundScore === null) {
-                const scoreInText = value.match(/(?:score|points|best)\s*[:=-]?\s*(\d[\d,]*)/i) || value.match(/(\d[\d,]*)\s*(?:score|points|best)\b/i);
+                const scoreInText = value.match(/(?:score|points|best)s*[:=-]?s*(d[d,]*)/i) || value.match(/(d[d,]*)s*(?:score|points|best)\b/i);
                 if (scoreInText) foundScore = String(scoreInText[1]).replace(/,/g, '');
               }
               if (foundLevel === null) {
-                const levelInText = value.match(/(?:level|stage)\s*[:=-]?\s*(\d+)/i) || value.match(/level\s*(\d+)\s*cleared/i);
+                const levelInText = value.match(/(?:level|stage)s*[:=-]?s*(d+)/i) || value.match(/levels*(d+)s*cleared/i);
                 if (levelInText) foundLevel = String(levelInText[1]);
               }
               if (foundMoves === null) {
-                const movesInText = value.match(/(?:moves?|turns?)\s*[:=-]?\s*(\d+)/i) || value.match(/(\d+)\s*(?:moves?|turns?)\b/i);
+                const movesInText = value.match(/(?:moves?|turns?)s*[:=-]?s*(d+)/i) || value.match(/(d+)s*(?:moves?|turns?)\b/i);
                 if (movesInText) foundMoves = String(movesInText[1]);
               }
               if (foundCaptures === null) {
-                const capturesInText = value.match(/(?:captures?|captured|pieces?\s*captured)\s*[:=-]?\s*(\d+)/i) || value.match(/(\d+)\s*(?:captures?|pieces?\s*captured)\b/i);
+                const capturesInText = value.match(/(?:captures?|captured|pieces?s*captured)s*[:=-]?s*(d+)/i) || value.match(/(d+)s*(?:captures?|pieces?s*captured)\b/i);
                 if (capturesInText) foundCaptures = String(capturesInText[1]);
               }
               if (foundTitle === null) {
@@ -810,22 +810,22 @@ class _GameIframeState extends State<GameIframe> {
             const v = storage.getItem(k) || '';
 
             if (storageScore === null && (lk.includes('score') || v.toLowerCase().includes('score'))) {
-              const match = v.match(/(?:score|points|best)\s*[:=-]?\s*(\d[\d,]*)/i) || v.match(/(\d[\d,]*)\s*(?:score|points|best)\b/i);
+              const match = v.match(/(?:score|points|best)s*[:=-]?s*(d[d,]*)/i) || v.match(/(d[d,]*)s*(?:score|points|best)\b/i);
               if (match) storageScore = String(match[1]).replace(/,/g, '');
             }
 
             if (storageLevel === null && (lk.includes('level') || v.toLowerCase().includes('level'))) {
-              const match = v.match(/(?:level|stage)\s*[:=-]?\s*(\d+)/i) || v.match(/level\s*(\d+)\s*cleared/i);
+              const match = v.match(/(?:level|stage)s*[:=-]?s*(d+)/i) || v.match(/levels*(d+)s*cleared/i);
               if (match) storageLevel = String(match[1]);
             }
 
             if (storageMoves === null && (lk.includes('move') || lk.includes('turn') || v.toLowerCase().includes('move') || v.toLowerCase().includes('turn'))) {
-              const match = v.match(/(?:moves?|turns?)\s*[:=-]?\s*(\d+)/i) || v.match(/(\d+)\s*(?:moves?|turns?)\b/i);
+              const match = v.match(/(?:moves?|turns?)s*[:=-]?s*(d+)/i) || v.match(/(d+)s*(?:moves?|turns?)\b/i);
               if (match) storageMoves = String(match[1]);
             }
 
             if (storageCaptures === null && (lk.includes('capture') || v.toLowerCase().includes('capture'))) {
-              const match = v.match(/(?:captures?|captured|pieces?\s*captured)\s*[:=-]?\s*(\d+)/i) || v.match(/(\d+)\s*(?:captures?|pieces?\s*captured)\b/i);
+              const match = v.match(/(?:captures?|captured|pieces?s*captured)s*[:=-]?s*(d+)/i) || v.match(/(d+)s*(?:captures?|pieces?s*captured)\b/i);
               if (match) storageCaptures = String(match[1]);
             }
 
@@ -848,18 +848,18 @@ class _GameIframeState extends State<GameIframe> {
       };
 
       const scoreMatch =
-        lower.match(/(?:score|points|best)\s*[:=-]?\s*(\d[\d,]*)/i) ||
-        lower.match(/(\d[\d,]*)\s*(?:score|points|best)\b/i);
+        lower.match(/(?:score|points|best)s*[:=-]?s*(d[d,]*)/i) ||
+        lower.match(/(d[d,]*)s*(?:score|points|best)\b/i);
       const levelMatch =
-        lower.match(/(?:level|stage)\s*[:=-]?\s*(\d+)/i) ||
-        lower.match(/level\s*(\d+)\s*cleared/i);
+        lower.match(/(?:level|stage)s*[:=-]?s*(d+)/i) ||
+        lower.match(/levels*(d+)s*cleared/i);
       const movesMatch =
-        lower.match(/(?:moves?|turns?|move[_\s-]?count|movecount|ply|plies|full[_\s-]?moves?|half[_\s-]?moves?)\s*[:=-]?\s*(\d+)/i) ||
-        lower.match(/(\d+)\s*(?:moves?|turns?|ply|plies|full[_\s-]?moves?|half[_\s-]?moves?)\b/i) ||
-        lower.match(/move\s*#?\s*(\d+)/i);
+        lower.match(/(?:moves?|turns?|move[_s-]?count|movecount|ply|plies|full[_s-]?moves?|half[_s-]?moves?)s*[:=-]?s*(d+)/i) ||
+        lower.match(/(d+)s*(?:moves?|turns?|ply|plies|full[_s-]?moves?|half[_s-]?moves?)\b/i) ||
+        lower.match(/moves*#?s*(d+)/i);
       const capturesMatch =
-        lower.match(/(?:captures?|captured|pieces?\s*captured)\s*[:=-]?\s*(\d+)/i) ||
-        lower.match(/(\d+)\s*(?:captures?|pieces?\s*captured)\b/i);
+        lower.match(/(?:captures?|captured|pieces?s*captured)s*[:=-]?s*(d+)/i) ||
+        lower.match(/(d+)s*(?:captures?|pieces?s*captured)\b/i);
       const wholeDocText = collectWholeDocumentText();
       const chessTitleMatch = normalizeChessTitle(fullText) || normalizeChessTitle(wholeDocText);
       const chessDifficulty = extractDifficulty(fullText) || extractDifficulty(wholeDocText);
@@ -902,7 +902,7 @@ class _GameIframeState extends State<GameIframe> {
       if (isChessGame && normalizedMoves !== null) {
         const movesValue = toInt(normalizedMoves);
         const capturesValue = toInt(resolvedCaptures);
-        const explicitMovesInVisibleText = fullText.match(/\bmoves?\s*[:=-]?\s*(\d{1,6})\b/i);
+        const explicitMovesInVisibleText = fullText.match(/\bmoves?s*[:=-]?s*(d{1,6})\b/i);
         const explicitMovesValue = explicitMovesInVisibleText ? toInt(explicitMovesInVisibleText[1]) : null;
 
         if (movesValue !== null) {
@@ -1192,7 +1192,7 @@ class _GameIframeState extends State<GameIframe> {
 
       const parseNumberFromText = (text) => {
         if (!text || typeof text !== 'string') return null;
-        const match = text.match(/\b(\d{1,6})\b/);
+        const match = text.match(/\b(d{1,6})\b/);
         if (!match) return null;
         return String(match[1]);
       };
@@ -1205,7 +1205,7 @@ class _GameIframeState extends State<GameIframe> {
       for (let i = 0; i < nodes.length; i += 1) {
         const el = nodes[i];
         if (!isVisible(el, window)) continue;
-        const text = (el.innerText || el.textContent || '').replace(/\s+/g, ' ').trim();
+        const text = (el.innerText || el.textContent || '').replace(/s+/g, ' ').trim();
         if (!text) continue;
 
         const labeled = text.match(labelWithValue) || text.match(valueBeforeLabel);
@@ -1214,11 +1214,11 @@ class _GameIframeState extends State<GameIframe> {
           if (parsed !== null) return parsed;
         }
 
-        if (!labelToken.test(text.toLowerCase()) || /\d/.test(text)) continue;
+        if (!labelToken.test(text.toLowerCase()) || /d/.test(text)) continue;
 
         const parent = el.parentElement;
         if (parent) {
-          const parentText = (parent.innerText || parent.textContent || '').replace(/\s+/g, ' ').trim();
+          const parentText = (parent.innerText || parent.textContent || '').replace(/s+/g, ' ').trim();
           const parentMatch = parentText.match(labelWithValue) || parentText.match(valueBeforeLabel);
           if (parentMatch && parentMatch[1]) {
             const parsed = parseNumberFromText(parentMatch[1]);
@@ -1229,7 +1229,7 @@ class _GameIframeState extends State<GameIframe> {
           for (let c = 0; c < children.length; c += 1) {
             const child = children[c];
             if (child === el) continue;
-            const childText = (child.innerText || child.textContent || '').replace(/\s+/g, ' ').trim();
+            const childText = (child.innerText || child.textContent || '').replace(/s+/g, ' ').trim();
             const parsed = parseNumberFromText(childText);
             if (parsed !== null) return parsed;
           }
@@ -1237,14 +1237,14 @@ class _GameIframeState extends State<GameIframe> {
 
         const prev = el.previousElementSibling;
         if (prev) {
-          const prevText = (prev.innerText || prev.textContent || '').replace(/\s+/g, ' ').trim();
+          const prevText = (prev.innerText || prev.textContent || '').replace(/s+/g, ' ').trim();
           const parsed = parseNumberFromText(prevText);
           if (parsed !== null) return parsed;
         }
 
         const next = el.nextElementSibling;
         if (next) {
-          const nextText = (next.innerText || next.textContent || '').replace(/\s+/g, ' ').trim();
+          const nextText = (next.innerText || next.textContent || '').replace(/s+/g, ' ').trim();
           const parsed = parseNumberFromText(nextText);
           if (parsed !== null) return parsed;
         }
@@ -1641,7 +1641,7 @@ class _GameIframeState extends State<GameIframe> {
       if (value === null || value === undefined) return null;
 
       const raw = String(value).replace(/,/g, ' ');
-      const embedded = raw.match(/-?\d+(?:\.\d+)?/);
+      const embedded = raw.match(/-?d+(?:.d+)?/);
       if (!embedded) return null;
       return toNumericString(embedded[0]);
     };
@@ -1660,20 +1660,20 @@ class _GameIframeState extends State<GameIframe> {
 
       const lower = text.toLowerCase();
       const scoreMatch =
-        lower.match(/(?:score|points|best)\s*[:=-]?\s*(\d[\d,]*)/i) ||
-        lower.match(/(\d[\d,]*)\s*(?:score|points|best)\b/i);
+        lower.match(/(?:score|points|best)s*[:=-]?s*(d[d,]*)/i) ||
+        lower.match(/(d[d,]*)s*(?:score|points|best)\b/i);
       const levelMatch =
-        lower.match(/(?:level|stage)\s*[:=-]?\s*(\d+)/i) ||
-        lower.match(/level\s*(\d+)\s*cleared/i);
+        lower.match(/(?:level|stage)s*[:=-]?s*(d+)/i) ||
+        lower.match(/levels*(d+)s*cleared/i);
       const turnsMatch =
-        lower.match(/(?:turns|moves?)\s*[:=-]?\s*(\d+)/i) ||
-        lower.match(/(?:turns|moves?)\D{0,14}(\d+)/i);
+        lower.match(/(?:turns|moves?)s*[:=-]?s*(d+)/i) ||
+        lower.match(/(?:turns|moves?)D{0,14}(d+)/i);
       const capturesMatch =
-        lower.match(/(?:captures?|captured|pieces?\s*captured)\s*[:=-]?\s*(\d+)/i) ||
-        lower.match(/(\d+)\s*(?:captures?|pieces?\s*captured)\b/i);
-      const turnsMatchAlt = lower.match(/(\d+)\s*(?:turns|moves)\b/i);
-      const coinsMatch = lower.match(/coins?\s*[:=-]?\s*(\d[\d,]*)/i);
-      const distanceMatch = lower.match(/distance\s*[:=-]?\s*(\d[\d,]*)/i);
+        lower.match(/(?:captures?|captured|pieces?s*captured)s*[:=-]?s*(d+)/i) ||
+        lower.match(/(d+)s*(?:captures?|pieces?s*captured)\b/i);
+      const turnsMatchAlt = lower.match(/(d+)s*(?:turns|moves)\b/i);
+      const coinsMatch = lower.match(/coins?s*[:=-]?s*(d[d,]*)/i);
+      const distanceMatch = lower.match(/distances*[:=-]?s*(d[d,]*)/i);
       const chessTitle = normalizeChessTitle(text);
       const difficulty = extractDifficulty(text);
 
@@ -2186,7 +2186,7 @@ class _GameIframeState extends State<GameIframe> {
       for (let i = 0; i < nodes.length; i += 1) {
         const el = nodes[i];
         if (!isVisible(el, window)) continue;
-        const text = (el.innerText || el.textContent || '').replace(/\s+/g, ' ').trim();
+        const text = (el.innerText || el.textContent || '').replace(/s+/g, ' ').trim();
         if (!text) continue;
         lines.push(text);
         if (lines.length >= 90) break;
@@ -2206,17 +2206,17 @@ class _GameIframeState extends State<GameIframe> {
         lower.includes('you win');
 
       const scoreMatch =
-        lower.match(/(?:score|points|best)\s*[:=-]?\s*(\d[\d,]*)/i) ||
-        lower.match(/(\d[\d,]*)\s*(?:score|points|best)\b/i);
+        lower.match(/(?:score|points|best)s*[:=-]?s*(d[d,]*)/i) ||
+        lower.match(/(d[d,]*)s*(?:score|points|best)\b/i);
       const levelMatch =
-        lower.match(/(?:level|stage)\s*[:=-]?\s*(\d+)/i) ||
-        lower.match(/level\s*(\d+)\s*cleared/i);
+        lower.match(/(?:level|stage)s*[:=-]?s*(d+)/i) ||
+        lower.match(/levels*(d+)s*cleared/i);
       const turnsMatch =
-        lower.match(/["']?(?:turns|moves?|move_count|movecount|ply|plies|full\s*moves?|half\s*moves?|number\s*of\s*moves|moves?\s*made|total\s*moves?|move\s*number)["']?\s*[:=\-#]?\s*["']?(\d{1,6})/i) ||
-        lower.match(/(\d{1,6})\s*(?:turns|moves?|ply|plies|full\s*moves?|half\s*moves?|total\s*moves?)\b/i);
+        lower.match(/["']?(?:turns|moves?|move_count|movecount|ply|plies|fulls*moves?|halfs*moves?|numbers*ofs*moves|moves?s*made|totals*moves?|moves*number)["']?s*[:=-#]?s*["']?(d{1,6})/i) ||
+        lower.match(/(d{1,6})s*(?:turns|moves?|ply|plies|fulls*moves?|halfs*moves?|totals*moves?)\b/i);
       const capturesMatch =
-        lower.match(/["']?(?:captures?|captured|capture_count|pieces?\s*captured)["']?\s*[:=-]?\s*["']?(\d{1,6})/i) ||
-        lower.match(/(\d{1,6})\s*(?:captures?|pieces?\s*captured)\b/i);
+        lower.match(/["']?(?:captures?|captured|capture_count|pieces?s*captured)["']?s*[:=-]?s*["']?(d{1,6})/i) ||
+        lower.match(/(d{1,6})s*(?:captures?|pieces?s*captured)\b/i);
       const layoutMoves = extractLabeledStatAcrossReachableDocs('moves?|turns?|move_count|movecount|ply|plies|full\\s*moves?|half\\s*moves?|number\\s*of\\s*moves|moves?\\s*made|total\\s*moves?|move\\s*number');
       const layoutCaptures = extractLabeledStatAcrossReachableDocs('captures?|captured|capture_count|pieces?\\s*captured');
       const titleMatch = normalizeChessTitle(fullText) || normalizeChessTitle(document && document.title ? String(document.title) : '');
@@ -2236,7 +2236,7 @@ class _GameIframeState extends State<GameIframe> {
       if (isChessGame && normalizedMoves != null) {
         const movesValue = toInt(normalizedMoves);
         const capturesValue = toInt(resolvedCaptures);
-        const explicitMovesInVisibleText = fullText.match(/\bmoves?\s*[:=-]?\s*(\d{1,6})\b/i);
+        const explicitMovesInVisibleText = fullText.match(/\bmoves?s*[:=-]?s*(d{1,6})\b/i);
         const explicitMovesValue = explicitMovesInVisibleText ? toInt(explicitMovesInVisibleText[1]) : null;
 
         if (movesValue !== null) {

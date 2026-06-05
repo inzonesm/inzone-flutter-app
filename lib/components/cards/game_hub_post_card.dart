@@ -1,5 +1,6 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:inzone/components/live_players_indicator.dart';
 import 'package:inzone/data/community_game.dart';
 import 'package:inzone/data/hub_game.dart';
 import 'package:inzone/services/community_game_service.dart';
@@ -73,13 +74,51 @@ class GameHubPostCard extends StatelessWidget {
                             color: titleColor,
                           ),
                         ),
-                        Text(
-                          isCommunity ? 'Community game' : 'Featured game',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: subtitleColor,
+                        if (isCommunity)
+                          LivePlayersIndicator(
+                            gameId: game.id,
+                            // No one playing (or still loading) → keep the label.
+                            idle: (_) => Text(
+                              'Community game',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: subtitleColor,
+                              ),
+                            ),
+                            builder: (context, count, pulse) => Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                FadeTransition(
+                                  opacity: pulse,
+                                  child: Container(
+                                    width: 7,
+                                    height: 7,
+                                    decoration: const BoxDecoration(
+                                      color: kLivePlayersGreen,
+                                      shape: BoxShape.circle,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  '$count playing now',
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                    color: kLivePlayersGreen,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          )
+                        else
+                          Text(
+                            'Featured game',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: subtitleColor,
+                            ),
                           ),
-                        ),
                       ],
                     ),
                   ],

@@ -5,7 +5,6 @@ import 'dart:convert';
 import 'package:inzone/router/auth_notifier.dart';
 import 'package:inzone/root_app.dart';
 import 'package:inzone/screen/ai_character/ai_char_select_screen.dart';
-import 'package:inzone/screen/auth/splash_screen.dart';
 import 'package:inzone/screen/auth/introduction_screen.dart';
 import 'package:inzone/screen/auth/signin_login_screen.dart';
 import 'package:inzone/screen/auth/profile_screen.dart' as auth;
