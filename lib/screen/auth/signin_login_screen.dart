@@ -1,18 +1,13 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:colorful_safe_area/colorful_safe_area.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_feather_icons/flutter_feather_icons.dart';
 import 'package:go_router/go_router.dart';
 import 'package:inzone/auth/auth_work.dart';
 import 'package:inzone/router/routes.dart';
 import 'package:inzone/theme/app_colors.dart';
-import 'package:inzone/screen/auth/interesting_select_screen.dart';
-import 'package:inzone/root_app.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:inzone/screen/auth/loading_screen.dart';
-import 'package:inzone/screen/common/home_screen.dart';
 
 class SignInLoginScreen extends StatefulWidget {
   const SignInLoginScreen({super.key});
@@ -52,6 +47,9 @@ class _SignInLoginScreenState extends State<SignInLoginScreen> {
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       Future.delayed(const Duration(milliseconds: 300), () {
+        // The page can be torn down within this delay (e.g. _checkLoginStatus
+        // auto-navigates) — don't touch context after that.
+        if (!mounted) return;
         FocusScope.of(context).requestFocus(_emailFocusNode);
       });
 
@@ -175,7 +173,9 @@ class _SignInLoginScreenState extends State<SignInLoginScreen> {
         await docRef.set({
           'uid': user?.uid,
           'email': _emailController.text.trim(),
-          'createdAt': FieldValue.serverTimestamp(),
+          // Not "onboarding complete" yet — the interests screen sets createdAt
+          // at the end of setup. (Matches the social sign-in + introduction flows.)
+          'createdAt': null,
         });
 
         if (mounted) {
@@ -218,6 +218,7 @@ class _SignInLoginScreenState extends State<SignInLoginScreen> {
 
     bool isProfileCompleted = doc.data()?['createdAt'] != null;
 
+    if (!mounted) return;
     _dismissLoadingDialog();
     if (isProfileCompleted) {
       context.go(Routes.home);
@@ -258,12 +259,12 @@ class _SignInLoginScreenState extends State<SignInLoginScreen> {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(6, 4),
           ),
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(-2, 0),
           ),
@@ -350,7 +351,7 @@ class _SignInLoginScreenState extends State<SignInLoginScreen> {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withValues(alpha: 0.1),
             blurRadius: 10,
             offset: const Offset(4, 8),
           ),

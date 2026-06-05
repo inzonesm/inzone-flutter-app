@@ -1,5 +1,6 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:inzone/components/live_players_indicator.dart';
 import 'package:inzone/data/community_game.dart';
 import 'package:inzone/data/hub_game.dart';
 import 'package:inzone/services/community_game_service.dart';
@@ -156,9 +157,10 @@ class _GameHubTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isCommunity = game.source == HubGameSource.community;
-    final badgeText = isCommunity
-        ? 'COMMUNITY'
-        : (game.name.toLowerCase().contains('beta') ? 'BETA' : 'LIVE');
+    // Community games show a live "N playing" badge; Simula catalog games keep
+    // their static BETA/LIVE tag (they have no sessions to count).
+    final badgeText =
+        game.name.toLowerCase().contains('beta') ? 'BETA' : 'LIVE';
     final subtitle =
         game.description.isNotEmpty ? game.description : 'Tap to play';
 
@@ -220,29 +222,76 @@ class _GameHubTile extends StatelessWidget {
                   ),
                 ),
               ),
-              // Badge in the top-left corner.
+              // Badge in the top-left corner: live "N playing" for community
+              // games (hidden when nobody's playing), static tag otherwise.
               Positioned(
                 top: 8,
                 left: 8,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 3,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.45),
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                  child: Text(
-                    badgeText,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 8,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 0.4,
-                    ),
-                  ),
-                ),
+                child: isCommunity
+                    ? LivePlayersIndicator(
+                        gameId: game.id,
+                        builder: (context, count, pulse) => Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 3,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withValues(alpha: 0.45),
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              FadeTransition(
+                                opacity: pulse,
+                                child: Container(
+                                  width: 6,
+                                  height: 6,
+                                  decoration: const BoxDecoration(
+                                    color: kLivePlayersGreen,
+                                    shape: BoxShape.circle,
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: kLivePlayersGreen,
+                                        blurRadius: 6,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 5),
+                              Text(
+                                '$count playing',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 8,
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: 0.4,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      )
+                    : Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 3,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.45),
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: Text(
+                          badgeText,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 8,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 0.4,
+                          ),
+                        ),
+                      ),
               ),
               // Title + subtitle overlaid at the bottom of the image.
               Positioned(
