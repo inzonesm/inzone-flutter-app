@@ -5,7 +5,6 @@ import 'dart:convert';
 import 'package:inzone/router/auth_notifier.dart';
 import 'package:inzone/root_app.dart';
 import 'package:inzone/screen/ai_character/ai_char_select_screen.dart';
-import 'package:inzone/screen/auth/splash_screen.dart';
 import 'package:inzone/screen/auth/introduction_screen.dart';
 import 'package:inzone/screen/auth/signin_login_screen.dart';
 import 'package:inzone/screen/auth/profile_screen.dart' as auth;
@@ -168,7 +167,10 @@ class AppRouter {
         return Routes.profileWithEmail(user?.email ?? "");
       }
 
-      // If profile is completed and user is on auth screens that aren't needed anymore
+      // If profile is completed and user is on auth screens that aren't needed anymore.
+      // With completion now gated strictly on `createdAt` (set only at the end of
+      // the interests screen), a mid-setup user is never "completed", so this no
+      // longer bounces anyone off the profile/interests screens.
       if (isLoggedIn && isProfileCompleted && isAuthScreen) {
         print(
             "GoRouter redirect - Profile completed but on auth screen, redirecting to home");
