@@ -167,7 +167,10 @@ class AppRouter {
         return Routes.profileWithEmail(user?.email ?? "");
       }
 
-      // If profile is completed and user is on auth screens that aren't needed anymore
+      // If profile is completed and user is on auth screens that aren't needed anymore.
+      // With completion now gated strictly on `createdAt` (set only at the end of
+      // the interests screen), a mid-setup user is never "completed", so this no
+      // longer bounces anyone off the profile/interests screens.
       if (isLoggedIn && isProfileCompleted && isAuthScreen) {
         print(
             "GoRouter redirect - Profile completed but on auth screen, redirecting to home");

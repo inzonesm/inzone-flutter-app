@@ -7,20 +7,6 @@ class AuthNotifier extends ChangeNotifier {
   bool _isProfileCompleted = false;
   bool _isLoading = true;
 
-  bool _hasNonEmptyString(Map<String, dynamic>? data, List<String> keys) {
-    if (data == null) return false;
-
-    for (final key in keys) {
-      final value = data[key];
-      if (value == null) continue;
-      if (value is String && value.trim().isNotEmpty) {
-        return true;
-      }
-    }
-
-    return false;
-  }
-
   bool get isLoading => _isLoading;
   bool get isLoggedIn => _auth.currentUser != null;
   bool get isProfileCompleted => _isProfileCompleted;
@@ -60,18 +46,14 @@ class AuthNotifier extends ChangeNotifier {
       try {
         final docSnapshot = await docRef.get();
         final data = docSnapshot.data();
-        final hasIdentity = _hasNonEmptyString(data, [
-          'username',
-          'name',
-        ]);
-
+        // Onboarding is complete only once `createdAt` is set — and that is set
+        // exclusively at the end of the interests screen. We deliberately do NOT
+        // treat merely having a name/username as "complete", so a user who
+        // entered a name but never finished setup can't skip the interests step.
         final hasCreatedAt = data?['createdAt'] != null;
-
-        _isProfileCompleted =
-            docSnapshot.exists && (hasIdentity || hasCreatedAt);
+        _isProfileCompleted = docSnapshot.exists && hasCreatedAt;
         print("AuthNotifier - Profile completion status: $_isProfileCompleted");
         print("AuthNotifier - createdAt value: ${data?['createdAt']}");
-        print("AuthNotifier - hasIdentity value: $hasIdentity");
       } catch (e) {
         _isProfileCompleted = false;
         print("AuthNotifier - Error checking profile: $e");

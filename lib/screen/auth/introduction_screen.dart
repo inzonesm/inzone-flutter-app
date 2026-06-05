@@ -20,65 +20,103 @@ class IntroductionScreen extends StatefulWidget {
 }
 
 class _IntroductionScreenState extends State<IntroductionScreen> {
+  // Track the loading dialog so we never double-show it or pop the wrong route.
+  bool _loadingDialogShown = false;
+  BuildContext? _loadingDialogContext;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
       _checkLoginStatus();
     });
   }
 
+  @override
+  void dispose() {
+    // Drop the dialog references so a late async callback (e.g. an in-flight
+    // sign-in completing after the screen is gone) can't act on a stale context.
+    // We deliberately don't pop here — popping during dispose is unsafe; the
+    // dialog's route is torn down with its navigator.
+    _loadingDialogShown = false;
+    _loadingDialogContext = null;
+    super.dispose();
+  }
+
   Future<void> _checkLoginStatus() async {
-    _showLoadingDialog();
     final user = FirebaseAuth.instance.currentUser;
 
+    // Logged out: stay on this landing page and show the sign-in options. Do NOT
+    // flash a loading dialog on entry — showing then immediately dismissing a
+    // modal route while the screen is still settling is what destabilises
+    // teardown during the onboarding → login transition. (Still call dismiss in
+    // case a sign-in handler had a dialog up; it's a no-op otherwise.)
     if (user == null) {
       _dismissLoadingDialog();
       return;
     }
 
-    final docRef =
-        FirebaseFirestore.instance.collection('humanUsers').doc(user.uid);
-    var doc = await docRef.get();
+    _showLoadingDialog();
+    try {
+      final docRef =
+          FirebaseFirestore.instance.collection('humanUsers').doc(user.uid);
+      var doc = await docRef.get();
 
-    if (!doc.exists) {
-      await docRef.set({
-        'email': user.email ?? '',
-        'createdAt': null,
-      });
-      doc = await docRef.get();
-    }
+      if (!doc.exists) {
+        await docRef.set({
+          'email': user.email ?? '',
+          'createdAt': null,
+        });
+        doc = await docRef.get();
+      }
 
-    bool isProfileCompleted = doc.data()?['createdAt'] != null;
+      final bool isProfileCompleted = doc.data()?['createdAt'] != null;
 
-    // Make sure to dismiss the loading dialog before navigation
-    _dismissLoadingDialog();
+      // Dismiss before navigating, then a small delay so the route is fully gone.
+      _dismissLoadingDialog();
+      await Future.delayed(const Duration(milliseconds: 100));
+      if (!mounted) return;
 
-    // Use a small delay to ensure the dialog is fully dismissed before navigation
-    await Future.delayed(const Duration(milliseconds: 100));
-
-    if (mounted) {
       if (isProfileCompleted) {
         context.go(Routes.home);
       } else {
         context.go(Routes.profileWithEmail(user.email ?? ""));
       }
+    } catch (e) {
+      // Never leave the spinner stuck if the profile lookup fails.
+      debugPrint('IntroductionScreen._checkLoginStatus error: $e');
+      _dismissLoadingDialog();
     }
   }
 
   void _showLoadingDialog() {
+    // Guard against double-show (the sign-in handlers and _checkLoginStatus can
+    // both ask for it) and against showing on a dead context.
+    if (!mounted || _loadingDialogShown) return;
+    _loadingDialogShown = true;
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (_) => const Center(
-        child: CircularProgressIndicator(color: Colors.white),
-      ),
+      useRootNavigator: true,
+      builder: (dialogContext) {
+        _loadingDialogContext = dialogContext;
+        return const Center(
+          child: CircularProgressIndicator(color: Colors.white),
+        );
+      },
     );
   }
 
   void _dismissLoadingDialog() {
-    if (mounted && Navigator.of(context).canPop()) {
-      Navigator.of(context).pop();
+    if (!_loadingDialogShown) return;
+    _loadingDialogShown = false;
+    final dialogContext = _loadingDialogContext;
+    _loadingDialogContext = null;
+    // Pop the dialog via its OWN context/route so we never accidentally pop the
+    // page underneath, and only while it's actually on screen.
+    if (dialogContext != null && dialogContext.mounted) {
+      Navigator.of(dialogContext).pop();
     }
   }
 
