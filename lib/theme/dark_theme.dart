@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:inzone/theme/app_colors.dart';
-import 'package:inzone/theme/light_theme.dart'; // Import for ChatTheme extension
 
 /// Dark theme for the InZone app
 class DarkTheme {

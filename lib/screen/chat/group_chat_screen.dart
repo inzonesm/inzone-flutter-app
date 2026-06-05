@@ -4,9 +4,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_feather_icons/flutter_feather_icons.dart';
-import 'package:get/get_connect/http/src/utils/utils.dart';
 import 'package:inzone/router/routes.dart';
-import 'package:inzone/screen/chat/sample_chat.dart';
 import 'package:inzone/services/inzone_database.dart';
 import 'package:inzone/services/monetization_service.dart';
 import 'package:inzone/components/chat/chat_input.dart';
@@ -19,16 +17,12 @@ import 'package:inzone/services/notification_event_service.dart';
 import 'package:intl/intl.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:inzone/theme/light_theme.dart'; // Import for ChatTheme extension
-import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
-import 'package:purchases_ui_flutter/paywall_result.dart';
 import 'package:purchases_ui_flutter/purchases_ui_flutter.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:toasty_box/toast_service.dart';
 import 'package:inzone/services/appsflyer_service.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:inzone/auth/auth_work.dart';
 
 // Group Chat Session Tracker
@@ -125,7 +119,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   final TextEditingController _msgController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   final bool _isLoading = true;
-  bool _isUploadingMedia = false;
+  final bool _isUploadingMedia = false;
   bool _isSendingMessage = false;
   File? _pendingImage;
   File? _pendingVideo;
@@ -152,7 +146,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   final List<String> _sessionActivities = [];
 
   // Track initial load to prevent double scrolling
-  bool _hasInitiallyScrolled = false;
+  final bool _hasInitiallyScrolled = false;
   int _previousMessageCount = 0;
 
   // Define the cost to join a group chat
@@ -626,7 +620,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     if (renderObject == null || !renderObject.attached) return;
 
     final viewport = RenderAbstractViewport.of(renderObject);
-    if (viewport == null) return;
 
     final revealOffset = viewport.getOffsetToReveal(renderObject, 0.0).offset;
     final min = _scrollController.position.minScrollExtent;
@@ -1704,9 +1697,9 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
               .get(),
         ]);
 
-        final usersSnapshot = results[0] as QuerySnapshot<Map<String, dynamic>>;
+        final usersSnapshot = results[0];
         final humanUsersSnapshot =
-            results[1] as QuerySnapshot<Map<String, dynamic>>;
+            results[1];
 
         for (final doc in usersSnapshot.docs) {
           final username = doc.data()['username']?.toString().trim() ?? '';

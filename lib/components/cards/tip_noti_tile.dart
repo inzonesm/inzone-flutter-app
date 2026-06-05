@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 
 class TipNotificationTile extends StatelessWidget {
   final String tipId;

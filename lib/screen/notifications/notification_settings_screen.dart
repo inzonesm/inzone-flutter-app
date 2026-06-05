@@ -949,7 +949,7 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
                 selectedOption == entry.key,
                 () => onOptionChanged(entry.key),
               ),
-            ).toList(),
+            ),
           ],
         ],
       ),

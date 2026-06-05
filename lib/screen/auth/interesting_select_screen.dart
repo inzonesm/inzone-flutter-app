@@ -8,7 +8,6 @@ import 'package:inzone/router/app_router.dart';
 import 'package:inzone/router/routes.dart';
 import 'package:inzone/services/inzone_database.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:toasty_box/toast_service.dart';
 
 class InterestSelectionScreen extends StatefulWidget {

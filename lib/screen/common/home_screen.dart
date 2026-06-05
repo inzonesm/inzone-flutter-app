@@ -1,7 +1,6 @@
 import 'package:go_router/go_router.dart';
 import 'package:colorful_safe_area/colorful_safe_area.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:inzone/router/routes.dart';
 import 'package:inzone/components/cards/post_card.dart';
