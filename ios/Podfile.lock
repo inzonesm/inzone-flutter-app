@@ -1202,14 +1202,14 @@ PODS:
     - GoogleUtilities/Environment (~> 8.0)
     - GoogleUtilities/UserDefaults (~> 8.0)
     - PromisesObjC (~> 2.4)
-  - appsflyer_sdk (6.18.0):
-    - appsflyer_sdk/Core (= 6.18.0)
-  - appsflyer_sdk/Core (6.18.0):
-    - AppsFlyerFramework (= 6.18.0)
+  - appsflyer_sdk (6.17.8):
+    - appsflyer_sdk/Core (= 6.17.8)
+  - appsflyer_sdk/Core (6.17.8):
+    - AppsFlyerFramework (= 6.17.8)
     - Flutter
-  - AppsFlyerFramework (6.18.0):
-    - AppsFlyerFramework/Main (= 6.18.0)
-  - AppsFlyerFramework/Main (6.18.0)
+  - AppsFlyerFramework (6.17.8):
+    - AppsFlyerFramework/Main (= 6.17.8)
+  - AppsFlyerFramework/Main (6.17.8)
   - audio_session (0.0.1):
     - Flutter
   - BoringSSL-GRPC (0.0.37):
@@ -1396,7 +1396,9 @@ PODS:
     - Flutter
   - flutter_local_notifications (0.0.1):
     - Flutter
-  - flutter_native_contact_picker (0.0.12):
+  - flutter_native_contact_picker (0.0.1):
+    - Flutter
+  - flutter_native_splash (2.4.3):
     - Flutter
   - Google-Mobile-Ads-SDK (12.13.0):
     - GoogleUserMessagingPlatform (>= 1.1)
@@ -1612,7 +1614,7 @@ PODS:
   - OrderedSet (6.0.3)
   - package_info_plus (0.4.5):
     - Flutter
-  - permission_handler_apple (9.4.8):
+  - permission_handler_apple (9.3.0):
     - Flutter
   - PromisesObjC (2.4.0)
   - purchases_flutter (8.11.0):
@@ -1627,7 +1629,7 @@ PODS:
     - PurchasesHybridCommon (= 14.3.0)
     - RevenueCatUI (= 5.32.0)
   - RecaptchaInterop (101.0.0)
-  - record_ios (1.2.1):
+  - record_ios (1.2.0):
     - Flutter
   - RevenueCat (5.32.0)
   - RevenueCatUI (5.32.0):
@@ -1639,7 +1641,6 @@ PODS:
     - FlutterMacOS
   - sign_in_with_apple (0.0.1):
     - Flutter
-    - FlutterMacOS
   - speech_to_text (7.2.0):
     - CwlCatchException
     - Flutter
@@ -1658,6 +1659,8 @@ PODS:
   - video_thumbnail (0.0.1):
     - Flutter
     - libwebp
+  - volume_controller (0.0.1):
+    - Flutter
   - wakelock_plus (0.0.1):
     - Flutter
   - webview_flutter_wkwebview (0.0.1):
@@ -1684,6 +1687,7 @@ DEPENDENCIES:
   - flutter_keyboard_visibility (from `.symlinks/plugins/flutter_keyboard_visibility/ios`)
   - flutter_local_notifications (from `.symlinks/plugins/flutter_local_notifications/ios`)
   - flutter_native_contact_picker (from `.symlinks/plugins/flutter_native_contact_picker/ios`)
+  - flutter_native_splash (from `.symlinks/plugins/flutter_native_splash/ios`)
   - google_mobile_ads (from `.symlinks/plugins/google_mobile_ads/ios`)
   - google_sign_in_ios (from `.symlinks/plugins/google_sign_in_ios/darwin`)
   - image_picker_ios (from `.symlinks/plugins/image_picker_ios/ios`)
@@ -1699,13 +1703,14 @@ DEPENDENCIES:
   - record_ios (from `.symlinks/plugins/record_ios/ios`)
   - share_plus (from `.symlinks/plugins/share_plus/ios`)
   - shared_preferences_foundation (from `.symlinks/plugins/shared_preferences_foundation/darwin`)
-  - sign_in_with_apple (from `.symlinks/plugins/sign_in_with_apple/darwin`)
+  - sign_in_with_apple (from `.symlinks/plugins/sign_in_with_apple/ios`)
   - speech_to_text (from `.symlinks/plugins/speech_to_text/darwin`)
   - sqflite_darwin (from `.symlinks/plugins/sqflite_darwin/darwin`)
   - url_launcher_ios (from `.symlinks/plugins/url_launcher_ios/ios`)
   - vad (from `.symlinks/plugins/vad/ios`)
   - video_player_avfoundation (from `.symlinks/plugins/video_player_avfoundation/darwin`)
   - video_thumbnail (from `.symlinks/plugins/video_thumbnail/ios`)
+  - volume_controller (from `.symlinks/plugins/volume_controller/ios`)
   - wakelock_plus (from `.symlinks/plugins/wakelock_plus/ios`)
   - webview_flutter_wkwebview (from `.symlinks/plugins/webview_flutter_wkwebview/darwin`)
 
@@ -1801,6 +1806,8 @@ EXTERNAL SOURCES:
     :path: ".symlinks/plugins/flutter_local_notifications/ios"
   flutter_native_contact_picker:
     :path: ".symlinks/plugins/flutter_native_contact_picker/ios"
+  flutter_native_splash:
+    :path: ".symlinks/plugins/flutter_native_splash/ios"
   google_mobile_ads:
     :path: ".symlinks/plugins/google_mobile_ads/ios"
   google_sign_in_ios:
@@ -1832,7 +1839,7 @@ EXTERNAL SOURCES:
   shared_preferences_foundation:
     :path: ".symlinks/plugins/shared_preferences_foundation/darwin"
   sign_in_with_apple:
-    :path: ".symlinks/plugins/sign_in_with_apple/darwin"
+    :path: ".symlinks/plugins/sign_in_with_apple/ios"
   speech_to_text:
     :path: ".symlinks/plugins/speech_to_text/darwin"
   sqflite_darwin:
@@ -1845,6 +1852,8 @@ EXTERNAL SOURCES:
     :path: ".symlinks/plugins/video_player_avfoundation/darwin"
   video_thumbnail:
     :path: ".symlinks/plugins/video_thumbnail/ios"
+  volume_controller:
+    :path: ".symlinks/plugins/volume_controller/ios"
   wakelock_plus:
     :path: ".symlinks/plugins/wakelock_plus/ios"
   webview_flutter_wkwebview:
@@ -1856,8 +1865,8 @@ SPEC CHECKSUMS:
   app_tracking_transparency: 3d84f147f67ca82d3c15355c36b1fa6b66ca7c92
   AppAuth: d4f13a8fe0baf391b2108511793e4b479691fb73
   AppCheckCore: cc8fd0a3a230ddd401f326489c99990b013f0c4f
-  appsflyer_sdk: 334ef01a9d1a1b1483ef092c729da0bbd2f115c3
-  AppsFlyerFramework: c1e1e4cd3b98ffdca2fe32b17ae93909e409b6ab
+  appsflyer_sdk: 219a6c5cb0343de60c7f259ecdb202084274359e
+  AppsFlyerFramework: 63577b60d6b9fcdab60135289979e7d1c9ec79b9
   audio_session: 9bb7f6c970f21241b19f5a3658097ae459681ba0
   BoringSSL-GRPC: dded2a44897e45f28f08ae87a55ee4bcd19bc508
   cloud_firestore: fdcc87898326e396d6ef6df543acf9b5c2034b95
@@ -1897,7 +1906,8 @@ SPEC CHECKSUMS:
   flutter_inappwebview_ios: b89ba3482b96fb25e00c967aae065701b66e9b99
   flutter_keyboard_visibility: 4625131e43015dbbe759d9b20daaf77e0e3f6619
   flutter_local_notifications: a5a732f069baa862e728d839dd2ebb904737effb
-  flutter_native_contact_picker: 37b345f52a15ca8f1fe0072159b4f022998a8682
+  flutter_native_contact_picker: 22508d3ab5a583068d4a588cb37c0e0b8764722d
+  flutter_native_splash: c32d145d68aeda5502d5f543ee38c192065986cf
   Google-Mobile-Ads-SDK: fa5e7457f7dcd55a1958c29e71cc67cd4f3f2de3
   google_mobile_ads: a84de95e05a962d54dec97d511a9368d8796b5a2
   google_sign_in_ios: b48bb9af78576358a168361173155596c845f0b9
@@ -1924,25 +1934,26 @@ SPEC CHECKSUMS:
   onnxruntime-objc: 83d28b87525bd971259a66e153ea32b5d023de19
   OrderedSet: e539b66b644ff081c73a262d24ad552a69be3a94
   package_info_plus: af8e2ca6888548050f16fa2f1938db7b5a5df499
-  permission_handler_apple: 92d754bbaa7361d436db2d6c3c1c2a0fdcec462e
+  permission_handler_apple: 4ed2196e43d0651e8ff7ca3483a069d469701f2d
   PromisesObjC: f5707f49cb48b9636751c5b2e7d227e43fba9f47
   purchases_flutter: 3570127ba41583a75e553d68a763367007830eff
   purchases_ui_flutter: 4f73ee267b1f50f72f71ece0d918fc5d0cb7f97f
   PurchasesHybridCommon: 7f0944cc5411bdcd1ea5d69affa6a6f9aaf87b13
   PurchasesHybridCommonUI: 8149f983d0d5fcc6d2536900c934d3dfb7cbed45
   RecaptchaInterop: 11e0b637842dfb48308d242afc3f448062325aba
-  record_ios: 980fd386a97a35987d0fce3dfda4b26a38c90f4c
+  record_ios: 412daca2350b228e698fffcd08f1f94ceb1e3844
   RevenueCat: 7e1d0768fb287c9983173c9b28e39ccbeeb828a9
   RevenueCatUI: 61ddba6f94803f9b79c470ffe1e8b81d807c11ce
   share_plus: 50da8cb520a8f0f65671c6c6a99b3617ed10a58a
   shared_preferences_foundation: 7036424c3d8ec98dfe75ff1667cb0cd531ec82bb
-  sign_in_with_apple: 5e34677a4e74c5f42760f41b3bbe05343e84d171
+  sign_in_with_apple: c5dcc141574c8c54d5ac99dd2163c0c72ad22418
   speech_to_text: 3b313d98516d3d0406cea424782ec25470c59d19
   sqflite_darwin: 20b2a3a3b70e43edae938624ce550a3cbf66a3d0
   url_launcher_ios: 7a95fa5b60cc718a708b8f2966718e93db0cef1b
   vad: 7934867589afe53567f492df66fb1615f2185822
-  video_player_avfoundation: 3453f792138786248960ca029747fcd9f318ef52
+  video_player_avfoundation: dd410b52df6d2466a42d28550e33e4146928280a
   video_thumbnail: b637e0ad5f588ca9945f6e2c927f73a69a661140
+  volume_controller: 3657a1f65bedb98fa41ff7dc5793537919f31b12
   wakelock_plus: e29112ab3ef0b318e58cfa5c32326458be66b556
   webview_flutter_wkwebview: 8ebf4fded22593026f7dbff1fbff31ea98573c8d
 

@@ -54,6 +54,20 @@ class _CommunityGameScreenState extends State<CommunityGameScreen> {
   @override
   void initState() {
     super.initState();
+    // The app is locked to portrait globally (see main.dart), but some games
+    // (e.g. BrowserQuest) require landscape and show a "rotate your device"
+    // gate until the webview window is wider than tall. Allow landscape while
+    // the full-screen game player is open so rotating the device actually
+    // rotates the webview; dispose() restores the portrait-only default. This
+    // toggle lives here — on the full-screen route — and not in
+    // _CommunityGamePage, which is also embedded inline in the home feed and
+    // must not rotate it.
+    SystemChrome.setPreferredOrientations([
+      DeviceOrientation.portraitUp,
+      DeviceOrientation.portraitDown,
+      DeviceOrientation.landscapeLeft,
+      DeviceOrientation.landscapeRight,
+    ]);
     _games = _buildInitialPlaylist();
     _currentIndex = _games
         .indexWhere((g) =>
@@ -155,6 +169,12 @@ class _CommunityGameScreenState extends State<CommunityGameScreen> {
 
   @override
   void dispose() {
+    // Restore the app-wide portrait-only lock (see main.dart) now that the
+    // game player is closing, so the rest of the app does not stay rotatable.
+    SystemChrome.setPreferredOrientations([
+      DeviceOrientation.portraitUp,
+      DeviceOrientation.portraitDown,
+    ]);
     _pageController.dispose();
     super.dispose();
   }
@@ -428,7 +448,7 @@ class _CommunityGamePageState extends State<_CommunityGamePage> {
       case TargetPlatform.windows:
       case TargetPlatform.linux:
       case TargetPlatform.fuchsia:
-        return ' http://192.168.1.189:8080';
+        return 'http://192.168.1.189:8080';
     }
   }
 
@@ -746,7 +766,11 @@ class _CommunityGamePageState extends State<_CommunityGamePage> {
                   encoding: 'utf-8',
                 ),
           initialUrlRequest: initialHtml == null
-              ? URLRequest(url: WebUri(widget.game.gameUrl))
+              ? URLRequest(
+                  url: WebUri(
+                    _withServerUrl(widget.game.gameUrl, widget.game.serverUrl),
+                  ),
+                )
               : null,
           initialSettings: InAppWebViewSettings(
             mediaPlaybackRequiresUserGesture: false,
@@ -1069,6 +1093,27 @@ class _FeedCharacterContext {
 /// Session-scoped cache so every feed Simula game in one session uses the same
 /// randomly chosen fallback character (rather than re-rolling per game).
 _FeedCharacterContext? _cachedRandomFeedCharacter;
+
+/// Append `?serverUrl=…` to a multiplayer game's [gameUrl] so the embedded
+/// client can read it from `window.location.search` and dial the right
+/// WebSocket backend. Without this, multiplayer clients (e.g. BrowserQuest)
+/// fall back to their baked-in default host (`localhost`) and fail to connect.
+///
+/// This mirrors the InZone web portal's `withServerUrl` helper so games behave
+/// identically in the app and on the web. [serverUrl] is empty for
+/// single-player games, in which case [gameUrl] is returned unchanged.
+String _withServerUrl(String gameUrl, String serverUrl) {
+  if (gameUrl.isEmpty || serverUrl.isEmpty) return gameUrl;
+  try {
+    final uri = Uri.parse(gameUrl);
+    final params = Map<String, String>.from(uri.queryParameters);
+    params['serverUrl'] = serverUrl;
+    return uri.replace(queryParameters: params).toString();
+  } catch (_) {
+    final separator = gameUrl.contains('?') ? '&' : '?';
+    return '$gameUrl${separator}serverUrl=${Uri.encodeComponent(serverUrl)}';
+  }
+}
 
 String? _firstNonEmptyField(List<dynamic> values) {
   for (final value in values) {
