@@ -1,4 +1,8 @@
+import 'dart:async';
+
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:inzone/components/live_players_indicator.dart';
 import 'package:inzone/data/community_game.dart';
@@ -20,10 +24,37 @@ class _GameHubScreenState extends State<GameHubScreen> {
   bool _loading = true;
   bool _error = false;
 
+  // Live coin balance shown in the app bar (humanUsers/<uid>.balance).
+  String _balance = '0';
+  StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>? _balanceSub;
+
   @override
   void initState() {
     super.initState();
     _loadCatalog();
+    _setupBalanceStream();
+  }
+
+  @override
+  void dispose() {
+    _balanceSub?.cancel();
+    super.dispose();
+  }
+
+  void _setupBalanceStream() {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    _balanceSub = FirebaseFirestore.instance
+        .collection('humanUsers')
+        .doc(user.uid)
+        .snapshots()
+        .listen((doc) {
+      if (!mounted) return;
+      final balance = doc.data()?['balance'];
+      setState(() => _balance = balance?.toString() ?? '0');
+    }, onError: (_) {
+      if (mounted) setState(() => _balance = '0');
+    });
   }
 
   Future<void> _loadCatalog() async {
@@ -92,6 +123,7 @@ class _GameHubScreenState extends State<GameHubScreen> {
           ),
         ),
         actions: [
+          _CoinBalanceBadge(balance: _balance),
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: _loading ? null : _loadCatalog,
@@ -144,6 +176,53 @@ class _GameHubScreenState extends State<GameHubScreen> {
         final game = _games[index];
         return _GameHubTile(game: game, onTap: () => _handleTap(game));
       },
+    );
+  }
+}
+
+// Coin/points pill — matches the design used on the Groups screen app bar
+// (see CustomAppBar): a rounded card-colored pill with a primary-colored
+// circular badge icon followed by the balance.
+class _CoinBalanceBadge extends StatelessWidget {
+  final String balance;
+  const _CoinBalanceBadge({required this.balance});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Center(
+      child: Container(
+        height: 40,
+        margin: const EdgeInsets.only(right: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(24),
+          color: theme.cardColor,
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircleAvatar(
+              radius: 12,
+              backgroundColor: theme.colorScheme.primary,
+              child: const Icon(
+                Icons.local_police,
+                color: Colors.white,
+                size: 14,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              balance,
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.bold,
+                color: theme.textTheme.bodyLarge?.color,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
