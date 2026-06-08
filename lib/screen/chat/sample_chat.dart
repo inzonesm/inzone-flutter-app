@@ -1,11 +1,6 @@
-import 'dart:convert';
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_feather_icons/flutter_feather_icons.dart';
 import 'package:inzone/components/chat/message_bubble.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:toasty_box/toasty_box.dart';
 
 class SampleChatPage extends StatefulWidget {
   final String category;

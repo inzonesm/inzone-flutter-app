@@ -4,7 +4,6 @@ import 'package:go_router/go_router.dart';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 import 'package:video_player/video_player.dart';
-import 'package:inzone/components/ui/appbar_icon.dart';
 
 class ChatInput extends StatefulWidget {
   final TextEditingController controller;

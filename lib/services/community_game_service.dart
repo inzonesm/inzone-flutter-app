@@ -175,7 +175,7 @@ class CommunityGameService {
 
   static Map<String, dynamic>? _asMap(dynamic value) {
     if (value is Map) {
-      return Map<String, dynamic>.from(value as Map);
+      return Map<String, dynamic>.from(value);
     }
     return null;
   }

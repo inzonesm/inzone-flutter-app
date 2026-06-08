@@ -7,7 +7,6 @@ import 'package:inzone/services/appsflyer_service.dart';
 import 'dart:async'; // Add Timer import
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-import '../main.dart';
 import '../config/api_config.dart';
 
 class InZoneDatabase {
