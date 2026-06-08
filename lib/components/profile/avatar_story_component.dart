@@ -4,9 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:go_router/go_router.dart';
 import 'package:inzone/screen/chat/all_chats_screen.dart';
-import 'package:inzone/screen/chat/chat_screen.dart';
 import 'package:inzone/data/inzone_avatar.dart';
-import 'package:inzone/router/routes.dart';
 import 'package:inzone/services/inzone_database.dart';
 
 class AvatarStoryComponent extends StatefulWidget {

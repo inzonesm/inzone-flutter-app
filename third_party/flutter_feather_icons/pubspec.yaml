@@ -1,0 +1,22 @@
+name: flutter_feather_icons
+description: >-
+  Vendored, Dart 3-compatible copy of flutter_feather_icons 2.0.0+1. The upstream
+  package is abandoned (SDK <3.0) and subclasses IconData, which newer Flutter SDKs
+  made a final class, breaking the build. This copy constructs plain IconData; the
+  public API (FeatherIcons.*) and the bundled font are identical to upstream.
+version: 2.0.0+2
+publish_to: 'none'
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+  flutter: '>=1.17.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+flutter:
+  fonts:
+    - family: FeatherIcons
+      fonts:
+        - asset: fonts/feather.ttf

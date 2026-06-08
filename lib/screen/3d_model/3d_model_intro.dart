@@ -1,11 +1,9 @@
 import 'dart:math' as math;
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:inzone/router/routes.dart';
 import 'package:flutter_3d_controller/flutter_3d_controller.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:inzone/components/ui/button.dart';
 
 class ModelIntroScreen extends StatefulWidget {
   const ModelIntroScreen({super.key});

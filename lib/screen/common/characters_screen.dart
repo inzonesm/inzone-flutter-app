@@ -3,8 +3,6 @@ import 'package:go_router/go_router.dart';
 import 'package:inzone/components/posts/shimmering.dart';
 import 'dart:math';
 import 'package:inzone/data/inzone_avatar.dart';
-import 'package:inzone/components/profile/avatar_card.dart';
-import 'package:inzone/components/profile/avatar_story_component.dart';
 import 'package:inzone/services/inzone_database.dart';
 import 'package:inzone/router/routes.dart';
 import 'package:inzone/screen/chat/all_chats_screen.dart';
@@ -588,7 +586,7 @@ class _CharactersScreenState extends State<CharactersScreen> {
                 ),
               ),
             ),
-            if (avatar.popularity != null && avatar.popularity > 10)
+            if (avatar.popularity > 10)
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(

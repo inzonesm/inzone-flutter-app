@@ -1,7 +1,5 @@
 import 'package:colorful_safe_area/colorful_safe_area.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:inzone/components/cards/tip_noti_tile.dart';
 
 class NotificationScreen extends StatefulWidget {

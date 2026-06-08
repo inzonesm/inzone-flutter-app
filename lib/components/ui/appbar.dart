@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_feather_icons/flutter_feather_icons.dart';
 import 'package:inzone/services/monetization_service.dart';
 import 'package:popover/popover.dart';
-import 'package:toasty_box/toast_service.dart';
 import 'package:inzone/components/ui/appbar_icon.dart';
 
 class CustomAppBar extends StatefulWidget implements PreferredSizeWidget {

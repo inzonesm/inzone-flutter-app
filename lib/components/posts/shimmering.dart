@@ -2,7 +2,6 @@
 
 import 'package:flutter/material.dart';
 import 'package:skeleton_text/skeleton_text.dart';
-import 'package:shimmer/shimmer.dart';
 
 class SkeletonContainer extends StatelessWidget {
   final double? width;
