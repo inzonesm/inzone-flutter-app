@@ -162,10 +162,16 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   void initState() {
     super.initState();
 
-    // Use the provided group ID if it's a valid Firestore group ID
-    // Otherwise, use the default one
-    _groupId = widget.group.id.contains('group_chat_')
-        ? widget.group.id
+    // Use the provided group ID if it's a real Firestore group document.
+    // Standard groups use a `group_chat_<ts>` id; community chats created for
+    // uploaded HTML games use a `game_<slug>_<ts>` id. Both are valid docs and
+    // must open as-is. Only the hardcoded sample groups (ids like '1'..'4'),
+    // which have no backing document, fall back to the default chat.
+    final String requestedGroupId = widget.group.id;
+    final bool isRealGroupDoc = requestedGroupId.contains('group_chat_') ||
+        requestedGroupId.startsWith('game_');
+    _groupId = isRealGroupDoc
+        ? requestedGroupId
         : GroupChatService.defaultGroupChatDocId;
 
     NotificationEventService.setActiveGroupChatId(_groupId);

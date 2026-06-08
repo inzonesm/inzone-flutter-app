@@ -12,6 +12,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:http/http.dart' as http;
 import 'package:inzone/components/live_players_indicator.dart';
+import 'package:inzone/config/api_config.dart';
 import 'package:inzone/data/community_game.dart';
 import 'package:inzone/data/hub_game.dart';
 import 'package:inzone/services/active_character_notifier.dart';
@@ -420,16 +421,7 @@ class _CommunityGamePageState extends State<_CommunityGamePage> {
   }
 
   String _resolveBackendBaseUrl() {
-    switch (defaultTargetPlatform) {
-      case TargetPlatform.android:
-        return 'http://10.0.2.2:8080';
-      case TargetPlatform.iOS:
-      case TargetPlatform.macOS:
-      case TargetPlatform.windows:
-      case TargetPlatform.linux:
-      case TargetPlatform.fuchsia:
-        return ' http://192.168.1.189:8080';
-    }
+    return ApiConfig.baseUrl.trim();
   }
 
   Future<Map<String, dynamic>> _handleSocialLoopAction(
@@ -1158,16 +1150,7 @@ Future<_FeedCharacterContext> _resolveFeedCharacter(
   );
 }
 
-/// A single playable Simula minigame inside the vertical feed.
-///
-/// Unlike the Simula `MiniGameMenu`/`GameIframe` path (which presents a popup
-/// menu and a dialog with its own global overlay), this page resolves the
-/// game's `iframeUrl` directly via `apiClient.getMinigame(...)` and loads it as
-/// a plain full-screen webview — exactly like a community game's `gameUrl`. No
-/// menu, dialog, or extra overlay is ever shown, so it slots cleanly into the
-/// feed without the menu "popping up". Character context comes from the user's
-/// last-used character ([ActiveCharacterNotifier]); when none is active it
-/// falls back to the default "InZone" character the notifier provides.
+
 class _SimulaGamePage extends StatefulWidget {
   final GameData game;
   final bool isActive;
