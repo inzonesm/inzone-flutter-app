@@ -118,6 +118,28 @@ class CommunityGameService {
     }, SetOptions(merge: true));
   }
 
+  /// Returns the gameKey for a game, creating one if it doesn't exist yet.
+  /// Format: gk_live_{gameId}_{uploaderId}
+  /// Only writes to Firestore when the field is absent — never overwrites.
+  static Future<String> ensureGameKey({
+    required String gameId,
+    required String uploaderId,
+  }) async {
+    final docRef = _db.collection(_collection).doc(gameId);
+    final snap = await docRef.get();
+    if (snap.exists) {
+      final data = snap.data() ?? {};
+      final existing = ((data['gameKey'] as String?) ??
+              (data['game_key'] as String?) ??
+              '')
+          .trim();
+      if (existing.isNotEmpty) return existing;
+    }
+    final generated = 'gk_live_${gameId}_$uploaderId';
+    await docRef.set({'gameKey': generated}, SetOptions(merge: true));
+    return generated;
+  }
+
   static String? buildShareTextFromSendChallenge(
       Map<String, dynamic> response) {
     final share = _asMap(response['share']);

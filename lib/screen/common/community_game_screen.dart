@@ -424,6 +424,10 @@ class _CommunityGamePageState extends State<_CommunityGamePage> {
         : null;
     final key = widget.game.gameKey?.trim();
     _gameKey = key != null && key.isNotEmpty ? key : null;
+    // If the game has no key yet, generate one and persist it.
+    if (_gameKey == null && widget.game.id.isNotEmpty) {
+      unawaited(_ensureGameKey());
+    }
     unawaited(_recordSessionStart());
   }
 
@@ -442,6 +446,20 @@ class _CommunityGamePageState extends State<_CommunityGamePage> {
 
   String _resolveBackendBaseUrl() {
     return ApiConfig.baseUrl.trim();
+  }
+
+  Future<void> _ensureGameKey() async {
+    try {
+      final generated = await CommunityGameService.ensureGameKey(
+        gameId: widget.game.id,
+        uploaderId: widget.game.uploaderId,
+      );
+      if (mounted && generated.isNotEmpty) {
+        _gameKey = generated;
+      }
+    } catch (e) {
+      debugPrint('Failed to ensure gameKey: $e');
+    }
   }
 
   Future<Map<String, dynamic>> _handleSocialLoopAction(
@@ -494,7 +512,8 @@ class _CommunityGamePageState extends State<_CommunityGamePage> {
         unawaited(_shareFromSendChallengeResponse(response));
         return response;
       case 'shareCard':
-        return client.shareCard(mergePayload({}));
+        // share-card was merged into send-challenge; route legacy calls there
+        return client.sendChallenge(mergePayload({}));
       case 'openChat':
         return client.openChat(mergePayload({}));
       case 'notifyShare':
