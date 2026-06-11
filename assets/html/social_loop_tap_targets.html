@@ -58,7 +58,7 @@
     <div id="meta">
       <div class="chip" id="gameLabel">Game: loading</div>
       <div class="chip" id="sessionLabel">Session: loading</div>
-      <div class="chip" id="backendLabel">Backend: loading</div>
+      <div class="chip" id="backendLabel" style="display:none">Backend: loading</div>
     </div>
     <div class="chip" style="justify-self:end"><small>Time</small><span id="time">20</span>s</div>
   </div>
@@ -77,7 +77,7 @@
       <div class="gameover-body">
         <div class="actions">
           <button class="good" id="playAgain">Play again (10 coins)</button>
-          <button class="secondary" id="shareNow">Share card</button>
+          <button class="secondary" id="shareNow">Share progress</button>
           <button class="secondary" id="challengeNow">Send challenge</button>
           <button class="secondary" id="chatNow">Open chat</button>
         </div>
@@ -157,7 +157,7 @@
     gameName: null,
     sessionId: null,
     backendBaseUrl: 'http://192.168.1.189:8080',
-    gameKey: 'dev-test-key',
+    gameKey: null,
     userId: null,
     fixtureMode: false,
   };
@@ -502,16 +502,17 @@
 
   playAgainBtn.addEventListener('click', requireReplayPurchase);
   document.getElementById('shareNow').addEventListener('click', async () => {
+    const senderId = requireUserId();
+    if (!senderId) return;
     try {
-      const response = await callSdk('shareCard', {
+      const response = await callSdk('sendChallenge', {
         gameId: state.gameId,
-        userId: state.userId,
-        playerId: state.userId,
+        senderId: senderId,
         score: finishedScore(),
         title: `I scored ${state.score} in ${state.gameName || state.gameId}!`,
         message: messageEl.value,
-        template: 'tap-targets',
         sessionId: state.sessionId,
+        challengeType: 'duel',
       });
       const payload = buildSharePayload(response);
       const opened = await openShareSheet(payload);
@@ -519,7 +520,7 @@
         openShareModal(payload);
       }
     } catch (error) {
-      log(`shareCard failed: ${error.message}`, 'error');
+      log(`Share failed: ${error.message}`, 'error');
     }
   });
   challengeBtn.addEventListener('click', async () => {
