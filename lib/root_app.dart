@@ -22,6 +22,7 @@ import 'package:inzone/services/active_character_notifier.dart';
 import 'package:inzone/services/appsflyer_service.dart';
 import 'package:inzone/services/inzone_database.dart';
 import 'package:inzone/data/hub_game.dart';
+import 'package:inzone/data/community_game.dart';
 import 'package:inzone/screen/common/community_game_screen.dart';
 import 'package:inzone/screen/common/game_hub_screen.dart';
 import 'package:toasty_box/toast_service.dart';
@@ -264,12 +265,43 @@ class _RootAppState extends State<RootApp>
     final normalized = gameId.trim();
     if (!mounted || normalized.isEmpty) return;
 
-    setState(() {
-      _pendingMiniGameDeepLinkGameId = normalized;
-      _miniGameMenuOpen = true;
+    // Check if this is a community HTML game first — those live in
+    // html_games and open in CommunityGameScreen, not the Simula menu.
+    FirebaseFirestore.instance
+        .collection('html_games')
+        .doc(normalized)
+        .get()
+        .then((snap) {
+      if (!mounted) return;
+      if (snap.exists) {
+        final community = CommunityGame.fromSnapshot(snap);
+        if (community.gameUrl.isNotEmpty) {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => CommunityGameScreen(game: community),
+              fullscreenDialog: true,
+            ),
+          );
+          return;
+        }
+      }
+      // Not a community game (or no gameUrl) — fall through to Simula menu.
+      setState(() {
+        _pendingMiniGameDeepLinkGameId = normalized;
+        _miniGameMenuOpen = true;
+      });
+      _loadPopularCharacters();
+      _refreshMiniGameForCurrentCharacter();
+    }).catchError((_) {
+      // Firestore lookup failed — fall through to Simula menu.
+      if (!mounted) return;
+      setState(() {
+        _pendingMiniGameDeepLinkGameId = normalized;
+        _miniGameMenuOpen = true;
+      });
+      _loadPopularCharacters();
+      _refreshMiniGameForCurrentCharacter();
     });
-    _loadPopularCharacters();
-    _refreshMiniGameForCurrentCharacter();
   }
 
   void _refreshMiniGameForCurrentCharacter() {
