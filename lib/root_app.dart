@@ -72,10 +72,17 @@ class _RootAppState extends State<RootApp>
   GameData? _lastCompletedMiniGame;
   String? _pendingMiniGameDeepLinkGameId;
   String? _lastCompletedMiniGameOverText;
+  // Guards against the same deep link being handled twice in quick succession.
+  // A single tap can arrive via several sources at once (go_router redirect, the
+  // AppsFlyer SDK callback, and app_links), so we ignore repeats of the same
+  // gameId within a short window.
+  String? _lastHandledDeepLinkGameId;
+  DateTime? _lastHandledDeepLinkAt;
   AppLinks? _appLinks;
   StreamSubscription<Uri>? _appLinksSubscription;
   StreamSubscription<String>? _minigameDeepLinkSubscription;
   StreamSubscription<String?>? _minigameMenuOpenSubscription;
+  StreamSubscription<String>? _communityGameDeepLinkSubscription;
   ActiveCharacterNotifier? _activeCharacterNotifier;
 
   /* --- in app review --- */
@@ -142,6 +149,7 @@ class _RootAppState extends State<RootApp>
     _minigameDeepLinkSubscription =
         AppsFlyerService().minigameDeepLinkStream.listen((gameId) {
       if (!mounted) return;
+      if (_isDuplicateDeepLink(gameId.trim())) return;
       _openMiniGameFromDeepLink(gameId);
     });
     _minigameMenuOpenSubscription =
@@ -160,6 +168,24 @@ class _RootAppState extends State<RootApp>
       _loadPopularCharacters();
       _refreshMiniGameForCurrentCharacter();
     });
+    _communityGameDeepLinkSubscription =
+        AppsFlyerService().communityGameDeepLinkStream.listen((gameId) {
+      if (!mounted) return;
+      _openCommunityGameFromDeepLink(gameId);
+    });
+    // Cold start: the deep link may have been queued (via the go_router redirect)
+    // before this subscription existed, so the broadcast event was dropped.
+    // Consume any pending gameId once the first frame is up and the Navigator is
+    // ready. The duplicate guard prevents this from double-opening with the
+    // stream above on warm starts.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final pending =
+          AppsFlyerService().consumePendingCommunityGameDeepLinkGameId();
+      if (pending != null && pending.isNotEmpty) {
+        _openCommunityGameFromDeepLink(pending);
+      }
+    });
   }
 
   @override
@@ -171,6 +197,7 @@ class _RootAppState extends State<RootApp>
     _appLinksSubscription?.cancel();
     _minigameDeepLinkSubscription?.cancel();
     _minigameMenuOpenSubscription?.cancel();
+    _communityGameDeepLinkSubscription?.cancel();
     // _homeScrollController.removeListener(_handleScroll);
     _homeScrollController.dispose();
     _rootFocusNode.dispose();
@@ -202,25 +229,43 @@ class _RootAppState extends State<RootApp>
   void _handleIncomingDeepLinkUri(Uri? uri) {
     if (!mounted || uri == null) return;
 
+    final scheme = uri.scheme.toLowerCase();
+    final host = uri.host.toLowerCase();
+    final deepLinkValue = uri.queryParameters['deep_link_value']?.toLowerCase();
+
+    // ── Community (html) games → Game Hub / CommunityGameScreen ──
+    // inzone://game?gameId=social-loops
+    String? communityGameId;
+    if (scheme == 'inzone' && host == 'game') {
+      communityGameId = uri.queryParameters['gameId'];
+    }
+    // inzone.app/game/social-loops (universal link)
+    if ((communityGameId == null || communityGameId.trim().isEmpty) &&
+        host == 'inzone.app' &&
+        uri.pathSegments.length >= 2 &&
+        uri.pathSegments[0] == 'game') {
+      communityGameId = uri.pathSegments[1];
+    }
+    // AppsFlyer deep_link_value=community_game&deep_link_sub1=social-loops
+    if ((communityGameId == null || communityGameId.trim().isEmpty) &&
+        (deepLinkValue == 'community_game' || deepLinkValue == 'html_game')) {
+      communityGameId = uri.queryParameters['deep_link_sub1'];
+    }
+    if (communityGameId != null && communityGameId.trim().isNotEmpty) {
+      _openCommunityGameFromDeepLink(communityGameId);
+      return;
+    }
+
+    // ── Simula minigame catalogue ──
     String? gameId;
 
     // inzone://minigame?gameId=nova-arena
-    if (uri.scheme.toLowerCase() == 'inzone' &&
-        uri.host.toLowerCase() == 'minigame') {
+    if (scheme == 'inzone' && host == 'minigame') {
       gameId = uri.queryParameters['gameId'];
-    }
-
-    if ((gameId == null || gameId.trim().isEmpty) &&
-        uri.host.toLowerCase() == 'inzone.app' &&
-        uri.pathSegments.length >= 2 &&
-        uri.pathSegments[0] == 'game') {
-      gameId = uri.pathSegments[1];
     }
 
     // AppsFlyer deep_link_value=minigame&deep_link_sub1=nova-arena
     if (gameId == null || gameId.trim().isEmpty) {
-      final deepLinkValue =
-          uri.queryParameters['deep_link_value']?.toLowerCase();
       if (deepLinkValue == 'minigame') {
         gameId = uri.queryParameters['deep_link_sub1'];
       }
@@ -259,6 +304,60 @@ class _RootAppState extends State<RootApp>
     Navigator.of(context).maybePop();
     _loadPopularCharacters();
     _openMiniGameFromDeepLink(game.id);
+  }
+
+  // Community (html) games open on the Game Hub via CommunityGameScreen — they
+  // never belong in the Simula minigame catalogue. The deep link is already
+  // tagged as a community game (deep_link_value=community_game /
+  // inzone://game?gameId=…), so we route straight here and, if the game can't be
+  // resolved, land the user on the Game Hub rather than the minigame menu.
+  // Returns true if this gameId was already handled within the last few seconds
+  // (so a duplicate deep-link delivery should be ignored).
+  bool _isDuplicateDeepLink(String gameId) {
+    final now = DateTime.now();
+    if (_lastHandledDeepLinkGameId == gameId &&
+        _lastHandledDeepLinkAt != null &&
+        now.difference(_lastHandledDeepLinkAt!) < const Duration(seconds: 3)) {
+      return true;
+    }
+    _lastHandledDeepLinkGameId = gameId;
+    _lastHandledDeepLinkAt = now;
+    return false;
+  }
+
+  void _openCommunityGameFromDeepLink(String gameId) {
+    final normalized = gameId.trim();
+    if (!mounted || normalized.isEmpty) return;
+    if (_isDuplicateDeepLink(normalized)) return;
+
+    FirebaseFirestore.instance
+        .collection('html_games')
+        .doc(normalized)
+        .get()
+        .then((snap) {
+      if (!mounted) return;
+      if (snap.exists) {
+        final community = CommunityGame.fromSnapshot(snap);
+        if (community.gameUrl.isNotEmpty) {
+          // Keep the Game Hub beneath the game so backing out returns the user
+          // to the hub (a valid screen) rather than jumping back to Home.
+          _openGameHubScreen();
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => CommunityGameScreen(game: community),
+              fullscreenDialog: true,
+            ),
+          );
+          return;
+        }
+      }
+      // Game not found or not yet playable — show the Game Hub instead of the
+      // Simula catalogue so the user always lands somewhere valid.
+      _openGameHubScreen();
+    }).catchError((_) {
+      if (!mounted) return;
+      _openGameHubScreen();
+    });
   }
 
   void _openMiniGameFromDeepLink(String gameId) {

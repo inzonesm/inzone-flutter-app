@@ -51,6 +51,7 @@ import 'package:inzone/data/group_data.dart';
 import 'package:inzone/router/routes.dart';
 import 'package:inzone/screen/terms/policy.dart';
 import 'package:inzone/screen/terms/terms.dart';
+import 'package:inzone/services/appsflyer_service.dart';
 
 /// A custom codec that can handle Map<String, Object> extras
 class MapExtraCodec extends Codec<Object?, Object?> {
@@ -108,6 +109,48 @@ class AppRouter {
     // Add custom codec to handle Map<String, Object> extras
     extraCodec: const MapExtraCodec(),
     redirect: (BuildContext context, GoRouterState state) {
+      // ── Deep-link interception ──
+      // On Android, AppsFlyer delivers OneLinks by launching their `af_dp` URI
+      // (e.g. inzone://game?gameId=…). That URI reaches go_router before our
+      // app_links / AppsFlyer SDK handlers, and since it isn't a real in-app
+      // route go_router would throw "no routes for location". Catch those URIs
+      // here, hand the gameId to the right stream (RootApp listens and opens the
+      // correct screen), and redirect to a valid in-app location so go_router
+      // never errors.
+      final Uri uri = state.uri;
+      if (uri.scheme == 'inzone' ||
+          uri.queryParameters.containsKey('deep_link_value')) {
+        final String? dlValue =
+            uri.queryParameters['deep_link_value']?.toLowerCase();
+        final String host = uri.host.toLowerCase();
+
+        // Community (html) games → Game Hub / CommunityGameScreen.
+        if (host == 'game' ||
+            dlValue == 'community_game' ||
+            dlValue == 'html_game') {
+          final gameId = (uri.queryParameters['gameId'] ??
+                  uri.queryParameters['deep_link_sub1'] ??
+                  '')
+              .trim();
+          if (gameId.isNotEmpty) {
+            AppsFlyerService().queueCommunityGameDeepLink(gameId);
+            return Routes.home;
+          }
+        }
+
+        // Simula minigame catalogue.
+        if (host == 'minigame' || dlValue == 'minigame') {
+          final gameId = (uri.queryParameters['gameId'] ??
+                  uri.queryParameters['deep_link_sub1'] ??
+                  '')
+              .trim();
+          if (gameId.isNotEmpty) {
+            AppsFlyerService().queueMinigameDeepLink(gameId);
+            return Routes.home;
+          }
+        }
+      }
+
       final bool isLoading = authNotifier.isLoading;
       final bool isLoggedIn = authNotifier.isLoggedIn;
       final bool isProfileCompleted = authNotifier.isProfileCompleted;
