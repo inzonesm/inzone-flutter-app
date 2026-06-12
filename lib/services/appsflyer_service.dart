@@ -81,11 +81,22 @@ class AppsFlyerService {
       StreamController<String>.broadcast();
   final StreamController<String?> _minigameMenuOpenController =
       StreamController<String?>.broadcast();
+  // Community (html) games live in the `html_games` collection and open on the
+  // Game Hub, NOT the Simula minigame catalogue — they have their own stream so
+  // their deep links never fall into the minigame menu.
+  final StreamController<String> _communityGameDeepLinkController =
+      StreamController<String>.broadcast();
+  // On a cold start the deep link can arrive before RootApp subscribes to the
+  // (broadcast) stream above, which would drop the event. We also stash the last
+  // gameId here so RootApp can consume it once it has mounted.
+  String? _pendingCommunityGameDeepLinkGameId;
 
   Stream<String> get minigameDeepLinkStream =>
       _minigameDeepLinkController.stream;
   Stream<String?> get minigameMenuOpenStream =>
       _minigameMenuOpenController.stream;
+  Stream<String> get communityGameDeepLinkStream =>
+      _communityGameDeepLinkController.stream;
 
   factory AppsFlyerService() {
     return _instance;
@@ -190,6 +201,14 @@ class AppsFlyerService {
       return;
     }
 
+    // Community / html games open on the Game Hub (CommunityGameScreen).
+    if (deepLinkValue == 'community_game' || deepLinkValue == 'html_game') {
+      if (deepLinkSub1 != null && deepLinkSub1.isNotEmpty) {
+        _handleCommunityGameDeepLink(deepLinkSub1);
+      }
+      return;
+    }
+
     if (deepLinkValue == 'minigame') {
       if (deepLinkSub1 != null && deepLinkSub1.isNotEmpty) {
         _handleMinigameDeepLink(deepLinkSub1);
@@ -210,6 +229,27 @@ class AppsFlyerService {
     logEvent('minigame_deep_link_received', {'game_id': gameId});
   }
 
+  Future<void> _handleCommunityGameDeepLink(String gameId) async {
+    final normalized = gameId.trim();
+    if (normalized.isEmpty) return;
+    _pendingCommunityGameDeepLinkGameId = normalized;
+    if (!_communityGameDeepLinkController.isClosed) {
+      _communityGameDeepLinkController.add(normalized);
+    }
+    logEvent('community_game_deep_link_received', {'game_id': normalized});
+  }
+
+  /// Returns and clears any community-game deep link that arrived before a
+  /// listener was attached (e.g. on cold start). Returns null if none pending.
+  String? consumePendingCommunityGameDeepLinkGameId() {
+    final gameId = _pendingCommunityGameDeepLinkGameId;
+    _pendingCommunityGameDeepLinkGameId = null;
+    if (gameId != null && gameId.trim().isNotEmpty) {
+      return gameId.trim();
+    }
+    return null;
+  }
+
   Future<void> queueMinigameDeepLink(String gameId) async {
     final normalized = gameId.trim();
     if (normalized.isEmpty) return;
@@ -217,6 +257,16 @@ class AppsFlyerService {
       _minigameDeepLinkController.add(normalized);
     }
     logEvent('minigame_deep_link_queued', {'game_id': normalized});
+  }
+
+  Future<void> queueCommunityGameDeepLink(String gameId) async {
+    final normalized = gameId.trim();
+    if (normalized.isEmpty) return;
+    _pendingCommunityGameDeepLinkGameId = normalized;
+    if (!_communityGameDeepLinkController.isClosed) {
+      _communityGameDeepLinkController.add(normalized);
+    }
+    logEvent('community_game_deep_link_queued', {'game_id': normalized});
   }
 
   Future<void> openMinigameMenu({String? initialGameId}) async {
