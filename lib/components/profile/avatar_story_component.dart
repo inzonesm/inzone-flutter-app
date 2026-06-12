@@ -1,5 +1,6 @@
 import 'dart:math';
 import 'dart:developer' as log;
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:go_router/go_router.dart';
@@ -192,12 +193,17 @@ class _AvatarCardState extends State<AvatarStoryComponent> {
                         ),
                         padding: const EdgeInsets.all(2.0), // White padding
                         child: ClipOval(
-                          child: Image.network(
-                            widget.avatar.profilePicture,
+                          // Cached + sized to match the home screen precache
+                          // (maxWidth 234), so warmed avatars render instantly
+                          // with no second download.
+                          child: CachedNetworkImage(
+                            imageUrl: widget.avatar.profilePicture,
                             fit: BoxFit.cover,
                             width: 78,
                             height: 78,
-                            errorBuilder: (context, error, stackTrace) {
+                            memCacheWidth: 234,
+                            fadeInDuration: Duration.zero,
+                            errorWidget: (context, url, error) {
                               return Center(
                                 child: Text(
                                   widget.avatar.name.isNotEmpty

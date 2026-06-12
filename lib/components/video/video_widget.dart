@@ -321,7 +321,9 @@ class _VideoWidgetState extends State<VideoWidget> with WidgetsBindingObserver {
         _ytController = YoutubePlayerController(
           initialVideoId: videoId,
           flags: YoutubePlayerFlags(
-            autoPlay: true,
+            // Playback is driven by the VisibilityDetector below, so videos
+            // created off-screen don't start decoding until scrolled in.
+            autoPlay: false,
             mute: VideoMuteManager.isMuted,
             disableDragSeek: false,
             loop: false,
@@ -412,6 +414,7 @@ class _VideoWidgetState extends State<VideoWidget> with WidgetsBindingObserver {
       }
 
       // Set up position tracking timer
+      _trackingTimer?.cancel(); // don't stack timers on retry
       _trackingTimer = Timer.periodic(const Duration(milliseconds: 500), (_) {
         if (mounted &&
             _androidController != null &&
@@ -508,6 +511,7 @@ class _VideoWidgetState extends State<VideoWidget> with WidgetsBindingObserver {
 
       // Optimized: Use a periodic timer instead of listening to every frame
       // Check position every 500ms instead of 60+ times per second
+      _trackingTimer?.cancel(); // don't stack timers on retry
       _trackingTimer = Timer.periodic(const Duration(milliseconds: 500), (_) {
         if (mounted && _mediaKitPlayer != null) {
           final position = _mediaKitPlayer!.state.position;
@@ -544,26 +548,29 @@ class _VideoWidgetState extends State<VideoWidget> with WidgetsBindingObserver {
       });
 
       // Error handler for MediaKit
-      _mediaKitPlayer!.stream.error.listen((error) {
+      final errorSubscription = _mediaKitPlayer!.stream.error.listen((error) {
         if (!mediaKitCompleter.isCompleted) {
           mediaKitCompleter.completeError(error);
         }
       });
 
-      // Start opening the media
-      unawaited(_mediaKitPlayer!.open(Media(videoPath), play: false));
+      try {
+        // Start opening the media
+        unawaited(_mediaKitPlayer!.open(Media(videoPath), play: false));
 
-      // Wait for either playback to start or timeout
-      await mediaKitCompleter.future.timeout(
-        const Duration(seconds: 10),
-        onTimeout: () {
-          throw TimeoutException(
-              'MediaKit initialization timed out after 10 seconds');
-        },
-      );
-
-      // Cancel subscription after we're done
-      subscription.cancel();
+        // Wait for either playback to start or timeout
+        await mediaKitCompleter.future.timeout(
+          const Duration(seconds: 10),
+          onTimeout: () {
+            throw TimeoutException(
+                'MediaKit initialization timed out after 10 seconds');
+          },
+        );
+      } finally {
+        // Cancel even on the timeout/error path — these used to leak.
+        subscription.cancel();
+        errorSubscription.cancel();
+      }
 
       // Configure playback rate (volume is already set)
       await _mediaKitPlayer!.setRate(1.0);
@@ -576,9 +583,12 @@ class _VideoWidgetState extends State<VideoWidget> with WidgetsBindingObserver {
         controller: _mediaKitVideoController,
       );
 
-      // Enable autoplay - start playing automatically when initialized
-      _pauseOtherVideos(widget.videoUrl);
-      _mediaKitPlayer!.play();
+      // Autoplay only while visible — matches the Android path; the
+      // VisibilityDetector starts playback when the video scrolls into view.
+      if (_isVisible) {
+        _pauseOtherVideos(widget.videoUrl);
+        _mediaKitPlayer!.play();
+      }
 
       if (mounted) {
         setState(() {

@@ -1442,7 +1442,7 @@ class _PostScreenState extends State<PostScreen> {
                                         height: 140,
                                         width: 140,
                                         fit: BoxFit.cover,
-                                        image: NetworkImage(url),
+                                        image: CachedNetworkImageProvider(url),
                                       ),
                                     ),
                                     Positioned(
@@ -2046,7 +2046,7 @@ class _PostScreenState extends State<PostScreen> {
                 children: [
                   CircleAvatar(
                     radius: 16,
-                    backgroundImage: NetworkImage(selectedCharacter!['image']!),
+                    backgroundImage: CachedNetworkImageProvider(selectedCharacter!['image']!),
                   ),
                   const SizedBox(width: 8),
                   Text(

@@ -34,6 +34,7 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:math';
 import 'dart:convert';
+import 'package:flutter/foundation.dart' show compute;
 import 'package:shared_preferences/shared_preferences.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -535,7 +536,8 @@ class HomeScreenState extends State<HomeScreen> {
       final cached = prefs.getString(_feedCacheKey);
       if (cached == null || cached.isEmpty || !mounted) return;
 
-      final decoded = jsonDecode(cached);
+      final decoded = await compute(_decodeFeedJson, cached);
+      if (!mounted) return;
       if (decoded is! List || decoded.isEmpty) return;
 
       final cachedPosts = decoded.cast<dynamic>();
@@ -583,7 +585,10 @@ class HomeScreenState extends State<HomeScreen> {
     try {
       if (posts.isEmpty) return;
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(_feedCacheKey, jsonEncode(posts));
+      // Encode off the main isolate — the feed payload is large enough to
+      // drop frames if serialized during a scroll.
+      final encoded = await compute(_encodeFeedJson, List<dynamic>.from(posts));
+      await prefs.setString(_feedCacheKey, encoded);
     } catch (e) {
       print('Error caching feed: $e');
     }
@@ -858,8 +863,11 @@ class HomeScreenState extends State<HomeScreen> {
 
     final futures = featured
         .where((avatar) => avatar.profilePicture.isNotEmpty)
-        .map((avatar) =>
-            precacheImage(CachedNetworkImageProvider(avatar.profilePicture), context))
+        // maxWidth matches the story rail's decode size so the precache warms
+        // the exact in-memory entry the rail renders from.
+        .map((avatar) => precacheImage(
+            CachedNetworkImageProvider(avatar.profilePicture, maxWidth: 234),
+            context))
         .toList();
 
     if (futures.isNotEmpty) {
@@ -883,7 +891,9 @@ class HomeScreenState extends State<HomeScreen> {
 
       for (final avatar in avatars.take(12)) {
         if (avatar.profilePicture.isNotEmpty) {
-          precacheImage(CachedNetworkImageProvider(avatar.profilePicture), context);
+          precacheImage(
+              CachedNetworkImageProvider(avatar.profilePicture, maxWidth: 234),
+              context);
         }
       }
     });
@@ -1357,22 +1367,7 @@ class HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildAvatarCarousel() {
-    final PageController pageController = PageController(viewportFraction: 0.8);
-
-    return SizedBox(
-      height: 580,
-      child: PageView.builder(
-        controller: pageController,
-        itemCount: avatarCards.length,
-        itemBuilder: (context, index) {
-          return Padding(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 8.0, vertical: 12.0),
-            child: avatarCards[index],
-          );
-        },
-      ),
-    );
+    return _AvatarCarousel(cards: avatarCards);
   }
 
   Widget _buildAvatarStories() {
@@ -1459,21 +1454,6 @@ class HomeScreenState extends State<HomeScreen> {
     // Increment view count when post is built (not for ads or carousels)
     String postId =
         actualPost['id']?.toString() ?? actualPost['_id']?.toString() ?? '';
-
-    // LOG: Track which post is being displayed
-    String postContentPreview = '';
-    if (actualPost.containsKey('post')) {
-      var postData = actualPost['post'];
-      if (postData is Map && postData.containsKey('text_content')) {
-        String textContent = postData['text_content']?.toString() ?? '';
-        postContentPreview = textContent.length > 30
-            ? textContent.substring(0, 30)
-            : textContent;
-      }
-    }
-
-    print(
-        '📺 DISPLAY Post #${actualPostIndex + 1}/${posts.length} | ListViewIdx: $index | ID: ${postId.length >= 8 ? postId.substring(0, 8) : postId}... | Type: $postType | Preview: "$postContentPreview${postContentPreview.isNotEmpty ? "..." : ""}"');
 
     if (postId.isNotEmpty &&
         postType != 'unknown' &&
@@ -2088,6 +2068,46 @@ class HomeScreenState extends State<HomeScreen> {
 }
 
 // Custom ad card that manages its own state
+// Owns its PageController so each carousel instance in the feed keeps its own
+// scroll position and disposes the controller properly (the controller used to
+// be re-created on every build and never disposed).
+class _AvatarCarousel extends StatefulWidget {
+  final List<Widget> cards;
+
+  const _AvatarCarousel({required this.cards});
+
+  @override
+  State<_AvatarCarousel> createState() => _AvatarCarouselState();
+}
+
+class _AvatarCarouselState extends State<_AvatarCarousel> {
+  final PageController _pageController = PageController(viewportFraction: 0.8);
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 580,
+      child: PageView.builder(
+        controller: _pageController,
+        itemCount: widget.cards.length,
+        itemBuilder: (context, index) {
+          return Padding(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 8.0, vertical: 12.0),
+            child: widget.cards[index],
+          );
+        },
+      ),
+    );
+  }
+}
+
 class _AdPostCard extends StatefulWidget {
   final InZonePost adPost;
   final int index;
@@ -2161,3 +2181,8 @@ class _MiniGamePromo {
     required this.statusColor,
   });
 }
+
+// Top-level so they can run in a background isolate via compute().
+String _encodeFeedJson(List<dynamic> posts) => jsonEncode(posts);
+
+dynamic _decodeFeedJson(String cached) => jsonDecode(cached);

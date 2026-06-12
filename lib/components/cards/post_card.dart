@@ -548,6 +548,7 @@ class _PostCardState extends State<PostCard>
   void initState() {
     super.initState();
     _loadLikedState(); // Load the liked state when the widget is initialized
+    checkComment();
     if (widget.post.characterInfo == null) {
       _loadUserProfileImage();
     }
@@ -714,6 +715,13 @@ class _PostCardState extends State<PostCard>
     }
 
     _textFieldFocusNode.dispose(); // Dispose focus node
+    _mediaPageController.dispose();
+    _replyController.dispose();
+    mySearchController.dispose();
+    _scrollController.dispose();
+    _replyComposerNotifier.dispose();
+    _selectedCommentNotifier.dispose();
+    _expandedRepliesNotifier.dispose();
     super.dispose();
   }
 
@@ -1161,8 +1169,9 @@ class _PostCardState extends State<PostCard>
 
   checkComment() async {
     isCommentPresent().then((value) {
-      if (mounted) {
-        // Check if the widget is still in the tree
+      // Only rebuild when the value actually changed — this used to run on
+      // every build, firing a Firestore read + setState loop per card.
+      if (mounted && value != isCommentPresentbool) {
         setState(() {
           isCommentPresentbool = value;
         });
@@ -1192,7 +1201,7 @@ class _PostCardState extends State<PostCard>
           child: Padding(
             padding: const EdgeInsets.only(bottom: 20.0),
             child: Container(
-              width: MediaQuery.of(context).size.width - 30,
+              width: MediaQuery.sizeOf(context).width - 30,
               padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 10),
               decoration: BoxDecoration(
                 boxShadow: [
@@ -1304,8 +1313,6 @@ class _PostCardState extends State<PostCard>
       }
     }
 
-    checkComment();
-
     final validImages = widget.post.imageContent
         .where((url) =>
             url.isNotEmpty &&
@@ -1327,7 +1334,7 @@ class _PostCardState extends State<PostCard>
           constraints: BoxConstraints(
             minHeight: imageSuccess ? 350 : 130,
           ),
-          width: MediaQuery.of(context).size.width - 8,
+          width: MediaQuery.sizeOf(context).width - 8,
           // padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 10),
           decoration: BoxDecoration(
               boxShadow: [
@@ -1366,6 +1373,10 @@ class _PostCardState extends State<PostCard>
                               width: 40,
                               height: 40,
                               fit: BoxFit.cover,
+                              // Decode at display size (3x DPR) instead of the
+                              // full-resolution source; width-only preserves
+                              // aspect ratio so cover-cropping is unchanged.
+                              memCacheWidth: 120,
                               placeholder: (context, url) => const SizedBox(),
                               errorWidget: (context, url, error) =>
                                   const Icon(Icons.account_circle, size: 40),
@@ -2406,6 +2417,29 @@ class _PostCardState extends State<PostCard>
   final FocusNode _textFieldFocusNode =
       FocusNode(); // Add focus node for auto-focus
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
+  // Memoized comments stream — recreating it on every sheet rebuild (e.g. each
+  // keyboard animation frame) re-attached a Firestore listener every time.
+  Stream<DocumentSnapshot>? _commentsStream;
+
+  // Session-wide cache of commenter profile docs so the comment list doesn't
+  // re-issue a Firestore get per comment on every rebuild.
+  static final Map<String, Future<DocumentSnapshot>> _commenterDocCache = {};
+
+  static Future<DocumentSnapshot> _getCommenterDoc(String userId) {
+    final cached = _commenterDocCache[userId];
+    if (cached != null) return cached;
+    final future = FirebaseFirestore.instance
+        .collection('humanUsers')
+        .doc(userId)
+        .get();
+    _commenterDocCache[userId] = future;
+    // Evict failed lookups so a transient error doesn't stick for the session.
+    future.then((_) {}, onError: (Object e) {
+      _commenterDocCache.remove(userId);
+    });
+    return future;
+  }
   String type = '';
 
   // Reply state that persists through rebuilds
@@ -2892,7 +2926,7 @@ class _PostCardState extends State<PostCard>
 
       // Get the current scroll position and calculate target
       final currentScroll = _scrollController.offset;
-      final screenHeight = MediaQuery.of(context).size.height;
+      final screenHeight = MediaQuery.sizeOf(context).height;
 
       // Calculate target scroll position to center the comment
       final targetScroll = currentScroll + commentPosition - (screenHeight / 3);
@@ -3180,9 +3214,9 @@ class _PostCardState extends State<PostCard>
             },
             child: Padding(
               padding: EdgeInsets.only(
-                  bottom: MediaQuery.of(context).viewInsets.bottom),
+                  bottom: MediaQuery.viewInsetsOf(context).bottom),
               child: Container(
-                height: MediaQuery.of(context).size.height * 0.56,
+                height: MediaQuery.sizeOf(context).height * 0.56,
                 decoration: BoxDecoration(
                   color: Theme.of(context).cardColor,
                   borderRadius: const BorderRadius.only(
@@ -3209,7 +3243,7 @@ class _PostCardState extends State<PostCard>
                     ),
                     Expanded(
                       child: StreamBuilder<DocumentSnapshot>(
-                        stream: _firestore
+                        stream: _commentsStream ??= _firestore
                             .collection('postComments')
                             .doc(widget.post.id)
                             .snapshots(),
@@ -3348,10 +3382,8 @@ class _PostCardState extends State<PostCard>
                                                     : 10.0), // Normal padding for parent comments without replies
                                         child: FutureBuilder<DocumentSnapshot>(
                                           future: comment.userId.isNotEmpty
-                                              ? FirebaseFirestore.instance
-                                                  .collection('humanUsers')
-                                                  .doc(comment.userId)
-                                                  .get()
+                                              ? _getCommenterDoc(
+                                                  comment.userId)
                                               : null,
                                           builder: (BuildContext context,
                                               AsyncSnapshot<DocumentSnapshot>
@@ -3566,7 +3598,11 @@ class _PostCardState extends State<PostCard>
           );
         },
       ),
-    );
+    ).whenComplete(() {
+      // Refresh the comment indicator once the sheet closes (this used to be
+      // polled on every build).
+      if (mounted) checkComment();
+    });
   }
 
   // Add new methods for updating comment likes and dislikes
@@ -3682,10 +3718,13 @@ class _DynamicPageViewState extends State<_DynamicPageView> {
     }
   }
 
+  late final VoidCallback _pageListener;
+
   @override
   void initState() {
     super.initState();
-    widget.controller.addListener(() {
+    _pageListener = () {
+      if (!mounted) return;
       int newIndex = widget.controller.page?.round() ?? 0;
       if (newIndex != _currentIndex) {
         _currentIndex = newIndex;
@@ -3694,7 +3733,14 @@ class _DynamicPageViewState extends State<_DynamicPageView> {
           _currentHeight = newHeight;
         });
       }
-    });
+    };
+    widget.controller.addListener(_pageListener);
+  }
+
+  @override
+  void dispose() {
+    widget.controller.removeListener(_pageListener);
+    super.dispose();
   }
 
   void _updateHeightOnce(String key, int index, double newHeight) {
@@ -4299,7 +4345,9 @@ class _FullScreenImageViewerState extends State<_FullScreenImageViewer> {
   }
 
   Future<void> _loadImageInfo() async {
-    final imageProvider = NetworkImage(widget.imageUrl);
+    // Use the same provider/cache as the CachedNetworkImage shown in build();
+    // NetworkImage here meant a second, uncached download of the same bytes.
+    final imageProvider = CachedNetworkImageProvider(widget.imageUrl);
     final completer = Completer<ImageInfo>();
 
     final imageStream = imageProvider.resolve(const ImageConfiguration());
@@ -4376,7 +4424,7 @@ class _FullScreenImageViewerState extends State<_FullScreenImageViewer> {
       );
     }
 
-    final Size screenSize = MediaQuery.of(context).size;
+    final Size screenSize = MediaQuery.sizeOf(context);
 
     Widget imageWidget = CachedNetworkImage(
       imageUrl: widget.imageUrl,

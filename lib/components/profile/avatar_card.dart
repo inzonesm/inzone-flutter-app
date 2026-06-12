@@ -1,4 +1,5 @@
 import 'dart:math';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:inzone/screen/chat/all_chats_screen.dart';
 import 'package:inzone/screen/chat/chat_screen.dart';
@@ -24,6 +25,12 @@ class _AvatarCardState extends State<AvatarCard> {
   String? _lastMessage;
   bool _isLoadingFollowUp = false;
 
+  // Session cache of generated follow-ups/greetings. Cards remount every time
+  // they scroll back into the carousel viewport, and each mount used to fire
+  // a fresh LLM request for the same avatar. Keyed by avatar + the underlying
+  // last message, so new chat activity still triggers a fresh generation.
+  static final Map<String, String> _generatedMessageCache = {};
+
   @override
   void initState() {
     super.initState();
@@ -37,13 +44,27 @@ class _AvatarCardState extends State<AvatarCard> {
 
     final msg = await InZoneDatabase.getAvatarChatLastMessage(
         widget.avatar.username);
+    if (!mounted) return;
 
-    if (msg != null && mounted) {
+    final cacheKey = '${widget.avatar.username}:${msg ?? ''}';
+    final cached = _generatedMessageCache[cacheKey];
+    if (cached != null) {
+      setState(() {
+        _lastMessage = cached;
+        _isLoadingFollowUp = false;
+      });
+      return;
+    }
+
+    if (msg != null) {
       // There's conversation history — show the last message immediately
       // while we generate an AI follow-up in the background.
       setState(() => _lastMessage = msg);
       final followUp =
           await InZoneDatabase.generateFollowUp(widget.avatar.username);
+      if (followUp != null) {
+        _generatedMessageCache[cacheKey] = followUp;
+      }
       if (followUp != null && mounted) {
         setState(() {
           _lastMessage = followUp;
@@ -52,11 +73,14 @@ class _AvatarCardState extends State<AvatarCard> {
       } else if (mounted) {
         setState(() => _isLoadingFollowUp = false);
       }
-    } else if (mounted) {
+    } else {
       // No conversation history — generate an in-character greeting
       // instead of using the static fallback.
       final greeting =
           await InZoneDatabase.generateGreeting(widget.avatar.username);
+      if (greeting != null) {
+        _generatedMessageCache[cacheKey] = greeting;
+      }
       if (greeting != null && mounted) {
         setState(() {
           _lastMessage = greeting;
@@ -141,10 +165,12 @@ class _AvatarCardState extends State<AvatarCard> {
                   borderRadius: const BorderRadius.vertical(
                     top: Radius.circular(15),
                   ),
-                  child: Image.network(
-                    widget.avatar.profilePicture,
+                  child: CachedNetworkImage(
+                    imageUrl: widget.avatar.profilePicture,
                     fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) {
+                    memCacheWidth: 750,
+                    fadeInDuration: const Duration(milliseconds: 150),
+                    errorWidget: (context, url, error) {
                       return Center(
                         child: Text(
                           widget.avatar.name.isNotEmpty
