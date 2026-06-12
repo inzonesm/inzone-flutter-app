@@ -129,6 +129,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       }
 
       print('ProfileScreen - Error saving profile: $e');
+      if (!mounted) return;
       ToastService.showToast(
         context,
         backgroundColor: Theme.of(context).canvasColor,

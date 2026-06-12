@@ -583,6 +583,7 @@ class _HumanChatScreenState extends State<HumanChatScreen> {
       _scrollToEnd();
     } catch (e) {
       print('Error sending message: $e');
+      if (!mounted) return;
       ToastService.showToast(
         context,
         backgroundColor: Theme.of(context).canvasColor,

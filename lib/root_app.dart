@@ -1533,6 +1533,7 @@ class _RootAppState extends State<RootApp>
               accomplishmentLink: accomplishmentLink)
           : 'Just completed a run on $gameName — can you beat this?';
 
+      if (!parentContext.mounted) return;
       showDialog(
         context: parentContext,
         barrierDismissible: true,
@@ -2080,7 +2081,7 @@ class _RootAppState extends State<RootApp>
                 _lastCompletedMiniGameOverText = completion.gameOverText;
 
                 await Future.delayed(const Duration(milliseconds: 220));
-                if (!mounted) return;
+                if (!mounted || !context.mounted) return;
 
                 _showGameEndDialog(context, completion);
               },
@@ -2504,6 +2505,7 @@ class _RootAppState extends State<RootApp>
     // Fixed condition - only show at specific counts
     if (appOpenCounter == 10 || appOpenCounter == 33) {
       Future.delayed(const Duration(seconds: 2), () {
+        if (!mounted) return;
         showFeedbackPopup(context);
       });
     }

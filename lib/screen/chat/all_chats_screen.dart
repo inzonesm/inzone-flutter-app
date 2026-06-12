@@ -550,6 +550,7 @@ class _ChatUserCardState extends State<ChatUserCard> {
                 .doc(widget.userData.chatId)
                 .get()
                 .then((doc) {
+              if (!mounted || !context.mounted) return;
               // Close loading dialog
               Navigator.of(context).pop();
 
@@ -587,7 +588,7 @@ class _ChatUserCardState extends State<ChatUserCard> {
                 try {
                   context.push(Routes.groupChat, extra: groupData).then((_) {
                     // Refresh the conversation list when returning from chat
-                    if (mounted) {
+                    if (mounted && context.mounted) {
                       (context.findAncestorStateOfType<_AllChatsScreenState>())
                           ?._fetchConversations();
                     }
@@ -600,7 +601,7 @@ class _ChatUserCardState extends State<ChatUserCard> {
                   'otherUserName': widget.userData.name ?? 'Group Chat',
                   'otherUserId': '',
                 }).then((_) {
-                  if (mounted) {
+                  if (mounted && context.mounted) {
                     (context.findAncestorStateOfType<_AllChatsScreenState>())
                         ?._fetchConversations();
                   }
@@ -615,7 +616,7 @@ class _ChatUserCardState extends State<ChatUserCard> {
               'otherUserId': widget.userData.email ?? '',
             }).then((_) {
               // Refresh the conversation list when returning from chat
-              if (mounted) {
+              if (mounted && context.mounted) {
                 (context.findAncestorStateOfType<_AllChatsScreenState>())
                     ?._fetchConversations();
               }

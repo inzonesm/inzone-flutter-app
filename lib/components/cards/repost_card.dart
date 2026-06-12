@@ -438,7 +438,7 @@ class _RepostCardState extends State<RepostCard>
                                 await AppsFlyerService()
                                     .queueMinigameDeepLink(gameId);
                               } catch (_) {
-                                if (!mounted) return;
+                                if (!mounted || !context.mounted) return;
                                 ToastService.showToast(
                                   context,
                                   backgroundColor: Colors.red,
