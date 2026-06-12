@@ -8,6 +8,9 @@ class MainActivity : FlutterFragmentActivity() {
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
 
+        // Register Unity bridge MethodChannel
+        UnityBridge.register(flutterEngine, this)
+
          GoogleMobileAdsPlugin.registerNativeAdFactory(
              flutterEngine, "listTileMedium",
              NativeAdFactoryMedium(this)

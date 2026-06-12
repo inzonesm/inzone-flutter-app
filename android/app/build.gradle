@@ -78,6 +78,16 @@ signingConfigs {
             useLegacyPackaging = false
         }
     }
+
+    // UnityPlayerActivity.kt extends Unity's activity, so it can only compile
+    // when the unityLibrary export is included (see android/settings.gradle).
+    if (findProject(':unityLibrary') != null) {
+        sourceSets {
+            main {
+                java.srcDirs += 'unity-src'
+            }
+        }
+    }
 }
 
 flutter {
@@ -86,6 +96,11 @@ flutter {
 
 
 dependencies {
+    // Unity exported library (only when android/unityLibrary export exists)
+    if (findProject(':unityLibrary') != null) {
+        implementation project(':unityLibrary')
+    }
+
     implementation 'androidx.constraintlayout:constraintlayout:2.2.1'
     implementation 'com.facebook.android:facebook-android-sdk:17.0.2'  // Updated for 16KB support
     implementation "com.miui.referrer:homereferrer:1.0.0.6"

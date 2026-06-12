@@ -38,6 +38,11 @@ import google_mobile_ads
   func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {
     GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
 
+    // Register Unity bridge MethodChannel
+    if let registrar = engineBridge.pluginRegistry.registrar(forPlugin: "UnityBridge") {
+        UnityBridge.shared.register(messenger: registrar.messenger())
+    }
+
     let factory = NativeAdFactory()
     let groupfactory = GroupNativeAdFactory()
 

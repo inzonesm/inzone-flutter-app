@@ -8,8 +8,11 @@
 
 /* Begin PBXBuildFile section */
 		1498D2341E8E89220040F4C2 /* GeneratedPluginRegistrant.m in Sources */ = {isa = PBXBuildFile; fileRef = 1498D2331E8E89220040F4C2 /* GeneratedPluginRegistrant.m */; };
+		306015F4A4A370DCED81E77D /* UnityBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4FAC203F8333A17418EC10D7 /* UnityBridge.swift */; };
 		331C808B294A63AB00263BE5 /* RunnerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 331C807B294A618700263BE5 /* RunnerTests.swift */; };
 		3B3967161E833CAA004F5970 /* AppFrameworkInfo.plist in Resources */ = {isa = PBXBuildFile; fileRef = 3B3967151E833CAA004F5970 /* AppFrameworkInfo.plist */; };
+		432EAC4DA5B6288E4FB1F595 /* UnityFramework.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 896DCE2282CD478AB47EB57B /* UnityFramework.framework */; };
+		46E8D991F31E3C356BA23A47 /* UnityFramework.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 896DCE2282CD478AB47EB57B /* UnityFramework.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		627A05692E01E89200505CCF /* GroupNativeAdFactory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 627A05682E01E88300505CCF /* GroupNativeAdFactory.swift */; };
 		627A056B2E01E8D300505CCF /* groupTileSmall.xib in Resources */ = {isa = PBXBuildFile; fileRef = 627A056A2E01E8D300505CCF /* groupTileSmall.xib */; };
 		628E6DA92DF4DADA0050FCEB /* listTileMedium.xib in Resources */ = {isa = PBXBuildFile; fileRef = 628E6DA82DF4DAD80050FCEB /* listTileMedium.xib */; };
@@ -42,6 +45,7 @@
 			dstPath = "";
 			dstSubfolderSpec = 10;
 			files = (
+				46E8D991F31E3C356BA23A47 /* UnityFramework.framework in Embed Frameworks */,
 			);
 			name = "Embed Frameworks";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -59,6 +63,7 @@
 		331C8081294A63A400263BE5 /* RunnerTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = RunnerTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		362DD440070783D91E69867A /* Pods_RunnerTests.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_RunnerTests.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		3B3967151E833CAA004F5970 /* AppFrameworkInfo.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = AppFrameworkInfo.plist; path = Flutter/AppFrameworkInfo.plist; sourceTree = "<group>"; };
+		4FAC203F8333A17418EC10D7 /* UnityBridge.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = UnityBridge.swift; sourceTree = "<group>"; };
 		627A05682E01E88300505CCF /* GroupNativeAdFactory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroupNativeAdFactory.swift; sourceTree = "<group>"; };
 		627A056A2E01E8D300505CCF /* groupTileSmall.xib */ = {isa = PBXFileReference; lastKnownFileType = file.xib; path = groupTileSmall.xib; sourceTree = "<group>"; };
 		628E6DA82DF4DAD80050FCEB /* listTileMedium.xib */ = {isa = PBXFileReference; lastKnownFileType = file.xib; path = listTileMedium.xib; sourceTree = "<group>"; };
@@ -68,6 +73,7 @@
 		7AFA3C8E1D35360C0083082E /* Release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = Release.xcconfig; path = Flutter/Release.xcconfig; sourceTree = "<group>"; };
 		856C1DF2CB5B9E56DCE95A78 /* Pods_Runner.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_Runner.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		8745DC8C69FA4B3164F3D93C /* Pods-Runner.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Runner.release.xcconfig"; path = "Target Support Files/Pods-Runner/Pods-Runner.release.xcconfig"; sourceTree = "<group>"; };
+		896DCE2282CD478AB47EB57B /* UnityFramework.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; path = UnityFramework.framework; sourceTree = SOURCE_ROOT; };
 		9740EEB21CF90195004384FC /* Debug.xcconfig */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.xcconfig; name = Debug.xcconfig; path = Flutter/Debug.xcconfig; sourceTree = "<group>"; };
 		9740EEB31CF90195004384FC /* Generated.xcconfig */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.xcconfig; name = Generated.xcconfig; path = Flutter/Generated.xcconfig; sourceTree = "<group>"; };
 		97C146EE1CF9000F007C117D /* Runner.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Runner.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -90,6 +96,7 @@
 				78A318202AECB46A00862997 /* FlutterGeneratedPluginSwiftPackage in Frameworks */,
 				9D2A2CEA2DCEA3B30027B2F6 /* StoreKit.framework in Frameworks */,
 				86853763A51C69AA82E7B837 /* Pods_Runner.framework in Frameworks */,
+				432EAC4DA5B6288E4FB1F595 /* UnityFramework.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -146,6 +153,7 @@
 				331C8082294A63A400263BE5 /* RunnerTests */,
 				6244EA610013604892D4CB69 /* Pods */,
 				BE2B1D8C8B7B2CD38123F906 /* Frameworks */,
+				896DCE2282CD478AB47EB57B /* UnityFramework.framework */,
 			);
 			sourceTree = "<group>";
 		};
@@ -175,6 +183,7 @@
 				74858FAE1ED2DC5600515810 /* AppDelegate.swift */,
 				74858FAD1ED2DC5600515810 /* Runner-Bridging-Header.h */,
 				627A056A2E01E8D300505CCF /* groupTileSmall.xib */,
+				4FAC203F8333A17418EC10D7 /* UnityBridge.swift */,
 			);
 			path = Runner;
 			sourceTree = "<group>";
@@ -430,6 +439,7 @@
 			files = (
 				628E6DAB2DF4DAF20050FCEB /* NativeAdFactory.swift in Sources */,
 				74858FAF1ED2DC5600515810 /* AppDelegate.swift in Sources */,
+				306015F4A4A370DCED81E77D /* UnityBridge.swift in Sources */,
 				627A05692E01E89200505CCF /* GroupNativeAdFactory.swift in Sources */,
 				1498D2341E8E89220040F4C2 /* GeneratedPluginRegistrant.m in Sources */,
 			);
@@ -527,6 +537,10 @@
 				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
 				DEVELOPMENT_TEAM = 796YGPR39J;
 				ENABLE_BITCODE = NO;
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(PROJECT_DIR)",
+				);
 				INFOPLIST_FILE = Runner/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -716,6 +730,10 @@
 				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
 				DEVELOPMENT_TEAM = 796YGPR39J;
 				ENABLE_BITCODE = NO;
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(PROJECT_DIR)",
+				);
 				INFOPLIST_FILE = Runner/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -745,6 +763,10 @@
 				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
 				DEVELOPMENT_TEAM = 796YGPR39J;
 				ENABLE_BITCODE = NO;
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(PROJECT_DIR)",
+				);
 				INFOPLIST_FILE = Runner/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",

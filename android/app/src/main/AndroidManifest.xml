@@ -64,7 +64,16 @@
                     android:pathPrefix="/SACg" />
             </intent-filter>
         </activity>
-        
+
+        <!-- Unity game activity (full-screen, launched via MethodChannel) -->
+        <activity
+            android:name=".UnityPlayerActivity"
+            android:exported="false"
+            android:screenOrientation="fullSensor"
+            android:configChanges="mcc|mnc|locale|touchscreen|keyboard|keyboardHidden|navigation|orientation|screenLayout|uiMode|screenSize|smallestScreenSize|fontScale|layoutDirection|density"
+            android:hardwareAccelerated="true"
+            android:launchMode="singleTask" />
+
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data

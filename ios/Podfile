@@ -51,4 +51,21 @@ post_install do |installer|
       ]
     end
   end
+
+  # Embed UnityFramework — add framework search path to Runner target
+  runner_project = installer.aggregate_targets.first.user_project
+  runner_project.targets.each do |target|
+    next unless target.name == 'Runner'
+    target.build_configurations.each do |config|
+      search_paths = config.build_settings['FRAMEWORK_SEARCH_PATHS'] || ['$(inherited)']
+      search_paths = [search_paths] if search_paths.is_a?(String)
+      unless search_paths.include?('$(PROJECT_DIR)')
+        search_paths << '$(PROJECT_DIR)'
+      end
+      config.build_settings['FRAMEWORK_SEARCH_PATHS'] = search_paths
+      # Disable bitcode (Unity does not support it)
+      config.build_settings['ENABLE_BITCODE'] = 'NO'
+    end
+  end
+  runner_project.save
 end

@@ -26,3 +26,12 @@ plugins {
 }
 
 include ":app"
+
+// Unity exported library – created by Unity > Build Settings > Android >
+// Export Project into android/unityLibrary. Only wired in when present so
+// plain Flutter builds keep working before the export is made.
+def unityLibraryDir = new File(settingsDir, "unityLibrary")
+if (unityLibraryDir.exists()) {
+    include ":unityLibrary"
+    project(":unityLibrary").projectDir = unityLibraryDir
+}
