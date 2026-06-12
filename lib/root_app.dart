@@ -203,11 +203,20 @@ class _RootAppState extends State<RootApp>
 
     String? gameId;
 
+    // inzone://minigame?gameId=nova-arena
     if (uri.scheme.toLowerCase() == 'inzone' &&
         uri.host.toLowerCase() == 'minigame') {
       gameId = uri.queryParameters['gameId'];
     }
 
+    if ((gameId == null || gameId.trim().isEmpty) &&
+        uri.host.toLowerCase() == 'inzone.app' &&
+        uri.pathSegments.length >= 2 &&
+        uri.pathSegments[0] == 'game') {
+      gameId = uri.pathSegments[1];
+    }
+
+    // AppsFlyer deep_link_value=minigame&deep_link_sub1=nova-arena
     if (gameId == null || gameId.trim().isEmpty) {
       final deepLinkValue =
           uri.queryParameters['deep_link_value']?.toLowerCase();
