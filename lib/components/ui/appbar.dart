@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_feather_icons/flutter_feather_icons.dart';
@@ -78,10 +79,12 @@ class _CustomAppBarState extends State<CustomAppBar> {
                 shape: const CircleBorder(),
                 child: hasProfileImage
                     ? ClipOval(
-                        child: Image.network(
-                          widget.profileImageUrl!,
+                        child: CachedNetworkImage(
+                          imageUrl: widget.profileImageUrl!,
                           fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) {
+                          memCacheWidth: 108,
+                          fadeInDuration: Duration.zero,
+                          errorWidget: (_, __, ___) {
                             return Icon(
                               Icons.person,
                               size: 20,
@@ -466,11 +469,13 @@ class _CustomAppBarState extends State<CustomAppBar> {
                                 ),
                                 child: widget.profileImageUrl != null
                                     ? ClipOval(
-                                        child: Image.network(
-                                          widget.profileImageUrl!,
+                                        child: CachedNetworkImage(
+                                          imageUrl: widget.profileImageUrl!,
                                           fit: BoxFit.cover,
-                                          errorBuilder:
-                                              (context, error, stackTrace) {
+                                          memCacheWidth: 144,
+                                          fadeInDuration: Duration.zero,
+                                          errorWidget:
+                                              (context, url, error) {
                                             return const Icon(
                                               Icons.account_circle,
                                               size: 48,

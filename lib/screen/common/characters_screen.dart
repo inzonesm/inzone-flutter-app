@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:inzone/components/posts/shimmering.dart';
@@ -561,12 +562,14 @@ class _CharactersScreenState extends State<CharactersScreen> {
                                   chatId: null,
                                   profilePictureURL: avatar.profilePicture));
                         },
-                        child: Image.network(
-                          avatar.profilePicture,
+                        child: CachedNetworkImage(
+                          imageUrl: avatar.profilePicture,
                           fit: BoxFit.cover,
                           width: 105,
                           height: 105,
-                          errorBuilder: (context, error, stackTrace) {
+                          memCacheWidth: 315,
+                          fadeInDuration: Duration.zero,
+                          errorWidget: (context, url, error) {
                             return Center(
                               child: Text(
                                 avatar.name.isNotEmpty

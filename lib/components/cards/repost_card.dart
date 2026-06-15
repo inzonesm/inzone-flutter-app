@@ -314,9 +314,18 @@ class _RepostCardState extends State<RepostCard>
   Future<void> _checkIfLiked() async {
     bool liked = await LikedPostsPreferences.isPostLiked(
         widget.post.id); // Check if postId is in SharedPreferences
+    if (!mounted) return;
     setState(() {
       isLiked = liked;
     });
+  }
+
+  @override
+  void dispose() {
+    _replyController.dispose();
+    mySearchController.dispose();
+    _scrollController.dispose();
+    super.dispose();
   }
 
   @override
@@ -429,7 +438,7 @@ class _RepostCardState extends State<RepostCard>
                                 await AppsFlyerService()
                                     .queueMinigameDeepLink(gameId);
                               } catch (_) {
-                                if (!mounted) return;
+                                if (!mounted || !context.mounted) return;
                                 ToastService.showToast(
                                   context,
                                   backgroundColor: Colors.red,
@@ -443,14 +452,19 @@ class _RepostCardState extends State<RepostCard>
                               borderRadius: BorderRadius.circular(8.0),
                               child: Stack(
                                 children: [
-                                  Image.network(
-                                    widget.repost.profilePicture,
+                                  CachedNetworkImage(
+                                    imageUrl: widget.repost.profilePicture,
                                     fit: BoxFit.fitWidth,
                                     width:
                                         MediaQuery.of(context).size.width - 60,
-                                    errorBuilder: (context, object, st) {
-                                      return const SizedBox();
-                                    },
+                                    memCacheWidth:
+                                        (MediaQuery.of(context).size.width *
+                                                MediaQuery.of(context)
+                                                    .devicePixelRatio)
+                                            .round(),
+                                    fadeInDuration: Duration.zero,
+                                    errorWidget: (context, url, error) =>
+                                        const SizedBox(),
                                   ),
                                   // Show play icon if this is a minigame accomplishment
                                   if (widget.post.minigameLink != null &&
@@ -707,6 +721,10 @@ class _RepostCardState extends State<RepostCard>
   TextEditingController mySearchController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
+  // Memoized comments stream — avoids re-attaching a Firestore listener on
+  // every sheet rebuild (e.g. keyboard animation frames).
+  Stream<DocumentSnapshot>? _commentsStream;
   String type = '';
 
   String? selectedCommentId;
@@ -1042,7 +1060,7 @@ class _RepostCardState extends State<RepostCard>
                     ),
                     Expanded(
                       child: StreamBuilder<DocumentSnapshot>(
-                        stream: _firestore
+                        stream: _commentsStream ??= _firestore
                             .collection('postComments')
                             .doc(widget.post.id)
                             .snapshots(),

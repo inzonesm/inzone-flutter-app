@@ -128,7 +128,10 @@ class _AllChatsScreenState extends State<AllChatsScreen>
           .where('participants', arrayContains: currentUserId)
           .get();
 
-      for (var doc in conversationsSnapshot.docs) {
+      // Resolve all conversations in parallel — the name lookups used to run
+      // as sequential Firestore gets, delaying the chat list by one network
+      // round-trip per conversation.
+      Future<ChatUser?> resolveConversation(QueryDocumentSnapshot doc) async {
         var data = doc.data() as Map<String, dynamic>;
 
         // Check if this is a group chat
@@ -153,7 +156,7 @@ class _AllChatsScreenState extends State<AllChatsScreen>
                   'Group Chat';
             }
 
-            _allChats.add(ChatUser(
+            return ChatUser(
               name: groupName,
               email: doc.id,
               chatId: doc.id,
@@ -161,11 +164,11 @@ class _AllChatsScreenState extends State<AllChatsScreen>
               lastMessageTime: data['lastMessageTime'],
               isHuman: true,
               isGroupChat: true,
-            ));
+            );
           } catch (e) {
             // Fallback to basic info if there's an error
             String groupName = data['groupName'] ?? 'Group Chat';
-            _allChats.add(ChatUser(
+            return ChatUser(
               name: groupName,
               email: doc.id,
               chatId: doc.id,
@@ -173,7 +176,7 @@ class _AllChatsScreenState extends State<AllChatsScreen>
               lastMessageTime: data['lastMessageTime'],
               isHuman: true,
               isGroupChat: true,
-            ));
+            );
           }
         } else {
           List<dynamic> participants = data['participants'] ?? [];
@@ -202,7 +205,7 @@ class _AllChatsScreenState extends State<AllChatsScreen>
               }
             }
 
-            _allChats.add(ChatUser(
+            return ChatUser(
               name: otherUserName,
               email: otherUserId,
               chatId: doc.id,
@@ -210,10 +213,15 @@ class _AllChatsScreenState extends State<AllChatsScreen>
               lastMessageTime: data['lastMessageTime'],
               isHuman: true,
               isGroupChat: false,
-            ));
+            );
           }
         }
+        return null;
       }
+
+      final resolvedChats =
+          await Future.wait(conversationsSnapshot.docs.map(resolveConversation));
+      _allChats.addAll(resolvedChats.whereType<ChatUser>());
       _allChats.sort((a, b) {
         if (a.lastMessageTime == null) return 1;
         if (b.lastMessageTime == null) return -1;
@@ -542,6 +550,7 @@ class _ChatUserCardState extends State<ChatUserCard> {
                 .doc(widget.userData.chatId)
                 .get()
                 .then((doc) {
+              if (!mounted || !context.mounted) return;
               // Close loading dialog
               Navigator.of(context).pop();
 
@@ -579,7 +588,7 @@ class _ChatUserCardState extends State<ChatUserCard> {
                 try {
                   context.push(Routes.groupChat, extra: groupData).then((_) {
                     // Refresh the conversation list when returning from chat
-                    if (mounted) {
+                    if (mounted && context.mounted) {
                       (context.findAncestorStateOfType<_AllChatsScreenState>())
                           ?._fetchConversations();
                     }
@@ -592,7 +601,7 @@ class _ChatUserCardState extends State<ChatUserCard> {
                   'otherUserName': widget.userData.name ?? 'Group Chat',
                   'otherUserId': '',
                 }).then((_) {
-                  if (mounted) {
+                  if (mounted && context.mounted) {
                     (context.findAncestorStateOfType<_AllChatsScreenState>())
                         ?._fetchConversations();
                   }
@@ -607,7 +616,7 @@ class _ChatUserCardState extends State<ChatUserCard> {
               'otherUserId': widget.userData.email ?? '',
             }).then((_) {
               // Refresh the conversation list when returning from chat
-              if (mounted) {
+              if (mounted && context.mounted) {
                 (context.findAncestorStateOfType<_AllChatsScreenState>())
                     ?._fetchConversations();
               }

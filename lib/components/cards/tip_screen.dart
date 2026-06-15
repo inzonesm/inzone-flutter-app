@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'dart:io';
 
 import 'package:colorful_safe_area/colorful_safe_area.dart';
@@ -221,9 +222,11 @@ class _TipScreenState extends State<TipScreen> {
         ) ??
         false;
 
-    if (!confirmed) return;
+    if (!confirmed || !mounted) return;
 
-    // Show loading indicator
+    // Show loading indicator. Capture the navigator so the dialog can still
+    // be closed if this screen is disposed while the request is in flight.
+    final navigator = Navigator.of(context);
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -234,7 +237,7 @@ class _TipScreenState extends State<TipScreen> {
       String recipientUsername = widget.recipient['username'] ?? '';
 
       if (recipientUsername.isEmpty) {
-        Navigator.of(context).pop(); // Close loading dialog
+        navigator.pop(); // Close loading dialog
         _showErrorToast('Recipient username not found.');
         return;
       }
@@ -254,7 +257,8 @@ class _TipScreenState extends State<TipScreen> {
       );
 
       // Close loading dialog
-      Navigator.of(context).pop();
+      navigator.pop();
+      if (!mounted) return;
 
       if (response['success']) {
         // Show success message with updated balance
@@ -278,7 +282,8 @@ class _TipScreenState extends State<TipScreen> {
       }
     } catch (e) {
       // Close loading dialog
-      Navigator.of(context).pop();
+      navigator.pop();
+      if (!mounted) return;
 
       // Show error message
       _showErrorToast('Failed to send coins: ${e.toString()}');
@@ -415,7 +420,7 @@ class _TipScreenState extends State<TipScreen> {
                                                 null &&
                                             widget.recipient['profilePicture']
                                                 .isNotEmpty
-                                        ? NetworkImage(
+                                        ? CachedNetworkImageProvider(
                                             widget.recipient['profilePicture'])
                                         : null,
                                 child: widget.recipient['profilePicture'] ==
