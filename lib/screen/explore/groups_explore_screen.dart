@@ -45,15 +45,9 @@ class _GroupsExploreScreenState extends State<GroupsExploreScreen> {
   final Map<String, List<Participant>> _groupParticipants = {};
   bool _isRefreshing = false;
 
-  // Memoized — the StreamBuilder used to call snapshots() inline in build,
-  // tearing down and re-attaching a whole-collection listener on every
-  // rebuild (including each search keystroke).
-  late final Stream<QuerySnapshot> _groupChatsStream;
-
   @override
   void initState() {
     super.initState();
-    _groupChatsStream = _firestore.collection('groupChats').snapshots();
     _loadDefaultGroups();
     _setupBalanceStream(); // Setup stream instead of one-time load
     _rewardAdService.initialize();
@@ -353,7 +347,7 @@ class _GroupsExploreScreenState extends State<GroupsExploreScreen> {
             failedText: "",
           ),
           child: StreamBuilder<QuerySnapshot>(
-            stream: _groupChatsStream,
+            stream: _firestore.collection('groupChats').snapshots(),
             builder: (context, snapshot) {
               // Common top UI elements (appbar and search)
               List<Widget> commonSlivers = [
@@ -720,10 +714,7 @@ class _GroupsExploreScreenState extends State<GroupsExploreScreen> {
                     imageUrlController.text.trim(),
                   );
 
-                  if (dialogContext.mounted) {
-                    Navigator.of(dialogContext).pop();
-                  }
-                  if (!mounted || !context.mounted) return;
+                  Navigator.of(dialogContext).pop();
 
                   ToastService.showToast(
                     context,
@@ -738,7 +729,6 @@ class _GroupsExploreScreenState extends State<GroupsExploreScreen> {
                   );
                 } catch (e) {
                   print('Error creating group: $e');
-                  if (!mounted || !context.mounted) return;
                   ToastService.showToast(
                     context,
                     backgroundColor: Theme.of(context).canvasColor,

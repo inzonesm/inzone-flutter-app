@@ -20,31 +20,6 @@ class GroupCard extends StatefulWidget {
 }
 
 class _GroupCardState extends State<GroupCard> {
-  // Fetched once per group — an inline get() in build() re-queried Firestore
-  // and flashed the placeholder on every rebuild.
-  late Future<DocumentSnapshot> _groupDocFuture;
-
-  @override
-  void initState() {
-    super.initState();
-    _groupDocFuture = _fetchGroupDoc();
-  }
-
-  @override
-  void didUpdateWidget(GroupCard oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.group.id != widget.group.id) {
-      _groupDocFuture = _fetchGroupDoc();
-    }
-  }
-
-  Future<DocumentSnapshot> _fetchGroupDoc() {
-    return FirebaseFirestore.instance
-        .collection('groupChats')
-        .doc(widget.group.id)
-        .get();
-  }
-
   // Get random participant profile pictures
   List<String> _getRandomParticipantProfilePictures(
       List<Participant> participants) {
@@ -113,7 +88,6 @@ class _GroupCardState extends State<GroupCard> {
         fit: BoxFit.cover,
         width: 64,
         height: 64,
-        memCacheWidth: 192,
         placeholder: (context, url) => const Center(
           child: Icon(FeatherIcons.image, size: 24),
         ),
@@ -136,7 +110,6 @@ class _GroupCardState extends State<GroupCard> {
                 imageUrl: imageUrls[0],
                 fit: BoxFit.cover,
                 height: 64,
-                memCacheHeight: 192,
                 placeholder: (context, url) => const Center(
                   child: Icon(FeatherIcons.image, size: 16),
                 ),
@@ -158,7 +131,6 @@ class _GroupCardState extends State<GroupCard> {
                 imageUrl: imageUrls[1],
                 fit: BoxFit.cover,
                 height: 64,
-                memCacheHeight: 192,
                 placeholder: (context, url) => const Center(
                   child: Icon(FeatherIcons.image, size: 16),
                 ),
@@ -185,7 +157,6 @@ class _GroupCardState extends State<GroupCard> {
                 imageUrl: imageUrls[0],
                 fit: BoxFit.cover,
                 height: 64,
-                memCacheHeight: 192,
                 placeholder: (context, url) => const Center(
                   child: Icon(FeatherIcons.image, size: 12),
                 ),
@@ -205,7 +176,6 @@ class _GroupCardState extends State<GroupCard> {
               imageUrl: imageUrls[1],
               fit: BoxFit.cover,
               height: 64,
-              memCacheHeight: 192,
               placeholder: (context, url) => const Center(
                 child: Icon(FeatherIcons.image, size: 12),
               ),
@@ -226,7 +196,6 @@ class _GroupCardState extends State<GroupCard> {
                 imageUrl: imageUrls[2],
                 fit: BoxFit.cover,
                 height: 64,
-                memCacheHeight: 192,
                 placeholder: (context, url) => const Center(
                   child: Icon(FeatherIcons.image, size: 12),
                 ),
@@ -275,7 +244,10 @@ class _GroupCardState extends State<GroupCard> {
             highlightColor:
                 Theme.of(context).colorScheme.primary.withOpacity(0.05),
             child: FutureBuilder<DocumentSnapshot>(
-              future: _groupDocFuture,
+              future: FirebaseFirestore.instance
+                  .collection('groupChats')
+                  .doc(widget.group.id)
+                  .get(),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return Container(
@@ -336,26 +308,31 @@ class _GroupCardState extends State<GroupCard> {
                                     groupChatData.participants)
                                 : ClipRRect(
                                     borderRadius: BorderRadius.circular(12),
-                                    child: CachedNetworkImage(
-                                      imageUrl: groupChatData.imageUrl,
+                                    child: Image.network(
+                                      groupChatData.imageUrl,
                                       width: 64,
                                       height: 64,
                                       fit: BoxFit.cover,
-                                      memCacheWidth: 192,
-                                      fadeInDuration: Duration.zero,
-                                      placeholder: (context, url) => Container(
-                                        width: 64,
-                                        height: 64,
-                                        decoration: BoxDecoration(
-                                          color: Colors.transparent,
-                                          borderRadius:
-                                              BorderRadius.circular(12),
-                                        ),
-                                        child: const Center(
-                                          child: Icon(FeatherIcons.image),
-                                        ),
-                                      ),
-                                      errorWidget: (context, url, error) {
+                                      loadingBuilder:
+                                          (context, child, progress) {
+                                        return progress == null
+                                            ? child
+                                            : Container(
+                                                width: 64,
+                                                height: 64,
+                                                decoration: BoxDecoration(
+                                                  color: Colors.transparent,
+                                                  borderRadius:
+                                                      BorderRadius.circular(12),
+                                                ),
+                                                child: const Center(
+                                                  child:
+                                                      Icon(FeatherIcons.image),
+                                                ),
+                                              );
+                                      },
+                                      errorBuilder:
+                                          (context, error, stackTrace) {
                                         return Container(
                                           width: 64,
                                           height: 64,

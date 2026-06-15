@@ -142,7 +142,6 @@ class _ContentSelectionSettingsScreenState
       final success =
           await InZoneDatabase.updateUserInterests(user.uid, selectedTopics);
 
-      if (!mounted) return;
       if (success) {
         ToastService.showToast(
           context,
@@ -166,7 +165,6 @@ class _ContentSelectionSettingsScreenState
       }
     } catch (e) {
       print('Error saving interests: $e');
-      if (!mounted) return;
       ToastService.showToast(
         context,
         backgroundColor: Theme.of(context).canvasColor,

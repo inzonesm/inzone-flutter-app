@@ -215,7 +215,6 @@ class _ReferralScreenState extends State<ReferralScreen> with TickerProviderStat
       PermissionType.read,
     );
 
-    if (!mounted) return;
     if (permissionStatus != PermissionStatus.granted) {
       ToastService.showToast(
         context,
@@ -232,7 +231,6 @@ class _ReferralScreenState extends State<ReferralScreen> with TickerProviderStat
     );
     List<Contact> contactList = contacts.where((c) => c.phones.isNotEmpty).toList();
 
-    if (!mounted) return;
     List<Contact> selectedContacts = await showModalBottomSheet<List<Contact>>(
       context: context,
       isScrollControlled: true,

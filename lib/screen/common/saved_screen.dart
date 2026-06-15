@@ -49,8 +49,6 @@ class _SavedScreenState extends State<SavedScreen> {
         // Print all post IDs for debugging
       }
 
-      if (!mounted) return;
-
       // Process saved posts - add each one to the list
       for (var post in savedPosts) {
         // Add the post widget to the list with padding
@@ -254,9 +252,10 @@ class _SavedScreenState extends State<SavedScreen> {
 
                 if (confirm) {
                   // Clear all saved posts
-                  await LikedPostsPreferences.clearAllLikedPosts();
+                  SharedPreferences prefs =
+                      await SharedPreferences.getInstance();
+                  await prefs.setString('likedPostDetails', '{}');
 
-                  if (!mounted) return;
                   // Show confirmation
                   ToastService.showToast(
                     context,

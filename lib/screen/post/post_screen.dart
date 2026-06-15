@@ -686,10 +686,7 @@ class _PostScreenState extends State<PostScreen> {
                                       int sentiment =
                                           analysis["sentiment"] as int;
                                       bool isBlocked = analysis["blocked"] ?? false;
-
-                                      if (!mounted || !context.mounted) {
-                                        return;
-                                      }
+                                      
                                       setState(() {
                                         if (sentiment == -2 || isBlocked) {
                                           // Content is blocked
@@ -774,9 +771,6 @@ class _PostScreenState extends State<PostScreen> {
 
                                       print("Create post result: $result");
 
-                                      if (!mounted || !context.mounted) {
-                                        return;
-                                      }
                                       if (result["success"] != true) {
                                         setState(() {
                                           isPosting = false;
@@ -821,7 +815,6 @@ class _PostScreenState extends State<PostScreen> {
                                         // Don't prevent the success flow even if InCash addition fails
                                       }
 
-                                      if (!context.mounted) return;
                                       context.pop();
 
                                       showDialog(
@@ -874,7 +867,7 @@ class _PostScreenState extends State<PostScreen> {
                                     } catch (e) {
                                       // Handle error
                                       print("Post error: $e");
-                                      if (mounted && context.mounted) {
+                                      if (mounted) {
                                         ScaffoldMessenger.of(context)
                                             .showSnackBar(
                                           SnackBar(
@@ -1449,7 +1442,7 @@ class _PostScreenState extends State<PostScreen> {
                                         height: 140,
                                         width: 140,
                                         fit: BoxFit.cover,
-                                        image: CachedNetworkImageProvider(url),
+                                        image: NetworkImage(url),
                                       ),
                                     ),
                                     Positioned(
@@ -1656,7 +1649,7 @@ class _PostScreenState extends State<PostScreen> {
                                 });
                                 _analyzeContentRealTime();
                               } catch (e) {
-                                if (!mounted || !context.mounted) return;
+                                if (!mounted) return;
                                 ToastService.showToast(
                                   context,
                                   backgroundColor:
@@ -1714,7 +1707,7 @@ class _PostScreenState extends State<PostScreen> {
                                 _analyzeContentRealTime();
                               } on UploadCancelledException {
                               } catch (e) {
-                                if (!mounted || !context.mounted) return;
+                                if (!mounted) return;
                                 ToastService.showToast(
                                   context,
                                   backgroundColor:
@@ -1765,7 +1758,7 @@ class _PostScreenState extends State<PostScreen> {
                                 });
                                 _analyzeContentRealTime();
                               } catch (e) {
-                                if (!mounted || !context.mounted) return;
+                                if (!mounted) return;
                                 ToastService.showToast(
                                   context,
                                   backgroundColor:
@@ -2053,7 +2046,7 @@ class _PostScreenState extends State<PostScreen> {
                 children: [
                   CircleAvatar(
                     radius: 16,
-                    backgroundImage: CachedNetworkImageProvider(selectedCharacter!['image']!),
+                    backgroundImage: NetworkImage(selectedCharacter!['image']!),
                   ),
                   const SizedBox(width: 8),
                   Text(

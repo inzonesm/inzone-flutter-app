@@ -132,7 +132,6 @@ class _PostChatScreenState extends State<PostChatScreen> {
                       }
                     });
 
-                    if (!mounted || !context.mounted) return;
                     if (!result["success"]) {
                       final String error = (result["error"] ?? 'Failed to create repost').toString();
                       ToastService.showToast(
@@ -159,7 +158,6 @@ class _PostChatScreenState extends State<PostChatScreen> {
                       message: "Post Successful",
                     );
                   } catch (e) {
-                    if (!mounted || !context.mounted) return;
                     ToastService.showToast(
                       context,
                       backgroundColor: theme.colorScheme.error,
