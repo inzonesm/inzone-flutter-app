@@ -151,8 +151,9 @@ By using the Licensed Application, you agree to abide by these terms and conditi
           _dismissLoadingDialog();
 
           // Navigate back to introduction screen
-          if (!mounted) return;
-          context.go(Routes.login);
+          if (mounted) {
+            context.go(Routes.login);
+          }
 
           ToastService.showToast(
             context,
@@ -167,7 +168,6 @@ By using the Licensed Application, you agree to abide by these terms and conditi
         }
       } on FirebaseAuthException catch (e) {
         _dismissLoadingDialog();
-        if (!mounted) return;
         // Show an error message if something went wrong
         ToastService.showToast(
           context,
@@ -181,7 +181,6 @@ By using the Licensed Application, you agree to abide by these terms and conditi
         );
       } catch (e) {
         _dismissLoadingDialog();
-        if (!mounted) return;
 
         // Show a general error message
         ToastService.showToast(

@@ -1,4 +1,3 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_feather_icons/flutter_feather_icons.dart';
 import 'package:inzone/components/ui/inzone_searchbar.dart';
@@ -328,15 +327,13 @@ class _FollowersFollowingTabState extends State<FollowersFollowingTab> {
                             leading: ClipRRect(
                               borderRadius: BorderRadius.circular(20),
                               child: profileImageUrl.isNotEmpty
-                                  ? CachedNetworkImage(
-                                      imageUrl: profileImageUrl,
+                                  ? Image.network(
+                                      profileImageUrl,
                                       width: 40,
                                       height: 40,
                                       fit: BoxFit.cover,
-                                      memCacheWidth: 120,
-                                      fadeInDuration: Duration.zero,
-                                      errorWidget:
-                                          (context, url, error) =>
+                                      errorBuilder:
+                                          (context, error, stackTrace) =>
                                               const Icon(Icons.account_circle),
                                     )
                                   : const Icon(Icons.account_circle),
@@ -369,10 +366,6 @@ class _FollowersFollowingTabState extends State<FollowersFollowingTab> {
                                               true;
                                         }
 
-                                        if (!mounted ||
-                                            !context.mounted) {
-                                          return;
-                                        }
                                         if (success) {
                                           // Refresh the list
                                           setState(() {
@@ -519,14 +512,12 @@ class _FollowersFollowingTabState extends State<FollowersFollowingTab> {
                 leading: ClipRRect(
                   borderRadius: BorderRadius.circular(20),
                   child: profileImageUrl.isNotEmpty
-                      ? CachedNetworkImage(
-                          imageUrl: profileImageUrl,
+                      ? Image.network(
+                          profileImageUrl,
                           width: 40,
                           height: 40,
                           fit: BoxFit.cover,
-                          memCacheWidth: 120,
-                          fadeInDuration: Duration.zero,
-                          errorWidget: (context, url, error) =>
+                          errorBuilder: (context, error, stackTrace) =>
                               const Icon(Icons.account_circle),
                         )
                       : const Icon(Icons.account_circle),
@@ -559,7 +550,6 @@ class _FollowersFollowingTabState extends State<FollowersFollowingTab> {
                                   true;
                             }
 
-                            if (!mounted || !context.mounted) return;
                             if (success) {
                               // Refresh the list
                               setState(() {
@@ -779,7 +769,6 @@ class _FollowButtonState extends State<FollowButton> {
             true;
       }
 
-      if (!mounted) return;
       if (!success) {
         // Revert optimistic update
         setState(() {
@@ -797,7 +786,6 @@ class _FollowButtonState extends State<FollowButton> {
         );
       }
     } catch (e) {
-      if (!mounted) return;
       // Revert on failure
       setState(() {
         isFollowing = !follow;
@@ -851,7 +839,6 @@ class _FollowButtonState extends State<FollowButton> {
               success = false;
             }
 
-            if (!mounted || !context.mounted) return;
             if (!success) {
               // Revert on failure
               setState(() {

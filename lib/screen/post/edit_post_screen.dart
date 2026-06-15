@@ -315,8 +315,6 @@ class _EditPostScreenState extends State<EditPostScreen> {
       int sentiment = analysis["sentiment"] as int;
       bool isBlocked = analysis["blocked"] ?? false;
 
-      if (!mounted) return;
-
       if (sentiment == -2 || isBlocked) {
         setState(() {
           isSaving = false;
@@ -358,7 +356,6 @@ class _EditPostScreenState extends State<EditPostScreen> {
       }
 
       final resolvedPostId = await _resolveBackendPostId();
-      if (!mounted) return;
       if (resolvedPostId == null) {
         ToastService.showToast(
           context,
@@ -376,8 +373,6 @@ class _EditPostScreenState extends State<EditPostScreen> {
         imageUrls: imageUrls,
         videoUrls: videoUrls,
       );
-
-      if (!mounted) return;
 
       if (updateSuccess) {
         // Create updated post object to pass back
@@ -417,7 +412,6 @@ class _EditPostScreenState extends State<EditPostScreen> {
       }
     } catch (e) {
       print('Error updating post: $e');
-      if (!mounted) return;
       ToastService.showToast(
         context,
         backgroundColor: Colors.red,
@@ -437,7 +431,6 @@ class _EditPostScreenState extends State<EditPostScreen> {
   Future<bool> _onWillPop() async {
     final canLeaveUpload = await _confirmCancelUploadIfNeeded();
     if (!canLeaveUpload) return false;
-    if (!mounted) return false;
 
     if (!_hasChanges) return true;
 
@@ -471,7 +464,7 @@ class _EditPostScreenState extends State<EditPostScreen> {
       onPopInvokedWithResult: (didPop, result) async {
         if (didPop) return;
         final shouldPop = await _onWillPop();
-        if (shouldPop && mounted && context.mounted) {
+        if (shouldPop && mounted) {
           context.pop();
         }
       },
@@ -502,9 +495,7 @@ class _EditPostScreenState extends State<EditPostScreen> {
                               onTap: () async {
                                 if (_hasChanges) {
                                   final shouldDiscard = await _onWillPop();
-                                  if (shouldDiscard &&
-                                      mounted &&
-                                      context.mounted) {
+                                  if (shouldDiscard && mounted) {
                                     context.pop();
                                   }
                                 } else {
@@ -746,7 +737,7 @@ class _EditPostScreenState extends State<EditPostScreen> {
                                           height: 140,
                                           width: 140,
                                           fit: BoxFit.cover,
-                                          image: CachedNetworkImageProvider(url),
+                                          image: NetworkImage(url),
                                         ),
                                       ),
                                       Positioned(
@@ -914,7 +905,7 @@ class _EditPostScreenState extends State<EditPostScreen> {
                         });
                         _analyzeContentRealTime();
                       } catch (_) {
-                        if (!mounted || !context.mounted) return;
+                        if (!mounted) return;
                         ToastService.showToast(
                           context,
                           backgroundColor: Theme.of(context).canvasColor,
@@ -969,7 +960,7 @@ class _EditPostScreenState extends State<EditPostScreen> {
                         _analyzeContentRealTime();
                       } on UploadCancelledException {
                       } catch (_) {
-                        if (!mounted || !context.mounted) return;
+                        if (!mounted) return;
                         ToastService.showToast(
                           context,
                           backgroundColor: Theme.of(context).canvasColor,
@@ -1018,7 +1009,7 @@ class _EditPostScreenState extends State<EditPostScreen> {
                         });
                         _analyzeContentRealTime();
                       } catch (_) {
-                        if (!mounted || !context.mounted) return;
+                        if (!mounted) return;
                         ToastService.showToast(
                           context,
                           backgroundColor: Theme.of(context).canvasColor,

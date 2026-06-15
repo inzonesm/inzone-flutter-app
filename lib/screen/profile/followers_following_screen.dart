@@ -371,7 +371,6 @@ class _FollowersFollowingScreenState extends State<FollowersFollowingScreen> {
       _loadUserProfileImages();
     } catch (e) {
       print('Error fetching followers/following: $e');
-      if (!mounted) return;
       ToastService.showToast(
         context,
         backgroundColor: Theme.of(context).cardColor,
@@ -887,10 +886,6 @@ class _FollowersFollowingScreenState extends State<FollowersFollowingScreen> {
                                             true;
                                       }
 
-                                      if (!mounted ||
-                                          !context.mounted) {
-                                        return;
-                                      }
                                       if (success) {
                                         setState(() {
                                           userList["following"]!.removeWhere(
@@ -921,8 +916,7 @@ class _FollowersFollowingScreenState extends State<FollowersFollowingScreen> {
                                             await _isUserUnavailable(
                                                 userId, userType);
                                         if (unavailable) {
-                                          if (!mounted ||
-                                              !context.mounted) {
+                                          if (!mounted) {
                                             return;
                                           }
                                           ToastService.showToast(
@@ -941,12 +935,12 @@ class _FollowersFollowingScreenState extends State<FollowersFollowingScreen> {
                                         }
 
                                         if (userType == 'ai') {
-                                          if (context.mounted) {
+                                          if (mounted) {
                                             context.push(
                                                 Routes.aiProfilePath(userId));
                                           }
                                         } else {
-                                          if (context.mounted) {
+                                          if (mounted) {
                                             context.push(Routes
                                                 .regularProfilePath(userId));
                                           }

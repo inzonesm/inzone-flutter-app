@@ -171,7 +171,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
           child: GestureDetector(
             onTap: () async {
               String? currentUserId = await InZoneDatabase.getCurrentUserUid();
-              if (!mounted) return;
               if (currentUserId == null) {
                 ToastService.showToast(
                   context,
@@ -210,7 +209,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     .collection('popularCharacters')
                     .doc(targetUserId)
                     .get();
-                if (!mounted) return;
 
                 if (characterDoc.exists &&
                     characterDoc.data()?['createdByHuman'] == true) {
@@ -260,7 +258,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   }
 
                   // Use the registered 'chat' route and pass conversation data via extra
-                  if (!mounted) return;
                   context.pushNamed(
                     'chat',
                     extra: {
@@ -273,7 +270,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 }
               } catch (e) {
                 print('Error handling message button tap: $e');
-                if (!mounted) return;
                 ToastService.showToast(
                   context,
                   backgroundColor: Theme.of(context).canvasColor,
@@ -414,8 +410,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       }
     }
 
-    if (!mounted) return;
-
     if (userProfile != null) {
       // Debug print for AI users
       if (widget.isAI) {
@@ -507,7 +501,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
         }
       }
 
-      if (!mounted) return;
       setState(() {
         // Access the fields directly from the user data object
         final profile = userProfile!;
@@ -693,7 +686,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (userId.isEmpty) return;
 
     String? currentUserId = await InZoneDatabase.getCurrentUserUid();
-    if (!mounted) return;
     if (currentUserId == null) {
       ToastService.showToast(
         context,
@@ -723,7 +715,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
         // For AI users
         if (newFollowState) {
           success = await InZoneDatabase.followAIUser(userId);
-          if (!mounted) return;
           if (success) {
             ToastService.showToast(
               context,
@@ -738,7 +729,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
           }
         } else {
           success = await InZoneDatabase.unfollowAIUser(userId);
-          if (!mounted) return;
           if (success) {
             ToastService.showToast(
               context,
@@ -756,7 +746,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
         // For human users
         if (newFollowState) {
           success = await InZoneDatabase.followUser(userId, username);
-          if (!mounted) return;
           ToastService.showToast(
             context,
             backgroundColor: Theme.of(context).canvasColor,
@@ -769,7 +758,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
           );
         } else {
           success = await InZoneDatabase.unfollowUser(userId);
-          if (!mounted) return;
           ToastService.showToast(
             context,
             backgroundColor: Theme.of(context).canvasColor,
@@ -804,7 +792,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       }
     } catch (e) {
       // Show error message
-      if (!mounted) return;
       ToastService.showToast(
         context,
         backgroundColor: Theme.of(context).canvasColor,
@@ -920,7 +907,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       if (currentUserId != null) {
                         bool success = await InZoneDatabase.removeFromFollowers(
                             getUserId());
-                        if (!context.mounted) return;
                         if (success) {
                           ToastService.showToast(
                             context,

@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/foundation.dart' show compute;
 import 'package:http/http.dart' as http;
 import 'package:inzone/data/inzone_post.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -99,9 +98,7 @@ class InZoneDatabase {
 
       // Check if the response status code is 200 (OK)
       if (response.statusCode == 200) {
-        // Decode the (large) feed payload off the UI isolate — load-more runs
-        // mid-scroll, where a main-thread decode drops frames.
-        final jsonData = await compute(_decodeJson, response.body);
+        final jsonData = jsonDecode(response.body);
 
         // Extract posts from response
         if (jsonData['success'] == true &&
@@ -390,66 +387,54 @@ class InZoneDatabase {
     return null;
   }
 
-  // ---------------------------------------------------------------------
-  // User profile cache.
-  //
-  // Profiles are fetched over HTTP per post card / comment / chat tile (the
-  // classic N+1 pattern), so a short-lived in-memory cache plus in-flight
-  // request dedup collapses dozens of identical round-trips per screen into
-  // one. Call [invalidateUserProfileCache] after any profile mutation.
-  // ---------------------------------------------------------------------
-  static const Duration _profileCacheTtl = Duration(minutes: 2);
-  static final Map<String, MapEntry<DateTime, Map<String, dynamic>>>
-      _profileCache = {};
-  static final Map<String, Future<Map<String, dynamic>?>> _profileFetches = {};
-
-  static void invalidateUserProfileCache([String? userID]) {
-    if (userID != null) {
-      _profileCache.remove(userID);
-      _profileFetches.remove(userID);
-    } else {
-      _profileCache.clear();
-      _profileFetches.clear();
-    }
-  }
-
   static Future<Map<String, dynamic>?> getCurrentUserProfile() async {
-    final currentUserUID = await InZoneDatabase.getCurrentUserUid();
+    final String url = ApiConfig.endpoint('/user/get-profile');
+    String? currentUserUID;
+    await InZoneDatabase.getCurrentUserUid().then((value) {
+      if (value != null) {
+        currentUserUID = value;
+      }
+    });
+
     if (currentUserUID == null) {
       return null;
     }
-    return getUserProfile(currentUserUID);
-  }
 
-  static Future<Map<String, dynamic>?> getUserProfile(String userID) {
-    final cached = _profileCache[userID];
-    if (cached != null &&
-        DateTime.now().difference(cached.key) < _profileCacheTtl) {
-      // Shallow copy so callers can't mutate the cached entry.
-      return Future.value(Map<String, dynamic>.from(cached.value));
-    }
+    try {
+      // Create URL with query parameter
+      final Uri uri = Uri.parse('$url?uid=$currentUserUID');
 
-    final inFlight = _profileFetches[userID];
-    if (inFlight != null) {
-      return inFlight;
-    }
+      // Make the GET request
+      final http.Response response = await http.get(
+        uri,
+        headers: {'Content-Type': 'application/json'},
+      );
 
-    final fetch = _fetchUserProfile(userID).then((profile) {
-      _profileFetches.remove(userID);
-      if (profile != null) {
-        _profileCache[userID] = MapEntry(DateTime.now(), profile);
-        return Map<String, dynamic>.from(profile);
+      // Check if the request was successful (status code 200-299)
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> responseData = jsonDecode(response.body);
+
+        // Check if the response has the expected structure
+        if (responseData.containsKey("success") &&
+            responseData["success"] == true) {
+          // Return the normalized user data from the "data" field
+          Map<String, dynamic> userData =
+              responseData["data"] as Map<String, dynamic>;
+          return normalizeUserProfile(userData);
+        } else {
+          return null;
+        }
+      } else {
+        // Handle unsuccessful requests here
+        return null;
       }
-      return profile;
-    }, onError: (Object e) {
-      _profileFetches.remove(userID);
+    } catch (e) {
+      // Handle any exceptions (network issues, parsing errors, etc.)
       return null;
-    });
-    _profileFetches[userID] = fetch;
-    return fetch;
+    }
   }
 
-  static Future<Map<String, dynamic>?> _fetchUserProfile(String userID) async {
+  static Future<Map<String, dynamic>?> getUserProfile(String userID) async {
     final String baseUrl = ApiConfig.endpoint('/user/get-profile');
 
     try {
@@ -473,6 +458,8 @@ class InZoneDatabase {
           // Return the normalized user data from the "data" field
           Map<String, dynamic> userData =
               responseData["data"] as Map<String, dynamic>;
+          print("SDSDSDSDSDSDSDSDSD");
+          print(userData);
           return normalizeUserProfile(userData);
         } else {
           return null;
@@ -1586,7 +1573,6 @@ class InZoneDatabase {
         }
       }
 
-      invalidateUserProfileCache(userId);
       return allSuccessful;
     } catch (e) {
       print('Error in updateUserProfile: $e');
@@ -2520,7 +2506,6 @@ class InZoneDatabase {
       }
 
       // Success, all updates completed
-      invalidateUserProfileCache(userId);
       return;
     } catch (e) {
       print('Error in updateUserProfileData: $e');
@@ -2751,7 +2736,6 @@ class InZoneDatabase {
         'lastMessageSpeaker': speaker,
         'messages': FieldValue.arrayUnion([messageEntry]),
       }, SetOptions(merge: true));
-      invalidateAiChatHistoryCache();
     } catch (e) {
       print('Error saving conversation message: $e');
     }
@@ -2807,68 +2791,21 @@ class InZoneDatabase {
     }
   }
 
-  // Short-lived shared snapshot of the user's aiChatHistory docs, keyed by
-  // aiUsername. Home load used to download every doc (including the full
-  // `messages` arrays) once for the timestamp query and then twice more per
-  // avatar (unread check + last-message preview) — 1+2N reads of the same
-  // data. All three readers below now share a single fetch.
-  static Map<String, Map<String, dynamic>>? _aiChatHistoryCache;
-  static DateTime? _aiChatHistoryFetchedAt;
-  static Future<Map<String, Map<String, dynamic>>>? _aiChatHistoryFetch;
-  static const Duration _aiChatHistoryTtl = Duration(seconds: 30);
-
-  static void invalidateAiChatHistoryCache() {
-    _aiChatHistoryCache = null;
-    _aiChatHistoryFetchedAt = null;
-    _aiChatHistoryFetch = null;
-  }
-
-  static Future<Map<String, Map<String, dynamic>>> _getAiChatHistoryDocs() {
-    final cached = _aiChatHistoryCache;
-    final fetchedAt = _aiChatHistoryFetchedAt;
-    if (cached != null &&
-        fetchedAt != null &&
-        DateTime.now().difference(fetchedAt) < _aiChatHistoryTtl) {
-      return Future.value(cached);
-    }
-
-    final inFlight = _aiChatHistoryFetch;
-    if (inFlight != null) return inFlight;
-
-    final fetch = () async {
-      try {
-        final String? uid = await getCurrentUserUid();
-        if (uid == null) return <String, Map<String, dynamic>>{};
-
-        final query = await FirebaseFirestore.instance
-            .collection('aiChatHistory')
-            .where('userId', isEqualTo: uid)
-            .get();
-
-        final docs = <String, Map<String, dynamic>>{};
-        for (final doc in query.docs) {
-          final data = doc.data();
-          final aiUsername = data['aiUsername'] as String?;
-          if (aiUsername != null) {
-            docs[aiUsername] = data;
-          }
-        }
-        _aiChatHistoryCache = docs;
-        _aiChatHistoryFetchedAt = DateTime.now();
-        return docs;
-      } finally {
-        _aiChatHistoryFetch = null;
-      }
-    }();
-    _aiChatHistoryFetch = fetch;
-    return fetch;
-  }
-
   /// Returns just the last message preview for a single avatar chat doc.
   static Future<String?> getAvatarChatLastMessage(String aiUsername) async {
     try {
-      final docs = await _getAiChatHistoryDocs();
-      return docs[aiUsername]?['lastMessageText'] as String?;
+      final String? uid = await getCurrentUserUid();
+      if (uid == null) return null;
+
+      final doc = await FirebaseFirestore.instance
+          .collection('aiChatHistory')
+          .doc('${uid}_$aiUsername')
+          .get();
+
+      if (doc.exists && doc.data() != null) {
+        return doc.data()!['lastMessageText'] as String?;
+      }
+      return null;
     } catch (e) {
       print('Error fetching last avatar message: $e');
       return null;
@@ -2879,15 +2816,24 @@ class InZoneDatabase {
   /// all conversations the current user has had.
   static Future<Map<String, int>> getChatTimestamps() async {
     try {
-      final docs = await _getAiChatHistoryDocs();
+      final String? uid = await getCurrentUserUid();
+      if (uid == null) return {};
+
+      final query = await FirebaseFirestore.instance
+          .collection('aiChatHistory')
+          .where('userId', isEqualTo: uid)
+          .get();
 
       final Map<String, int> timestamps = {};
-      docs.forEach((aiUsername, data) {
+      for (final doc in query.docs) {
+        final data = doc.data();
+        final aiUsername = data['aiUsername'] as String?;
+        if (aiUsername == null) continue;
         final updatedAt = data['updatedAt'];
         if (updatedAt is Timestamp) {
           timestamps[aiUsername] = updatedAt.millisecondsSinceEpoch;
         }
-      });
+      }
       return timestamps;
     } catch (e) {
       print('Error fetching chat timestamps: $e');
@@ -2899,8 +2845,18 @@ class InZoneDatabase {
   /// indicating the user has an unread reply.
   static Future<bool> hasUnreadAIMessage(String aiUsername) async {
     try {
-      final docs = await _getAiChatHistoryDocs();
-      return docs[aiUsername]?['lastMessageSpeaker'] == 'ai';
+      final String? uid = await getCurrentUserUid();
+      if (uid == null) return false;
+
+      final doc = await FirebaseFirestore.instance
+          .collection('aiChatHistory')
+          .doc('${uid}_$aiUsername')
+          .get();
+
+      if (doc.exists && doc.data() != null) {
+        return doc.data()!['lastMessageSpeaker'] == 'ai';
+      }
+      return false;
     } catch (e) {
       print('Error checking unread AI message: $e');
       return false;
@@ -2937,27 +2893,6 @@ class InZoneDatabase {
 class LikedPostsPreferences {
   static const String likedPostsKey = 'likedPostDetails';
 
-  // In-memory set of liked post ids — isPostLiked() used to jsonDecode the
-  // entire liked-posts blob (full post JSON per entry) once per feed card.
-  static Set<String>? _likedIdsCache;
-
-  static Future<Set<String>> _getLikedIds() async {
-    final cached = _likedIdsCache;
-    if (cached != null) return cached;
-
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    String? rawData = prefs.getString(likedPostsKey);
-
-    Set<String> ids;
-    try {
-      ids = (jsonDecode(rawData ?? '{}') as Map<String, dynamic>).keys.toSet();
-    } catch (_) {
-      ids = <String>{};
-    }
-    _likedIdsCache = ids;
-    return ids;
-  }
-
   // Add a post (InZonePost) to the liked posts
   static Future<void> addLikedPost(InZonePost post) async {
     // Validate post ID before proceeding
@@ -2981,7 +2916,6 @@ class LikedPostsPreferences {
 
       // Save the updated liked posts back to SharedPreferences
       await prefs.setString(likedPostsKey, jsonEncode(likedPosts));
-      _likedIdsCache?.add(post.id);
     } catch (e) {}
   }
 
@@ -3003,7 +2937,6 @@ class LikedPostsPreferences {
       likedPosts.remove(postId);
       await prefs.setString(likedPostsKey, jsonEncode(likedPosts));
     }
-    _likedIdsCache?.remove(postId);
   }
 
   // Get all liked posts (as a list of InZonePost objects)
@@ -3055,7 +2988,16 @@ class LikedPostsPreferences {
       return false;
     }
 
-    return (await _getLikedIds()).contains(postId);
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+
+    // Retrieve the liked posts
+    String? rawData = prefs.getString(likedPostsKey);
+
+    Map<String, String> likedPosts =
+        Map<String, String>.from(jsonDecode(rawData ?? '{}'));
+
+    bool isLiked = likedPosts.containsKey(postId);
+    return isLiked;
   }
 
   // Clear all liked posts (for debugging)
@@ -3064,9 +3006,5 @@ class LikedPostsPreferences {
 
     // Clear the liked posts by setting an empty map
     await prefs.setString(likedPostsKey, '{}');
-    _likedIdsCache = <String>{};
   }
 }
-
-// Top-level so it can run in a background isolate via compute().
-dynamic _decodeJson(String body) => jsonDecode(body);

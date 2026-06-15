@@ -540,12 +540,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
 
     final action = await _showAccountActionDialog(context);
-    if (action == null || !context.mounted) {
+    if (action == null) {
       return;
     }
 
     final credentials = await _showReauthDialog(context);
-    if (credentials == null || !context.mounted) {
+    if (credentials == null) {
       return;
     }
 
@@ -555,7 +555,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
         credentials['password']!,
       );
     } on FirebaseAuthException catch (e) {
-      if (!context.mounted) return;
       ToastService.showToast(
         context,
         backgroundColor: Theme.of(context).canvasColor,
@@ -565,7 +564,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
       );
       return;
     } catch (e) {
-      if (!context.mounted) return;
       ToastService.showToast(
         context,
         backgroundColor: Theme.of(context).canvasColor,
@@ -581,7 +579,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ? await _accountLifecycleService.deactivateAccount(uid)
       : await _accountLifecycleService.requestAccountDeletion(uid);
 
-    if (!context.mounted) return;
     ToastService.showToast(
       context,
       backgroundColor: Theme.of(context).canvasColor,
@@ -602,7 +599,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     } catch (_) {}
 
     await AuthService().signOut();
-    if (mounted && context.mounted) {
+    if (mounted) {
       context.go(Routes.onboarding);
     }
   }
@@ -613,7 +610,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
       // Check if user can watch reward ad
       if (!await _rewardAdService.canWatchRewardAd()) {
         final remaining = await _rewardAdService.getRemainingRewardAds();
-        if (!context.mounted) return;
         ToastService.showToast(
           context,
           backgroundColor: Theme.of(context).canvasColor,
@@ -630,7 +626,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
       }
 
       // Initialize reward ad service if not already done
-      if (!context.mounted) return;
       if (!_rewardAdService.isRewardAdReady) {
         ToastService.showToast(
           context,
@@ -649,7 +644,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
       }
 
       // Show reward ad
-      if (!context.mounted) return;
       await _rewardAdService.showRewardAd(
         context,
         onRewardEarned: () {
@@ -685,7 +679,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
       );
     } catch (e) {
       print('Error showing reward ad: $e');
-      if (!context.mounted) return;
       ToastService.showToast(
         context,
         backgroundColor: Theme.of(context).canvasColor,
@@ -873,7 +866,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
         try {
           Purchases.logOut();
           AuthService().signOut().then((_) {
-            if (!context.mounted) return;
             GoRouter.of(context).go(Routes.onboarding);
             ToastService.showToast(
               context,
