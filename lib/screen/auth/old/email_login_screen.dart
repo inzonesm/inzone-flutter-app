@@ -240,7 +240,7 @@ class _EmailLogInPageState extends State<EmailLogInPage> {
                                       _dismissLoadingDialog();
 
                                       // Only navigate if the widget is still mounted
-                                      if (mounted) {
+                                      if (mounted && context.mounted) {
                                         // Navigate directly to home
                                         context.go(Routes.home);
                                       }

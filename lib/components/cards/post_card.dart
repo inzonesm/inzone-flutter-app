@@ -169,6 +169,7 @@ class _PostCardState extends State<PostCard>
       const String deletedContent = "[This post has been deleted by the user]";
 
       final postId = await _resolveBackendPostId();
+      if (!mounted) return;
       if (postId == null) {
         ToastService.showToast(
           context,
@@ -185,6 +186,7 @@ class _PostCardState extends State<PostCard>
         content: deletedContent,
       );
 
+      if (!mounted) return;
       if (deleteSuccess) {
         ToastService.showToast(
           context,
@@ -211,6 +213,7 @@ class _PostCardState extends State<PostCard>
       }
     } catch (e) {
       print('❌ Error deleting post: $e');
+      if (!mounted) return;
       ToastService.showToast(
         context,
         backgroundColor: Colors.red,
@@ -319,6 +322,7 @@ class _PostCardState extends State<PostCard>
       );
 
       final postId = await _resolveBackendPostId();
+      if (!mounted) return;
       if (postId == null) {
         if (!mounted) return;
         ToastService.showToast(
@@ -337,6 +341,7 @@ class _PostCardState extends State<PostCard>
         content: newText,
       );
 
+      if (!mounted) return;
       if (updateSuccess) {
         // Update local state to override the original text content
         setState(() {
@@ -384,6 +389,7 @@ class _PostCardState extends State<PostCard>
       }
     } catch (e) {
       print('❌ Error updating post: $e');
+      if (!mounted) return;
       ToastService.showToast(
         context,
         backgroundColor: Colors.red,
@@ -2292,6 +2298,7 @@ class _PostCardState extends State<PostCard>
           });
         }
 
+        if (!mounted) return;
         ToastService.showToast(
           context,
           backgroundColor: Theme.of(context).canvasColor,
@@ -2305,6 +2312,7 @@ class _PostCardState extends State<PostCard>
       }
     } catch (e) {
       debugPrint('Error reporting post: $e');
+      if (!mounted) return;
       ToastService.showToast(
         context,
         backgroundColor: Theme.of(context).canvasColor,
@@ -2385,6 +2393,7 @@ class _PostCardState extends State<PostCard>
           });
         }
 
+        if (!mounted) return;
         ToastService.showToast(
           context,
           backgroundColor: Theme.of(context).canvasColor,
@@ -2398,6 +2407,7 @@ class _PostCardState extends State<PostCard>
       }
     } catch (e) {
       debugPrint('Error reporting user: $e');
+      if (!mounted) return;
       ToastService.showToast(
         context,
         backgroundColor: Theme.of(context).canvasColor,
@@ -3918,7 +3928,7 @@ class _DynamicPageViewState extends State<_DynamicPageView> {
                           onTap: () async {
                             final openedMinigame =
                                 await _openMinigameFromPostTap();
-                            if (openedMinigame) {
+                            if (openedMinigame || !context.mounted) {
                               return;
                             }
 

@@ -618,11 +618,13 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
       }
 
       await batch.commit();
-      
+
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('All notifications marked as read')),
       );
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error: $e')),
       );
@@ -666,11 +668,13 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
       }
 
       await batch.commit();
-      
+
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('All notifications cleared')),
       );
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error: $e')),
       );

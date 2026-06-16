@@ -1707,7 +1707,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   // Method to show the participants dialog
   Future<void> _showParticipantsDialog(BuildContext context) async {
     await _ensureParticipantUsernamesLoaded();
-    if (!mounted) return;
+    if (!mounted || !context.mounted) return;
 
     // Track participants dialog viewing
     _sessionActivities.add('participants_viewed');
@@ -2133,7 +2133,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
         ) ??
         false;
 
-    if (!confirmed) return;
+    if (!confirmed || !context.mounted) return;
 
     try {
       // Show loading indicator
@@ -2149,6 +2149,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
           _groupId, _joinGroupCost);
 
       // Close loading dialog
+      if (!context.mounted) return;
       Navigator.of(context).pop();
 
       if (response['success'] == true) {
@@ -2177,6 +2178,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
         _sessionActivities.add('group_joined_with_payment');
 
+        if (!context.mounted) return;
         ToastService.showToast(
           context,
           backgroundColor: Theme.of(context).canvasColor,
@@ -2248,7 +2250,8 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       }
     } catch (e) {
       // Close loading dialog if still showing
-      if (context.mounted) Navigator.of(context).pop();
+      if (!context.mounted) return;
+      Navigator.of(context).pop();
 
       ToastService.showToast(
         context,
@@ -2289,6 +2292,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                 final reason = reasonController.text.trim();
                 if (reason.isNotEmpty) {
                   await _submitGroupParticipantReport(participant, reason);
+                  if (!context.mounted) return;
                   context.pop();
 
                   ToastService.showToast(

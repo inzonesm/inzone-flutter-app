@@ -369,6 +369,10 @@ class _FollowersFollowingTabState extends State<FollowersFollowingTab> {
                                               true;
                                         }
 
+                                        if (!mounted ||
+                                            !context.mounted) {
+                                          return;
+                                        }
                                         if (success) {
                                           // Refresh the list
                                           setState(() {
@@ -555,6 +559,7 @@ class _FollowersFollowingTabState extends State<FollowersFollowingTab> {
                                   true;
                             }
 
+                            if (!mounted || !context.mounted) return;
                             if (success) {
                               // Refresh the list
                               setState(() {
@@ -774,6 +779,7 @@ class _FollowButtonState extends State<FollowButton> {
             true;
       }
 
+      if (!mounted) return;
       if (!success) {
         // Revert optimistic update
         setState(() {
@@ -791,6 +797,7 @@ class _FollowButtonState extends State<FollowButton> {
         );
       }
     } catch (e) {
+      if (!mounted) return;
       // Revert on failure
       setState(() {
         isFollowing = !follow;
@@ -844,6 +851,7 @@ class _FollowButtonState extends State<FollowButton> {
               success = false;
             }
 
+            if (!mounted || !context.mounted) return;
             if (!success) {
               // Revert on failure
               setState(() {

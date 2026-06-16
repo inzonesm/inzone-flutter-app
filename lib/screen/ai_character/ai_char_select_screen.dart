@@ -1152,6 +1152,7 @@ class _AICharacterSelectionScreenState extends State<AICharacterSelectionScreen>
               throw error;
             });
 
+            if (!mounted) return;
             ToastService.showToast(
               context,
               shadowColor: Colors.transparent,
@@ -1176,6 +1177,7 @@ class _AICharacterSelectionScreenState extends State<AICharacterSelectionScreen>
           }
         } catch (e) {
           print('Error saving character: $e');
+          if (!mounted) return;
           ToastService.showToast(
             context,
             shadowColor: Colors.transparent,
@@ -1189,6 +1191,7 @@ class _AICharacterSelectionScreenState extends State<AICharacterSelectionScreen>
           );
         }
 
+        if (!mounted) return;
         context.pushReplacement(Routes.home);
       },
       style: ElevatedButton.styleFrom(

@@ -226,6 +226,7 @@ class _InterestSelectionScreenState extends State<InterestSelectionScreen> {
       }
 
       print("InterestScreen - Error completing signup: $e");
+      if (!mounted) return;
       ToastService.showToast(
         context,
         backgroundColor: Theme.of(context).canvasColor,

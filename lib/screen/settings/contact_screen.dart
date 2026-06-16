@@ -175,6 +175,7 @@ class _ContactScreenState extends State<ContactScreen> {
                       if (await canLaunchUrl(email)) {
                         await launchUrl(email);
                       } else {
+                        if (!mounted || !context.mounted) return;
                         ToastService.showToast(
                           context,
                           backgroundColor: Theme.of(context).canvasColor,

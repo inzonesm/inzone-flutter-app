@@ -720,7 +720,10 @@ class _GroupsExploreScreenState extends State<GroupsExploreScreen> {
                     imageUrlController.text.trim(),
                   );
 
-                  Navigator.of(dialogContext).pop();
+                  if (dialogContext.mounted) {
+                    Navigator.of(dialogContext).pop();
+                  }
+                  if (!mounted || !context.mounted) return;
 
                   ToastService.showToast(
                     context,
@@ -735,6 +738,7 @@ class _GroupsExploreScreenState extends State<GroupsExploreScreen> {
                   );
                 } catch (e) {
                   print('Error creating group: $e');
+                  if (!mounted || !context.mounted) return;
                   ToastService.showToast(
                     context,
                     backgroundColor: Theme.of(context).canvasColor,
