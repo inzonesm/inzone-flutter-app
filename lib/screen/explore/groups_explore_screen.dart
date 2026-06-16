@@ -45,9 +45,15 @@ class _GroupsExploreScreenState extends State<GroupsExploreScreen> {
   final Map<String, List<Participant>> _groupParticipants = {};
   bool _isRefreshing = false;
 
+  // Memoized — the StreamBuilder used to call snapshots() inline in build,
+  // tearing down and re-attaching a whole-collection listener on every
+  // rebuild (including each search keystroke).
+  late final Stream<QuerySnapshot> _groupChatsStream;
+
   @override
   void initState() {
     super.initState();
+    _groupChatsStream = _firestore.collection('groupChats').snapshots();
     _loadDefaultGroups();
     _setupBalanceStream(); // Setup stream instead of one-time load
     _rewardAdService.initialize();
@@ -347,7 +353,7 @@ class _GroupsExploreScreenState extends State<GroupsExploreScreen> {
             failedText: "",
           ),
           child: StreamBuilder<QuerySnapshot>(
-            stream: _firestore.collection('groupChats').snapshots(),
+            stream: _groupChatsStream,
             builder: (context, snapshot) {
               // Common top UI elements (appbar and search)
               List<Widget> commonSlivers = [

@@ -20,15 +20,24 @@ class AuthNotifier extends ChangeNotifier {
       checkAuth();
     });
 
-    // Also listen for user data changes
+    // Also listen for user data changes. The snapshot already carries the
+    // doc, so compute completion from it directly (checkAuth() would re-fetch
+    // the same doc) and only notify when the value actually flips — the user
+    // doc changes often (balance updates etc.) and this notifier drives
+    // GoRouter's redirect re-evaluation.
     if (_auth.currentUser != null) {
       FirebaseFirestore.instance
           .collection('humanUsers')
           .doc(_auth.currentUser!.uid)
           .snapshots()
-          .listen((_) {
-        print("AuthNotifier - User data changed");
-        checkAuth();
+          .listen((docSnapshot) {
+        final data = docSnapshot.data();
+        final hasCreatedAt = data?['createdAt'] != null;
+        final completed = docSnapshot.exists && hasCreatedAt;
+        if (completed != _isProfileCompleted) {
+          _isProfileCompleted = completed;
+          notifyListeners();
+        }
       });
     }
   }
