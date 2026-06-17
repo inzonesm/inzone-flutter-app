@@ -55,6 +55,9 @@ class _CommunityGameScreenState extends State<CommunityGameScreen> {
   int _currentIndex = 0;
   bool _loadingPlaylist = false;
 
+  /// Accumulated vertical delta for edge-zone drag-to-navigate.
+  double _edgeDragAccumulated = 0;
+
   @override
   void initState() {
     super.initState();
@@ -188,6 +191,42 @@ class _CommunityGameScreenState extends State<CommunityGameScreen> {
     await Navigator.of(context).maybePop();
   }
 
+  // -------------------------------------------------------------------
+  // Edge-zone navigation helpers
+  // -------------------------------------------------------------------
+
+  /// Called at the end of a drag that started in the top or bottom edge zone.
+  /// Navigates to the next or previous page based on velocity / displacement.
+  void _navigateByEdgeDrag(double velocity) {
+    const velocityThreshold = 300.0;
+    const distanceThreshold = 60.0;
+    final swipeUp = velocity < -velocityThreshold ||
+        _edgeDragAccumulated < -distanceThreshold;
+    final swipeDown = velocity > velocityThreshold ||
+        _edgeDragAccumulated > distanceThreshold;
+    if (swipeUp && _currentIndex < _games.length - 1) {
+      _pageController.nextPage(
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      );
+    } else if (swipeDown && _currentIndex > 0) {
+      _pageController.previousPage(
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      );
+    }
+  }
+
+  /// A transparent strip that intercepts vertical drags for page navigation.
+  Widget _edgeZoneDetector() {
+    return GestureDetector(
+      behavior: HitTestBehavior.translucent,
+      onVerticalDragStart: (_) => _edgeDragAccumulated = 0,
+      onVerticalDragUpdate: (d) => _edgeDragAccumulated += d.delta.dy,
+      onVerticalDragEnd: (d) => _navigateByEdgeDrag(d.primaryVelocity ?? 0),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -202,9 +241,13 @@ class _CommunityGameScreenState extends State<CommunityGameScreen> {
         body: Stack(
           children: [
             // Vertical, TikTok-style game feed.
+            // NeverScrollableScrollPhysics disables the default full-screen
+            // drag; edge-zone GestureDetectors below handle navigation so
+            // that center-of-screen drags reach the game webview unobstructed.
             PageView.builder(
               controller: _pageController,
               scrollDirection: Axis.vertical,
+              physics: const NeverScrollableScrollPhysics(),
               itemCount: _games.length,
               onPageChanged: (index) {
                 if (!mounted) return;
@@ -229,6 +272,27 @@ class _CommunityGameScreenState extends State<CommunityGameScreen> {
                 );
               },
             ),
+
+            // Edge-zone drag strips for page navigation.
+            // Only the top and bottom 18 % of the screen trigger swipe-to-
+            // next-game; the center is left untouched so games can handle
+            // their own vertical gestures freely.
+            if (_games.length > 1) ...[
+              Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                height: MediaQuery.of(context).size.height * 0.18,
+                child: _edgeZoneDetector(),
+              ),
+              Positioned(
+                bottom: 0,
+                left: 0,
+                right: 0,
+                height: MediaQuery.of(context).size.height * 0.18,
+                child: _edgeZoneDetector(),
+              ),
+            ],
 
             // Title + back button overlay (no solid bar — a soft scrim only).
             _GameTopOverlay(

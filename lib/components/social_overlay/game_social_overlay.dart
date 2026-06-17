@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:inzone/theme/app_colors.dart';
 
 import 'popups/group_chat_popup.dart';
+import 'popups/message_friend_popup.dart';
 import 'popups/post_composer_popup.dart';
 import 'social_actions_service.dart';
 import 'social_bridge.dart';
@@ -180,6 +181,15 @@ class _GameSocialOverlayState extends State<GameSocialOverlay>
     );
   }
 
+  Future<void> _onMessageFriend() async {
+    _close();
+    await showMessageFriendPopup(
+      context,
+      actions: widget.actions,
+      score: _score,
+    );
+  }
+
   Future<void> _onShareToFeed() async {
     _close();
     await showPostComposerPopup(
@@ -325,6 +335,12 @@ class _GameSocialOverlayState extends State<GameSocialOverlay>
             icon: Icons.chat_bubble_rounded,
             label: 'Open chat',
             onTap: _onOpenChat,
+          ),
+          const Divider(indent: 48),
+          _menuItem(
+            icon: Icons.people_rounded,
+            label: 'Message a friend',
+            onTap: _onMessageFriend,
           ),
           const Divider(indent: 48),
           _menuItem(
