@@ -54,20 +54,10 @@ class _HumanChatScreenState extends State<HumanChatScreen> {
   final Map<String, GlobalKey> _dateSectionKeys = {};
   final Set<String> _activeDateKeys = {};
 
-  // Memoized — creating the stream in build re-attached a Firestore listener
-  // on every rebuild (e.g. while typing).
-  late final Stream<QuerySnapshot> _messagesStream;
-
   @override
   void initState() {
     super.initState();
     NotificationEventService.setActiveConversationId(widget.conversationId);
-    _messagesStream = _firestore
-        .collection('conversations')
-        .doc(widget.conversationId)
-        .collection('messages')
-        .orderBy('timestamp', descending: false)
-        .snapshots();
     _loadCurrentUser();
     _loadOtherUserProfileImage();
     _resolveOtherUserTypeAndUid();
@@ -658,7 +648,12 @@ class _HumanChatScreenState extends State<HumanChatScreen> {
         children: [
           Expanded(
             child: StreamBuilder<QuerySnapshot>(
-              stream: _messagesStream,
+              stream: _firestore
+                  .collection('conversations')
+                  .doc(widget.conversationId)
+                  .collection('messages')
+                  .orderBy('timestamp', descending: false)
+                  .snapshots(),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting &&
                     !snapshot.hasData) {

@@ -1,4 +1,3 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'dart:io';
 
 import 'package:colorful_safe_area/colorful_safe_area.dart';
@@ -416,7 +415,7 @@ class _TipScreenState extends State<TipScreen> {
                                                 null &&
                                             widget.recipient['profilePicture']
                                                 .isNotEmpty
-                                        ? CachedNetworkImageProvider(
+                                        ? NetworkImage(
                                             widget.recipient['profilePicture'])
                                         : null,
                                 child: widget.recipient['profilePicture'] ==

@@ -133,11 +133,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
   GroupChatData? _groupChatData;
   late String _groupId;
-
-  // Memoized streams — creating new snapshots() streams in build re-attached
-  // Firestore listeners on every rebuild (3 sites used the group stream).
-  late final Stream<DocumentSnapshot> _groupChatStream;
-  Stream<DocumentSnapshot>? _conversationStream;
   final Map<String, String> _userProfileImages =
       {}; // Cache for user profile images
   final Map<String, String> _usernamesByUid = {};
@@ -175,7 +170,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
     NotificationEventService.setActiveGroupChatId(_groupId);
 
-    _groupChatStream = GroupChatService.getGroupChatStreamById(_groupId);
+    print('Opening group chat with ID: $_groupId');
 
     // Initialize session tracking
     _sessionStartTime = DateTime.now();
@@ -310,8 +305,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     }
 
     _timestampVisibilityOverrides.dispose();
-    _msgController.dispose();
-    _scrollController.dispose();
 
     super.dispose();
   }
@@ -336,131 +329,159 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     return score.clamp(0.0, 100.0);
   }
 
-  // Fetch user profile images for the participants.
-  // Lookups run in parallel and the UI updates once at the end — this used to
-  // issue sequential Firestore gets with a full-screen setState per
-  // participant.
+  // Fetch user profile images for the participants
   Future<void> _fetchUserProfileImages() async {
     try {
+      print('Starting to fetch user profile images');
+
       // Get the group chat document to find all participants
       final groupChatDoc = await FirebaseFirestore.instance
           .collection('groupChats')
           .doc(_groupId)
           .get();
 
-      if (!groupChatDoc.exists) return;
-      final data = groupChatDoc.data();
-      if (data == null || data['participants'] is! List) return;
+      if (groupChatDoc.exists) {
+        final data = groupChatDoc.data();
+        if (data != null && data['participants'] is List) {
+          List<dynamic> participants = data['participants'];
+          print('Found ${participants.length} participants in the group');
 
-      final List<dynamic> participants = data['participants'];
-      final images = <String, String>{};
-      final usernames = <String, String>{};
+          // Loop through all participants to fetch profile images
+          for (var participant in participants) {
+            if (participant is Map) {
+              String type = participant['type'] as String? ?? '';
+              String uid = participant['uid'] as String? ?? '';
 
-      Future<void> resolveParticipant(dynamic participant) async {
-        if (participant is! Map) return;
-        final String type = participant['type'] as String? ?? '';
-        final String uid = participant['uid'] as String? ?? '';
+              print('Processing participant: $uid, type: $type');
 
-        if (type == 'user' && uid.isNotEmpty) {
-          // First check if there's already a profilePictureUrl in participant data
-          if (participant['profilePictureUrl'] != null &&
-              participant['profilePictureUrl'].toString().isNotEmpty) {
-            images[uid] = participant['profilePictureUrl'].toString();
-            return;
+              // For regular users, try to fetch from users collection
+              if (type == 'user' && uid.isNotEmpty) {
+                // First check if there's already a profilePictureUrl in participant data
+                if (participant['profilePictureUrl'] != null &&
+                    participant['profilePictureUrl'].toString().isNotEmpty) {
+                  print(
+                      'Found profilePictureUrl directly in participant data for $uid');
+                  setState(() {
+                    _userProfileImages[uid] =
+                        participant['profilePictureUrl'].toString();
+                  });
+                  continue; // Skip to next participant if we already have the picture
+                }
+
+                // Try two different profile picture field names
+                final userDocRef =
+                    FirebaseFirestore.instance.collection('users').doc(uid);
+                final userDoc = await userDocRef.get();
+
+                if (userDoc.exists) {
+                  final userData = userDoc.data();
+                  if (userData != null) {
+                    final username = userData['username']?.toString().trim();
+                    if (username != null && username.isNotEmpty) {
+                      _usernamesByUid[uid] = username;
+                    }
+
+                    // Try different possible field names for profile picture
+                    String? profileUrl;
+                    if (userData['profilePictureUrl'] != null &&
+                        userData['profilePictureUrl'].toString().isNotEmpty) {
+                      profileUrl = userData['profilePictureUrl'].toString();
+                    } else if (userData['profileImage'] != null &&
+                        userData['profileImage'].toString().isNotEmpty) {
+                      profileUrl = userData['profileImage'].toString();
+                    } else if (userData['photoURL'] != null &&
+                        userData['photoURL'].toString().isNotEmpty) {
+                      profileUrl = userData['photoURL'].toString();
+                    } else if (userData['avatar'] != null &&
+                        userData['avatar'].toString().isNotEmpty) {
+                      profileUrl = userData['avatar'].toString();
+                    }
+
+                    if (profileUrl != null) {
+                      print('Found profile picture for user $uid: $profileUrl');
+                      setState(() {
+                        _userProfileImages[uid] = profileUrl!;
+                      });
+                    } else {
+                      print('No profile picture found in user data for $uid');
+                    }
+                  }
+                } else {
+                  final humanUserDoc = await FirebaseFirestore.instance
+                      .collection('humanUsers')
+                      .doc(uid)
+                      .get();
+
+                  if (humanUserDoc.exists) {
+                    final humanUserData = humanUserDoc.data();
+                    if (humanUserData != null) {
+                      final username =
+                          humanUserData['username']?.toString().trim();
+                      if (username != null && username.isNotEmpty) {
+                        _usernamesByUid[uid] = username;
+                      }
+
+                      String? profileUrl;
+                      if (humanUserData['profilePictureUrl'] != null &&
+                          humanUserData['profilePictureUrl']
+                              .toString()
+                              .isNotEmpty) {
+                        profileUrl =
+                            humanUserData['profilePictureUrl'].toString();
+                      } else if (humanUserData['profileImage'] != null &&
+                          humanUserData['profileImage'].toString().isNotEmpty) {
+                        profileUrl = humanUserData['profileImage'].toString();
+                      } else if (humanUserData['photoURL'] != null &&
+                          humanUserData['photoURL'].toString().isNotEmpty) {
+                        profileUrl = humanUserData['photoURL'].toString();
+                      }
+
+                      if (profileUrl != null) {
+                        setState(() {
+                          _userProfileImages[uid] = profileUrl!;
+                        });
+                      }
+                    }
+                  }
+
+                  print('User document not found for $uid');
+
+                  // As a fallback, try to get from auth user data
+                  if (FirebaseAuth.instance.currentUser?.uid == uid) {
+                    final photoURL =
+                        FirebaseAuth.instance.currentUser?.photoURL;
+                    if (photoURL != null && photoURL.isNotEmpty) {
+                      print(
+                          'Using photoURL from FirebaseAuth for current user');
+                      setState(() {
+                        _userProfileImages[uid] = photoURL;
+                      });
+                    }
+                  }
+                }
+              }
+
+              // For AI users, ensure we have their profile picture
+              else if (type == 'ai' &&
+                  uid.isNotEmpty &&
+                  participant['profilePictureUrl'] != null &&
+                  participant['profilePictureUrl'].toString().isNotEmpty) {
+                print(
+                    'Found AI profile picture for $uid: ${participant['profilePictureUrl']}');
+                setState(() {
+                  _userProfileImages[uid] =
+                      participant['profilePictureUrl'].toString();
+                });
+              }
+            }
           }
-
-          final userDoc = await FirebaseFirestore.instance
-              .collection('users')
-              .doc(uid)
-              .get();
-
-          if (userDoc.exists) {
-            final userData = userDoc.data();
-            if (userData != null) {
-              final username = userData['username']?.toString().trim();
-              if (username != null && username.isNotEmpty) {
-                usernames[uid] = username;
-              }
-
-              // Try different possible field names for profile picture
-              String? profileUrl;
-              if (userData['profilePictureUrl'] != null &&
-                  userData['profilePictureUrl'].toString().isNotEmpty) {
-                profileUrl = userData['profilePictureUrl'].toString();
-              } else if (userData['profileImage'] != null &&
-                  userData['profileImage'].toString().isNotEmpty) {
-                profileUrl = userData['profileImage'].toString();
-              } else if (userData['photoURL'] != null &&
-                  userData['photoURL'].toString().isNotEmpty) {
-                profileUrl = userData['photoURL'].toString();
-              } else if (userData['avatar'] != null &&
-                  userData['avatar'].toString().isNotEmpty) {
-                profileUrl = userData['avatar'].toString();
-              }
-
-              if (profileUrl != null) {
-                images[uid] = profileUrl;
-              }
-            }
-          } else {
-            final humanUserDoc = await FirebaseFirestore.instance
-                .collection('humanUsers')
-                .doc(uid)
-                .get();
-
-            if (humanUserDoc.exists) {
-              final humanUserData = humanUserDoc.data();
-              if (humanUserData != null) {
-                final username = humanUserData['username']?.toString().trim();
-                if (username != null && username.isNotEmpty) {
-                  usernames[uid] = username;
-                }
-
-                String? profileUrl;
-                if (humanUserData['profilePictureUrl'] != null &&
-                    humanUserData['profilePictureUrl'].toString().isNotEmpty) {
-                  profileUrl = humanUserData['profilePictureUrl'].toString();
-                } else if (humanUserData['profileImage'] != null &&
-                    humanUserData['profileImage'].toString().isNotEmpty) {
-                  profileUrl = humanUserData['profileImage'].toString();
-                } else if (humanUserData['photoURL'] != null &&
-                    humanUserData['photoURL'].toString().isNotEmpty) {
-                  profileUrl = humanUserData['photoURL'].toString();
-                }
-
-                if (profileUrl != null) {
-                  images[uid] = profileUrl;
-                }
-              }
-            }
-
-            // As a fallback, try to get from auth user data
-            if (!images.containsKey(uid) &&
-                FirebaseAuth.instance.currentUser?.uid == uid) {
-              final photoURL = FirebaseAuth.instance.currentUser?.photoURL;
-              if (photoURL != null && photoURL.isNotEmpty) {
-                images[uid] = photoURL;
-              }
-            }
-          }
-        }
-
-        // For AI users, ensure we have their profile picture
-        else if (type == 'ai' &&
-            uid.isNotEmpty &&
-            participant['profilePictureUrl'] != null &&
-            participant['profilePictureUrl'].toString().isNotEmpty) {
-          images[uid] = participant['profilePictureUrl'].toString();
+          print(
+              'Finished processing all participants. Profile image cache size: ${_userProfileImages.length}');
         }
       }
 
-      await Future.wait(participants.map(resolveParticipant));
-
-      if (!mounted) return;
-      setState(() {
-        _userProfileImages.addAll(images);
-        _usernamesByUid.addAll(usernames);
-      });
+      // Force UI update
+      setState(() {});
     } catch (e) {
       print('Error fetching user profile images: $e');
     }
@@ -1033,7 +1054,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       appBar: PreferredSize(
         preferredSize: const Size.fromHeight(kToolbarHeight),
         child: StreamBuilder<DocumentSnapshot>(
-          stream: _groupChatStream,
+          stream: GroupChatService.getGroupChatStreamById(_groupId),
           builder: (context, snapshot) {
             // Default values from the group data passed to constructor
             String groupName = widget.group.name;
@@ -1092,7 +1113,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                         height: 40,
                         width: 40,
                         fit: BoxFit.cover,
-                        memCacheWidth: 120,
                       ),
                     );
                   } else if (data.containsKey('avatars') &&
@@ -1116,7 +1136,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                           height: 40,
                           width: 40,
                           fit: BoxFit.cover,
-                          memCacheWidth: 120,
                         ),
                       );
                     }
@@ -1201,7 +1220,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
               actions: [
                 // Join button to add group to user's chat list
                 StreamBuilder<DocumentSnapshot>(
-                  stream: _conversationStream ??= FirebaseFirestore.instance
+                  stream: FirebaseFirestore.instance
                       .collection('conversations')
                       .doc(_groupId)
                       .snapshots(),
@@ -1259,7 +1278,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
           children: [
             Expanded(
               child: StreamBuilder<DocumentSnapshot>(
-                stream: _groupChatStream,
+                stream: GroupChatService.getGroupChatStreamById(_groupId),
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting &&
                       !snapshot.hasData) {
@@ -1279,8 +1298,10 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                   }
 
                   try {
+                    // Print raw data for debugging
                     final rawData =
                         snapshot.data!.data() as Map<String, dynamic>;
+                    print('Raw Firestore data: $rawData');
 
                     // Check if messages exist in the data
                     final List<dynamic>? messagesData =
@@ -1492,6 +1513,14 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     final bool isMe =
         message.sender.uid == FirebaseAuth.instance.currentUser?.uid;
 
+    // Debug print to check sender data
+    print(
+        'Building message bubble for sender: ${message.sender.name}, type: ${message.sender.type}, uid: ${message.sender.uid}');
+    if (_userProfileImages.containsKey(message.sender.uid)) {
+      print(
+          'Profile image found in cache for this sender: ${_userProfileImages[message.sender.uid]}');
+    }
+
     return MessageBubble(
       message: message.content,
       isMe: isMe,
@@ -1545,7 +1574,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
           fit: BoxFit.cover,
           height: 35,
           width: 35,
-          memCacheWidth: 105,
         ),
       );
     }
@@ -1565,7 +1593,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
             fit: BoxFit.cover,
             height: 35,
             width: 35,
-            memCacheWidth: 105,
             errorWidget: (context, url, error) {
               // For AI fallback to AI icon, for users fallback to initials
               if (sender.type == 'ai') {
@@ -1726,7 +1753,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
             borderRadius: BorderRadius.circular(16),
           ),
           child: StreamBuilder<DocumentSnapshot>(
-            stream: _groupChatStream,
+            stream: GroupChatService.getGroupChatStreamById(_groupId),
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
                 return const Padding(
@@ -2016,7 +2043,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
           fit: BoxFit.cover,
           width: 24,
           height: 24,
-          memCacheWidth: 72,
           placeholder: (context, url) => const SizedBox(),
           errorWidget: (context, url, error) {
             return Center(
@@ -2044,7 +2070,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
           fit: BoxFit.cover,
           width: 24,
           height: 24,
-          memCacheWidth: 72,
           errorWidget: (context, url, error) {
             // Different fallbacks based on user type
             if (participant.type == 'ai') {

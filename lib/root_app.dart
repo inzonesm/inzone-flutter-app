@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_feather_icons/flutter_feather_icons.dart';
@@ -69,7 +68,6 @@ class _RootAppState extends State<RootApp>
   bool _isCharacterPickerOpen = false;
   bool _isLoadingPopularCharacters = false;
   List<_PopularCharacterOption> _popularCharacters = const [];
-  DateTime? _popularCharactersLoadedAt;
   List<Message> _miniGameMessages = const [];
   GameData? _lastCompletedMiniGame;
   String? _pendingMiniGameDeepLinkGameId;
@@ -119,10 +117,6 @@ class _RootAppState extends State<RootApp>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-
-    // Set once — calling this on every build was a platform-channel call per
-    // rebuild of the root shell.
-    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
 
     // Initialize rotation animation controller
     _rotationController = AnimationController(
@@ -513,15 +507,6 @@ class _RootAppState extends State<RootApp>
   Future<void> _loadPopularCharacters() async {
     if (_isLoadingPopularCharacters) return;
 
-    // Reuse a recent result — this is a 300-doc Firestore query and used to
-    // re-run every time the character picker opened.
-    if (_popularCharacters.length > 1 &&
-        _popularCharactersLoadedAt != null &&
-        DateTime.now().difference(_popularCharactersLoadedAt!) <
-            const Duration(minutes: 10)) {
-      return;
-    }
-
     setState(() {
       _isLoadingPopularCharacters = true;
     });
@@ -565,7 +550,6 @@ class _RootAppState extends State<RootApp>
       }).toList();
 
       if (!mounted) return;
-      _popularCharactersLoadedAt = DateTime.now();
       setState(() {
         _popularCharacters = [defaultInZoneOption, ...loaded];
       });
@@ -733,9 +717,7 @@ class _RootAppState extends State<RootApp>
                               backgroundColor: theme.cardColor,
                               backgroundImage: (character.imageUrl != null &&
                                       character.imageUrl!.isNotEmpty)
-                                  ? CachedNetworkImageProvider(
-                                      character.imageUrl!,
-                                      maxWidth: 132)
+                                  ? NetworkImage(character.imageUrl!)
                                   : null,
                               child: (character.imageUrl == null ||
                                       character.imageUrl!.isEmpty)
@@ -821,6 +803,8 @@ class _RootAppState extends State<RootApp>
     _activeCharacterNotifier = context.read<ActiveCharacterNotifier>();
     _updateCurrentPageFromRoute(context);
   }
+
+  bool isUserScrolling = false;
 
   // Function to return the title based on the current page
   String _getPageTitle(int page) {
@@ -1576,9 +1560,8 @@ class _RootAppState extends State<RootApp>
                             ),
                             child: gameIcon.isNotEmpty
                                 ? ClipOval(
-                                    child: Image(
-                                      image:
-                                          CachedNetworkImageProvider(gameIcon),
+                                    child: Image.network(
+                                      gameIcon,
                                       fit: BoxFit.cover,
                                       errorBuilder:
                                           (context, error, stackTrace) =>
@@ -1813,10 +1796,9 @@ class _RootAppState extends State<RootApp>
       systemNavigationBarIconBrightness: Brightness.dark,
     );
     SystemChrome.setSystemUIOverlayStyle(systemUiOverlayStyle);
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
 
-    // viewInsetsOf only subscribes to inset changes (keyboard), not every
-    // MediaQuery change like size/padding.
-    _isKeyboardVisible = MediaQuery.viewInsetsOf(context).bottom > 0;
+    _isKeyboardVisible = MediaQuery.of(context).viewInsets.bottom > 0;
 
     // Check if current route is one of the main tab routes
     final String location = GoRouterState.of(context).matchedLocation;
@@ -1835,8 +1817,29 @@ class _RootAppState extends State<RootApp>
                 _toggleExpanded();
               }
             },
-            // Use IndexedStack for main tab routes, otherwise use the provided child for nested routes
-            child: Stack(
+            child: NotificationListener<ScrollNotification>(
+              onNotification: (ScrollNotification notification) {
+                if (notification is ScrollStartNotification) {
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    if (mounted) {
+                      setState(() {
+                        isUserScrolling = true;
+                      });
+                    }
+                  });
+                } else if (notification is ScrollEndNotification) {
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    if (mounted) {
+                      setState(() {
+                        isUserScrolling = false;
+                      });
+                    }
+                  });
+                }
+                return false; // false: allow scroll event to continue propagating
+              },
+              // Use IndexedStack for main tab routes, otherwise use the provided child for nested routes
+              child: Stack(
                 children: [
                   isMainTabRoute
                       ? IndexedStack(
@@ -1918,6 +1921,7 @@ class _RootAppState extends State<RootApp>
                   ),
                 ],
               ),
+            ),
           ),
           floatingActionButtonLocation:
               FloatingActionButtonLocation.centerDocked,

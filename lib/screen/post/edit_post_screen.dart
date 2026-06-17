@@ -737,7 +737,7 @@ class _EditPostScreenState extends State<EditPostScreen> {
                                           height: 140,
                                           width: 140,
                                           fit: BoxFit.cover,
-                                          image: CachedNetworkImageProvider(url),
+                                          image: NetworkImage(url),
                                         ),
                                       ),
                                       Positioned(

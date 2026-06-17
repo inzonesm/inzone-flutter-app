@@ -1,4 +1,3 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'dart:convert';
 import 'package:animated_text_kit/animated_text_kit.dart';
 import 'package:flutter/material.dart';
@@ -328,7 +327,7 @@ class _VoiceScreenState extends State<VoiceScreen>
                             radius: _processingAnimation.value,
                             backgroundColor: Colors.transparent,
                             backgroundImage: widget.avatarUrl.isNotEmpty
-                                ? CachedNetworkImageProvider(widget.avatarUrl)
+                                ? NetworkImage(widget.avatarUrl)
                                 : null,
                           );
                         },
@@ -345,7 +344,7 @@ class _VoiceScreenState extends State<VoiceScreen>
                             radius: radius,
                             backgroundColor: Colors.transparent,
                             backgroundImage: widget.avatarUrl.isNotEmpty
-                                ? CachedNetworkImageProvider(widget.avatarUrl)
+                                ? NetworkImage(widget.avatarUrl)
                                 : null,
                           );
                         },
@@ -629,7 +628,7 @@ class _VoiceScreenState extends State<VoiceScreen>
                                   radius: 60,
                                   backgroundColor: Colors.transparent,
                                   backgroundImage:
-                                      CachedNetworkImageProvider(widget.avatarUrl),
+                                      NetworkImage(widget.avatarUrl),
                                 ),
                               );
                             },

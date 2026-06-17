@@ -1,21 +1,12 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'dart:async';
 import 'dart:io';
 
 class NotificationBadgeService {
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   static final FlutterLocalNotificationsPlugin _localNotifications = FlutterLocalNotificationsPlugin();
-
-  // One shared Firestore listener per user, instead of a new one per
-  // StreamBuilder rebuild. The iOS badge update only runs when the count
-  // actually changes.
-  static StreamController<int>? _countController;
-  static StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _countSub;
-  static String? _countUid;
-  static int? _lastCount;
-
+  
   /// Get a stream of unread notification count for the current user
   static Stream<int> getUnreadNotificationCount() {
     final user = FirebaseAuth.instance.currentUser;
@@ -23,42 +14,22 @@ class NotificationBadgeService {
       return Stream.value(0);
     }
 
-    if (_countController == null || _countUid != user.uid) {
-      _countSub?.cancel();
-      _countUid = user.uid;
-      _lastCount = null;
-      final controller = StreamController<int>.broadcast();
-      _countController = controller;
-      _countSub = _firestore
-          .collection('notifications')
-          .where('userId', isEqualTo: user.uid)
-          .snapshots()
-          .listen((snapshot) {
-        // Filter unread notifications manually to avoid composite index
-        final unreadCount = snapshot.docs.where((doc) {
-          final data = doc.data();
-          return data['isRead'] !=
-              true; // Count as unread if isRead is false or null
-        }).length;
-
-        // Update iOS badge count only when it changed
-        if (unreadCount != _lastCount) {
+    return _firestore
+        .collection('notifications')
+        .where('userId', isEqualTo: user.uid)
+        .snapshots()
+        .map((snapshot) {
+          // Filter unread notifications manually to avoid composite index
+          final unreadCount = snapshot.docs.where((doc) {
+            final data = doc.data();
+            return data['isRead'] != true; // Count as unread if isRead is false or null
+          }).length;
+          
+          // Update iOS badge count in real-time
           _updateIOSBadgeCount(unreadCount);
-        }
-        _lastCount = unreadCount;
-        controller.add(unreadCount);
-      });
-    }
-
-    return _watchCount();
-  }
-
-  // Replays the last known count to new subscribers, then follows the shared
-  // broadcast stream.
-  static Stream<int> _watchCount() async* {
-    final last = _lastCount;
-    if (last != null) yield last;
-    yield* _countController!.stream;
+          
+          return unreadCount;
+        });
   }
 
   /// Force clear iOS badge using multiple methods

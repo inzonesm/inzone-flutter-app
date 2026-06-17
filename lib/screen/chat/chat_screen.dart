@@ -1,5 +1,4 @@
 import 'package:flutter/foundation.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:inzone/components/chat/chat_app_bar.dart';
 import 'package:inzone/components/chat/chat_input.dart';
@@ -370,9 +369,8 @@ class _ChatScreenState extends State<ChatScreen> {
           senderAvatar: !isMe && widget.userData.profilePictureURL != null
               ? CircleAvatar(
                   radius: 16,
-                  backgroundImage: CachedNetworkImageProvider(
+                  backgroundImage: NetworkImage(
                     widget.userData.profilePictureURL!,
-                    maxWidth: 96,
                   ),
                   backgroundColor: Colors.grey.shade300,
                 )

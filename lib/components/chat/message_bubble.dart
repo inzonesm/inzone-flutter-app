@@ -400,22 +400,9 @@ class _ChatVideoPreviewState extends State<_ChatVideoPreview> {
   VideoPlayerController? _controller;
   bool _isInitialized = false;
 
-  bool get _hasThumbnail =>
-      widget.videoThumbnailUrl != null &&
-      widget.videoThumbnailUrl!.trim().isNotEmpty;
-
   @override
   void initState() {
     super.initState();
-    // When a thumbnail exists the controller's output is never rendered
-    // (fullscreen playback uses its own controller), so skip buffering the
-    // video over the network for every video bubble in the list.
-    if (!_hasThumbnail) {
-      _initController();
-    }
-  }
-
-  void _initController() {
     _controller = VideoPlayerController.networkUrl(Uri.parse(widget.videoUrl))
       ..initialize().then((_) {
         if (!mounted) return;
@@ -430,11 +417,14 @@ class _ChatVideoPreviewState extends State<_ChatVideoPreview> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.videoUrl != widget.videoUrl) {
       _controller?.dispose();
-      _controller = null;
       _isInitialized = false;
-      if (!_hasThumbnail) {
-        _initController();
-      }
+      _controller = VideoPlayerController.networkUrl(Uri.parse(widget.videoUrl))
+        ..initialize().then((_) {
+          if (!mounted) return;
+          setState(() {
+            _isInitialized = true;
+          });
+        });
     }
   }
 
