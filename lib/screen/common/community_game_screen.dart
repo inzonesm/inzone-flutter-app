@@ -12,6 +12,9 @@ import 'package:flutter/services.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:http/http.dart' as http;
 import 'package:inzone/components/live_players_indicator.dart';
+import 'package:inzone/components/social_overlay/game_social_overlay.dart';
+import 'package:inzone/components/social_overlay/social_actions_service.dart';
+import 'package:inzone/components/social_overlay/social_bridge.dart';
 import 'package:inzone/config/api_config.dart';
 import 'package:inzone/data/community_game.dart';
 import 'package:inzone/data/hub_game.dart';
@@ -51,6 +54,9 @@ class _CommunityGameScreenState extends State<CommunityGameScreen> {
   late List<HubGame> _games;
   int _currentIndex = 0;
   bool _loadingPlaylist = false;
+
+  /// Accumulated vertical delta for edge-zone drag-to-navigate.
+  double _edgeDragAccumulated = 0;
 
   @override
   void initState() {
@@ -185,6 +191,42 @@ class _CommunityGameScreenState extends State<CommunityGameScreen> {
     await Navigator.of(context).maybePop();
   }
 
+  // -------------------------------------------------------------------
+  // Edge-zone navigation helpers
+  // -------------------------------------------------------------------
+
+  /// Called at the end of a drag that started in the top or bottom edge zone.
+  /// Navigates to the next or previous page based on velocity / displacement.
+  void _navigateByEdgeDrag(double velocity) {
+    const velocityThreshold = 300.0;
+    const distanceThreshold = 60.0;
+    final swipeUp = velocity < -velocityThreshold ||
+        _edgeDragAccumulated < -distanceThreshold;
+    final swipeDown = velocity > velocityThreshold ||
+        _edgeDragAccumulated > distanceThreshold;
+    if (swipeUp && _currentIndex < _games.length - 1) {
+      _pageController.nextPage(
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      );
+    } else if (swipeDown && _currentIndex > 0) {
+      _pageController.previousPage(
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      );
+    }
+  }
+
+  /// A transparent strip that intercepts vertical drags for page navigation.
+  Widget _edgeZoneDetector() {
+    return GestureDetector(
+      behavior: HitTestBehavior.translucent,
+      onVerticalDragStart: (_) => _edgeDragAccumulated = 0,
+      onVerticalDragUpdate: (d) => _edgeDragAccumulated += d.delta.dy,
+      onVerticalDragEnd: (d) => _navigateByEdgeDrag(d.primaryVelocity ?? 0),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -199,9 +241,13 @@ class _CommunityGameScreenState extends State<CommunityGameScreen> {
         body: Stack(
           children: [
             // Vertical, TikTok-style game feed.
+            // NeverScrollableScrollPhysics disables the default full-screen
+            // drag; edge-zone GestureDetectors below handle navigation so
+            // that center-of-screen drags reach the game webview unobstructed.
             PageView.builder(
               controller: _pageController,
               scrollDirection: Axis.vertical,
+              physics: const NeverScrollableScrollPhysics(),
               itemCount: _games.length,
               onPageChanged: (index) {
                 if (!mounted) return;
@@ -227,6 +273,27 @@ class _CommunityGameScreenState extends State<CommunityGameScreen> {
               },
             ),
 
+            // Edge-zone drag strips for page navigation.
+            // Only the top and bottom 18 % of the screen trigger swipe-to-
+            // next-game; the center is left untouched so games can handle
+            // their own vertical gestures freely.
+            if (_games.length > 1) ...[
+              Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                height: MediaQuery.of(context).size.height * 0.18,
+                child: _edgeZoneDetector(),
+              ),
+              Positioned(
+                bottom: 0,
+                left: 0,
+                right: 0,
+                height: MediaQuery.of(context).size.height * 0.18,
+                child: _edgeZoneDetector(),
+              ),
+            ],
+
             // Title + back button overlay (no solid bar — a soft scrim only).
             _GameTopOverlay(
               title: activeTitle,
@@ -234,12 +301,14 @@ class _CommunityGameScreenState extends State<CommunityGameScreen> {
             ),
 
             // Subtle hint that more games live above/below (only when >1 game).
+            // Decorative only — must never intercept touches (the social
+            // overlay button can be dragged to this edge).
             if (_games.length > 1)
               const Positioned(
                 right: 10,
                 top: 0,
                 bottom: 0,
-                child: _SlideHint(),
+                child: IgnorePointer(child: _SlideHint()),
               ),
 
             if (_loadingPlaylist)
@@ -313,24 +382,35 @@ class _GameTopOverlay extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Only the back button may intercept touches here. This overlay sits
+    // above the game pages in the screen-level Stack, so a hit-testable
+    // gradient Container would swallow every tap in the top strip —
+    // including taps meant for the social overlay button drawn inside
+    // _CommunityGamePage. The scrim and title are decorative, so they are
+    // wrapped in IgnorePointer and taps pass through to the game page.
     return Positioned(
       top: 0,
       left: 0,
       right: 0,
-      child: IgnorePointer(
-        ignoring: false,
-        child: Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [
-                Color(0x66000000),
-                Color(0x00000000),
-              ],
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: IgnorePointer(
+              child: DecoratedBox(
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Color(0x66000000),
+                      Color(0x00000000),
+                    ],
+                  ),
+                ),
+              ),
             ),
           ),
-          child: SafeArea(
+          SafeArea(
             bottom: false,
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
@@ -344,21 +424,23 @@ class _GameTopOverlay extends StatelessWidget {
                     onPressed: onBack,
                   ),
                   Expanded(
-                    child: Text(
-                      title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700,
-                        shadows: [
-                          Shadow(
-                            color: Color(0x99000000),
-                            blurRadius: 6,
-                            offset: Offset(0, 1),
-                          ),
-                        ],
+                    child: IgnorePointer(
+                      child: Text(
+                        title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                          shadows: [
+                            Shadow(
+                              color: Color(0x99000000),
+                              blurRadius: 6,
+                              offset: Offset(0, 1),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ),
@@ -366,7 +448,7 @@ class _GameTopOverlay extends StatelessWidget {
               ),
             ),
           ),
-        ),
+        ],
       ),
     );
   }
@@ -407,6 +489,13 @@ class _CommunityGamePageState extends State<_CommunityGamePage> {
   Future<void>? _sessionEndFuture;
   int _sessionCoinsSpent = 0;
   String? _lastSharedChallengeKey;
+
+  // Social overlay: floating share button drawn over every community game
+  // (send challenge / open chat / share score to InZone). The bridge holds
+  // the latest score teed from the InZoneSDK `postScore` action.
+  final SocialBridge _socialBridge = SocialBridge();
+  late final SocialActionsService _socialActions =
+      SocialActionsService(game: widget.game);
 
   @override
   void initState() {
@@ -506,6 +595,10 @@ class _CommunityGamePageState extends State<_CommunityGamePage> {
       case 'dashboard':
         return client.dashboard(mergePayload({}));
       case 'postScore':
+        // Tee the score into the social overlay so its share flows can
+        // include it. Games that never call postScore still work — the
+        // overlay falls back to score-less messages.
+        _socialBridge.recordPostScore(payload);
         return client.postScore(mergePayload({}));
       case 'sendChallenge':
         final response = await client.sendChallenge(mergePayload({}));
@@ -891,6 +984,14 @@ class _CommunityGamePageState extends State<_CommunityGamePage> {
                 ],
               ),
             ),
+          ),
+        // Floating social button + menu (send challenge / open chat /
+        // share score to InZone). Draggable with edge snapping; only
+        // shown once the game has loaded successfully.
+        if (!_isLoading && _loadError.isEmpty)
+          GameSocialOverlay(
+            bridge: _socialBridge,
+            actions: _socialActions,
           ),
       ],
     );
