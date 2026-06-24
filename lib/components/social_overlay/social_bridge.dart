@@ -105,6 +105,10 @@ class SocialBridge extends ChangeNotifier {
     _record(_extractScore(data));
   }
 
+  /// Record a score read straight off the game's UI (DOM scrape or OCR), used
+  /// for games that never report through the SDK. Honors [keepMaxScore].
+  void recordUiScore(int? value) => _record(value);
+
   /// Call when a new game session starts (e.g. when the feed page changes).
   void reset() {
     if (_latestScore == null) return;

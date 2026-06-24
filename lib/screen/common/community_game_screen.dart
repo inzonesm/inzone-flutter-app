@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:collection';
 import 'dart:convert';
 import 'dart:math';
 
@@ -13,6 +14,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:http/http.dart' as http;
 import 'package:inzone/components/live_players_indicator.dart';
+import 'package:inzone/components/social_overlay/game_score_reader.dart';
 import 'package:inzone/components/social_overlay/game_social_overlay.dart';
 import 'package:inzone/components/social_overlay/social_actions_service.dart';
 import 'package:inzone/components/social_overlay/social_bridge.dart';
@@ -486,6 +488,35 @@ class _CommunityGamePageState extends State<_CommunityGamePage> {
   static const String _fixtureAssetPath =
       'assets/html/social_loop_tap_targets.html';
 
+  /// Injected at document-start (before the game boots) so WebGL games — Unity
+  /// WebGL, Construct WebGL, etc. — render into a buffer that can be read back
+  /// with `canvas.toDataURL()`. Without `preserveDrawingBuffer`, a WebGL canvas
+  /// returns a blank image, which is why OCR could never see the score on those
+  /// games. This is harmless to games that don't need it (they keep clearing
+  /// their own buffer each frame) and does not affect the Construct 2 state
+  /// read, so games that already work — like Dunk Shot — are unchanged.
+  static const String _webglReadbackScript = r'''
+(function () {
+  try {
+    if (window.__inzoneWebGLReadback) return;
+    window.__inzoneWebGLReadback = true;
+    var orig = HTMLCanvasElement.prototype.getContext;
+    if (!orig) return;
+    HTMLCanvasElement.prototype.getContext = function (type, attrs) {
+      try {
+        if (typeof type === 'string' && /webgl/i.test(type)) {
+          attrs = attrs || {};
+          if (attrs.preserveDrawingBuffer !== true) {
+            attrs.preserveDrawingBuffer = true;
+          }
+        }
+      } catch (e) {}
+      return orig.call(this, type, attrs);
+    };
+  } catch (e) {}
+})();
+''';
+
   InAppWebViewController? _controller;
   bool _isLoading = true;
   String _loadError = '';
@@ -506,6 +537,24 @@ class _CommunityGamePageState extends State<_CommunityGamePage> {
   final SocialBridge _socialBridge = SocialBridge();
   late final SocialActionsService _socialActions =
       SocialActionsService(game: widget.game);
+
+  // Reads the score straight off the game's UI (DOM scrape, then OCR) for the
+  // many third-party games that never call the SDK's postScore. Resolved on
+  // demand when the share menu opens / a share action is tapped.
+  late final GameScoreReader _scoreReader =
+      GameScoreReader(controllerGetter: () => _controller);
+
+  /// Returns the best score we can establish for the share flows: whatever the
+  /// SDK already teed, refreshed with a live read of the on-screen value.
+  Future<int?> _resolveLatestScore() async {
+    try {
+      final int? uiScore = await _scoreReader.read();
+      if (uiScore != null) _socialBridge.recordUiScore(uiScore);
+    } catch (_) {
+      // Reading the UI is best-effort; fall back to whatever we already have.
+    }
+    return _socialBridge.latestScore;
+  }
 
   @override
   void initState() {
@@ -920,6 +969,16 @@ class _CommunityGamePageState extends State<_CommunityGamePage> {
     return Stack(
       children: [
         InAppWebView(
+          // Force WebGL canvases to keep their drawing buffer so the OCR
+          // fallback can screenshot them (Unity WebGL, Construct WebGL, …).
+          // Runs before the game's own scripts; see [_webglReadbackScript].
+          initialUserScripts: UnmodifiableListView<UserScript>(<UserScript>[
+            UserScript(
+              source: _webglReadbackScript,
+              injectionTime: UserScriptInjectionTime.AT_DOCUMENT_START,
+              forMainFrameOnly: false,
+            ),
+          ]),
           // When embedded in the scrolling home feed, claim vertical drags so
           // a drag that starts in the center of the game reaches the game
           // (instead of being stolen by the feed's scroll view). The feed is
@@ -1090,6 +1149,7 @@ class _CommunityGamePageState extends State<_CommunityGamePage> {
           GameSocialOverlay(
             bridge: _socialBridge,
             actions: _socialActions,
+            scoreResolver: _resolveLatestScore,
           ),
       ],
     );

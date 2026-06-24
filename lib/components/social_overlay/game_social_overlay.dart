@@ -31,6 +31,7 @@ class GameSocialOverlay extends StatefulWidget {
     super.key,
     required this.bridge,
     required this.actions,
+    this.scoreResolver,
     this.edgeMargin = 12,
     this.initialTopOffset = 6,
     this.initialPosition,
@@ -39,6 +40,11 @@ class GameSocialOverlay extends StatefulWidget {
 
   final SocialBridge bridge;
   final SocialActionsService actions;
+
+  /// Resolves the freshest score right before a share — reads it off the game's
+  /// UI (DOM/OCR) for games that never report through the SDK. Falls back to
+  /// [bridge].latestScore when null or on failure.
+  final Future<int?> Function()? scoreResolver;
 
   /// Gap kept between the button and the screen edges.
   final double edgeMargin;
@@ -107,8 +113,11 @@ class _GameSocialOverlayState extends State<GameSocialOverlay>
 
   void _toggle() {
     _restartIdleTimer();
-    setState(() => _expanded = !_expanded);
-    _expanded ? _menuController.forward() : _menuController.reverse();
+    final bool willExpand = !_expanded;
+    setState(() => _expanded = willExpand);
+    willExpand ? _menuController.forward() : _menuController.reverse();
+    // Warm the score while the menu opens so the share actions are instant.
+    if (willExpand) unawaited(_resolveScore());
   }
 
   void _close() {
@@ -118,7 +127,19 @@ class _GameSocialOverlayState extends State<GameSocialOverlay>
     _restartIdleTimer();
   }
 
-  int? get _score => widget.bridge.latestScore;
+  /// Establish the score to share: a live read of the game's UI (DOM/OCR),
+  /// falling back to anything the SDK already teed.
+  Future<int?> _resolveScore() async {
+    final resolver = widget.scoreResolver;
+    if (resolver != null) {
+      try {
+        return await resolver();
+      } catch (_) {
+        // Fall through to the last known value.
+      }
+    }
+    return widget.bridge.latestScore;
+  }
 
   // -------------------------------------------------------------------
   // Drag & snap
@@ -168,34 +189,41 @@ class _GameSocialOverlayState extends State<GameSocialOverlay>
 
   Future<void> _onSendChallenge() async {
     _close();
+    final int? score = await _resolveScore();
     // Opens the device's native OS share sheet.
-    await widget.actions.sendChallenge(_score);
+    await widget.actions.sendChallenge(score);
   }
 
   Future<void> _onOpenChat() async {
     _close();
+    final int? score = await _resolveScore();
+    if (!mounted) return;
     await showGroupChatPopup(
       context,
       actions: widget.actions,
-      prefilledMessage: widget.actions.prewrittenMessage(_score),
+      prefilledMessage: widget.actions.prewrittenMessage(score),
     );
   }
 
   Future<void> _onMessageFriend() async {
     _close();
+    final int? score = await _resolveScore();
+    if (!mounted) return;
     await showMessageFriendPopup(
       context,
       actions: widget.actions,
-      score: _score,
+      score: score,
     );
   }
 
   Future<void> _onShareToFeed() async {
     _close();
+    final int? score = await _resolveScore();
+    if (!mounted) return;
     await showPostComposerPopup(
       context,
       actions: widget.actions,
-      score: _score,
+      score: score,
     );
   }
 
