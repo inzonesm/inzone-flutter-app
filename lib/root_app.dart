@@ -185,6 +185,9 @@ class _RootAppState extends State<RootApp>
       if (pending != null && pending.isNotEmpty) {
         _openCommunityGameFromDeepLink(pending);
       }
+      // Same cold-start safety net for Simula minigames (e.g. a deferred deep
+      // link delivered via onInstallConversionData on a fresh install).
+      _consumePendingMinigameDeepLink();
     });
   }
 
@@ -364,6 +367,11 @@ class _RootAppState extends State<RootApp>
     final normalized = gameId.trim();
     if (!mounted || normalized.isEmpty) return;
 
+    // Clear any persisted cold-start fallback now that we're handling this id,
+    // so a link handled live (warm start) can't be re-opened on the next cold
+    // start. Fire-and-forget; the return value is irrelevant here.
+    AppsFlyerService.consumePendingMinigameDeepLinkGameId();
+
     // Check if this is a community HTML game first — those live in
     // html_games and open in CommunityGameScreen, not the Simula menu.
     FirebaseFirestore.instance
@@ -418,6 +426,9 @@ class _RootAppState extends State<RootApp>
     final gameId =
         await AppsFlyerService.consumePendingMinigameDeepLinkGameId();
     if (!mounted || gameId == null || gameId.trim().isEmpty) return;
+    // Guard against double-opening when the broadcast stream also delivered the
+    // same id on a warm start.
+    if (_isDuplicateDeepLink(gameId.trim())) return;
 
     _openMiniGameFromDeepLink(gameId);
   }
