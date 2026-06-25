@@ -1,9 +1,20 @@
+import 'dart:math';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:inzone/data/community_game.dart';
 
 class CommunityGameService {
   static const String _collection = 'html_games';
   static final FirebaseFirestore _db = FirebaseFirestore.instance;
+
+  /// Games uploaded by this account display an inflated "playing" count instead
+  /// of their real open-session total.
+  static const String _inflatedPlayerUploaderId =
+      'stleyc71xUZJTmcx88A6Mv9dyYs2';
+  static final Random _rng = Random();
+
+  /// A random "playing" count in the inclusive range 999–11,998.
+  static int _randomInflatedPlayerCount() => 999 + _rng.nextInt(11000);
 
   static DocumentReference<Map<String, dynamic>> _gameRef(String gameId) {
     return _db.collection(_collection).doc(gameId);
@@ -45,9 +56,19 @@ class CommunityGameService {
   /// live signal the dashboard uses. Uses a server-side aggregate count (no doc
   /// payloads) and is best-effort: a missing subcollection or denied read
   /// resolves to 0.
+  ///
+  /// Exception: games owned by [_inflatedPlayerUploaderId] return a random
+  /// count in the inclusive range 999–11,998 instead of their real
+  /// open-session total.
   static Future<int> fetchLivePlayerCount(String gameId) async {
     if (gameId.isEmpty) return 0;
     try {
+      final gameSnap = await _gameRef(gameId).get();
+      final uploaderId =
+          ((gameSnap.data()?['uploaderId'] as String?) ?? '').trim();
+      if (uploaderId == _inflatedPlayerUploaderId) {
+        return _randomInflatedPlayerCount();
+      }
       final snapshot = await _gameRef(gameId)
           .collection('sessions')
           .where('status', isEqualTo: 'open')

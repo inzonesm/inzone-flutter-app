@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:collection';
 import 'dart:convert';
 import 'dart:math';
 
@@ -7,11 +8,13 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:colorful_safe_area/colorful_safe_area.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:http/http.dart' as http;
 import 'package:inzone/components/live_players_indicator.dart';
+import 'package:inzone/components/social_overlay/game_score_reader.dart';
 import 'package:inzone/components/social_overlay/game_social_overlay.dart';
 import 'package:inzone/components/social_overlay/social_actions_service.dart';
 import 'package:inzone/components/social_overlay/social_bridge.dart';
@@ -461,11 +464,20 @@ class _CommunityGamePage extends StatefulWidget {
   final bool isActive;
   final Future<void> Function() onClose;
 
+  /// True when this page is embedded inside a scrolling parent (the home
+  /// feed's `InlineCommunityGameCard`). In that case the webview must claim
+  /// vertical drags so center-of-game gestures reach the game instead of
+  /// scrolling the feed. The full-screen player leaves this false because its
+  /// PageView is already `NeverScrollableScrollPhysics` and edge zones handle
+  /// navigation.
+  final bool embeddedInFeed;
+
   const _CommunityGamePage({
     super.key,
     required this.game,
     required this.isActive,
     required this.onClose,
+    this.embeddedInFeed = false,
   });
 
   @override
@@ -475,6 +487,35 @@ class _CommunityGamePage extends StatefulWidget {
 class _CommunityGamePageState extends State<_CommunityGamePage> {
   static const String _fixtureAssetPath =
       'assets/html/social_loop_tap_targets.html';
+
+  /// Injected at document-start (before the game boots) so WebGL games — Unity
+  /// WebGL, Construct WebGL, etc. — render into a buffer that can be read back
+  /// with `canvas.toDataURL()`. Without `preserveDrawingBuffer`, a WebGL canvas
+  /// returns a blank image, which is why OCR could never see the score on those
+  /// games. This is harmless to games that don't need it (they keep clearing
+  /// their own buffer each frame) and does not affect the Construct 2 state
+  /// read, so games that already work — like Dunk Shot — are unchanged.
+  static const String _webglReadbackScript = r'''
+(function () {
+  try {
+    if (window.__inzoneWebGLReadback) return;
+    window.__inzoneWebGLReadback = true;
+    var orig = HTMLCanvasElement.prototype.getContext;
+    if (!orig) return;
+    HTMLCanvasElement.prototype.getContext = function (type, attrs) {
+      try {
+        if (typeof type === 'string' && /webgl/i.test(type)) {
+          attrs = attrs || {};
+          if (attrs.preserveDrawingBuffer !== true) {
+            attrs.preserveDrawingBuffer = true;
+          }
+        }
+      } catch (e) {}
+      return orig.call(this, type, attrs);
+    };
+  } catch (e) {}
+})();
+''';
 
   InAppWebViewController? _controller;
   bool _isLoading = true;
@@ -496,6 +537,24 @@ class _CommunityGamePageState extends State<_CommunityGamePage> {
   final SocialBridge _socialBridge = SocialBridge();
   late final SocialActionsService _socialActions =
       SocialActionsService(game: widget.game);
+
+  // Reads the score straight off the game's UI (DOM scrape, then OCR) for the
+  // many third-party games that never call the SDK's postScore. Resolved on
+  // demand when the share menu opens / a share action is tapped.
+  late final GameScoreReader _scoreReader =
+      GameScoreReader(controllerGetter: () => _controller);
+
+  /// Returns the best score we can establish for the share flows: whatever the
+  /// SDK already teed, refreshed with a live read of the on-screen value.
+  Future<int?> _resolveLatestScore() async {
+    try {
+      final int? uiScore = await _scoreReader.read();
+      if (uiScore != null) _socialBridge.recordUiScore(uiScore);
+    } catch (_) {
+      // Reading the UI is best-effort; fall back to whatever we already have.
+    }
+    return _socialBridge.latestScore;
+  }
 
   @override
   void initState() {
@@ -597,18 +656,37 @@ class _CommunityGamePageState extends State<_CommunityGamePage> {
       case 'postScore':
         // Tee the score into the social overlay so its share flows can
         // include it. Games that never call postScore still work — the
-        // overlay falls back to score-less messages.
-        _socialBridge.recordPostScore(payload);
-        return client.postScore(mergePayload({}));
+        // overlay falls back to score-less messages. We tee both the request
+        // payload and the normalized backend response (which carries the
+        // canonical value/best).
+        _socialBridge.recordScoreFromMap(payload);
+        final postScoreResponse = await client.postScore(mergePayload({}));
+        _socialBridge.recordScoreFromResponse(postScoreResponse);
+        return postScoreResponse;
       case 'sendChallenge':
+        _socialBridge.recordScoreFromMap(payload);
         final response = await client.sendChallenge(mergePayload({}));
+        _socialBridge.recordScoreFromResponse(response);
         unawaited(_shareFromSendChallengeResponse(response));
         return response;
       case 'shareCard':
         // share-card was merged into send-challenge; route legacy calls there
+        _socialBridge.recordScoreFromMap(payload);
         return client.sendChallenge(mergePayload({}));
       case 'openChat':
+        // open-chat carries the score inside `context: { score, ... }`.
+        _socialBridge.recordScoreFromMap(payload);
         return client.openChat(mergePayload({}));
+      case 'notifyScore':
+        // Sent by the injected fetch/XHR interceptor for games that call the
+        // REST endpoints directly instead of the SDK bridge methods.
+        final scoreRequest = payload['request'];
+        final scoreResponse = payload['response'];
+        if (scoreRequest is Map) _socialBridge.recordScoreFromMap(scoreRequest);
+        if (scoreResponse is Map) {
+          _socialBridge.recordScoreFromResponse(scoreResponse);
+        }
+        return {'success': true};
       case 'notifyShare':
         final response = payload['response'] is Map
             ? Map<String, dynamic>.from(payload['response'] as Map)
@@ -792,9 +870,24 @@ class _CommunityGamePageState extends State<_CommunityGamePage> {
         if (!window.__INZONE_SOCIAL_LOOP_INTERCEPTOR__) {
           window.__INZONE_SOCIAL_LOOP_INTERCEPTOR__ = true;
 
-          const shouldIntercept = (url) => {
+          // send-challenge feeds the native share sheet (existing behavior).
+          const isShareEndpoint = (url) =>
+            !!url && url.indexOf('/api/game-sdk/send-challenge') !== -1;
+
+          // Endpoints whose request/response can carry a score. Games that talk
+          // to the REST API directly (instead of the SDK bridge methods) are
+          // captured here so the social overlay still learns the score.
+          const isScoreEndpoint = (url) => {
             if (!url) return false;
-            return url.indexOf('/api/game-sdk/send-challenge') !== -1;
+            return url.indexOf('/api/game-sdk/post-score') !== -1 ||
+              url.indexOf('/api/game-sdk/send-challenge') !== -1 ||
+              url.indexOf('/api/game-sdk/progress/share') !== -1 ||
+              url.indexOf('/api/game-sdk/open-chat') !== -1;
+          };
+
+          const parseBody = (body) => {
+            if (!body || typeof body !== 'string') return null;
+            try { return JSON.parse(body); } catch (e) { return null; }
           };
 
           const notifyShare = (data) => {
@@ -804,21 +897,32 @@ class _CommunityGamePageState extends State<_CommunityGamePage> {
             }
           };
 
+          const notifyScore = (request, response) => {
+            try {
+              callBridge('notifyScore', {
+                request: request || null,
+                response: response || null,
+              });
+            } catch (e) {
+            }
+          };
+
           if (window.fetch) {
             const originalFetch = window.fetch;
             window.fetch = function (input, init) {
               const url = typeof input === 'string' ? input : (input && input.url);
-              const isMatch = shouldIntercept(url || '');
+              const share = isShareEndpoint(url || '');
+              const scored = isScoreEndpoint(url || '');
+              const reqBody = scored ? parseBody(init && init.body) : null;
               return originalFetch.apply(this, arguments).then((resp) => {
-                if (!isMatch) return resp;
+                if (!share && !scored) return resp;
                 try {
                   const cloned = resp.clone();
                   cloned.text().then((text) => {
-                    try {
-                      const data = JSON.parse(text);
-                      notifyShare(data);
-                    } catch (e) {
-                    }
+                    let data = null;
+                    try { data = JSON.parse(text); } catch (e) { }
+                    if (scored) notifyScore(reqBody, data);
+                    if (share) notifyShare(data || {});
                   });
                 } catch (e) {
                 }
@@ -838,13 +942,17 @@ class _CommunityGamePageState extends State<_CommunityGamePage> {
 
             window.XMLHttpRequest.prototype.send = function (body) {
               const url = this.__inzone_url || '';
-              if (shouldIntercept(url)) {
+              const share = isShareEndpoint(url);
+              const scored = isScoreEndpoint(url);
+              if (share || scored) {
+                const reqBody = scored
+                  ? parseBody(typeof body === 'string' ? body : null)
+                  : null;
                 this.addEventListener('load', () => {
-                  try {
-                    const data = JSON.parse(this.responseText || '{}');
-                    notifyShare(data);
-                  } catch (e) {
-                  }
+                  let data = null;
+                  try { data = JSON.parse(this.responseText || '{}'); } catch (e) { }
+                  if (scored) notifyScore(reqBody, data);
+                  if (share) notifyShare(data || {});
                 });
               }
               return originalSend.apply(this, arguments);
@@ -861,6 +969,30 @@ class _CommunityGamePageState extends State<_CommunityGamePage> {
     return Stack(
       children: [
         InAppWebView(
+          // Force WebGL canvases to keep their drawing buffer so the OCR
+          // fallback can screenshot them (Unity WebGL, Construct WebGL, …).
+          // Runs before the game's own scripts; see [_webglReadbackScript].
+          initialUserScripts: UnmodifiableListView<UserScript>(<UserScript>[
+            UserScript(
+              source: _webglReadbackScript,
+              injectionTime: UserScriptInjectionTime.AT_DOCUMENT_START,
+              forMainFrameOnly: false,
+            ),
+          ]),
+          // When embedded in the scrolling home feed, claim vertical drags so
+          // a drag that starts in the center of the game reaches the game
+          // (instead of being stolen by the feed's scroll view). The feed is
+          // still scrollable via the transparent edge strips that
+          // `InlineCommunityGameCard` overlays on the top and bottom of the
+          // game. The full-screen player passes embeddedInFeed=false so its
+          // own edge-zone navigation keeps working unchanged.
+          gestureRecognizers: widget.embeddedInFeed
+              ? <Factory<OneSequenceGestureRecognizer>>{
+                  Factory<OneSequenceGestureRecognizer>(
+                    () => VerticalDragGestureRecognizer(),
+                  ),
+                }
+              : null,
           initialData: initialHtml == null
               ? null
               : InAppWebViewInitialData(
@@ -931,6 +1063,31 @@ class _CommunityGamePageState extends State<_CommunityGamePage> {
             });
           },
         ),
+        // Home-feed embed only: transparent, hit-test-opaque strips over the
+        // very top and bottom of the game. They claim no gesture of their own,
+        // so a drag starting on an edge is not given to the game webview behind
+        // them and instead falls through to the home feed's scroll view (an
+        // ancestor), scrolling the feed with its normal physics. The center of
+        // the game has no strip, so the webview's own vertical-drag recognizer
+        // wins there and gameplay is never interrupted. These sit above the
+        // webview but below the social overlay so the share button stays
+        // tappable even when docked near an edge.
+        if (widget.embeddedInFeed) ...[
+          const Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            height: 56,
+            child: _FeedScrollEdge(),
+          ),
+          const Positioned(
+            bottom: 0,
+            left: 0,
+            right: 0,
+            height: 64,
+            child: _FeedScrollEdge(),
+          ),
+        ],
         if (_isLoading)
           Container(
             color: theme.canvasColor,
@@ -992,6 +1149,7 @@ class _CommunityGamePageState extends State<_CommunityGamePage> {
           GameSocialOverlay(
             bridge: _socialBridge,
             actions: _socialActions,
+            scoreResolver: _resolveLatestScore,
           ),
       ],
     );
@@ -1172,10 +1330,15 @@ class InlineCommunityGameCard extends StatelessWidget {
               child: SizedBox(
                 height: gameHeight,
                 width: double.infinity,
+                // embeddedInFeed makes the game claim gestures in its center
+                // (so play is never interrupted by the feed scrolling under the
+                // finger) while leaving its top/bottom edges free to scroll the
+                // feed — see `_buildWebView`.
                 child: _CommunityGamePage(
                   key: ValueKey('inline_game_${game.id}'),
                   game: game,
                   isActive: true,
+                  embeddedInFeed: true,
                   onClose: () async {},
                 ),
               ),
@@ -1183,6 +1346,25 @@ class InlineCommunityGameCard extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// A transparent strip placed over the very top and bottom of an inline
+/// home-feed game. It is hit-test *opaque*, so it stops the drag from reaching
+/// the game webview directly behind it, but it registers no gesture recognizer
+/// of its own — which means the gesture falls through to the home feed's scroll
+/// view (an ancestor) and scrolls the feed with its normal physics. The result:
+/// dragging the center of the game plays the game, while dragging its top/bottom
+/// edges scrolls the feed.
+class _FeedScrollEdge extends StatelessWidget {
+  const _FeedScrollEdge();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Listener(
+      behavior: HitTestBehavior.opaque,
+      child: SizedBox.expand(),
     );
   }
 }
