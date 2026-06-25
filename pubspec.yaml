@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 5.0.6+717
+version: 5.0.6+718
 
 
 environment:
@@ -116,6 +116,10 @@ dependencies:
   flutter_contacts: ^2.0.1
   share_plus: ^12.0.1
   flutter_inappwebview: ^6.1.5
+  # On-device OCR used to read a game's on-screen score (e.g. canvas-rendered
+  # games like Dunkshot that never report a score through the SDK). Offline, no
+  # network. Mobile-only — guarded by kIsWeb at the call site.
+  google_mlkit_text_recognition: ^0.13.0
 
 
 dev_dependencies:
