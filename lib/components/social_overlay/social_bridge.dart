@@ -109,6 +109,11 @@ class SocialBridge extends ChangeNotifier {
   /// for games that never report through the SDK. Honors [keepMaxScore].
   void recordUiScore(int? value) => _record(value);
 
+  /// Pull a score out of a map without recording it — used to check whether a
+  /// game already supplied a score before falling back to the UI reader.
+  static int? scoreIn(Map<dynamic, dynamic>? map) =>
+      map == null ? null : _extractScore(map);
+
   /// Call when a new game session starts (e.g. when the feed page changes).
   void reset() {
     if (_latestScore == null) return;

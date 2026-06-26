@@ -556,6 +556,31 @@ class _CommunityGamePageState extends State<_CommunityGamePage> {
     return _socialBridge.latestScore;
   }
 
+  /// Fold a UI-read score into an outgoing send-challenge / open-chat payload
+  /// when the game itself didn't supply one. This is what makes those endpoints
+  /// work for the Ultimate Game Stash (Construct 2) and Unity games, which
+  /// never pass a score — the score is read from the game's runtime/UI instead.
+  /// Games that already include a score are left untouched (no costly UI read).
+  Future<Map<String, dynamic>> _withResolvedScore(
+    Map<String, dynamic> outgoing, {
+    required bool inContext,
+  }) async {
+    if (SocialBridge.scoreIn(outgoing) != null) return outgoing;
+    final int? score = await _resolveLatestScore();
+    if (score == null) return outgoing;
+    final Map<String, dynamic> enriched =
+        Map<String, dynamic>.from(outgoing)..['score'] = score;
+    if (inContext) {
+      // open-chat builds its message from `context: { score, ... }`.
+      final Map<String, dynamic> ctx = enriched['context'] is Map
+          ? Map<String, dynamic>.from(enriched['context'] as Map)
+          : <String, dynamic>{};
+      ctx['score'] = score;
+      enriched['context'] = ctx;
+    }
+    return enriched;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -665,18 +690,24 @@ class _CommunityGamePageState extends State<_CommunityGamePage> {
         return postScoreResponse;
       case 'sendChallenge':
         _socialBridge.recordScoreFromMap(payload);
-        final response = await client.sendChallenge(mergePayload({}));
+        final response = await client.sendChallenge(
+          await _withResolvedScore(mergePayload({}), inContext: false),
+        );
         _socialBridge.recordScoreFromResponse(response);
         unawaited(_shareFromSendChallengeResponse(response));
         return response;
       case 'shareCard':
         // share-card was merged into send-challenge; route legacy calls there
         _socialBridge.recordScoreFromMap(payload);
-        return client.sendChallenge(mergePayload({}));
+        return client.sendChallenge(
+          await _withResolvedScore(mergePayload({}), inContext: false),
+        );
       case 'openChat':
         // open-chat carries the score inside `context: { score, ... }`.
         _socialBridge.recordScoreFromMap(payload);
-        return client.openChat(mergePayload({}));
+        return client.openChat(
+          await _withResolvedScore(mergePayload({}), inContext: true),
+        );
       case 'notifyScore':
         // Sent by the injected fetch/XHR interceptor for games that call the
         // REST endpoints directly instead of the SDK bridge methods.
@@ -1273,6 +1304,7 @@ class InlineCommunityGameCard extends StatelessWidget {
                         // same signal as the game-hub cards.
                         LivePlayersIndicator(
                           gameId: game.id,
+                          uploaderId: game.uploaderId,
                           builder: (context, players, pulse) => Padding(
                             padding: const EdgeInsets.only(top: 2),
                             child: Row(

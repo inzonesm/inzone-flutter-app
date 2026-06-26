@@ -34,4 +34,9 @@ class HubGame {
 
   String? get iconFallback =>
       source == HubGameSource.simula ? simulaGame!.iconFallback : null;
+
+  /// Owner uid for community games (null for Simula games). Used to decide
+  /// whether a game shows a synthetic "playing" count.
+  String? get uploaderId =>
+      source == HubGameSource.community ? communityGame?.uploaderId : null;
 }

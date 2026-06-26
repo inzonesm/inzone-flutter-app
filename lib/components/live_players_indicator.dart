@@ -15,6 +15,10 @@ const Color kLivePlayersGreen = Color(0xFF34D399);
 /// subtitle on the feed card.
 class LivePlayersIndicator extends StatefulWidget {
   final String gameId;
+
+  /// Owner uid of the game. Forwarded to the count service so games from
+  /// certain uploaders can show a synthetic count without an extra read.
+  final String? uploaderId;
   final Widget Function(
     BuildContext context,
     int count,
@@ -25,6 +29,7 @@ class LivePlayersIndicator extends StatefulWidget {
   const LivePlayersIndicator({
     super.key,
     required this.gameId,
+    this.uploaderId,
     required this.builder,
     this.idle,
   });
@@ -66,7 +71,10 @@ class _LivePlayersIndicatorState extends State<LivePlayersIndicator>
   }
 
   Future<void> _load() async {
-    final n = await CommunityGameService.fetchLivePlayerCount(widget.gameId);
+    final n = await CommunityGameService.fetchLivePlayerCount(
+      widget.gameId,
+      uploaderId: widget.uploaderId,
+    );
     if (mounted) setState(() => _count = n);
   }
 

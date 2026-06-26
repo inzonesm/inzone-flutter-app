@@ -309,6 +309,7 @@ class _GameHubTile extends StatelessWidget {
                 child: isCommunity
                     ? LivePlayersIndicator(
                         gameId: game.id,
+                        uploaderId: game.uploaderId,
                         builder: (context, count, pulse) => Container(
                           padding: const EdgeInsets.symmetric(
                             horizontal: 8,

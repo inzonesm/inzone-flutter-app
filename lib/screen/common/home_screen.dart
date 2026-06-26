@@ -1135,6 +1135,7 @@ class HomeScreenState extends State<HomeScreen> {
                     if (isCommunity)
                       LivePlayersIndicator(
                         gameId: game.id,
+                        uploaderId: game.uploaderId,
                         builder: (context, players, pulse) => Container(
                           padding: const EdgeInsets.symmetric(
                             horizontal: 10,
