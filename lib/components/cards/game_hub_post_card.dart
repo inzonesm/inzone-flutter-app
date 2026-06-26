@@ -77,6 +77,7 @@ class GameHubPostCard extends StatelessWidget {
                         if (isCommunity)
                           LivePlayersIndicator(
                             gameId: game.id,
+                            uploaderId: game.uploaderId,
                             // No one playing (or still loading) → keep the label.
                             idle: (_) => Text(
                               'Community game',
