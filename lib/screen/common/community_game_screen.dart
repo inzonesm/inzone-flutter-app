@@ -27,6 +27,7 @@ import 'package:inzone/services/game_session_analytics.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:simula_ads/simula_ads.dart';
+import 'package:visibility_detector/visibility_detector.dart';
 
 /// Full-screen, TikTok-style community game player.
 ///
@@ -513,6 +514,159 @@ class _CommunityGamePageState extends State<_CommunityGamePage> {
       } catch (e) {}
       return orig.call(this, type, attrs);
     };
+  } catch (e) {}
+})();
+''';
+
+  /// Makes HTML5 / Unity WebGL games fit the webview instead of being cut off
+  /// or rendered at the wrong scale. Two problems are fixed here:
+  ///
+  /// 1. Many community games ship without a `<meta name="viewport">` tag, so
+  ///    Android lays the page out at its 980px-wide legacy viewport instead of
+  ///    the webview's real size. A `width=device-width` viewport meta is
+  ///    injected (or an existing one normalized) so `window.innerWidth/Height`
+  ///    report the actual view size the game should render at.
+  /// 2. Games with fixed-size canvases / Unity containers (e.g. a 1280×720
+  ///    build) overflow the view and get clipped. Known game containers are
+  ///    pinned to the full viewport, and any canvas that overflows is scaled
+  ///    back down to explicit, aspect-preserving pixel dimensions and
+  ///    centered. Explicit sizing (instead of object-fit letterboxing) keeps
+  ///    the canvas bounding rect equal to the visible game area, which is
+  ///    what game engines use to translate touch coordinates — so the game
+  ///    stays both fully visible and correctly tappable.
+  ///
+  /// The fit pass re-runs on resize/orientation change and on a few delayed
+  /// retries, because most engines create or resize their canvas asynchronously
+  /// after `load`. All work is no-op for games that already fit correctly.
+  static const String _viewportFitScript = r'''
+(function () {
+  try {
+    if (window.__inzoneViewportFit) return;
+    window.__inzoneViewportFit = true;
+
+    var ensureViewportMeta = function () {
+      try {
+        var head = document.head || document.getElementsByTagName('head')[0];
+        if (!head) return;
+        var meta = document.querySelector('meta[name="viewport"]');
+        if (!meta) {
+          meta = document.createElement('meta');
+          meta.setAttribute('name', 'viewport');
+          head.appendChild(meta);
+        }
+        meta.setAttribute('content',
+          'width=device-width, height=device-height, initial-scale=1.0, ' +
+          'minimum-scale=1.0, maximum-scale=1.0, user-scalable=no, ' +
+          'viewport-fit=cover');
+      } catch (e) {}
+    };
+
+    var injectFitStyles = function () {
+      try {
+        if (document.getElementById('__inzone-fit-style')) return;
+        if (!document.head && !document.documentElement) return;
+        var style = document.createElement('style');
+        style.id = '__inzone-fit-style';
+        style.textContent =
+          'html, body {' +
+          '  margin: 0 !important; padding: 0 !important;' +
+          '  width: 100% !important; height: 100% !important;' +
+          '  overflow: hidden !important;' +
+          '}' +
+          '#unity-container, #unityContainer, #gameContainer,' +
+          '#game-container, #game_container, #canvas-container,' +
+          '.webgl-content {' +
+          '  position: fixed !important; left: 0 !important; top: 0 !important;' +
+          '  width: 100vw !important; height: 100vh !important;' +
+          '  max-width: 100vw !important; max-height: 100vh !important;' +
+          '  margin: 0 !important; transform: none !important;' +
+          '}';
+        (document.head || document.documentElement).appendChild(style);
+      } catch (e) {}
+    };
+
+    var fitCanvas = function (c, vw, vh) {
+      try {
+        var rect = c.getBoundingClientRect();
+        if (rect.width === 0 || rect.height === 0) return;
+        var alreadyFitted = c.getAttribute('data-inzone-fitted') === '1';
+        var overflows =
+          rect.width > vw + 1 || rect.height > vh + 1 ||
+          rect.left < -1 || rect.top < -1 ||
+          rect.right > vw + 1 || rect.bottom > vh + 1;
+        // Once fitted, keep refitting on later passes (viewport/orientation
+        // changes shrink the element below the overflow threshold).
+        if (!overflows && !alreadyFitted) return;
+        // Scale uniformly to fit the viewport using explicit pixel
+        // dimensions, centered. Explicit sizing — as opposed to
+        // object-fit letterboxing inside a 100vw×100vh element — keeps the
+        // canvas's bounding rect identical to the visible game area, so
+        // engines that map touch coordinates through
+        // getBoundingClientRect()/offsetWidth (GameMaker, Construct, Unity
+        // templates) keep translating input to the right in-game position.
+        var aspect = (c.width > 0 && c.height > 0)
+          ? c.width / c.height
+          : rect.width / rect.height;
+        if (!aspect || !isFinite(aspect)) return;
+        var w = vw;
+        var h = w / aspect;
+        if (h > vh) {
+          h = vh;
+          w = h * aspect;
+        }
+        w = Math.floor(w);
+        h = Math.floor(h);
+        c.style.setProperty('width', w + 'px', 'important');
+        c.style.setProperty('height', h + 'px', 'important');
+        c.style.setProperty('max-width', 'none', 'important');
+        c.style.setProperty('max-height', 'none', 'important');
+        c.style.setProperty('position', 'fixed', 'important');
+        c.style.setProperty('left', Math.floor((vw - w) / 2) + 'px', 'important');
+        c.style.setProperty('top', Math.floor((vh - h) / 2) + 'px', 'important');
+        c.style.setProperty('display', 'block', 'important');
+        c.style.setProperty('margin', '0', 'important');
+        c.setAttribute('data-inzone-fitted', '1');
+      } catch (e) {}
+    };
+
+    var refit = function () {
+      try {
+        ensureViewportMeta();
+        injectFitStyles();
+        var vw = window.innerWidth;
+        var vh = window.innerHeight;
+        if (!vw || !vh) return;
+        var canvases = document.getElementsByTagName('canvas');
+        for (var i = 0; i < canvases.length; i++) {
+          fitCanvas(canvases[i], vw, vh);
+        }
+      } catch (e) {}
+    };
+    window.__inzoneRefit = refit;
+
+    // Engines create/resize their canvas asynchronously, so retry a few
+    // times after the document settles rather than fitting only once.
+    var schedule = function () {
+      refit();
+      setTimeout(refit, 500);
+      setTimeout(refit, 1500);
+      setTimeout(refit, 3000);
+      setTimeout(refit, 6000);
+    };
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', schedule);
+    } else {
+      schedule();
+    }
+    window.addEventListener('load', schedule);
+    window.addEventListener('resize', function () { setTimeout(refit, 50); });
+    window.addEventListener('orientationchange', function () {
+      setTimeout(refit, 250);
+    });
+
+    // The meta tag can be injected as early as document-start; the rest waits
+    // for the DOM.
+    ensureViewportMeta();
   } catch (e) {}
 })();
 ''';
@@ -1009,18 +1163,31 @@ class _CommunityGamePageState extends State<_CommunityGamePage> {
               injectionTime: UserScriptInjectionTime.AT_DOCUMENT_START,
               forMainFrameOnly: false,
             ),
+            // Normalize the viewport and keep oversized game canvases fitted
+            // to the view — see [_viewportFitScript].
+            UserScript(
+              source: _viewportFitScript,
+              injectionTime: UserScriptInjectionTime.AT_DOCUMENT_START,
+              forMainFrameOnly: false,
+            ),
           ]),
-          // When embedded in the scrolling home feed, claim vertical drags so
-          // a drag that starts in the center of the game reaches the game
-          // (instead of being stolen by the feed's scroll view). The feed is
-          // still scrollable via the transparent edge strips that
+          // When embedded in the scrolling home feed, eagerly claim every
+          // gesture that starts on the game — taps as well as drags. A
+          // vertical-drag recognizer alone is not enough: taps then sit in
+          // the gesture arena with the feed's scroll view and are only
+          // replayed to the webview after the arena resolves, which
+          // timing-sensitive game input handlers miss — making the game feel
+          // untappable. The eager recognizer wins the arena on pointer-down,
+          // so events stream to the game in real time. The feed is still
+          // scrollable via the transparent edge strips that
           // `InlineCommunityGameCard` overlays on the top and bottom of the
-          // game. The full-screen player passes embeddedInFeed=false so its
-          // own edge-zone navigation keeps working unchanged.
+          // game (they sit above the webview, so gestures there never enter
+          // this arena). The full-screen player passes embeddedInFeed=false
+          // so its own edge-zone navigation keeps working unchanged.
           gestureRecognizers: widget.embeddedInFeed
               ? <Factory<OneSequenceGestureRecognizer>>{
                   Factory<OneSequenceGestureRecognizer>(
-                    () => VerticalDragGestureRecognizer(),
+                    () => EagerGestureRecognizer(),
                   ),
                 }
               : null,
@@ -1081,6 +1248,10 @@ class _CommunityGamePageState extends State<_CommunityGamePage> {
             if (!mounted) return;
             await controller.evaluateJavascript(
                 source: _bridgeInjectionScript());
+            // Kick a fit pass now that the document has settled (the user
+            // script schedules its own delayed retries for late canvases).
+            await controller.evaluateJavascript(
+                source: 'window.__inzoneRefit && window.__inzoneRefit();');
             if (!mounted) return;
             setState(() {
               _isLoading = false;
@@ -1222,28 +1393,114 @@ class _CommunityGamePageState extends State<_CommunityGamePage> {
 /// width, card color, corner radius and shadow, with a header that mirrors a
 /// post's avatar+username row (the game icon + game title), an optional
 /// description, and the live [_CommunityGamePage] as the card body.
-class InlineCommunityGameCard extends StatelessWidget {
+class InlineCommunityGameCard extends StatefulWidget {
   final CommunityGame game;
 
   const InlineCommunityGameCard({super.key, required this.game});
 
   @override
+  State<InlineCommunityGameCard> createState() =>
+      _InlineCommunityGameCardState();
+}
+
+class _InlineCommunityGameCardState extends State<InlineCommunityGameCard> {
+  CommunityGame get game => widget.game;
+
+  /// Whether the live game (webview) is mounted. The feed pre-builds cards
+  /// well outside the viewport (cacheExtent + keep-alives), so mounting the
+  /// game on build meant it ran — audio included — before the user ever
+  /// reached it and kept running after they scrolled past. Instead the game
+  /// is mounted only while the card is actually on screen; off screen we show
+  /// a same-sized placeholder so the card's layout never changes.
+  bool _gameActive = false;
+
+  /// Unique per state instance (the same game can appear in several feed
+  /// slots, so game.id alone would collide as a VisibilityDetector key).
+  final Key _visibilityKey = UniqueKey();
+
+  void _onVisibilityChanged(VisibilityInfo info) {
+    if (!mounted) return;
+    final fraction = info.visibleFraction;
+    // Hysteresis: start the game once half the card is visible, stop it only
+    // when it has almost fully left the screen — avoids flickering the game
+    // on/off while the boundary hovers near the viewport edge.
+    if (!_gameActive && fraction >= 0.5) {
+      setState(() => _gameActive = true);
+    } else if (_gameActive && fraction <= 0.1) {
+      setState(() => _gameActive = false);
+    }
+  }
+
+  /// Same footprint as the live game body; shown while the card is off
+  /// screen. Users only ever glimpse it mid-scroll.
+  Widget _buildGamePlaceholder(ThemeData theme, String iconUrl) {
+    return Container(
+      color: Colors.black,
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(16),
+              child: iconUrl.isNotEmpty
+                  ? CachedNetworkImage(
+                      imageUrl: iconUrl,
+                      width: 72,
+                      height: 72,
+                      fit: BoxFit.cover,
+                      placeholder: (context, url) =>
+                          const SizedBox(width: 72, height: 72),
+                      errorWidget: (context, url, error) => const Icon(
+                        Icons.sports_esports,
+                        size: 72,
+                        color: Colors.white24,
+                      ),
+                    )
+                  : const Icon(
+                      Icons.sports_esports,
+                      size: 72,
+                      color: Colors.white24,
+                    ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              game.name,
+              style: const TextStyle(
+                color: Colors.white70,
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final screenHeight = MediaQuery.of(context).size.height;
-    // Tall enough to be genuinely playable; capped so it never dominates the
-    // whole viewport on short screens.
-    final gameHeight = (screenHeight * 0.6).clamp(360.0, 620.0);
+    final screenSize = MediaQuery.of(context).size;
+    // Match the regular post card width (full width minus the 8px the feed
+    // reserves on each side).
+    final cardWidth = screenSize.width - 8;
+    // Size the game body like the video post cards, which render their media
+    // at width / aspect-ratio with a 9:16 portrait default — so a game post
+    // has the same visual footprint in the feed as a video post. Capped at
+    // 85% of the viewport so the card header stays visible on short/wide
+    // screens.
+    final gameHeight = min(cardWidth * 16 / 9, screenSize.height * 0.85);
     final description = game.description.trim();
     final iconUrl = game.iconUrl.trim();
 
-    return Padding(
+    return VisibilityDetector(
+      key: _visibilityKey,
+      onVisibilityChanged: _onVisibilityChanged,
+      child: Padding(
       // Mirror the bottom spacing used by the regular post cards.
       padding: const EdgeInsets.only(bottom: 20.0),
       child: Container(
-        // Match the regular post card width (full width minus the 8px the feed
-        // reserves on each side).
-        width: MediaQuery.of(context).size.width - 8,
+        width: cardWidth,
         decoration: BoxDecoration(
           color: theme.cardColor,
           borderRadius: BorderRadius.circular(15),
@@ -1366,17 +1623,24 @@ class InlineCommunityGameCard extends StatelessWidget {
                 // (so play is never interrupted by the feed scrolling under the
                 // finger) while leaving its top/bottom edges free to scroll the
                 // feed — see `_buildWebView`.
-                child: _CommunityGamePage(
-                  key: ValueKey('inline_game_${game.id}'),
-                  game: game,
-                  isActive: true,
-                  embeddedInFeed: true,
-                  onClose: () async {},
-                ),
+                //
+                // The live game is mounted only while the card is on screen
+                // (see _onVisibilityChanged); otherwise a same-sized
+                // placeholder keeps the layout identical.
+                child: _gameActive
+                    ? _CommunityGamePage(
+                        key: ValueKey('inline_game_${game.id}'),
+                        game: game,
+                        isActive: true,
+                        embeddedInFeed: true,
+                        onClose: () async {},
+                      )
+                    : _buildGamePlaceholder(theme, iconUrl),
               ),
             ),
           ],
         ),
+      ),
       ),
     );
   }

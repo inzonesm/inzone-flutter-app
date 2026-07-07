@@ -1,9 +1,14 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io' show Platform;
 import 'dart:math' as math;
+import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:media_kit/media_kit.dart';
+// media_kit's PlayerState is hidden: this file only ever accesses it via
+// `player.state` (never by type name), while youtube_player_flutter's
+// PlayerState IS referenced by name — hiding resolves the ambiguity.
+import 'package:media_kit/media_kit.dart' hide PlayerState;
 import 'package:media_kit_video/media_kit_video.dart';
 import 'package:video_player/video_player.dart' as vp;
 import 'package:visibility_detector/visibility_detector.dart';
@@ -50,6 +55,11 @@ final Map<String, ({Player player, VideoController? controller})>
 
 // Track currently playing video
 String? _currentlyPlayingVideoUrl;
+
+// Last known playback position per video URL, kept fresh by the players'
+// existing tracking callbacks. Lets a newly created player (e.g. the
+// fullscreen viewer) resume where inline playback was instead of restarting.
+final Map<String, Duration> _videoPositionRegistry = {};
 
 /// Safely disposes a MediaKit Player on iOS without crashing.
 ///
@@ -140,6 +150,11 @@ class VideoWidget extends StatefulWidget {
   final String? category; // Add category for tracking
   final String? authorId; // Add authorId for tracking
 
+  /// True when this widget is hosted by the fullscreen viewer. Used to keep
+  /// media_kit's built-in gesture controls fullscreen-only so they can't
+  /// hijack the feed's vertical scroll during inline playback.
+  final bool isFullscreen;
+
   const VideoWidget({
     super.key,
     required this.videoUrl,
@@ -147,6 +162,7 @@ class VideoWidget extends StatefulWidget {
     this.postId,
     this.category,
     this.authorId,
+    this.isFullscreen = false,
   });
 
   @override
@@ -174,6 +190,17 @@ class _VideoWidgetState extends State<VideoWidget> with WidgetsBindingObserver {
   bool _isShorts = false;
   YoutubePlayerController? _ytController;
   VoidCallback? _ytListener;
+
+  // The extracted YouTube video ID (used for the thumbnail cover below).
+  String? _ytVideoId;
+
+  // Set once the player has actually rendered frames. Used so the cover
+  // only treats buffering as "keep video visible" after playback started.
+  bool _ytHasStartedPlaying = false;
+
+  // Session cache of YouTube video orientation (videoId -> true if vertical),
+  // filled by the oEmbed probe below so revisited videos size instantly.
+  static final Map<String, bool> _ytVerticalCache = {};
 
   // Add scrubbing state variables
   bool _isScrubbing = false;
@@ -315,6 +342,20 @@ class _VideoWidgetState extends State<VideoWidget> with WidgetsBindingObserver {
       final videoId = _getYoutubeVideoId(widget.videoUrl);
       if (videoId != null) {
         _isYouTube = true;
+        // YouTube-only sizing: 9:16 when the URL self-identifies as a Short,
+        // when the session cache says so, or (async, background) when the
+        // oEmbed title carries a '#shorts' hashtag — which covers the feed's
+        // auto-shared posts. Otherwise the duration-based check in
+        // _ytListener adjusts the size once metadata loads, as originally.
+        _ytVideoId = videoId;
+        _ytHasStartedPlaying = false;
+        if (widget.videoUrl.contains('/shorts/') ||
+            _ytVerticalCache[videoId] == true) {
+          _isShorts = true;
+          _ytVerticalCache[videoId] = true;
+        } else if (!_ytVerticalCache.containsKey(videoId)) {
+          _probeYoutubeShortsHashtag(videoId);
+        }
         try {
           _ytController?.dispose();
         } catch (_) {}
@@ -324,7 +365,15 @@ class _VideoWidgetState extends State<VideoWidget> with WidgetsBindingObserver {
             autoPlay: true,
             mute: VideoMuteManager.isMuted,
             disableDragSeek: false,
-            loop: false,
+            // Fullscreen viewer: resume where the inline player was rather
+            // than restarting from the beginning.
+            startAt: widget.isFullscreen
+                ? (_videoPositionRegistry[widget.videoUrl]?.inSeconds ?? 0)
+                : 0,
+            // Loop so the video never reaches the "ended" state — YouTube's
+            // end screen (replay button, share, YouTube logo) is drawn by the
+            // iframe itself and would appear over the video otherwise.
+            loop: true,
             isLive: false,
             forceHD: false,
             enableCaption: false,
@@ -334,9 +383,27 @@ class _VideoWidgetState extends State<VideoWidget> with WidgetsBindingObserver {
 
         _ytListener = () {
           try {
-            final d = _ytController!.value.metaData.duration;
+            final value = _ytController!.value;
+            // Track when frames have actually started rendering — the
+            // thumbnail cover in build() uses this to stay up during the
+            // initial load (hiding the iframe's spinner/title UI) without
+            // flashing during mid-playback buffering.
+            if (!_ytHasStartedPlaying &&
+                value.playerState == PlayerState.playing) {
+              _ytHasStartedPlaying = true;
+            }
+            // Keep the shared position registry fresh so a fullscreen viewer
+            // opened from this video resumes at the right spot.
+            if (value.position > Duration.zero) {
+              _videoPositionRegistry[widget.videoUrl] = value.position;
+            }
+            final d = value.metaData.duration;
             if (d.inSeconds > 0) {
               final detectedShorts = d.inSeconds <= 65;
+              // Cache the confirmed orientation so any NEW player instance for
+              // this video (e.g. the fullscreen viewer) is sized correctly on
+              // its very first frame instead of flashing 16:9 first.
+              _ytVerticalCache[videoId] = detectedShorts;
               if (detectedShorts != _isShorts) {
                 if (mounted) {
                   setState(() {
@@ -403,6 +470,15 @@ class _VideoWidgetState extends State<VideoWidget> with WidgetsBindingObserver {
       // Initialize the controller
       await _androidController!.initialize();
 
+      // Fullscreen viewer: resume from the inline player's position instead
+      // of restarting at zero.
+      if (widget.isFullscreen) {
+        final resumeAt = _videoPositionRegistry[widget.videoUrl];
+        if (resumeAt != null && resumeAt > Duration.zero) {
+          await _androidController!.seekTo(resumeAt);
+        }
+      }
+
       // Set up listener for aspect ratio
       if (_androidController!.value.isInitialized) {
         final aspectRatio = _androidController!.value.aspectRatio;
@@ -417,6 +493,8 @@ class _VideoWidgetState extends State<VideoWidget> with WidgetsBindingObserver {
             _androidController != null &&
             _androidController!.value.isInitialized) {
           final position = _androidController!.value.position;
+          // Shared registry: lets the fullscreen viewer resume from here.
+          _videoPositionRegistry[widget.videoUrl] = position;
           _updateWatchTime(position);
           _trackVideoProgress(position);
         }
@@ -451,6 +529,47 @@ class _VideoWidgetState extends State<VideoWidget> with WidgetsBindingObserver {
   bool _isYoutubeUrl(String url) {
     // Check if the URL contains youtube.com or youtu.be
     return url.contains('youtube.com') || url.contains('youtu.be');
+  }
+
+  /// Background best-effort check of the video's oEmbed TITLE for a
+  /// creator-added Shorts hashtag ('#shorts', '#short', '#ytshorts', ...) —
+  /// the feed's auto-shared posts hit this path. Only a POSITIVE match does
+  /// anything: it marks the video as a Short and updates the layout. On no
+  /// match or any failure this is a no-op and the duration-based detection
+  /// behaves exactly as before.
+  ///
+  /// NOTE: oEmbed's width/height fields are deliberately NOT used — YouTube
+  /// reports a 16:9 embed (e.g. 200x113) even for vertical Shorts.
+  Future<void> _probeYoutubeShortsHashtag(String videoId) async {
+    try {
+      final response = await http
+          .get(Uri.parse(
+              'https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=$videoId&format=json'))
+          .timeout(const Duration(seconds: 3));
+      if (response.statusCode != 200) return;
+
+      final decoded = jsonDecode(response.body);
+      if (decoded is! Map) return;
+      final title = (decoded['title'] as String? ?? '').toLowerCase();
+      // '#short' also matches '#shorts'; '#ytshort' also matches '#ytshorts'.
+      final bool tagged =
+          title.contains('#short') || title.contains('#ytshort');
+      if (!tagged) return;
+
+      _ytVerticalCache[videoId] = true;
+
+      if (!mounted || !_isYouTube) return;
+      if (!_isShorts) {
+        setState(() {
+          _isShorts = true;
+        });
+        if (widget.onAspectRatioUpdated != null) {
+          widget.onAspectRatioUpdated!(9 / 16);
+        }
+      }
+    } catch (_) {
+      // Probe is best-effort only; sizing falls back to duration detection.
+    }
   }
 
   String? _getYoutubeVideoId(String url) {
@@ -512,6 +631,9 @@ class _VideoWidgetState extends State<VideoWidget> with WidgetsBindingObserver {
         if (mounted && _mediaKitPlayer != null) {
           final position = _mediaKitPlayer!.state.position;
 
+          // Shared registry: lets the fullscreen viewer resume from here.
+          _videoPositionRegistry[widget.videoUrl] = position;
+
           // Update watch time tracking
           _updateWatchTime(position);
 
@@ -567,6 +689,15 @@ class _VideoWidgetState extends State<VideoWidget> with WidgetsBindingObserver {
 
       // Configure playback rate (volume is already set)
       await _mediaKitPlayer!.setRate(1.0);
+
+      // Fullscreen viewer: resume from the inline player's position instead
+      // of restarting at zero.
+      if (widget.isFullscreen) {
+        final resumeAt = _videoPositionRegistry[widget.videoUrl];
+        if (resumeAt != null && resumeAt > Duration.zero) {
+          await _mediaKitPlayer!.seek(resumeAt);
+        }
+      }
 
       debugPrint('MediaKit Player opened successfully');
 
@@ -796,12 +927,100 @@ class _VideoWidgetState extends State<VideoWidget> with WidgetsBindingObserver {
       final double ytAspect = _isShorts ? (9 / 16) : (16 / 9);
       final Widget ytCore = YoutubePlayer(
         controller: _ytController!,
-        showVideoProgressIndicator: true,
+        // Disabled: the custom seekable progress bar below replaces it.
+        showVideoProgressIndicator: false,
       );
 
       final Widget ytContent = Stack(
           children: [
-            Positioned.fill(child: ytCore),
+            // SCROLL FIX: the player is wrapped in IgnorePointer so touches
+            // never reach the YouTube WebView — drags scroll the feed instead
+            // of being swallowed, and the WebView can never show its native
+            // UI (pause overlay with title/share/YouTube logo) from user
+            // interaction. Playback is controlled by the custom overlays
+            // below (same UX as the media_kit/Android players).
+            Positioned.fill(
+              child: IgnorePointer(child: ytCore),
+            ),
+
+            // Thumbnail cover: the YouTube iframe draws its own UI (title
+            // bar, share button, YouTube logo, spinner) while loading,
+            // paused, or ended — and it can't be disabled. This cover hides
+            // the iframe whenever it isn't actively rendering video frames.
+            // Mid-playback buffering keeps the video visible.
+            ValueListenableBuilder<YoutubePlayerValue>(
+              valueListenable: _ytController!,
+              builder: (context, value, _) {
+                final bool coverVisible = !(value.isPlaying ||
+                    (_ytHasStartedPlaying &&
+                        value.playerState == PlayerState.buffering));
+                return Positioned.fill(
+                  child: IgnorePointer(
+                    child: AnimatedOpacity(
+                      opacity: coverVisible ? 1.0 : 0.0,
+                      duration: const Duration(milliseconds: 200),
+                      child: Container(
+                        color: Colors.black,
+                        child: _ytVideoId != null
+                            ? Image.network(
+                                'https://i.ytimg.com/vi/$_ytVideoId/hqdefault.jpg',
+                                width: double.infinity,
+                                height: double.infinity,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) =>
+                                    const SizedBox.expand(),
+                              )
+                            : null,
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+
+            // Custom overlay for capturing tap to pause/play. Only a tap
+            // recognizer is registered, so vertical drags still scroll the
+            // feed — the scroll fix is preserved.
+            Positioned.fill(
+              child: GestureDetector(
+                onTap: _toggleYoutubePlayPause,
+                child: Container(color: Colors.transparent),
+              ),
+            ),
+
+            // Play/Pause button in the center (visible while paused)
+            ValueListenableBuilder<YoutubePlayerValue>(
+              valueListenable: _ytController!,
+              builder: (context, value, _) {
+                final bool isPlaying = value.isPlaying;
+                return Positioned.fill(
+                  child: AnimatedOpacity(
+                    opacity: !isPlaying ? 1.0 : 0.0,
+                    duration: const Duration(milliseconds: 300),
+                    child: Center(
+                      child: GestureDetector(
+                        onTap: _toggleYoutubePlayPause,
+                        child: Container(
+                          width: 70,
+                          height: 70,
+                          decoration: BoxDecoration(
+                            color: Colors.black.withOpacity(0.6),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            isPlaying ? Icons.pause : Icons.play_arrow,
+                            color: Colors.white,
+                            size: 40,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+
+            // Mute button overlay
             Positioned(
               bottom: 60,
               right: 8,
@@ -827,6 +1046,122 @@ class _VideoWidgetState extends State<VideoWidget> with WidgetsBindingObserver {
               ),
             ),
 
+            // Timestamp overlay during scrubbing
+            if (_isScrubbing)
+              Positioned(
+                bottom: 30,
+                left: 0,
+                right: 0,
+                child: Center(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.8),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      _formatDuration(_scrubbingPosition),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+
+            // Custom seekable progress bar — same style as the media_kit
+            // player, driven by the YouTube controller.
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: ValueListenableBuilder<YoutubePlayerValue>(
+                valueListenable: _ytController!,
+                builder: (context, value, _) {
+                  final Duration duration = value.metaData.duration;
+                  if (duration.inMilliseconds <= 0) return const SizedBox();
+
+                  final Duration position =
+                      _isScrubbing ? _scrubbingPosition : value.position;
+
+                  double progress =
+                      position.inMilliseconds / duration.inMilliseconds;
+                  progress = progress.clamp(0.0, 1.0);
+
+                  return GestureDetector(
+                    onTapDown: (details) {
+                      _handleYtProgressBarInteraction(
+                          details.localPosition.dx, context, duration,
+                          isStart: true);
+                    },
+                    onTapUp: (details) {
+                      _handleYtProgressBarInteraction(
+                          details.localPosition.dx, context, duration,
+                          isEnd: true);
+                    },
+                    onHorizontalDragStart: (details) {
+                      _handleYtProgressBarInteraction(
+                          details.localPosition.dx, context, duration,
+                          isStart: true);
+                    },
+                    onHorizontalDragUpdate: (details) {
+                      _handleYtProgressBarInteraction(
+                          details.localPosition.dx, context, duration);
+                    },
+                    onHorizontalDragEnd: (details) {
+                      _handleYtProgressBarInteraction(0, context, duration,
+                          isEnd: true);
+                    },
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // Invisible touch area that extends upward for easier tapping
+                        Container(
+                          height: 15,
+                          width: double.infinity,
+                          color: Colors.transparent,
+                        ),
+                        // The actual progress bar - flush at bottom
+                        Stack(
+                          children: [
+                            // Background track
+                            Container(
+                              height: 5,
+                              width: double.infinity,
+                              decoration: BoxDecoration(
+                                color: Colors.grey.withOpacity(0.5),
+                                borderRadius: const BorderRadius.only(
+                                  topLeft: Radius.circular(2.5),
+                                  topRight: Radius.circular(2.5),
+                                ),
+                              ),
+                            ),
+                            // Blue progress
+                            FractionallySizedBox(
+                              alignment: Alignment.centerLeft,
+                              widthFactor: progress,
+                              child: Container(
+                                height: 5,
+                                decoration: const BoxDecoration(
+                                  color: Colors.blue,
+                                  borderRadius: BorderRadius.only(
+                                    topLeft: Radius.circular(2.5),
+                                    topRight: Radius.circular(2.5),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
           ],
       );
 
@@ -910,9 +1245,16 @@ class _VideoWidgetState extends State<VideoWidget> with WidgetsBindingObserver {
         aspectRatio: aspectRatio,
         child: Stack(
           children: [
-            // The video player
+            // The video player. Inline playback disables the built-in
+            // gesture controls so drags scroll the feed instead of seeking;
+            // seeking inline happens via the custom progress bar below.
             _mediaKitVideoController != null
-                ? Video(controller: _mediaKitVideoController!)
+                ? Video(
+                    controller: _mediaKitVideoController!,
+                    controls: widget.isFullscreen
+                        ? AdaptiveVideoControls
+                        : NoVideoControls,
+                  )
                 : Container(color: Colors.black),
 
             // Custom overlay for capturing tap to pause/play
@@ -1336,6 +1678,78 @@ class _VideoWidgetState extends State<VideoWidget> with WidgetsBindingObserver {
 
     // Seek to the new position
     _mediaKitPlayer!.seek(newPosition);
+  }
+
+  // Toggle play/pause for the YouTube player (used by the custom overlays,
+  // since the WebView itself is behind IgnorePointer).
+  void _toggleYoutubePlayPause() {
+    if (_ytController == null) return;
+    try {
+      if (_ytController!.value.isPlaying) {
+        _ytController!.pause();
+        _trackVideoPause();
+      } else {
+        _pauseOtherVideos(widget.videoUrl);
+        _ytController!.play();
+        _trackVideoStart();
+        // Ensure audio matches the global mute state when manually playing
+        if (!VideoMuteManager.isMuted) {
+          _ytController!.unMute();
+        }
+      }
+    } catch (_) {}
+    if (mounted) setState(() {});
+  }
+
+  // Handle interaction with the YouTube progress bar
+  // (tap, drag start, drag update, drag end)
+  void _handleYtProgressBarInteraction(
+      double localX, BuildContext context, Duration duration,
+      {bool isStart = false, bool isEnd = false}) {
+    if (_ytController == null) return;
+
+    if (isStart) {
+      // Start scrubbing
+      setState(() {
+        _isScrubbing = true;
+      });
+      _scrubbingTimer?.cancel();
+    }
+
+    if (isEnd) {
+      // End scrubbing - hide timestamp after a short delay
+      _scrubbingTimer?.cancel();
+      _scrubbingTimer = Timer(const Duration(milliseconds: 500), () {
+        if (mounted) {
+          setState(() {
+            _isScrubbing = false;
+          });
+        }
+      });
+      return;
+    }
+
+    // Get the width of the progress bar
+    final RenderBox box = context.findRenderObject() as RenderBox;
+    final double width = box.size.width;
+
+    // Calculate the tap/drag position as a percentage
+    double tapPosition = localX / width;
+    tapPosition = tapPosition.clamp(0.0, 1.0);
+
+    // Convert to duration
+    final int milliseconds = (duration.inMilliseconds * tapPosition).round();
+    final newPosition = Duration(milliseconds: milliseconds);
+
+    // Update scrubbing position for timestamp display
+    setState(() {
+      _scrubbingPosition = newPosition;
+    });
+
+    // Seek to the new position
+    try {
+      _ytController!.seekTo(newPosition, allowSeekAhead: true);
+    } catch (_) {}
   }
 
   // Format duration as mm:ss

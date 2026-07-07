@@ -94,6 +94,12 @@ class HomeScreenState extends State<HomeScreen> {
   static const String _feedCacheKey = 'home_feed_cache_v1';
   String? _profileImageUrl;
 
+  // Prefetched next batch: fetched in the background so pull-to-refresh can
+  // swap the feed instantly instead of waiting on the network.
+  List<dynamic>? _prefetchedPosts;
+  int? _prefetchedBatchNumber;
+  bool _isPrefetching = false;
+
   @override
   void initState() {
     super.initState();
@@ -127,6 +133,80 @@ class HomeScreenState extends State<HomeScreen> {
       loadFeed(),
       loadAvatars(),
     ]);
+
+    // Warm up the next batch so the first pull-to-refresh is instant.
+    _prefetchNextBatch();
+  }
+
+  /// Fetches the next recommendation batch in the background and stores it.
+  /// Pull-to-refresh swaps it in instantly instead of hitting the network.
+  Future<void> _prefetchNextBatch() async {
+    if (_isPrefetching || !mounted) return;
+    _isPrefetching = true;
+    try {
+      final int nextBatch = reloadCount + 1;
+      final List<String> currentPostIds = posts
+          .map(
+              (post) => post['id']?.toString() ?? post['_id']?.toString() ?? '')
+          .where((id) => id.isNotEmpty)
+          .toList();
+
+      final response = await InZoneDatabase.getFeed(
+        page: 1,
+        batchNumber: nextBatch,
+        excludeIds: currentPostIds,
+      );
+
+      if (!mounted) return;
+      final newPosts =
+          (response != null && response['posts'] is List)
+              ? response['posts'] as List<dynamic>
+              : const <dynamic>[];
+      if (newPosts.isNotEmpty) {
+        _prefetchedPosts = List<dynamic>.from(newPosts);
+        _prefetchedBatchNumber = nextBatch;
+        print('✅ PREFETCHED batch $nextBatch: ${newPosts.length} posts');
+      }
+    } catch (e) {
+      print('Error prefetching next batch: $e');
+    } finally {
+      _isPrefetching = false;
+    }
+  }
+
+  /// Instantly replaces the feed with an already-prefetched batch.
+  /// Returns false when no prefetched batch is available.
+  bool _applyPrefetchedBatch() {
+    final prefetched = _prefetchedPosts;
+    final batchNumber = _prefetchedBatchNumber;
+    if (prefetched == null || prefetched.isEmpty || batchNumber == null) {
+      return false;
+    }
+    _prefetchedPosts = null;
+    _prefetchedBatchNumber = null;
+
+    setState(() {
+      reloadCount = batchNumber;
+      _currentPage = 1;
+      hasMorePosts = true;
+      selectedCategory = null;
+      _viewedPosts.clear();
+      posts = List<dynamic>.from(prefetched);
+      originalPosts = List<dynamic>.from(posts);
+      categoriesList = [];
+      for (var post in posts) {
+        String category = _extractCategoryFromPost(post);
+        if (category.isNotEmpty && !categoriesList.contains(category)) {
+          categoriesList.add(category);
+        }
+      }
+    });
+
+    _cacheFeedPosts();
+    loadAvatars();
+    // Immediately start fetching the batch after this one.
+    _prefetchNextBatch();
+    return true;
   }
 
   Future<void> _loadCurrentUserProfileImage() async {
@@ -291,10 +371,18 @@ class HomeScreenState extends State<HomeScreen> {
   void _onRefresh() async {
     try {
       if (!isLoading && !isLoadingMore) {
+        // Fast path: swap in the batch that was prefetched in the
+        // background — no network wait at all.
+        if (_applyPrefetchedBatch()) {
+          return;
+        }
+        // Slow path (no prefetch available yet): fetch, keeping the current
+        // posts visible until the new batch arrives.
         setState(() {
           reloadCount++;
         });
         await loadFeed(isRefresh: true);
+        _prefetchNextBatch();
       }
     } catch (e) {
       print('Error during refresh: $e');
@@ -402,22 +490,19 @@ class HomeScreenState extends State<HomeScreen> {
     if (isLoading && isRefresh) return;
 
     if (isRefresh) {
+      // Keep the current posts on screen while the fresh batch loads.
+      // The old feed is swapped out only once the new data has arrived,
+      // so the user never sees the blocking skeleton on pull-to-refresh.
       setState(() {
         _currentPage = 1; // Reset to page 1 for new batch
-        posts.clear();
-        originalPosts.clear();
-        categoriesList.clear();
-        avatars.clear();
-        avatarCards.clear();
-        avatarStoryComponents.clear();
         hasMorePosts = true;
         selectedCategory = null; // Reset selected category on refresh
-        _viewedPosts.clear(); // Clear viewed posts tracking on refresh
       });
       loadAvatars();
     }
 
-    final bool shouldShowBlockingLoader = isRefresh || posts.isEmpty;
+    // Only show the blocking skeleton when there is nothing to display yet.
+    final bool shouldShowBlockingLoader = posts.isEmpty;
     if (shouldShowBlockingLoader) {
       setState(() {
         isLoading = true;
@@ -425,12 +510,15 @@ class HomeScreenState extends State<HomeScreen> {
     }
 
     try {
-      // Collect currently loaded post IDs to exclude from backend
-      List<String> currentPostIds = posts
-          .map(
-              (post) => post['id']?.toString() ?? post['_id']?.toString() ?? '')
-          .where((id) => id.isNotEmpty)
-          .toList();
+      // Collect currently loaded post IDs to exclude from backend.
+      // On refresh we don't exclude anything: the whole feed is replaced.
+      List<String> currentPostIds = isRefresh
+          ? <String>[]
+          : posts
+              .map((post) =>
+                  post['id']?.toString() ?? post['_id']?.toString() ?? '')
+              .where((id) => id.isNotEmpty)
+              .toList();
 
       final response = await InZoneDatabase.getFeed(
         page: 1,
@@ -445,12 +533,15 @@ class HomeScreenState extends State<HomeScreen> {
         if (response.containsKey('posts')) {
           List<dynamic> newPosts = response['posts'] ?? [];
 
-          // Check for duplicates before adding
-          Set<String> existingIds = posts
-              .map((post) =>
-                  post['id']?.toString() ?? post['_id']?.toString() ?? '')
-              .where((id) => id.isNotEmpty)
-              .toSet();
+          // On refresh the incoming batch REPLACES the current feed, so
+          // dedupe only against posts kept in the list (non-refresh loads).
+          Set<String> existingIds = isRefresh
+              ? <String>{}
+              : posts
+                  .map((post) =>
+                      post['id']?.toString() ?? post['_id']?.toString() ?? '')
+                  .where((id) => id.isNotEmpty)
+                  .toSet();
 
           List<dynamic> uniqueNewPosts = newPosts.where((post) {
             String id = post['id']?.toString() ?? post['_id']?.toString() ?? '';
@@ -463,7 +554,14 @@ class HomeScreenState extends State<HomeScreen> {
           }
 
           setState(() {
-            posts.addAll(uniqueNewPosts);
+            if (isRefresh) {
+              // Swap the whole feed at once, now that the data is here.
+              posts = List.from(uniqueNewPosts);
+              categoriesList.clear();
+              _viewedPosts.clear();
+            } else {
+              posts.addAll(uniqueNewPosts);
+            }
             originalPosts = List.from(posts);
 
             for (var post in newPosts) {
@@ -490,36 +588,14 @@ class HomeScreenState extends State<HomeScreen> {
             print(
                 '   Post ${i + 1}: ${id.length >= 8 ? id.substring(0, 8) : id}...');
           }
-        } else {
-          setState(() {
-            if (isRefresh) {
-              posts.clear();
-              originalPosts.clear();
-            }
-          });
         }
-      } else {
-        // Handle null response gracefully
-        setState(() {
-          if (isRefresh) {
-            // If it was a refresh and failed, reset to empty state
-            posts.clear();
-            originalPosts.clear();
-          }
-        });
+        // If the response had no 'posts' key, keep the current feed as-is:
+        // clearing it on a failed refresh would blank the screen.
       }
+      // Null response: keep the current feed visible rather than clearing it.
     } catch (e) {
       print('Error loading feed: $e');
-      // Handle error case - don't leave UI in loading state
-      if (mounted) {
-        setState(() {
-          // If error during refresh, ensure UI is updated
-          if (isRefresh) {
-            posts.clear();
-            originalPosts.clear();
-          }
-        });
-      }
+      // Keep the existing posts on error so the user still has content.
     } finally {
       if (mounted) {
         setState(() {
@@ -635,6 +711,12 @@ class HomeScreenState extends State<HomeScreen> {
               // Increment batch number to get new recommendations
               reloadCount++;
 
+              // The prefetched refresh batch may now collide with what
+              // infinite scroll is loading — drop it and fetch a fresh one
+              // once this load completes.
+              _prefetchedPosts = null;
+              _prefetchedBatchNumber = null;
+
               // Collect currently loaded post IDs to exclude from backend
               List<String> currentPostIds = posts
                   .map((post) =>
@@ -698,6 +780,9 @@ class HomeScreenState extends State<HomeScreen> {
 
                   print(
                       '✅ LOADED NEW Batch $reloadCount, Page 1: ${freshPosts.length} posts (Total now: ${posts.length})');
+
+                  // Re-warm the refresh prefetch for the next pull.
+                  _prefetchNextBatch();
                   // Show first 3 post IDs for verification
                   for (int i = 0; i < freshPosts.length.clamp(0, 3); i++) {
                     String id = freshPosts[i]['id']?.toString() ??
@@ -1662,6 +1747,25 @@ class HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  /// Stable identity for feed list items. Posts are keyed by their post ID
+  /// (not list index) so that when the feed is replaced on refresh, Flutter
+  /// creates fresh card states instead of reusing the old post's state.
+  Key _feedItemKey(int index) {
+    final int group = index ~/ 12;
+    final int pos = index % 12;
+    if (pos < 10) {
+      final int actualPostIndex = group * 10 + pos;
+      if (actualPostIndex < posts.length) {
+        final post = posts[actualPostIndex];
+        final String id = post is Map
+            ? (post['id']?.toString() ?? post['_id']?.toString() ?? '')
+            : '';
+        if (id.isNotEmpty) return ValueKey('post_$id');
+      }
+    }
+    return ValueKey('slot_$index');
+  }
+
   Widget refreshIcon() {
     return Image.asset(
       'assets/icons/dark.png',
@@ -2005,7 +2109,7 @@ class HomeScreenState extends State<HomeScreen> {
                             // If within range, build the post widget
                             if (index < totalItemsWithAds) {
                               return Padding(
-                                key: ValueKey('post_$index'),
+                                key: _feedItemKey(index),
                                 padding: const EdgeInsets.symmetric(
                                     horizontal: 4.0, vertical: 0),
                                 child: _buildPostWidget(null, index),
