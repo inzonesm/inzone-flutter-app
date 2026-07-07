@@ -17,3 +17,10 @@
 # AppsFlyer SDK
 -keep class com.appsflyer.** { *; }
 -keep class kotlin.jvm.internal.** { *; }
+
+# Google ML Kit text recognition - ignore optional language models not bundled
+-keep class com.google.mlkit.** { *; }
+-dontwarn com.google.mlkit.vision.text.chinese.**
+-dontwarn com.google.mlkit.vision.text.devanagari.**
+-dontwarn com.google.mlkit.vision.text.japanese.**
+-dontwarn com.google.mlkit.vision.text.korean.**

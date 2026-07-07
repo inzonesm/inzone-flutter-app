@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:inzone/theme/app_colors.dart';
 
+import 'game_comments_service.dart';
+import 'popups/game_comments_popup.dart';
 import 'popups/group_chat_popup.dart';
 import 'popups/message_friend_popup.dart';
 import 'popups/post_composer_popup.dart';
@@ -26,6 +28,9 @@ import 'social_bridge.dart';
 ///  - Send challenge        → native OS share sheet (SharePlus)
 ///  - Open chat             → group chat bottom sheet with prefilled message
 ///  - Share score to InZone → Game Over-styled composer → createRepost
+///  - Comments              → side panel over the game's shared comment
+///                            thread (same html_games/{id}/comments the
+///                            InZone Games website reads and writes)
 class GameSocialOverlay extends StatefulWidget {
   const GameSocialOverlay({
     super.key,
@@ -73,6 +78,11 @@ class _GameSocialOverlayState extends State<GameSocialOverlay>
   bool _expanded = false;
   bool _idle = false;
   bool _dragging = false;
+
+  /// Shared per-game comment thread — same Firestore subcollection the
+  /// InZone Games website's comments panel uses.
+  late final GameCommentsService _comments =
+      GameCommentsService(game: widget.actions.game);
 
   /// Top-left of the button in overlay coordinates; null until first layout.
   Offset? _position;
@@ -227,6 +237,11 @@ class _GameSocialOverlayState extends State<GameSocialOverlay>
     );
   }
 
+  Future<void> _onComments() async {
+    _close();
+    await showGameCommentsPopup(context, comments: _comments);
+  }
+
   // -------------------------------------------------------------------
   // UI
   // -------------------------------------------------------------------
@@ -363,6 +378,14 @@ class _GameSocialOverlayState extends State<GameSocialOverlay>
             icon: Icons.chat_bubble_rounded,
             label: 'Open chat',
             onTap: _onOpenChat,
+          ),
+          const Divider(indent: 48),
+          // comment_rounded (bubble with text lines) — distinct from the
+          // plain chat_bubble_rounded used by "Open chat" above.
+          _menuItem(
+            icon: Icons.comment_rounded,
+            label: 'Comments',
+            onTap: _onComments,
           ),
           const Divider(indent: 48),
           _menuItem(
