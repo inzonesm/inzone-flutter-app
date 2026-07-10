@@ -16,6 +16,10 @@ class CommunityGame {
   final String? gameKey;
   final DateTime? createdAt;
 
+  /// When the doc was last updated — used by the Game Hub's Trending row to
+  /// pull in recently-updated games beyond the newest-14. Null when absent.
+  final DateTime? updatedAt;
+
   CommunityGame({
     required this.id,
     required this.name,
@@ -26,11 +30,13 @@ class CommunityGame {
     required this.uploaderId,
     this.gameKey,
     this.createdAt,
+    this.updatedAt,
   });
 
   factory CommunityGame.fromSnapshot(DocumentSnapshot doc) {
     final data = (doc.data() as Map<String, dynamic>?) ?? const {};
     final ts = data['createdAt'];
+    final uts = data['updatedAt'];
     return CommunityGame(
       id: doc.id,
       name: (data['name'] as String? ?? '').trim(),
@@ -44,6 +50,7 @@ class CommunityGame {
         return value.isEmpty ? null : value;
       })(),
       createdAt: ts is Timestamp ? ts.toDate() : null,
+      updatedAt: uts is Timestamp ? uts.toDate() : null,
     );
   }
 }

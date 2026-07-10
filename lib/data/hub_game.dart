@@ -39,4 +39,9 @@ class HubGame {
   /// whether a game shows a synthetic "playing" count.
   String? get uploaderId =>
       source == HubGameSource.community ? communityGame?.uploaderId : null;
+
+  /// Last doc update for community games (null for Simula games). Used by the
+  /// Trending row to include recently-updated games beyond the newest-14.
+  DateTime? get updatedAt =>
+      source == HubGameSource.community ? communityGame?.updatedAt : null;
 }

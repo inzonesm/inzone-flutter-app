@@ -24,6 +24,11 @@ class _GameHubScreenState extends State<GameHubScreen> {
   bool _loading = true;
   bool _error = false;
 
+  // Games updated on or after this date also join the Trending row, even when
+  // they fall outside the newest-14 (mirrors the web hub). Midnight July 7,
+  // 2026 UTC.
+  static final DateTime _trendingUpdatedSince = DateTime.utc(2026, 7, 7);
+
   // Name keywords that bucket a game into the "Sports" row (mirrors the web hub).
   static final RegExp _sportsRe = RegExp(
     r'golf|basket|soccer|football|\bball\b|8ball|kick|fighter|box|dunk|hopper|tennis|pool|gladi|sport|goal|hoop|arena',
@@ -222,7 +227,16 @@ class _GameHubScreenState extends State<GameHubScreen> {
   List<({String title, List<HubGame> games})> _buildRows(List<HubGame> games) {
     if (games.isEmpty) return const [];
     final sports = games.where((g) => _sportsRe.hasMatch(g.name)).toList();
-    final trending = games.take(14).toList();
+    // Newest 14 as before, plus any older game whose updatedAt is on/after the
+    // cutoff (mirrors the web hub). The community list is already newest-first,
+    // so time ordering is preserved.
+    final trending = [
+      ...games.take(14),
+      ...games.skip(14).where((g) {
+        final updated = g.updatedAt;
+        return updated != null && !updated.isBefore(_trendingUpdatedSince);
+      }),
+    ];
     final restStart = (games.length - 14).clamp(0, 14);
     final recommended = games.skip(restStart).take(14).toList();
     final rows = <({String title, List<HubGame> games})>[
