@@ -49,11 +49,10 @@ class CommunityGameService {
     return _gameRef(gameId).collection('sessions').doc(sessionId);
   }
 
-  static Future<List<CommunityGame>> fetchAll({int limit = 50}) async {
+  static Future<List<CommunityGame>> fetchAll() async {
     final snapshot = await _db
         .collection(_collection)
         .where('status', isEqualTo: 'approved')
-        .limit(limit)
         .get();
 
     final games = snapshot.docs
