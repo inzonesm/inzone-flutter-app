@@ -4104,12 +4104,15 @@ class _VideoWidgetWrapperState extends State<_VideoWidgetWrapper> {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: () {
-        // Open fullscreen video viewer
+        // Open fullscreen video viewer instantly (no route animation, so
+        // there is no visible transition frame).
         Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (context) =>
-                _FullScreenVideoViewer(videoUrl: widget.videoUrl),
+          PageRouteBuilder(
             fullscreenDialog: true,
+            transitionDuration: Duration.zero,
+            reverseTransitionDuration: Duration.zero,
+            pageBuilder: (context, _, __) =>
+                _FullScreenVideoViewer(videoUrl: widget.videoUrl),
           ),
         );
       },
@@ -4142,11 +4145,14 @@ class _VideoWidgetWrapperState extends State<_VideoWidgetWrapper> {
                   size: 20,
                 ),
                 onPressed: () {
+                  // Instant fullscreen: no route animation frame.
                   Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (context) =>
-                          _FullScreenVideoViewer(videoUrl: widget.videoUrl),
+                    PageRouteBuilder(
                       fullscreenDialog: true,
+                      transitionDuration: Duration.zero,
+                      reverseTransitionDuration: Duration.zero,
+                      pageBuilder: (context, _, __) =>
+                          _FullScreenVideoViewer(videoUrl: widget.videoUrl),
                     ),
                   );
                 },
@@ -4257,6 +4263,8 @@ class _FullScreenVideoViewerState extends State<_FullScreenVideoViewer> {
           child: Center(
             child: VideoWidget(
               videoUrl: widget.videoUrl,
+              // Fullscreen playback keeps full seek gestures/controls.
+              isFullscreen: true,
               onAspectRatioUpdated: (aspectRatio) {
                 // Handle aspect ratio updates if needed
               },

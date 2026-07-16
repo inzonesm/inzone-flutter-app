@@ -223,10 +223,23 @@ class AppsFlyerService {
   }
 
   Future<void> _handleMinigameDeepLink(String gameId) async {
-    if (!_minigameDeepLinkController.isClosed) {
-      _minigameDeepLinkController.add(gameId);
+    final normalized = gameId.trim();
+    if (normalized.isEmpty) return;
+    // Persist so a deferred-install / cold-start link survives until RootApp
+    // subscribes to the (broadcast) stream below — broadcast streams don't
+    // buffer events for late subscribers, so on a fresh install the conversion
+    // -data callback would otherwise fire before any listener exists and drop
+    // the event, landing the user on Home. Mirrors the community-game path.
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(pendingMinigameDeepLinkGameIdKey, normalized);
+    } catch (e) {
+      log('Error persisting pending minigame deep link: $e');
     }
-    logEvent('minigame_deep_link_received', {'game_id': gameId});
+    if (!_minigameDeepLinkController.isClosed) {
+      _minigameDeepLinkController.add(normalized);
+    }
+    logEvent('minigame_deep_link_received', {'game_id': normalized});
   }
 
   Future<void> _handleCommunityGameDeepLink(String gameId) async {

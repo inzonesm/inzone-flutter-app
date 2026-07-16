@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:collection';
 import 'dart:convert';
 import 'dart:math';
 
@@ -7,11 +8,13 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:colorful_safe_area/colorful_safe_area.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:http/http.dart' as http;
 import 'package:inzone/components/live_players_indicator.dart';
+import 'package:inzone/components/social_overlay/game_score_reader.dart';
 import 'package:inzone/components/social_overlay/game_social_overlay.dart';
 import 'package:inzone/components/social_overlay/social_actions_service.dart';
 import 'package:inzone/components/social_overlay/social_bridge.dart';
@@ -24,6 +27,7 @@ import 'package:inzone/services/game_session_analytics.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:simula_ads/simula_ads.dart';
+import 'package:visibility_detector/visibility_detector.dart';
 
 /// Full-screen, TikTok-style community game player.
 ///
@@ -461,11 +465,20 @@ class _CommunityGamePage extends StatefulWidget {
   final bool isActive;
   final Future<void> Function() onClose;
 
+  /// True when this page is embedded inside a scrolling parent (the home
+  /// feed's `InlineCommunityGameCard`). In that case the webview must claim
+  /// vertical drags so center-of-game gestures reach the game instead of
+  /// scrolling the feed. The full-screen player leaves this false because its
+  /// PageView is already `NeverScrollableScrollPhysics` and edge zones handle
+  /// navigation.
+  final bool embeddedInFeed;
+
   const _CommunityGamePage({
     super.key,
     required this.game,
     required this.isActive,
     required this.onClose,
+    this.embeddedInFeed = false,
   });
 
   @override
@@ -475,6 +488,188 @@ class _CommunityGamePage extends StatefulWidget {
 class _CommunityGamePageState extends State<_CommunityGamePage> {
   static const String _fixtureAssetPath =
       'assets/html/social_loop_tap_targets.html';
+
+  /// Injected at document-start (before the game boots) so WebGL games — Unity
+  /// WebGL, Construct WebGL, etc. — render into a buffer that can be read back
+  /// with `canvas.toDataURL()`. Without `preserveDrawingBuffer`, a WebGL canvas
+  /// returns a blank image, which is why OCR could never see the score on those
+  /// games. This is harmless to games that don't need it (they keep clearing
+  /// their own buffer each frame) and does not affect the Construct 2 state
+  /// read, so games that already work — like Dunk Shot — are unchanged.
+  static const String _webglReadbackScript = r'''
+(function () {
+  try {
+    if (window.__inzoneWebGLReadback) return;
+    window.__inzoneWebGLReadback = true;
+    var orig = HTMLCanvasElement.prototype.getContext;
+    if (!orig) return;
+    HTMLCanvasElement.prototype.getContext = function (type, attrs) {
+      try {
+        if (typeof type === 'string' && /webgl/i.test(type)) {
+          attrs = attrs || {};
+          if (attrs.preserveDrawingBuffer !== true) {
+            attrs.preserveDrawingBuffer = true;
+          }
+        }
+      } catch (e) {}
+      return orig.call(this, type, attrs);
+    };
+  } catch (e) {}
+})();
+''';
+
+  /// Makes HTML5 / Unity WebGL games fit the webview instead of being cut off
+  /// or rendered at the wrong scale. Two problems are fixed here:
+  ///
+  /// 1. Many community games ship without a `<meta name="viewport">` tag, so
+  ///    Android lays the page out at its 980px-wide legacy viewport instead of
+  ///    the webview's real size. A `width=device-width` viewport meta is
+  ///    injected (or an existing one normalized) so `window.innerWidth/Height`
+  ///    report the actual view size the game should render at.
+  /// 2. Games with fixed-size canvases / Unity containers (e.g. a 1280×720
+  ///    build) overflow the view and get clipped. Known game containers are
+  ///    pinned to the full viewport, and any canvas that overflows is scaled
+  ///    back down to explicit, aspect-preserving pixel dimensions and
+  ///    centered. Explicit sizing (instead of object-fit letterboxing) keeps
+  ///    the canvas bounding rect equal to the visible game area, which is
+  ///    what game engines use to translate touch coordinates — so the game
+  ///    stays both fully visible and correctly tappable.
+  ///
+  /// The fit pass re-runs on resize/orientation change and on a few delayed
+  /// retries, because most engines create or resize their canvas asynchronously
+  /// after `load`. All work is no-op for games that already fit correctly.
+  static const String _viewportFitScript = r'''
+(function () {
+  try {
+    if (window.__inzoneViewportFit) return;
+    window.__inzoneViewportFit = true;
+
+    var ensureViewportMeta = function () {
+      try {
+        var head = document.head || document.getElementsByTagName('head')[0];
+        if (!head) return;
+        var meta = document.querySelector('meta[name="viewport"]');
+        if (!meta) {
+          meta = document.createElement('meta');
+          meta.setAttribute('name', 'viewport');
+          head.appendChild(meta);
+        }
+        meta.setAttribute('content',
+          'width=device-width, height=device-height, initial-scale=1.0, ' +
+          'minimum-scale=1.0, maximum-scale=1.0, user-scalable=no, ' +
+          'viewport-fit=cover');
+      } catch (e) {}
+    };
+
+    var injectFitStyles = function () {
+      try {
+        if (document.getElementById('__inzone-fit-style')) return;
+        if (!document.head && !document.documentElement) return;
+        var style = document.createElement('style');
+        style.id = '__inzone-fit-style';
+        style.textContent =
+          'html, body {' +
+          '  margin: 0 !important; padding: 0 !important;' +
+          '  width: 100% !important; height: 100% !important;' +
+          '  overflow: hidden !important;' +
+          '}' +
+          '#unity-container, #unityContainer, #gameContainer,' +
+          '#game-container, #game_container, #canvas-container,' +
+          '.webgl-content {' +
+          '  position: fixed !important; left: 0 !important; top: 0 !important;' +
+          '  width: 100vw !important; height: 100vh !important;' +
+          '  max-width: 100vw !important; max-height: 100vh !important;' +
+          '  margin: 0 !important; transform: none !important;' +
+          '}';
+        (document.head || document.documentElement).appendChild(style);
+      } catch (e) {}
+    };
+
+    var fitCanvas = function (c, vw, vh) {
+      try {
+        var rect = c.getBoundingClientRect();
+        if (rect.width === 0 || rect.height === 0) return;
+        var alreadyFitted = c.getAttribute('data-inzone-fitted') === '1';
+        var overflows =
+          rect.width > vw + 1 || rect.height > vh + 1 ||
+          rect.left < -1 || rect.top < -1 ||
+          rect.right > vw + 1 || rect.bottom > vh + 1;
+        // Once fitted, keep refitting on later passes (viewport/orientation
+        // changes shrink the element below the overflow threshold).
+        if (!overflows && !alreadyFitted) return;
+        // Scale uniformly to fit the viewport using explicit pixel
+        // dimensions, centered. Explicit sizing — as opposed to
+        // object-fit letterboxing inside a 100vw×100vh element — keeps the
+        // canvas's bounding rect identical to the visible game area, so
+        // engines that map touch coordinates through
+        // getBoundingClientRect()/offsetWidth (GameMaker, Construct, Unity
+        // templates) keep translating input to the right in-game position.
+        var aspect = (c.width > 0 && c.height > 0)
+          ? c.width / c.height
+          : rect.width / rect.height;
+        if (!aspect || !isFinite(aspect)) return;
+        var w = vw;
+        var h = w / aspect;
+        if (h > vh) {
+          h = vh;
+          w = h * aspect;
+        }
+        w = Math.floor(w);
+        h = Math.floor(h);
+        c.style.setProperty('width', w + 'px', 'important');
+        c.style.setProperty('height', h + 'px', 'important');
+        c.style.setProperty('max-width', 'none', 'important');
+        c.style.setProperty('max-height', 'none', 'important');
+        c.style.setProperty('position', 'fixed', 'important');
+        c.style.setProperty('left', Math.floor((vw - w) / 2) + 'px', 'important');
+        c.style.setProperty('top', Math.floor((vh - h) / 2) + 'px', 'important');
+        c.style.setProperty('display', 'block', 'important');
+        c.style.setProperty('margin', '0', 'important');
+        c.setAttribute('data-inzone-fitted', '1');
+      } catch (e) {}
+    };
+
+    var refit = function () {
+      try {
+        ensureViewportMeta();
+        injectFitStyles();
+        var vw = window.innerWidth;
+        var vh = window.innerHeight;
+        if (!vw || !vh) return;
+        var canvases = document.getElementsByTagName('canvas');
+        for (var i = 0; i < canvases.length; i++) {
+          fitCanvas(canvases[i], vw, vh);
+        }
+      } catch (e) {}
+    };
+    window.__inzoneRefit = refit;
+
+    // Engines create/resize their canvas asynchronously, so retry a few
+    // times after the document settles rather than fitting only once.
+    var schedule = function () {
+      refit();
+      setTimeout(refit, 500);
+      setTimeout(refit, 1500);
+      setTimeout(refit, 3000);
+      setTimeout(refit, 6000);
+    };
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', schedule);
+    } else {
+      schedule();
+    }
+    window.addEventListener('load', schedule);
+    window.addEventListener('resize', function () { setTimeout(refit, 50); });
+    window.addEventListener('orientationchange', function () {
+      setTimeout(refit, 250);
+    });
+
+    // The meta tag can be injected as early as document-start; the rest waits
+    // for the DOM.
+    ensureViewportMeta();
+  } catch (e) {}
+})();
+''';
 
   InAppWebViewController? _controller;
   bool _isLoading = true;
@@ -496,6 +691,49 @@ class _CommunityGamePageState extends State<_CommunityGamePage> {
   final SocialBridge _socialBridge = SocialBridge();
   late final SocialActionsService _socialActions =
       SocialActionsService(game: widget.game);
+
+  // Reads the score straight off the game's UI (DOM scrape, then OCR) for the
+  // many third-party games that never call the SDK's postScore. Resolved on
+  // demand when the share menu opens / a share action is tapped.
+  late final GameScoreReader _scoreReader =
+      GameScoreReader(controllerGetter: () => _controller);
+
+  /// Returns the best score we can establish for the share flows: whatever the
+  /// SDK already teed, refreshed with a live read of the on-screen value.
+  Future<int?> _resolveLatestScore() async {
+    try {
+      final int? uiScore = await _scoreReader.read();
+      if (uiScore != null) _socialBridge.recordUiScore(uiScore);
+    } catch (_) {
+      // Reading the UI is best-effort; fall back to whatever we already have.
+    }
+    return _socialBridge.latestScore;
+  }
+
+  /// Fold a UI-read score into an outgoing send-challenge / open-chat payload
+  /// when the game itself didn't supply one. This is what makes those endpoints
+  /// work for the Ultimate Game Stash (Construct 2) and Unity games, which
+  /// never pass a score — the score is read from the game's runtime/UI instead.
+  /// Games that already include a score are left untouched (no costly UI read).
+  Future<Map<String, dynamic>> _withResolvedScore(
+    Map<String, dynamic> outgoing, {
+    required bool inContext,
+  }) async {
+    if (SocialBridge.scoreIn(outgoing) != null) return outgoing;
+    final int? score = await _resolveLatestScore();
+    if (score == null) return outgoing;
+    final Map<String, dynamic> enriched =
+        Map<String, dynamic>.from(outgoing)..['score'] = score;
+    if (inContext) {
+      // open-chat builds its message from `context: { score, ... }`.
+      final Map<String, dynamic> ctx = enriched['context'] is Map
+          ? Map<String, dynamic>.from(enriched['context'] as Map)
+          : <String, dynamic>{};
+      ctx['score'] = score;
+      enriched['context'] = ctx;
+    }
+    return enriched;
+  }
 
   @override
   void initState() {
@@ -597,18 +835,43 @@ class _CommunityGamePageState extends State<_CommunityGamePage> {
       case 'postScore':
         // Tee the score into the social overlay so its share flows can
         // include it. Games that never call postScore still work — the
-        // overlay falls back to score-less messages.
-        _socialBridge.recordPostScore(payload);
-        return client.postScore(mergePayload({}));
+        // overlay falls back to score-less messages. We tee both the request
+        // payload and the normalized backend response (which carries the
+        // canonical value/best).
+        _socialBridge.recordScoreFromMap(payload);
+        final postScoreResponse = await client.postScore(mergePayload({}));
+        _socialBridge.recordScoreFromResponse(postScoreResponse);
+        return postScoreResponse;
       case 'sendChallenge':
-        final response = await client.sendChallenge(mergePayload({}));
+        _socialBridge.recordScoreFromMap(payload);
+        final response = await client.sendChallenge(
+          await _withResolvedScore(mergePayload({}), inContext: false),
+        );
+        _socialBridge.recordScoreFromResponse(response);
         unawaited(_shareFromSendChallengeResponse(response));
         return response;
       case 'shareCard':
         // share-card was merged into send-challenge; route legacy calls there
-        return client.sendChallenge(mergePayload({}));
+        _socialBridge.recordScoreFromMap(payload);
+        return client.sendChallenge(
+          await _withResolvedScore(mergePayload({}), inContext: false),
+        );
       case 'openChat':
-        return client.openChat(mergePayload({}));
+        // open-chat carries the score inside `context: { score, ... }`.
+        _socialBridge.recordScoreFromMap(payload);
+        return client.openChat(
+          await _withResolvedScore(mergePayload({}), inContext: true),
+        );
+      case 'notifyScore':
+        // Sent by the injected fetch/XHR interceptor for games that call the
+        // REST endpoints directly instead of the SDK bridge methods.
+        final scoreRequest = payload['request'];
+        final scoreResponse = payload['response'];
+        if (scoreRequest is Map) _socialBridge.recordScoreFromMap(scoreRequest);
+        if (scoreResponse is Map) {
+          _socialBridge.recordScoreFromResponse(scoreResponse);
+        }
+        return {'success': true};
       case 'notifyShare':
         final response = payload['response'] is Map
             ? Map<String, dynamic>.from(payload['response'] as Map)
@@ -792,9 +1055,24 @@ class _CommunityGamePageState extends State<_CommunityGamePage> {
         if (!window.__INZONE_SOCIAL_LOOP_INTERCEPTOR__) {
           window.__INZONE_SOCIAL_LOOP_INTERCEPTOR__ = true;
 
-          const shouldIntercept = (url) => {
+          // send-challenge feeds the native share sheet (existing behavior).
+          const isShareEndpoint = (url) =>
+            !!url && url.indexOf('/api/game-sdk/send-challenge') !== -1;
+
+          // Endpoints whose request/response can carry a score. Games that talk
+          // to the REST API directly (instead of the SDK bridge methods) are
+          // captured here so the social overlay still learns the score.
+          const isScoreEndpoint = (url) => {
             if (!url) return false;
-            return url.indexOf('/api/game-sdk/send-challenge') !== -1;
+            return url.indexOf('/api/game-sdk/post-score') !== -1 ||
+              url.indexOf('/api/game-sdk/send-challenge') !== -1 ||
+              url.indexOf('/api/game-sdk/progress/share') !== -1 ||
+              url.indexOf('/api/game-sdk/open-chat') !== -1;
+          };
+
+          const parseBody = (body) => {
+            if (!body || typeof body !== 'string') return null;
+            try { return JSON.parse(body); } catch (e) { return null; }
           };
 
           const notifyShare = (data) => {
@@ -804,21 +1082,32 @@ class _CommunityGamePageState extends State<_CommunityGamePage> {
             }
           };
 
+          const notifyScore = (request, response) => {
+            try {
+              callBridge('notifyScore', {
+                request: request || null,
+                response: response || null,
+              });
+            } catch (e) {
+            }
+          };
+
           if (window.fetch) {
             const originalFetch = window.fetch;
             window.fetch = function (input, init) {
               const url = typeof input === 'string' ? input : (input && input.url);
-              const isMatch = shouldIntercept(url || '');
+              const share = isShareEndpoint(url || '');
+              const scored = isScoreEndpoint(url || '');
+              const reqBody = scored ? parseBody(init && init.body) : null;
               return originalFetch.apply(this, arguments).then((resp) => {
-                if (!isMatch) return resp;
+                if (!share && !scored) return resp;
                 try {
                   const cloned = resp.clone();
                   cloned.text().then((text) => {
-                    try {
-                      const data = JSON.parse(text);
-                      notifyShare(data);
-                    } catch (e) {
-                    }
+                    let data = null;
+                    try { data = JSON.parse(text); } catch (e) { }
+                    if (scored) notifyScore(reqBody, data);
+                    if (share) notifyShare(data || {});
                   });
                 } catch (e) {
                 }
@@ -838,13 +1127,17 @@ class _CommunityGamePageState extends State<_CommunityGamePage> {
 
             window.XMLHttpRequest.prototype.send = function (body) {
               const url = this.__inzone_url || '';
-              if (shouldIntercept(url)) {
+              const share = isShareEndpoint(url);
+              const scored = isScoreEndpoint(url);
+              if (share || scored) {
+                const reqBody = scored
+                  ? parseBody(typeof body === 'string' ? body : null)
+                  : null;
                 this.addEventListener('load', () => {
-                  try {
-                    const data = JSON.parse(this.responseText || '{}');
-                    notifyShare(data);
-                  } catch (e) {
-                  }
+                  let data = null;
+                  try { data = JSON.parse(this.responseText || '{}'); } catch (e) { }
+                  if (scored) notifyScore(reqBody, data);
+                  if (share) notifyShare(data || {});
                 });
               }
               return originalSend.apply(this, arguments);
@@ -861,6 +1154,43 @@ class _CommunityGamePageState extends State<_CommunityGamePage> {
     return Stack(
       children: [
         InAppWebView(
+          // Force WebGL canvases to keep their drawing buffer so the OCR
+          // fallback can screenshot them (Unity WebGL, Construct WebGL, …).
+          // Runs before the game's own scripts; see [_webglReadbackScript].
+          initialUserScripts: UnmodifiableListView<UserScript>(<UserScript>[
+            UserScript(
+              source: _webglReadbackScript,
+              injectionTime: UserScriptInjectionTime.AT_DOCUMENT_START,
+              forMainFrameOnly: false,
+            ),
+            // Normalize the viewport and keep oversized game canvases fitted
+            // to the view — see [_viewportFitScript].
+            UserScript(
+              source: _viewportFitScript,
+              injectionTime: UserScriptInjectionTime.AT_DOCUMENT_START,
+              forMainFrameOnly: false,
+            ),
+          ]),
+          // When embedded in the scrolling home feed, eagerly claim every
+          // gesture that starts on the game — taps as well as drags. A
+          // vertical-drag recognizer alone is not enough: taps then sit in
+          // the gesture arena with the feed's scroll view and are only
+          // replayed to the webview after the arena resolves, which
+          // timing-sensitive game input handlers miss — making the game feel
+          // untappable. The eager recognizer wins the arena on pointer-down,
+          // so events stream to the game in real time. The feed is still
+          // scrollable via the transparent edge strips that
+          // `InlineCommunityGameCard` overlays on the top and bottom of the
+          // game (they sit above the webview, so gestures there never enter
+          // this arena). The full-screen player passes embeddedInFeed=false
+          // so its own edge-zone navigation keeps working unchanged.
+          gestureRecognizers: widget.embeddedInFeed
+              ? <Factory<OneSequenceGestureRecognizer>>{
+                  Factory<OneSequenceGestureRecognizer>(
+                    () => EagerGestureRecognizer(),
+                  ),
+                }
+              : null,
           initialData: initialHtml == null
               ? null
               : InAppWebViewInitialData(
@@ -918,6 +1248,10 @@ class _CommunityGamePageState extends State<_CommunityGamePage> {
             if (!mounted) return;
             await controller.evaluateJavascript(
                 source: _bridgeInjectionScript());
+            // Kick a fit pass now that the document has settled (the user
+            // script schedules its own delayed retries for late canvases).
+            await controller.evaluateJavascript(
+                source: 'window.__inzoneRefit && window.__inzoneRefit();');
             if (!mounted) return;
             setState(() {
               _isLoading = false;
@@ -931,6 +1265,31 @@ class _CommunityGamePageState extends State<_CommunityGamePage> {
             });
           },
         ),
+        // Home-feed embed only: transparent, hit-test-opaque strips over the
+        // very top and bottom of the game. They claim no gesture of their own,
+        // so a drag starting on an edge is not given to the game webview behind
+        // them and instead falls through to the home feed's scroll view (an
+        // ancestor), scrolling the feed with its normal physics. The center of
+        // the game has no strip, so the webview's own vertical-drag recognizer
+        // wins there and gameplay is never interrupted. These sit above the
+        // webview but below the social overlay so the share button stays
+        // tappable even when docked near an edge.
+        if (widget.embeddedInFeed) ...[
+          const Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            height: 56,
+            child: _FeedScrollEdge(),
+          ),
+          const Positioned(
+            bottom: 0,
+            left: 0,
+            right: 0,
+            height: 64,
+            child: _FeedScrollEdge(),
+          ),
+        ],
         if (_isLoading)
           Container(
             color: theme.canvasColor,
@@ -992,6 +1351,7 @@ class _CommunityGamePageState extends State<_CommunityGamePage> {
           GameSocialOverlay(
             bridge: _socialBridge,
             actions: _socialActions,
+            scoreResolver: _resolveLatestScore,
           ),
       ],
     );
@@ -1033,28 +1393,114 @@ class _CommunityGamePageState extends State<_CommunityGamePage> {
 /// width, card color, corner radius and shadow, with a header that mirrors a
 /// post's avatar+username row (the game icon + game title), an optional
 /// description, and the live [_CommunityGamePage] as the card body.
-class InlineCommunityGameCard extends StatelessWidget {
+class InlineCommunityGameCard extends StatefulWidget {
   final CommunityGame game;
 
   const InlineCommunityGameCard({super.key, required this.game});
 
   @override
+  State<InlineCommunityGameCard> createState() =>
+      _InlineCommunityGameCardState();
+}
+
+class _InlineCommunityGameCardState extends State<InlineCommunityGameCard> {
+  CommunityGame get game => widget.game;
+
+  /// Whether the live game (webview) is mounted. The feed pre-builds cards
+  /// well outside the viewport (cacheExtent + keep-alives), so mounting the
+  /// game on build meant it ran — audio included — before the user ever
+  /// reached it and kept running after they scrolled past. Instead the game
+  /// is mounted only while the card is actually on screen; off screen we show
+  /// a same-sized placeholder so the card's layout never changes.
+  bool _gameActive = false;
+
+  /// Unique per state instance (the same game can appear in several feed
+  /// slots, so game.id alone would collide as a VisibilityDetector key).
+  final Key _visibilityKey = UniqueKey();
+
+  void _onVisibilityChanged(VisibilityInfo info) {
+    if (!mounted) return;
+    final fraction = info.visibleFraction;
+    // Hysteresis: start the game once half the card is visible, stop it only
+    // when it has almost fully left the screen — avoids flickering the game
+    // on/off while the boundary hovers near the viewport edge.
+    if (!_gameActive && fraction >= 0.5) {
+      setState(() => _gameActive = true);
+    } else if (_gameActive && fraction <= 0.1) {
+      setState(() => _gameActive = false);
+    }
+  }
+
+  /// Same footprint as the live game body; shown while the card is off
+  /// screen. Users only ever glimpse it mid-scroll.
+  Widget _buildGamePlaceholder(ThemeData theme, String iconUrl) {
+    return Container(
+      color: Colors.black,
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(16),
+              child: iconUrl.isNotEmpty
+                  ? CachedNetworkImage(
+                      imageUrl: iconUrl,
+                      width: 72,
+                      height: 72,
+                      fit: BoxFit.cover,
+                      placeholder: (context, url) =>
+                          const SizedBox(width: 72, height: 72),
+                      errorWidget: (context, url, error) => const Icon(
+                        Icons.sports_esports,
+                        size: 72,
+                        color: Colors.white24,
+                      ),
+                    )
+                  : const Icon(
+                      Icons.sports_esports,
+                      size: 72,
+                      color: Colors.white24,
+                    ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              game.name,
+              style: const TextStyle(
+                color: Colors.white70,
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final screenHeight = MediaQuery.of(context).size.height;
-    // Tall enough to be genuinely playable; capped so it never dominates the
-    // whole viewport on short screens.
-    final gameHeight = (screenHeight * 0.6).clamp(360.0, 620.0);
+    final screenSize = MediaQuery.of(context).size;
+    // Match the regular post card width (full width minus the 8px the feed
+    // reserves on each side).
+    final cardWidth = screenSize.width - 8;
+    // Size the game body like the video post cards, which render their media
+    // at width / aspect-ratio with a 9:16 portrait default — so a game post
+    // has the same visual footprint in the feed as a video post. Capped at
+    // 85% of the viewport so the card header stays visible on short/wide
+    // screens.
+    final gameHeight = min(cardWidth * 16 / 9, screenSize.height * 0.85);
     final description = game.description.trim();
     final iconUrl = game.iconUrl.trim();
 
-    return Padding(
+    return VisibilityDetector(
+      key: _visibilityKey,
+      onVisibilityChanged: _onVisibilityChanged,
+      child: Padding(
       // Mirror the bottom spacing used by the regular post cards.
       padding: const EdgeInsets.only(bottom: 20.0),
       child: Container(
-        // Match the regular post card width (full width minus the 8px the feed
-        // reserves on each side).
-        width: MediaQuery.of(context).size.width - 8,
+        width: cardWidth,
         decoration: BoxDecoration(
           color: theme.cardColor,
           borderRadius: BorderRadius.circular(15),
@@ -1115,6 +1561,7 @@ class InlineCommunityGameCard extends StatelessWidget {
                         // same signal as the game-hub cards.
                         LivePlayersIndicator(
                           gameId: game.id,
+                          uploaderId: game.uploaderId,
                           builder: (context, players, pulse) => Padding(
                             padding: const EdgeInsets.only(top: 2),
                             child: Row(
@@ -1172,17 +1619,48 @@ class InlineCommunityGameCard extends StatelessWidget {
               child: SizedBox(
                 height: gameHeight,
                 width: double.infinity,
-                child: _CommunityGamePage(
-                  key: ValueKey('inline_game_${game.id}'),
-                  game: game,
-                  isActive: true,
-                  onClose: () async {},
-                ),
+                // embeddedInFeed makes the game claim gestures in its center
+                // (so play is never interrupted by the feed scrolling under the
+                // finger) while leaving its top/bottom edges free to scroll the
+                // feed — see `_buildWebView`.
+                //
+                // The live game is mounted only while the card is on screen
+                // (see _onVisibilityChanged); otherwise a same-sized
+                // placeholder keeps the layout identical.
+                child: _gameActive
+                    ? _CommunityGamePage(
+                        key: ValueKey('inline_game_${game.id}'),
+                        game: game,
+                        isActive: true,
+                        embeddedInFeed: true,
+                        onClose: () async {},
+                      )
+                    : _buildGamePlaceholder(theme, iconUrl),
               ),
             ),
           ],
         ),
       ),
+      ),
+    );
+  }
+}
+
+/// A transparent strip placed over the very top and bottom of an inline
+/// home-feed game. It is hit-test *opaque*, so it stops the drag from reaching
+/// the game webview directly behind it, but it registers no gesture recognizer
+/// of its own — which means the gesture falls through to the home feed's scroll
+/// view (an ancestor) and scrolls the feed with its normal physics. The result:
+/// dragging the center of the game plays the game, while dragging its top/bottom
+/// edges scrolls the feed.
+class _FeedScrollEdge extends StatelessWidget {
+  const _FeedScrollEdge();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Listener(
+      behavior: HitTestBehavior.opaque,
+      child: SizedBox.expand(),
     );
   }
 }

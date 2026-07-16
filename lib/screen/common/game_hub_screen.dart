@@ -26,6 +26,12 @@ class _GameHubScreenState extends State<GameHubScreen> {
   bool _loading = true;
   bool _error = false;
 
+  // Name keywords that bucket a game into the "Sports" row (mirrors the web hub).
+  static final RegExp _sportsRe = RegExp(
+    r'golf|basket|soccer|football|\bball\b|8ball|kick|fighter|box|dunk|hopper|tennis|pool|gladi|sport|goal|hoop|arena',
+    caseSensitive: false,
+  );
+
   // Live coin balance shown in the app bar (humanUsers/<uid>.balance).
   String _balance = '0';
   StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>? _balanceSub;
@@ -170,20 +176,68 @@ class _GameHubScreenState extends State<GameHubScreen> {
         ),
       );
     }
-    return GridView.builder(
-      padding: const EdgeInsets.all(12),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 3,
-        mainAxisSpacing: 10,
-        crossAxisSpacing: 10,
-        childAspectRatio: 0.78,
-      ),
-      itemCount: _games.length,
-      itemBuilder: (_, index) {
-        final game = _games[index];
-        return _GameHubTile(game: game, onTap: () => _handleTap(game));
-      },
+    final rows = _buildRows(_games);
+    return CustomScrollView(
+      slivers: [
+        // Category shelves (horizontally scrolling), same as the web hub.
+        for (final row in rows)
+          SliverToBoxAdapter(
+            child: _CategoryRow(
+              title: row.title,
+              games: row.games,
+              onTap: _handleTap,
+            ),
+          ),
+        // Full catalog below — every game, even ones already shown in a row.
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(12, 18, 12, 8),
+            child: Text(
+              'All games',
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ),
+        SliverPadding(
+          padding: const EdgeInsets.fromLTRB(12, 0, 12, 16),
+          sliver: SliverGrid(
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 3,
+              mainAxisSpacing: 10,
+              crossAxisSpacing: 10,
+              childAspectRatio: 0.78,
+            ),
+            delegate: SliverChildBuilderDelegate(
+              (_, index) {
+                final game = _games[index];
+                return _GameHubTile(game: game, onTap: () => _handleTap(game));
+              },
+              childCount: _games.length,
+            ),
+          ),
+        ),
+      ],
     );
+  }
+
+  // Group the flat game list into the homepage rows (same logic as the web
+  // hub): Trending = first 14, Sports = name-keyword match, Recommended = the
+  // next 14. Games may appear in several rows and also in the "All games" grid
+  // below — the overlap is intentional. Empty rows are dropped.
+  List<({String title, List<HubGame> games})> _buildRows(List<HubGame> games) {
+    if (games.isEmpty) return const [];
+    final sports = games.where((g) => _sportsRe.hasMatch(g.name)).toList();
+    final trending = games.take(14).toList();
+    final restStart = (games.length - 14).clamp(0, 14);
+    final recommended = games.skip(restStart).take(14).toList();
+    final rows = <({String title, List<HubGame> games})>[
+      (title: 'Trending', games: trending),
+      (title: 'Sports', games: sports),
+      (title: 'Recommended for you', games: recommended),
+    ];
+    return rows.where((r) => r.games.isNotEmpty).toList();
   }
 }
 
@@ -230,6 +284,54 @@ class _CoinBalanceBadge extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+// One horizontally-scrolling category shelf (Trending / Sports / …). Reuses the
+// same _GameHubTile as the grid, just at a fixed width so several peek in view.
+class _CategoryRow extends StatelessWidget {
+  final String title;
+  final List<HubGame> games;
+  final ValueChanged<HubGame> onTap;
+  const _CategoryRow({
+    required this.title,
+    required this.games,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(12, 18, 12, 8),
+          child: Text(
+            title,
+            style: theme.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+        SizedBox(
+          height: 156,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            itemCount: games.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 10),
+            itemBuilder: (_, i) {
+              final game = games[i];
+              return SizedBox(
+                width: 122,
+                child: _GameHubTile(game: game, onTap: () => onTap(game)),
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 }
@@ -316,6 +418,7 @@ class _GameHubTile extends StatelessWidget {
                 child: isCommunity
                     ? LivePlayersIndicator(
                         gameId: game.id,
+                        uploaderId: game.uploaderId,
                         builder: (context, count, pulse) => Container(
                           padding: const EdgeInsets.symmetric(
                             horizontal: 8,

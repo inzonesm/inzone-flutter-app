@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:inzone/theme/app_colors.dart';
@@ -45,33 +47,27 @@ class _PostComposerDialogState extends State<_PostComposerDialog> {
     super.dispose();
   }
 
-  Future<void> _post() async {
+  void _post() {
     if (_posting || _controller.text.trim().isEmpty) return;
-    setState(() => _posting = true);
+    _posting = true;
 
-    // Capture context-derived values before the dialog is popped, so the
-    // toast can outlive this State's own context.
+    // Capture everything the background post needs *before* we dismiss, so it
+    // can outlive this dialog's context.
     final navigator = Navigator.of(context);
     final toastContext = navigator.context;
     final cardColor = Theme.of(context).cardColor;
+    final text = _controller.text;
+    final score = widget.score;
+    final actions = widget.actions;
 
-    try {
-      final result = await widget.actions.createScorePost(
-        _controller.text,
-        widget.score,
-      );
-      if (!mounted) return;
-      final blocked = result['blocked'] == true;
-      final success = result['success'] == true;
-      navigator.pop();
+    void showResultToast({required bool success, required bool blocked}) {
       ToastService.showToast(
         toastContext,
         backgroundColor: cardColor,
         shadowColor: Colors.transparent,
         leading: Icon(
           blocked || !success ? Icons.error_outline : Icons.celebration,
-          color:
-              blocked || !success ? AppColors.error : AppColors.primaryBlue,
+          color: blocked || !success ? AppColors.error : AppColors.primaryBlue,
         ),
         message: blocked
             ? "This post couldn't be shared."
@@ -79,18 +75,24 @@ class _PostComposerDialogState extends State<_PostComposerDialog> {
                 ? 'Shared to your InZone feed!'
                 : "Couldn't post — try again.",
       );
-    } catch (_) {
-      if (mounted) {
-        setState(() => _posting = false);
-        ToastService.showToast(
-          toastContext,
-          backgroundColor: cardColor,
-          shadowColor: Colors.transparent,
-          leading: const Icon(Icons.error_outline, color: AppColors.error),
-          message: "Couldn't post — try again.",
-        );
-      }
     }
+
+    // Dismiss immediately so the tap feels instant — the repost document is
+    // created in the background and its outcome is surfaced via a toast. This
+    // removes the perceived lag from waiting on the network round-trips.
+    navigator.pop();
+
+    unawaited(() async {
+      try {
+        final result = await actions.createScorePost(text, score);
+        showResultToast(
+          success: result['success'] == true,
+          blocked: result['blocked'] == true,
+        );
+      } catch (_) {
+        showResultToast(success: false, blocked: false);
+      }
+    }());
   }
 
   @override

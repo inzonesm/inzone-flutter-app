@@ -5,6 +5,39 @@ class CommunityGameService {
   static const String _collection = 'html_games';
   static final FirebaseFirestore _db = FirebaseFirestore.instance;
 
+  /// Games uploaded by this account display an inflated, synthetic "playing"
+  /// count instead of their real open-session total.
+  static const String _inflatedPlayerUploaderId =
+      'stleyc71xUZJTmcx88A6Mv9dyYs2';
+
+  /// How long an inflated count holds steady before it rolls to a new value.
+  /// Both clients bucket wall-clock time by this window, so the Flutter app and
+  /// the inzone-games website derive the SAME number for a game within the same
+  /// window (device clocks only need to be roughly in sync).
+  static const int _inflatedWindowMs = 60000;
+
+  /// Deterministic 32-bit FNV-1a hash of a string. Mirrors `fnv1a32` in the
+  /// website's lib/games.ts so both platforms map a given seed to the same
+  /// number.
+  static int _fnv1a32(String seed) {
+    int h = 0x811c9dc5;
+    for (final c in seed.codeUnits) {
+      h ^= c;
+      h = (h * 0x01000193) & 0xFFFFFFFF;
+    }
+    return h;
+  }
+
+  /// A "playing" count in the inclusive range 999–9999, derived from the game
+  /// id and the current time window. Same inputs → same output on every device,
+  /// so the app and the website always show the same number for a game.
+  static int _inflatedPlayerCount(String gameId) {
+    final windowIndex =
+        DateTime.now().millisecondsSinceEpoch ~/ _inflatedWindowMs;
+    final hash = _fnv1a32('$gameId:$windowIndex');
+    return 999 + (hash % 9001); // 9999 − 999 + 1 = 9001 possible values
+  }
+
   static DocumentReference<Map<String, dynamic>> _gameRef(String gameId) {
     return _db.collection(_collection).doc(gameId);
   }
@@ -45,8 +78,19 @@ class CommunityGameService {
   /// live signal the dashboard uses. Uses a server-side aggregate count (no doc
   /// payloads) and is best-effort: a missing subcollection or denied read
   /// resolves to 0.
-  static Future<int> fetchLivePlayerCount(String gameId) async {
+  ///
+  /// Exception: games owned by [_inflatedPlayerUploaderId] skip the query and
+  /// return a synthetic count in 999–9999 that is identical on the app and the
+  /// website for the same game + time window. Pass the game's [uploaderId]
+  /// (already loaded with the hub list) so this needs no extra read.
+  static Future<int> fetchLivePlayerCount(
+    String gameId, {
+    String? uploaderId,
+  }) async {
     if (gameId.isEmpty) return 0;
+    if (uploaderId == _inflatedPlayerUploaderId) {
+      return _inflatedPlayerCount(gameId);
+    }
     try {
       final snapshot = await _gameRef(gameId)
           .collection('sessions')
