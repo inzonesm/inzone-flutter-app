@@ -80,3 +80,28 @@ Addressables build for Android (ServerData/Android + `Android/` bucket path).
 - The C# local-bundle redirect requires the **Unity export to be rebuilt** once
   (AddressableSceneLoader.cs changed) before downloaded bundles are picked up;
   until then games simply stream from GCS as before.
+
+## AnyRPG (curated compile-in game) — integrated 2026-07
+
+The first full game with its own C#: the AnyRPG engine (MIT) is **compiled into
+the UnityFramework** (code can't stream — IL2CPP + App Store 2.5.2); only its
+scenes stream as Addressables. Doc: `unityGames/anyrpg-features-demo`,
+`sceneName = Assets/Scenes/FeaturesDemoGame/FeaturesDemoGame.unity` — a boot
+scene carrying the FeaturesDemoGameManager prefab, whose name matches the
+variant's `initializationScene` so AnyRPG auto-runs init → Main Menu → starting
+zone. Its internal scene loads go through `AddressableSceneBridge` (conversion
+lives in the AnyRPG source, gated by the `INZONE_ADDRESSABLES` define; addresses
+derive as `Assets/Scenes/{SceneFile}/{SceneFile}.unity`).
+
+Headless entries in the Unity project (`Assets/Editor/`):
+- `InzoneAddressablesBuild.BuildContent` — Addressables content build (bundles + remote catalog)
+- `AnyRPGHubSetup.ConfigureBatch` — boot scene + AnyRPG Addressables groups (idempotent)
+- `InzoneIOSExport.ExportBatch` — iOS export to `…/inzone/unity_ios_build_anyrpg`
+  (then `UNITY_BUILD_DIR=<that> ./scripts/build_unity_framework.sh`)
+
+Register/update the Firestore doc after a content upload:
+`node scripts/register_anyrpg.mjs <entryBundleFile> <bytes> [catalogFile]`.
+
+Content-only games (no custom C#) do NOT need any of this — they publish
+self-serve through the dev portal (inzone-games repo, `/api/unity-publish`)
+built with the inzone Unity Game Kit template.
