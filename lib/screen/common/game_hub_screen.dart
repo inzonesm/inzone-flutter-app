@@ -4,11 +4,10 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:inzone/components/live_players_indicator.dart';
-import 'package:inzone/router/routes.dart';
 import 'package:inzone/data/community_game.dart';
 import 'package:inzone/data/hub_game.dart';
+import 'package:inzone/screen/game_hub/unity_game_hub_screen.dart';
 import 'package:inzone/services/community_game_service.dart';
 import 'package:provider/provider.dart';
 import 'package:simula_ads/simula_ads.dart';
@@ -135,7 +134,14 @@ class _GameHubScreenState extends State<GameHubScreen> {
           IconButton(
             tooltip: '3D Games',
             icon: const Icon(Icons.view_in_ar),
-            onPressed: () => context.push(Routes.unityGameHub),
+            // This screen is raw-Navigator-pushed (root_app), so a go_router
+            // push would land the hub on the shell navigator BENEATH us and
+            // never be visible. Push on the same navigator instead.
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => const UnityGameHubScreen(),
+              ),
+            ),
           ),
           IconButton(
             icon: const Icon(Icons.refresh),
