@@ -26,8 +26,8 @@ if [ ! -d "$SERVER_DATA" ]; then
     exit 1
 fi
 
-# Find the latest catalog file
-CATALOG_FILE=$(ls -t "$SERVER_DATA"/catalog_*.bin 2>/dev/null | head -1 | xargs -n1 basename)
+# Find the latest catalog file (basename-safe for paths with spaces)
+CATALOG_FILE=$(basename "$(ls -t "$SERVER_DATA"/catalog_*.bin 2>/dev/null | head -1)")
 if [ -z "$CATALOG_FILE" ]; then
     echo "ERROR: No catalog_*.bin found in $SERVER_DATA"
     echo "Make sure m_BuildRemoteCatalog is enabled in AddressableAssetSettings."
@@ -41,11 +41,13 @@ echo ""
 # Upload bundles FIRST, catalog + hash LAST: the catalog is the pointer the
 # app follows, so it must only flip once every bundle it references exists
 # (otherwise live clients race a half-uploaded bucket and get 404s).
+# gcloud storage, NOT gsutil: homebrew gsutil is broken on macOS/Python 3.12
+# (multiprocessing fork-hang, then "sys has no attribute 'maxint'").
 echo "[1/3] Uploading bundles to $BUCKET..."
-gsutil -m rsync -r -x 'catalog_.*' "$SERVER_DATA" "$BUCKET"
+gcloud storage rsync --recursive --exclude='catalog_.*|\.DS_Store' "$SERVER_DATA" "$BUCKET"
 
 echo "[2/3] Publishing catalog..."
-gsutil -m cp "$SERVER_DATA"/catalog_*.bin "$SERVER_DATA"/catalog_*.hash "$BUCKET/"
+gcloud storage cp "$SERVER_DATA"/catalog_*.bin "$SERVER_DATA"/catalog_*.hash "$BUCKET/"
 
 # Update Firestore with the catalog filename
 if [ -f "$SCRIPT_DIR/service-account-key.json" ]; then
