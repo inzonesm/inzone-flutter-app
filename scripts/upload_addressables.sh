@@ -38,18 +38,23 @@ CATALOG_HASH="${CATALOG_FILE%.bin}.hash"
 echo "Latest catalog: $CATALOG_FILE"
 echo ""
 
-# Upload everything in ServerData/iOS (bundles + catalog + hash)
-echo "[1/2] Uploading to $BUCKET..."
-gsutil -m rsync -r "$SERVER_DATA" "$BUCKET"
+# Upload bundles FIRST, catalog + hash LAST: the catalog is the pointer the
+# app follows, so it must only flip once every bundle it references exists
+# (otherwise live clients race a half-uploaded bucket and get 404s).
+echo "[1/3] Uploading bundles to $BUCKET..."
+gsutil -m rsync -r -x 'catalog_.*' "$SERVER_DATA" "$BUCKET"
+
+echo "[2/3] Publishing catalog..."
+gsutil -m cp "$SERVER_DATA"/catalog_*.bin "$SERVER_DATA"/catalog_*.hash "$BUCKET/"
 
 # Update Firestore with the catalog filename
 if [ -f "$SCRIPT_DIR/service-account-key.json" ]; then
     echo ""
-    echo "[2/2] Updating Firestore catalogFile for all games..."
+    echo "[3/3] Updating Firestore catalogFile for all games..."
     CATALOG_FILE="$CATALOG_FILE" node "$SCRIPT_DIR/update_catalog_field.js"
 else
     echo ""
-    echo "[2/2] SKIPPED — place service-account-key.json in scripts/ to auto-update Firestore."
+    echo "[3/3] SKIPPED — place service-account-key.json in scripts/ to auto-update Firestore."
     echo "Manually set 'catalogFile' to '$CATALOG_FILE' on each unityGames doc."
 fi
 
