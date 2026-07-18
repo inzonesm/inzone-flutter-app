@@ -93,9 +93,24 @@ zone. Its internal scene loads go through `AddressableSceneBridge` (conversion
 lives in the AnyRPG source, gated by the `INZONE_ADDRESSABLES` define; addresses
 derive as `Assets/Scenes/{SceneFile}/{SceneFile}.unity`).
 
+Mobile adaptation (2026-07-18, device-verified): touch→mouse shim in AnyRPG's
+InputManager (tap-to-move/-target, drag-orbit, pinch-zoom; tap on an
+interactable also runs the walk-up-and-interact flow), click-to-move defaulted
+on via the FeaturesDemoGameManager prefab override, runtime phone-UI scaling +
+safe-area via the hub's `AnyRpgMobileUIScaler` (scene-gated to AnyRPG — other
+games are never touched), and OOM hardening: per-texture iOS ASTC overrides +
+1024 cap and audio streaming via `AnyRpgIosAssetOptimizer`, HDR/SSAO off +
+shadows 512@30m + mipmap streaming in the Mobile High tier, and
+`Resources.UnloadUnusedAssets` on zone transitions + `Application.lowMemory`.
+Class-name gotcha fixed the same day: AnyRPG's string-based
+`ScriptableObject.CreateInstance("Ability")` broke when Night Swarm's `Ability`
+class joined the shared assembly — curated-game class names must not shadow
+names AnyRPG creates by string (see Food.cs, now the typed generic).
+
 Headless entries in the Unity project (`Assets/Editor/`):
 - `InzoneAddressablesBuild.BuildContent` — Addressables content build (bundles + remote catalog)
 - `AnyRPGHubSetup.ConfigureBatch` — boot scene + AnyRPG Addressables groups (idempotent)
+- `AnyRpgIosAssetOptimizer.OptimizeBatch` — iOS texture/audio memory overrides (idempotent)
 - `InzoneIOSExport.ExportBatch` — iOS export to `…/inzone/unity_ios_build_anyrpg`
   (then `UNITY_BUILD_DIR=<that> ./scripts/build_unity_framework.sh`)
 
