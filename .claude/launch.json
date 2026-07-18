@@ -1,0 +1,13 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "inzone-games-web",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": [
+        "/private/tmp/claude-501/-Users-yxydw-Documents-inzone-flutter-app/79132885-934d-4dd0-ae99-768eb1fff2c6/scratchpad/run-inzone-games-dev.sh"
+      ],
+      "port": 3000
+    }
+  ]
+}
