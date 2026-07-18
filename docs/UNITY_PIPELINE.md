@@ -102,6 +102,42 @@ Headless entries in the Unity project (`Assets/Editor/`):
 Register/update the Firestore doc after a content upload:
 `node scripts/register_anyrpg.mjs <entryBundleFile> <bytes> [catalogFile]`.
 
+## Night Swarm (curated compile-in game) — integrated 2026-07
+
+The second compile-in game: VampireSurvivorsClone (MIT, Matthias Broske),
+renamed **Night Swarm** (暗夜狂潮) — "Vampire Survivors" is Poncle's trademark.
+2D survivor-roguelite, touch-native. Source clone with the integration edits:
+`/Users/yxydw/Documents/inzone/VampireSurvivorsClone`; imported under
+`Assets/NightSwarm/` in the Unity project (TMP essentials, Adaptive
+Performance, and the editor-only Character Set Generation scene excluded).
+
+- Doc: `unityGames/night-swarm`,
+  `sceneName = Assets/NightSwarm/Scenes/Game/Main Menu.unity`.
+- Scene transitions go through `InzoneSceneGateway` (in the game's Scripts;
+  gated by `INZONE_ADDRESSABLES` like AnyRPG's bridge). Both scenes sit in ONE
+  PackTogether remote group so their shared bundle never unloads mid-game —
+  the static `CrossSceneData.CharacterBlueprint` carried across the
+  menu→level transition survives (AnyRPG bundle-lifetime lesson).
+- Uses com.unity.localization (en/zh/zh-Hant): locale/table assets are
+  Addressables entries mirrored by `NightSwarmHubSetup` (labels `Locale`,
+  `Locale-{code}`, `Preload`); the game's LocalizationSettings is the
+  project-wide active one. LiberationSans SDF lives in the shared
+  `SharedFonts_Remote` group.
+- Host settings adopted: layers 14/15/16/27/28 (game's 6–10 remapped in all
+  YAML incl. LayerMask bitmasks), sorting layers Background/Foreground
+  (verbatim uniqueIDs), `activeInputHandler = Both` (game uses legacy
+  StandaloneInputModule + Input.mousePosition in its touch joystick).
+- Licensing: see `Assets/NightSwarm/THIRD-PARTY-NOTICES.md`. Pre-commercial
+  gates: EmojiOne in host TMP defaults (separate task), and confirm the
+  author's rights to the internship-era code (Gamania) before commercial ship.
+
+Headless entry (`Assets/Editor/NightSwarmHubSetup.cs`):
+`NightSwarmHubSetup.ConfigureBatch` — group + localization entries (idempotent).
+
+Register/update the Firestore doc after a content upload:
+`node scripts/register_unity_game.mjs night-swarm --title "Night Swarm" ...`
+(generic successor to register_anyrpg.mjs).
+
 Content-only games (no custom C#) do NOT need any of this — they publish
 self-serve through the dev portal (inzone-games repo, `/api/unity-publish`)
 built with the inzone Unity Game Kit template.
