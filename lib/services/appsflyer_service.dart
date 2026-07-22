@@ -9,6 +9,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:http/http.dart' as http;
 import 'package:inzone/config/api_config.dart';
 import 'dart:developer';
+import 'package:flutter/foundation.dart';
 
 // Post View Tracking Helper
 class PostViewTracker {
@@ -106,7 +107,7 @@ class AppsFlyerService {
     final AppsFlyerOptions appsFlyerOptions = AppsFlyerOptions(
       afDevKey: "GouQRMcXkXP2CMBgZfHdfB",
       appId: "6478089068",
-      showDebug: true,
+      showDebug: kDebugMode,
       timeToWaitForATTUserAuthorization: 60, // For iOS 14.5+
     );
 
@@ -169,8 +170,7 @@ class AppsFlyerService {
           // Deep link found
           final deepLinkData = deepLinkResult.deepLink;
           if (deepLinkData?.clickEvent != null) {
-            final payload =
-                Map<String, dynamic>.from(deepLinkData!.clickEvent);
+            final payload = Map<String, dynamic>.from(deepLinkData!.clickEvent);
             _handleDeepLinkPayload(payload);
           }
           break;
@@ -417,13 +417,13 @@ class AppsFlyerService {
       // Get AppsFlyer ID
       String? appsFlyerId = await getAdvertisingId();
       final firestore = FirebaseFirestore.instance;
-        final normalizedAttributionData =
+      final normalizedAttributionData =
           _normalizeReferralAttribution(attributionData);
-        final installerProfile =
-          await _loadInstallerProfile(firestore: firestore, installerId: user.uid);
-        final installerDisplayName =
+      final installerProfile = await _loadInstallerProfile(
+          firestore: firestore, installerId: user.uid);
+      final installerDisplayName =
           _resolveInstallerDisplayName(user: user, profile: installerProfile);
-        final installerPhotoUrl =
+      final installerPhotoUrl =
           _resolveInstallerPhotoUrl(user: user, profile: installerProfile);
       final referralKey = '${referrerId}_${user.uid}';
       final referralDoc = firestore.collection('referrals').doc(referralKey);
@@ -480,9 +480,9 @@ class AppsFlyerService {
               ...normalizedAttributionData,
               'appsFlyerId': appsFlyerId,
               'installerEmail': user.email,
-                'installerDisplayName': installerDisplayName,
+              'installerDisplayName': installerDisplayName,
               'installerPhoneNumber': user.phoneNumber,
-                'installerPhotoURL': installerPhotoUrl,
+              'installerPhotoURL': installerPhotoUrl,
               'installerEmailVerified': user.emailVerified,
               'installerCreationTime':
                   user.metadata.creationTime?.millisecondsSinceEpoch,
@@ -517,9 +517,12 @@ class AppsFlyerService {
       final existingReferrer = installerData['referred_by']?.toString();
 
       if (existingReferrer == null || existingReferrer.isEmpty) {
-        transaction.set(installerRef, {
-          'referred_by': referrerId,
-        }, SetOptions(merge: true));
+        transaction.set(
+            installerRef,
+            {
+              'referred_by': referrerId,
+            },
+            SetOptions(merge: true));
       }
     });
   }
@@ -529,7 +532,8 @@ class AppsFlyerService {
     required String installerId,
   }) async {
     try {
-      final snapshot = await firestore.collection('humanUsers').doc(installerId).get();
+      final snapshot =
+          await firestore.collection('humanUsers').doc(installerId).get();
       return snapshot.data();
     } catch (e) {
       return null;
@@ -711,7 +715,8 @@ class AppsFlyerService {
       },
     );
 
-    final Uri accomplishmentOneLink = Uri.https('join-inzone.onelink.me', '/SACg', {
+    final Uri accomplishmentOneLink =
+        Uri.https('join-inzone.onelink.me', '/SACg', {
       'af_xp': 'custom',
       'pid': 'minigame_accomplishment',
       'deep_link_value': 'minigame',
