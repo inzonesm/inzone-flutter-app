@@ -3,7 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:http/http.dart' as http;
 import 'package:inzone/data/inzone_post.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:inzone/services/appsflyer_service.dart';
+import 'package:inzone/services/analytics_service.dart';
 import 'dart:async'; // Add Timer import
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -210,7 +210,8 @@ class InZoneDatabase {
   }
 
   static Future<String?> sendMessageToAI(String userMessage, String aiUsername,
-      String? chatID, List<Set> chatHistory, {String? imageUrl, String? videoUrl}) async {
+      String? chatID, List<Set> chatHistory,
+      {String? imageUrl, String? videoUrl}) async {
     String? currentUserUID = await InZoneDatabase.getCurrentUserUid();
     if (currentUserUID == null) {
       // Not logged in, so can't send message.
@@ -243,7 +244,8 @@ class InZoneDatabase {
     }
 
     // String url = 'http://172.30.1.54:8080/chat/popularCharacter';
-    String url = 'https://ai-apis-912424781531.us-east1.run.app/chat/popularCharacter';
+    String url =
+        'https://ai-apis-912424781531.us-east1.run.app/chat/popularCharacter';
 
     // Convert each Set to a List (or call toJson() if it's a custom object)
     final chatHistoryJson = chatHistory.map((s) => s.toList()).toList();
@@ -257,7 +259,7 @@ class InZoneDatabase {
         'user_id': currentUserUID,
         'chat_history': chatHistoryJson,
       };
-      
+
       // Add media URLs if provided
       if (imageUrl != null) {
         requestBody['imageUrl'] = imageUrl;
@@ -265,7 +267,7 @@ class InZoneDatabase {
       if (videoUrl != null) {
         requestBody['videoUrl'] = videoUrl;
       }
-      
+
       print("Sending this: $requestBody");
 
       if (chatID != null) {
@@ -1505,15 +1507,14 @@ class InZoneDatabase {
   }
 
   static Future<bool?> logEvent(String eventName, Map? eventValues) async {
-    bool? result;
     try {
-      final appsFlyerService = AppsFlyerService();
-
       final safeEventValues =
-          eventValues == null ? null : Map<String, dynamic>.from(eventValues);
-
-      result = await appsFlyerService.logEvent(eventName, safeEventValues);
-      return result;
+          eventValues == null ? null : Map<String, Object?>.from(eventValues);
+      await AnalyticsService().trackEvent(
+        eventName,
+        parameters: safeEventValues,
+      );
+      return true;
     } on Exception catch (e) {
       // Handle any exceptions that occur during the logging process
       print('Error logging event: $e');
@@ -1896,7 +1897,8 @@ class InZoneDatabase {
               ? postMap['post'] as Map<String, dynamic>
               : <String, dynamic>{};
 
-          final postText = (post['text_content'] ?? '').toString().trim().toLowerCase();
+          final postText =
+              (post['text_content'] ?? '').toString().trim().toLowerCase();
           if (postText == normalizedTarget) {
             final candidateIds = [
               postMap['id'],
@@ -1934,7 +1936,8 @@ class InZoneDatabase {
               ? data['post'] as Map<String, dynamic>
               : <String, dynamic>{};
 
-          final postText = (post['text_content'] ?? '').toString().trim().toLowerCase();
+          final postText =
+              (post['text_content'] ?? '').toString().trim().toLowerCase();
           if (postText == normalizedTarget) {
             return doc.id;
           }
@@ -2691,6 +2694,7 @@ class InZoneDatabase {
       return false;
     }
   }
+
   static Future<void> saveConversationMessage({
     required String aiUsername,
     required String text,
@@ -2711,7 +2715,7 @@ class InZoneDatabase {
         'text': text,
         'timestamp': DateTime.now().millisecondsSinceEpoch,
       };
-      
+
       // Add media URLs if present
       if (imageUrl != null && imageUrl.isNotEmpty) {
         messageEntry['imageUrl'] = imageUrl;
@@ -2732,7 +2736,8 @@ class InZoneDatabase {
         'userId': uid,
         'aiUsername': aiUsername,
         'updatedAt': FieldValue.serverTimestamp(),
-        'lastMessageText': text.isNotEmpty ? text : (imageUrl != null ? '[Image]' : '[Video]'),
+        'lastMessageText':
+            text.isNotEmpty ? text : (imageUrl != null ? '[Image]' : '[Video]'),
         'lastMessageSpeaker': speaker,
         'messages': FieldValue.arrayUnion([messageEntry]),
       }, SetOptions(merge: true));

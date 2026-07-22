@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -12,6 +13,7 @@ import 'package:inzone/theme/theme_manager.dart';
 import 'package:provider/provider.dart';
 import 'package:inzone/router/app_router.dart';
 import 'package:inzone/router/routes.dart';
+import 'package:inzone/services/analytics_service.dart';
 import 'package:inzone/services/appsflyer_service.dart';
 import 'package:inzone/services/inzone_database.dart';
 import 'package:inzone/services/notification_service.dart';
@@ -211,13 +213,15 @@ Future<void> validateFirebaseSession() async {
       };
 
       if (!fatalSessionErrorCodes.contains(e.code)) {
-        print('Keeping existing session; validation failure appears transient.');
+        print(
+            'Keeping existing session; validation failure appears transient.');
         return;
       }
 
       // Do not force sign-out here. Let the auth state listener and
       // Firebase persistence keep the user signed in unless auth fully fails.
-      print('Session appears invalid (${e.code}); leaving current auth state intact for now.');
+      print(
+          'Session appears invalid (${e.code}); leaving current auth state intact for now.');
     } catch (e) {
       print('Non-auth error validating session: $e');
       print(
@@ -335,6 +339,8 @@ void main() async {
 
   // Register FCM background message handler (must be after Firebase init)
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+
+  unawaited(AnalyticsService().initialize());
 
   const bool needsUpdate = false;
 
