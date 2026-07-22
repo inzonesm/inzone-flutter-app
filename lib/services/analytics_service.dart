@@ -28,7 +28,7 @@ class AnalyticsIdentityContext {
 }
 
 class AnalyticsService {
-  AnalyticsService({
+  AnalyticsService._({
     FirebaseAnalytics? firebaseAnalytics,
     AppsFlyerService? appsFlyerService,
     SharedPreferences? sharedPreferences,
@@ -40,6 +40,40 @@ class AnalyticsService {
         _firebaseLogger = firebaseLogger,
         _appsFlyerLogger = appsFlyerLogger,
         _sessionId = _generateUuidV4();
+
+  /// Production callers use the no-argument form and share a single instance,
+  /// so identity, session id, and the auth-state subscription are created once
+  /// per process (not once per event/screen, which previously leaked a
+  /// FirebaseAuth listener and produced unstable session ids and empty
+  /// anonymous ids under concurrent init).
+  ///
+  /// Passing any dependency (tests / DI) returns a fresh, uncached instance so
+  /// tests stay isolated and never mutate the shared singleton.
+  factory AnalyticsService({
+    FirebaseAnalytics? firebaseAnalytics,
+    AppsFlyerService? appsFlyerService,
+    SharedPreferences? sharedPreferences,
+    AnalyticsTransportLogger? firebaseLogger,
+    AnalyticsTransportLogger? appsFlyerLogger,
+  }) {
+    final hasOverrides = firebaseAnalytics != null ||
+        appsFlyerService != null ||
+        sharedPreferences != null ||
+        firebaseLogger != null ||
+        appsFlyerLogger != null;
+    if (hasOverrides) {
+      return AnalyticsService._(
+        firebaseAnalytics: firebaseAnalytics,
+        appsFlyerService: appsFlyerService,
+        sharedPreferences: sharedPreferences,
+        firebaseLogger: firebaseLogger,
+        appsFlyerLogger: appsFlyerLogger,
+      );
+    }
+    return _instance ??= AnalyticsService._();
+  }
+
+  static AnalyticsService? _instance;
 
   static const String anonymousIdPrefsKey = 'inzone_analytics_anonymous_id';
   static const String legacyGuestIdPrefsKey = 'inzone_guest_id';
@@ -105,28 +139,41 @@ class AnalyticsService {
   final String _sessionId;
   String? _anonymousId;
   String? _userId;
-  bool _initialized = false;
-  bool _initializing = false;
+  Future<void>? _initFuture;
+  StreamSubscription<User?>? _authSubscription;
 
-  Future<void> initialize() async {
-    if (_initialized || _initializing) {
-      return;
-    }
+  /// Idempotent: concurrent callers all await the same in-flight
+  /// initialization, so none proceeds with a null anonymous id.
+  Future<void> initialize() {
+    return _initFuture ??= _performInitialize();
+  }
 
-    _initializing = true;
+  Future<void> _performInitialize() async {
     try {
       final prefs = _sharedPreferences ?? await SharedPreferences.getInstance();
       _anonymousId = await _resolveAnonymousId(prefs);
       _userId = FirebaseAuth.instance.currentUser?.uid;
-      FirebaseAuth.instance.authStateChanges().listen((user) {
+      _authSubscription =
+          FirebaseAuth.instance.authStateChanges().listen((user) {
         _userId = user?.uid;
       });
-      _initialized = true;
     } catch (_) {
-      _initialized = true;
-    } finally {
-      _initializing = false;
+      // Identity resolution is best-effort; failures must never block or
+      // interrupt analytics/app flow.
     }
+  }
+
+  /// Cancels the auth-state subscription. The singleton normally lives for the
+  /// whole process; this exists for explicit teardown and tests.
+  Future<void> dispose() async {
+    await _authSubscription?.cancel();
+    _authSubscription = null;
+  }
+
+  @visibleForTesting
+  static Future<void> resetForTests() async {
+    await _instance?.dispose();
+    _instance = null;
   }
 
   Future<String> getAnonymousId() async {
