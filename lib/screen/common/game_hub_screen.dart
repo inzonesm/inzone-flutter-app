@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:inzone/components/live_players_indicator.dart';
 import 'package:inzone/data/community_game.dart';
 import 'package:inzone/data/hub_game.dart';
+import 'package:inzone/screen/servers/server_hub_screen.dart';
 import 'package:inzone/services/community_game_service.dart';
 import 'package:provider/provider.dart';
 import 'package:simula_ads/simula_ads.dart';
@@ -177,6 +178,15 @@ class _GameHubScreenState extends State<GameHubScreen> {
     final rows = _buildRows(_games);
     return CustomScrollView(
       slivers: [
+        // Multiplayer Server Hub entry (BisectHosting integration): join
+        // community-hosted servers or rent your own.
+        SliverToBoxAdapter(
+          child: _ServerHubBanner(
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const ServerHubScreen()),
+            ),
+          ),
+        ),
         // Category shelves (horizontally scrolling), same as the web hub.
         for (final row in rows)
           SliverToBoxAdapter(
@@ -245,6 +255,72 @@ class _GameHubScreenState extends State<GameHubScreen> {
       (title: 'Recommended for you', games: recommended),
     ];
     return rows.where((r) => r.games.isNotEmpty).toList();
+  }
+}
+
+// Entry card for the Multiplayer Server Hub, shown above the game shelves.
+class _ServerHubBanner extends StatelessWidget {
+  final VoidCallback onTap;
+  const _ServerHubBanner({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        margin: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: theme.cardColor,
+          borderRadius: BorderRadius.circular(18),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.10),
+              blurRadius: 12,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            CircleAvatar(
+              radius: 22,
+              backgroundColor:
+                  theme.colorScheme.primary.withValues(alpha: 0.15),
+              child: Icon(Icons.dns, color: theme.colorScheme.primary),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Multiplayer Server Hub',
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'Join live game servers or host your own',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.textTheme.bodyMedium?.color,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(
+              Icons.chevron_right,
+              color: theme.textTheme.bodyMedium?.color,
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 

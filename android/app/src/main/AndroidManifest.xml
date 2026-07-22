@@ -99,5 +99,11 @@
             <category android:name="android.intent.category.BROWSABLE" />
             <data android:scheme="market"/>
         </intent>
+        <!-- Server Hub: launch Minecraft Bedrock via its join deep links -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <category android:name="android.intent.category.BROWSABLE" />
+            <data android:scheme="minecraft"/>
+        </intent>
     </queries>
 </manifest>
