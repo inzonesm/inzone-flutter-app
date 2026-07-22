@@ -98,6 +98,7 @@ void main() {
         firebaseLogger: (eventName, parameters) async {
           throw StateError('boom');
         },
+        appsFlyerLogger: (eventName, parameters) async {},
       );
       await expectLater(
         service.trackProductEvent(AnalyticsService.eventGameOpened),

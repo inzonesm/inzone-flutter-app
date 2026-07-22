@@ -37,6 +37,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 // Key for storing first launch status in SharedPreferences
 const String FIRST_LAUNCH_KEY = 'is_first_launch';
 const String LAUNCH_COUNT_KEY = 'launch_count';
+const bool AF_SMOKE_TEST = bool.fromEnvironment('AF_SMOKE_TEST');
 
 Future<int> _incrementLaunchCount(SharedPreferences prefs) async {
   final nextCount = (prefs.getInt(LAUNCH_COUNT_KEY) ?? 0) + 1;
@@ -353,6 +354,9 @@ void main() async {
         InitTimer.measure('  └─ AppsFlyer.init', () async {
           final appsFlyerService = AppsFlyerService();
           await appsFlyerService.initialize();
+          await appsFlyerService.runDebugSmokeTestIfEnabled(
+            flagEnabled: AF_SMOKE_TEST,
+          );
           String? advertisingId = await appsFlyerService.getAdvertisingId();
           print("The advertising ID is $advertisingId");
         }),
@@ -387,8 +391,8 @@ void main() async {
     }
   });
 
-  // // TESTING: Uncomment the line below to test all analytics
-  // await appsFlyerService.testAllAnalytics();
+  // Debug smoke test can be enabled with:
+  // flutter run --dart-define=AF_SMOKE_TEST=true
 
   SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,

@@ -10,6 +10,77 @@ import 'package:http/http.dart' as http;
 import 'package:inzone/config/api_config.dart';
 import 'dart:developer';
 import 'package:flutter/foundation.dart';
+import 'package:package_info_plus/package_info_plus.dart';
+
+abstract class AppsFlyerSdkClient {
+  Future<void> initSdk({
+    required bool registerConversionDataCallback,
+    required bool registerOnAppOpenAttributionCallback,
+    required bool registerOnDeepLinkingCallback,
+  });
+
+  void onAppOpenAttribution(void Function(dynamic data) callback);
+
+  void onInstallConversionData(void Function(dynamic data) callback);
+
+  void onDeepLinking(void Function(DeepLinkResult deepLinkResult) callback);
+
+  void setCustomerUserId(String userId);
+
+  Future<bool?> logEvent(String eventName, Map<String, dynamic>? eventValues);
+
+  Future<String?> getAppsFlyerUID();
+}
+
+class _DefaultAppsFlyerSdkClient implements AppsFlyerSdkClient {
+  _DefaultAppsFlyerSdkClient(this._sdk);
+
+  final AppsflyerSdk _sdk;
+
+  @override
+  Future<void> initSdk({
+    required bool registerConversionDataCallback,
+    required bool registerOnAppOpenAttributionCallback,
+    required bool registerOnDeepLinkingCallback,
+  }) {
+    return _sdk.initSdk(
+      registerConversionDataCallback: registerConversionDataCallback,
+      registerOnAppOpenAttributionCallback:
+          registerOnAppOpenAttributionCallback,
+      registerOnDeepLinkingCallback: registerOnDeepLinkingCallback,
+    );
+  }
+
+  @override
+  void onAppOpenAttribution(void Function(dynamic data) callback) {
+    _sdk.onAppOpenAttribution(callback);
+  }
+
+  @override
+  void onInstallConversionData(void Function(dynamic data) callback) {
+    _sdk.onInstallConversionData(callback);
+  }
+
+  @override
+  void onDeepLinking(void Function(DeepLinkResult deepLinkResult) callback) {
+    _sdk.onDeepLinking(callback);
+  }
+
+  @override
+  void setCustomerUserId(String userId) {
+    _sdk.setCustomerUserId(userId);
+  }
+
+  @override
+  Future<bool?> logEvent(String eventName, Map<String, dynamic>? eventValues) {
+    return _sdk.logEvent(eventName, eventValues);
+  }
+
+  @override
+  Future<String?> getAppsFlyerUID() {
+    return _sdk.getAppsFlyerUID();
+  }
+}
 
 // Post View Tracking Helper
 class PostViewTracker {
@@ -73,7 +144,21 @@ class AppsFlyerService {
   static const String _pendingReferralKey = 'pending_referral_payload_v1';
   static const String _legacyReferrerKey = 'referrer_id';
   static const String _legacyAttributionKey = 'attribution_data';
+  static const String _smokeTestEventName = 'af_sdk_smoke_test';
   late AppsflyerSdk appsflyerSdk;
+  late AppsFlyerSdkClient _sdkClient;
+  bool _isInitialized = false;
+  Future<void>? _initializationFuture;
+  bool _listenersRegistered = false;
+  StreamSubscription<User?>? _authStateSubscription;
+  bool _smokeEventSent = false;
+
+  User? Function() _currentUserProvider =
+      () => FirebaseAuth.instance.currentUser;
+  Stream<User?> Function() _authStateChangesProvider =
+      () => FirebaseAuth.instance.authStateChanges();
+  Future<PackageInfo> Function() _packageInfoProvider =
+      PackageInfo.fromPlatform;
 
   // Store attribution data
   Map<String, dynamic>? _attributionData;
@@ -112,38 +197,72 @@ class AppsFlyerService {
     );
 
     appsflyerSdk = AppsflyerSdk(appsFlyerOptions);
+    _sdkClient = _DefaultAppsFlyerSdkClient(appsflyerSdk);
   }
 
   Future<void> initialize() async {
-    await appsflyerSdk.initSdk(
-      registerConversionDataCallback: true,
-      registerOnAppOpenAttributionCallback: true,
-      registerOnDeepLinkingCallback: true,
-    );
-
-    // Set up deep link listeners
-    setupDeepLinkListeners();
-
-    // Set customer user ID if available
-    User? currentUser = FirebaseAuth.instance.currentUser;
-    if (currentUser != null) {
-      setCustomerUserId(currentUser.uid);
-      // Check if there's a pending referral for this user and save it
-      await checkAndSavePendingReferral();
+    if (_isInitialized) {
+      return;
+    }
+    if (_initializationFuture != null) {
+      return _initializationFuture;
     }
 
-    // Add auth state listener to detect sign-in
-    FirebaseAuth.instance.authStateChanges().listen((User? user) {
+    _initializationFuture = _performInitialization();
+    return _initializationFuture;
+  }
+
+  Future<void> _performInitialization() async {
+    try {
+      await _sdkClient.initSdk(
+        registerConversionDataCallback: true,
+        registerOnAppOpenAttributionCallback: true,
+        registerOnDeepLinkingCallback: true,
+      );
+
+      _registerListenersOnce();
+
+      final User? currentUser = _currentUserProvider();
+      if (currentUser != null) {
+        setCustomerUserId(currentUser.uid);
+        await checkAndSavePendingReferral();
+      }
+
+      _isInitialized = true;
+      if (kDebugMode) {
+        debugPrint('AppsFlyer initialized successfully.');
+      }
+    } catch (e, st) {
+      if (kDebugMode) {
+        debugPrint('AppsFlyer initialization failed: ${e.runtimeType}');
+      }
+      log('AppsFlyer initialization failed: $e\n$st');
+      rethrow;
+    } finally {
+      if (!_isInitialized) {
+        _initializationFuture = null;
+      }
+    }
+  }
+
+  void _registerListenersOnce() {
+    if (_listenersRegistered) {
+      return;
+    }
+    _listenersRegistered = true;
+
+    _setupDeepLinkListeners();
+
+    _authStateSubscription ??= _authStateChangesProvider().listen((User? user) {
       if (user != null) {
-        // User signed in, set customer ID and check pending referrals
         setCustomerUserId(user.uid);
         checkAndSavePendingReferral();
       }
     });
   }
 
-  void setupDeepLinkListeners() {
-    appsflyerSdk.onAppOpenAttribution((dynamic data) {
+  void _setupDeepLinkListeners() {
+    _sdkClient.onAppOpenAttribution((dynamic data) {
       try {
         final Map<String, dynamic> mapData = Map<String, dynamic>.from(data);
         _attributionData = mapData;
@@ -153,7 +272,7 @@ class AppsFlyerService {
       }
     });
 
-    appsflyerSdk.onInstallConversionData((dynamic data) {
+    _sdkClient.onInstallConversionData((dynamic data) {
       try {
         final Map<String, dynamic> mapData = Map<String, dynamic>.from(data);
         _conversionData = mapData;
@@ -164,7 +283,7 @@ class AppsFlyerService {
     });
 
     // Listen for deep linking
-    appsflyerSdk.onDeepLinking((DeepLinkResult deepLinkResult) {
+    _sdkClient.onDeepLinking((DeepLinkResult deepLinkResult) {
       switch (deepLinkResult.status) {
         case Status.FOUND:
           // Deep link found
@@ -654,25 +773,94 @@ class AppsFlyerService {
   }
 
   void setCustomerUserId(String userId) {
-    appsflyerSdk.setCustomerUserId(userId);
+    _sdkClient.setCustomerUserId(userId);
   }
 
   Future<bool?> logEvent(
       String eventName, Map<String, dynamic>? eventValues) async {
-    // Debug logging for testing
-    // print('🔥 AppsFlyer Event: $eventName');
-    if (eventValues != null) {
-      print('📊 Parameters: ${eventValues.toString()}');
+    if (kDebugMode) {
+      debugPrint(
+          'AppsFlyer logEvent start: name=$eventName initialized=$_isInitialized');
     }
 
-    final result = await appsflyerSdk.logEvent(eventName, eventValues);
-    // print('✅ Event sent successfully: $result');
-
-    return result;
+    try {
+      await initialize();
+      final result = await _sdkClient.logEvent(eventName, eventValues);
+      if (kDebugMode) {
+        debugPrint(
+            'AppsFlyer logEvent result: name=$eventName result=$result initialized=$_isInitialized');
+      }
+      return result;
+    } catch (e, st) {
+      if (kDebugMode) {
+        debugPrint(
+            'AppsFlyer logEvent failed: name=$eventName initialized=$_isInitialized errorType=${e.runtimeType}');
+      }
+      log('AppsFlyer logEvent failed: name=$eventName initialized=$_isInitialized error=$e\n$st');
+      return null;
+    }
   }
 
   Future<String?> getAdvertisingId() async {
-    return await appsflyerSdk.getAppsFlyerUID();
+    return await _sdkClient.getAppsFlyerUID();
+  }
+
+  Future<void> runDebugSmokeTestIfEnabled({
+    bool flagEnabled = false,
+  }) async {
+    if (!kDebugMode || !flagEnabled || _smokeEventSent) {
+      return;
+    }
+
+    try {
+      final packageInfo = await _packageInfoProvider();
+      await logEvent(_smokeTestEventName, {
+        'platform': _getPlatform(),
+        'app_version': packageInfo.version,
+        'build_number': packageInfo.buildNumber,
+        'timestamp': DateTime.now().toIso8601String(),
+      });
+      _smokeEventSent = true;
+      if (kDebugMode) {
+        debugPrint('AppsFlyer smoke test event sent: $_smokeTestEventName');
+      }
+    } catch (e, st) {
+      if (kDebugMode) {
+        debugPrint('AppsFlyer smoke test failed: ${e.runtimeType}');
+      }
+      log('AppsFlyer smoke test failed: $e\n$st');
+    }
+  }
+
+  @visibleForTesting
+  void configureForTests({
+    AppsFlyerSdkClient? sdkClient,
+    User? Function()? currentUserProvider,
+    Stream<User?> Function()? authStateChangesProvider,
+    Future<PackageInfo> Function()? packageInfoProvider,
+  }) {
+    if (sdkClient != null) {
+      _sdkClient = sdkClient;
+    }
+    if (currentUserProvider != null) {
+      _currentUserProvider = currentUserProvider;
+    }
+    if (authStateChangesProvider != null) {
+      _authStateChangesProvider = authStateChangesProvider;
+    }
+    if (packageInfoProvider != null) {
+      _packageInfoProvider = packageInfoProvider;
+    }
+  }
+
+  @visibleForTesting
+  Future<void> resetForTests() async {
+    _isInitialized = false;
+    _initializationFuture = null;
+    _listenersRegistered = false;
+    _smokeEventSent = false;
+    await _authStateSubscription?.cancel();
+    _authStateSubscription = null;
   }
 
   String generateReferralLink(String userId) {
