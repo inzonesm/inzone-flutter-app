@@ -73,6 +73,8 @@ class AnalyticsService {
     return _instance ??= AnalyticsService._();
   }
 
+  static AnalyticsService get instance => AnalyticsService();
+
   static AnalyticsService? _instance;
 
   static const String anonymousIdPrefsKey = 'inzone_analytics_anonymous_id';
@@ -105,6 +107,13 @@ class AnalyticsService {
   static const String fieldContentId = 'content_id';
   static const String fieldMediaSource = 'media_source';
   static const String fieldAppVersion = 'app_version';
+  static const String fieldActionType = 'action_type';
+  static const String fieldSource = 'source';
+  static const String fieldCtaName = 'cta_name';
+  static const String fieldSignupMethod = 'signup_method';
+  static const String fieldProductId = 'product_id';
+  static const String fieldPrice = 'price';
+  static const String fieldCurrency = 'currency';
 
   static const Set<String> appFlyerAllowlist = {
     eventGameOpened,
@@ -494,142 +503,73 @@ class AnalyticsService {
   }
 
   Future<void> logSocialAction({
+    required String actionType,
     String? gameId,
-    String? gameName,
-    String? surface,
-    String? entrySource,
     String? creatorId,
-    String? campaignId,
-    String? contentId,
-    String? mediaSource,
     String? sessionId,
-    String? userId,
   }) async {
     await trackProductEvent(
       eventSocialAction,
-      parameters: const {},
-      surface: surface,
-      entrySource: entrySource,
+      parameters: {fieldActionType: actionType},
       gameId: gameId,
-      gameName: gameName,
       creatorId: creatorId,
-      campaignId: campaignId,
-      contentId: contentId,
-      mediaSource: mediaSource,
       sessionId: sessionId,
-      userId: userId,
     );
   }
 
   Future<void> logCreatorLinkOpened({
+    required String creatorId,
+    required String source,
     String? gameId,
-    String? gameName,
-    String? surface,
-    String? entrySource,
-    String? creatorId,
-    String? campaignId,
-    String? contentId,
-    String? mediaSource,
     String? sessionId,
-    String? userId,
   }) async {
     await trackProductEvent(
       eventCreatorLinkOpened,
-      parameters: const {},
-      surface: surface,
-      entrySource: entrySource,
+      parameters: {fieldSource: source},
       gameId: gameId,
-      gameName: gameName,
       creatorId: creatorId,
-      campaignId: campaignId,
-      contentId: contentId,
-      mediaSource: mediaSource,
       sessionId: sessionId,
-      userId: userId,
     );
   }
 
   Future<void> logAppCtaClicked({
+    required String ctaName,
     String? gameId,
-    String? gameName,
-    String? surface,
-    String? entrySource,
-    String? creatorId,
-    String? campaignId,
-    String? contentId,
-    String? mediaSource,
     String? sessionId,
-    String? userId,
   }) async {
     await trackProductEvent(
       eventAppCtaClicked,
-      parameters: const {},
-      surface: surface,
-      entrySource: entrySource,
+      parameters: {fieldCtaName: ctaName},
       gameId: gameId,
-      gameName: gameName,
-      creatorId: creatorId,
-      campaignId: campaignId,
-      contentId: contentId,
-      mediaSource: mediaSource,
       sessionId: sessionId,
-      userId: userId,
     );
   }
 
   Future<void> logSignupCompleted({
-    String? gameId,
-    String? gameName,
-    String? surface,
-    String? entrySource,
-    String? creatorId,
-    String? campaignId,
-    String? contentId,
-    String? mediaSource,
-    String? sessionId,
-    String? userId,
+    required String signupMethod,
   }) async {
     await trackProductEvent(
       eventSignupCompleted,
-      parameters: const {},
-      surface: surface,
-      entrySource: entrySource,
-      gameId: gameId,
-      gameName: gameName,
-      creatorId: creatorId,
-      campaignId: campaignId,
-      contentId: contentId,
-      mediaSource: mediaSource,
-      sessionId: sessionId,
-      userId: userId,
+      parameters: {fieldSignupMethod: signupMethod},
     );
   }
 
   Future<void> logPurchaseCompleted({
+    required String productId,
+    required num price,
+    required String currency,
     String? gameId,
-    String? gameName,
-    String? surface,
-    String? entrySource,
-    String? creatorId,
-    String? campaignId,
-    String? contentId,
-    String? mediaSource,
     String? sessionId,
-    String? userId,
   }) async {
     await trackProductEvent(
       eventPurchaseCompleted,
-      parameters: const {},
-      surface: surface,
-      entrySource: entrySource,
+      parameters: {
+        fieldProductId: productId,
+        fieldPrice: price,
+        fieldCurrency: currency,
+      },
       gameId: gameId,
-      gameName: gameName,
-      creatorId: creatorId,
-      campaignId: campaignId,
-      contentId: contentId,
-      mediaSource: mediaSource,
       sessionId: sessionId,
-      userId: userId,
     );
   }
 
