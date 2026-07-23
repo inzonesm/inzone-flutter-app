@@ -89,6 +89,11 @@ class HomeScreenState extends State<HomeScreen> {
   // Store the actual posts data from API
   List<dynamic> posts = [];
   List<dynamic> originalPosts = []; // For category filtering
+
+  // Cache of parsed post objects keyed by post ID. Parsing the raw JSON on
+  // every itemBuilder call (i.e. on every scroll frame for every visible
+  // card) was a major source of scroll jank.
+  final Map<String, InZonePost> _parsedPostCache = {};
   final Set<String> _viewedPosts =
       {}; // Track posts whose view count has been incremented
   static const String _feedCacheKey = 'home_feed_cache_v1';
@@ -191,6 +196,7 @@ class HomeScreenState extends State<HomeScreen> {
       hasMorePosts = true;
       selectedCategory = null;
       _viewedPosts.clear();
+      _parsedPostCache.clear();
       posts = List<dynamic>.from(prefetched);
       originalPosts = List<dynamic>.from(posts);
       categoriesList = [];
@@ -320,7 +326,9 @@ class HomeScreenState extends State<HomeScreen> {
     if (!_scrollController.hasClients) return;
 
     final position = _scrollController.position;
-    if (position.pixels >= position.maxScrollExtent - 1500 &&
+    // Start fetching the next page ~2 screens before the end so the network
+    // round-trip overlaps with the user still scrolling through loaded posts.
+    if (position.pixels >= position.maxScrollExtent - 2500 &&
         !isLoadingMore &&
         hasMorePosts) {
       _loadMorePosts();
@@ -559,6 +567,7 @@ class HomeScreenState extends State<HomeScreen> {
               posts = List.from(uniqueNewPosts);
               categoriesList.clear();
               _viewedPosts.clear();
+              _parsedPostCache.clear();
             } else {
               posts.addAll(uniqueNewPosts);
             }
@@ -974,8 +983,24 @@ class HomeScreenState extends State<HomeScreen> {
     });
   }
 
+  /// Returns the parsed [InZonePost] for a raw feed entry, using the cache
+  /// so each post is parsed exactly once instead of on every rebuild.
+  InZonePost _parsedPost(String postId, dynamic actualPost) {
+    if (actualPost is InZonePost) return actualPost;
+    if (postId.isNotEmpty) {
+      final cached = _parsedPostCache[postId];
+      if (cached != null) return cached;
+    }
+    final parsed = InZonePost.fromJsonForHumans(actualPost);
+    if (postId.isNotEmpty) {
+      _parsedPostCache[postId] = parsed;
+    }
+    return parsed;
+  }
+
   // Extract the first category from a post
   String _extractCategoryFromPost(dynamic post) {
+    if (post is! Map) return '';
     // Check if category is an array
     if (post.containsKey('category')) {
       var category = post['category'];
@@ -1533,7 +1558,9 @@ class HomeScreenState extends State<HomeScreen> {
     // Get the actual post data using the calculated index
     dynamic actualPost = posts[actualPostIndex];
 
-    String postType = actualPost['post_type'] ?? 'unknown';
+    String postType = actualPost is Map
+        ? (actualPost['post_type']?.toString() ?? 'unknown')
+        : 'unknown';
 
     // Insert avatar carousel after certain number of posts
     if (actualPostIndex > 0 &&
@@ -1543,23 +1570,12 @@ class HomeScreenState extends State<HomeScreen> {
     }
 
     // Increment view count when post is built (not for ads or carousels)
-    String postId =
-        actualPost['id']?.toString() ?? actualPost['_id']?.toString() ?? '';
+    String postId = actualPost is Map
+        ? (actualPost['id']?.toString() ?? actualPost['_id']?.toString() ?? '')
+        : (actualPost is InZonePost ? actualPost.id : '');
 
-    // LOG: Track which post is being displayed
-    String postContentPreview = '';
-    if (actualPost.containsKey('post')) {
-      var postData = actualPost['post'];
-      if (postData is Map && postData.containsKey('text_content')) {
-        String textContent = postData['text_content']?.toString() ?? '';
-        postContentPreview = textContent.length > 30
-            ? textContent.substring(0, 30)
-            : textContent;
-      }
-    }
-
-    print(
-        '📺 DISPLAY Post #${actualPostIndex + 1}/${posts.length} | ListViewIdx: $index | ID: ${postId.length >= 8 ? postId.substring(0, 8) : postId}... | Type: $postType | Preview: "$postContentPreview${postContentPreview.isNotEmpty ? "..." : ""}"');
+    // NOTE: no per-item logging here - this method runs for every visible
+    // card on every scroll frame, and console I/O caused visible jank.
 
     if (postId.isNotEmpty &&
         postType != 'unknown' &&
@@ -1575,7 +1591,7 @@ class HomeScreenState extends State<HomeScreen> {
       switch (postType) {
         case 'repost':
           // Build repost card
-          InZonePost postObj = InZonePost.fromJsonForHumans(actualPost);
+          InZonePost postObj = _parsedPost(postId, actualPost);
           // Ensure correct category is set
           postObj = InZonePost(
             category: category,
@@ -1600,7 +1616,7 @@ class HomeScreenState extends State<HomeScreen> {
 
         case 'ai_post':
           // Build AI post card
-          InZonePost postObj = InZonePost.fromJsonForHumans(actualPost);
+          InZonePost postObj = _parsedPost(postId, actualPost);
           postObj = InZonePost(
             category: category,
             userName: postObj.userName,
@@ -1621,6 +1637,7 @@ class HomeScreenState extends State<HomeScreen> {
             inProfile: false,
             onDeleted: (postId) {
               setState(() {
+                _parsedPostCache.remove(postId);
                 posts.removeWhere((p) =>
                     (p is Map && p['id'] == postId) ||
                     (p is InZonePost && p.id == postId));
@@ -1630,6 +1647,7 @@ class HomeScreenState extends State<HomeScreen> {
             },
             onUpdated: (updatedPost) {
               setState(() {
+                _parsedPostCache[updatedPost.id] = updatedPost;
                 for (int i = 0; i < posts.length; i++) {
                   final p = posts[i];
                   if ((p is Map && p['id'] == updatedPost.id) ||
@@ -1647,7 +1665,7 @@ class HomeScreenState extends State<HomeScreen> {
 
         case 'human_post':
           // Build human post card
-          InZonePost postObj = InZonePost.fromJsonForHumans(actualPost);
+          InZonePost postObj = _parsedPost(postId, actualPost);
           postObj = InZonePost(
             category: category,
             userName: postObj.userName,
@@ -1669,6 +1687,7 @@ class HomeScreenState extends State<HomeScreen> {
             inProfile: false,
             onDeleted: (postId) {
               setState(() {
+                _parsedPostCache.remove(postId);
                 posts.removeWhere((p) =>
                     (p is Map && p['id'] == postId) ||
                     (p is InZonePost && p.id == postId));
@@ -1678,6 +1697,7 @@ class HomeScreenState extends State<HomeScreen> {
             },
             onUpdated: (updatedPost) {
               setState(() {
+                _parsedPostCache[updatedPost.id] = updatedPost;
                 for (int i = 0; i < posts.length; i++) {
                   final p = posts[i];
                   if ((p is Map && p['id'] == updatedPost.id) ||
@@ -1695,7 +1715,7 @@ class HomeScreenState extends State<HomeScreen> {
 
         default:
           // For unknown post types, try to render as a regular post
-          InZonePost postObj = InZonePost.fromJsonForHumans(actualPost);
+          InZonePost postObj = _parsedPost(postId, actualPost);
           postObj = InZonePost(
             category: category,
             userName: postObj.userName,
@@ -1717,6 +1737,7 @@ class HomeScreenState extends State<HomeScreen> {
             inProfile: false,
             onDeleted: (postId) {
               setState(() {
+                _parsedPostCache.remove(postId);
                 posts.removeWhere((p) =>
                     (p is Map && p['id'] == postId) ||
                     (p is InZonePost && p.id == postId));
@@ -1726,6 +1747,7 @@ class HomeScreenState extends State<HomeScreen> {
             },
             onUpdated: (updatedPost) {
               setState(() {
+                _parsedPostCache[updatedPost.id] = updatedPost;
                 for (int i = 0; i < posts.length; i++) {
                   final p = posts[i];
                   if ((p is Map && p['id'] == updatedPost.id) ||
@@ -2002,8 +2024,9 @@ class HomeScreenState extends State<HomeScreen> {
                     controller: _scrollController,
                     // Use AlwaysScrollableScrollPhysics for consistency
                     physics: const AlwaysScrollableScrollPhysics(),
-                    // Cache extent to prebuild the next ~3 cards (assuming ~200px per card)
-                    cacheExtent: 600.0,
+                    // Prebuild ~2 cards ahead of the viewport so scrolling
+                    // doesn't stutter when a new card (image/video) inflates.
+                    cacheExtent: 1200.0,
                     slivers: [
                       SliverPersistentHeader(
                         floating: true,
