@@ -83,6 +83,7 @@ class AnalyticsService {
   static const String eventGameViewed = 'game_viewed';
   static const String eventGameOpened = 'game_opened';
   static const String eventGameLoaded = 'game_loaded';
+  static const String eventGameHeartbeat = 'game_heartbeat';
   static const String eventQualifiedPlay = 'qualified_play';
   static const String eventGameEnded = 'game_ended';
   static const String eventScoreSubmitted = 'score_submitted';

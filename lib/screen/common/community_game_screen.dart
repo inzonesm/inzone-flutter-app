@@ -21,6 +21,7 @@ import 'package:inzone/components/social_overlay/social_bridge.dart';
 import 'package:inzone/config/api_config.dart';
 import 'package:inzone/data/community_game.dart';
 import 'package:inzone/data/hub_game.dart';
+import 'package:inzone/router/app_route_observer.dart';
 import 'package:inzone/services/active_character_notifier.dart';
 import 'package:inzone/services/analytics_service.dart';
 import 'package:inzone/services/community_game_service.dart';
@@ -45,6 +46,10 @@ Future<void> _forwardLifecycleProductEvent({
     gameName: gameName,
     sessionId: sessionId,
   );
+}
+
+bool _isAppLifecycleActive(AppLifecycleState? state) {
+  return state == AppLifecycleState.resumed;
 }
 
 /// Full-screen, TikTok-style community game player.
@@ -503,7 +508,8 @@ class _CommunityGamePage extends StatefulWidget {
   State<_CommunityGamePage> createState() => _CommunityGamePageState();
 }
 
-class _CommunityGamePageState extends State<_CommunityGamePage> {
+class _CommunityGamePageState extends State<_CommunityGamePage>
+    with WidgetsBindingObserver, RouteAware {
   static const String _fixtureAssetPath =
       'assets/html/social_loop_tap_targets.html';
 
@@ -706,6 +712,7 @@ class _CommunityGamePageState extends State<_CommunityGamePage> {
   Future<void>? _sessionEndFuture;
   int _sessionCoinsSpent = 0;
   String? _lastSharedChallengeKey;
+  ModalRoute<dynamic>? _observedRoute;
 
   // Social overlay: floating share button drawn over every community game
   // (send challenge / open chat / share score to InZone). The bridge holds
@@ -772,6 +779,8 @@ class _CommunityGamePageState extends State<_CommunityGamePage> {
     _lifecycle = GameSessionLifecycleCoordinator(
       gameId: widget.game.id,
       gameName: widget.game.name,
+      creatorId: widget.game.uploaderId,
+      source: 'community',
       trackEvent: (
         eventName, {
         parameters,
@@ -789,6 +798,11 @@ class _CommunityGamePageState extends State<_CommunityGamePage> {
         );
       },
     );
+    WidgetsBinding.instance.addObserver(this);
+    _lifecycle.setScreenVisible(widget.isActive);
+    _lifecycle.setAppActive(
+      _isAppLifecycleActive(WidgetsBinding.instance.lifecycleState),
+    );
     final key = widget.game.gameKey?.trim();
     _gameKey = key != null && key.isNotEmpty ? key : null;
     // If the game has no key yet, generate one and persist it.
@@ -801,21 +815,65 @@ class _CommunityGamePageState extends State<_CommunityGamePage> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final route = ModalRoute.of(context);
+    if (route == null || route == _observedRoute) return;
+    if (_observedRoute != null) {
+      appRouteObserver.unsubscribe(this);
+    }
+    _observedRoute = route;
+    appRouteObserver.subscribe(this, route);
+  }
+
+  @override
   void didUpdateWidget(covariant _CommunityGamePage oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (!oldWidget.isActive && widget.isActive) {
+      _lifecycle.setScreenVisible(true);
       _onPresented();
     } else if (oldWidget.isActive && !widget.isActive) {
+      _lifecycle.setScreenVisible(false);
       unawaited(_endSession(reason: 'navigation'));
     }
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    _lifecycle.setAppActive(_isAppLifecycleActive(state));
+  }
+
+  @override
   void dispose() {
     final disposeReason = _loadError.isNotEmpty ? 'error' : 'dispose';
+    WidgetsBinding.instance.removeObserver(this);
+    if (_observedRoute != null) {
+      appRouteObserver.unsubscribe(this);
+      _observedRoute = null;
+    }
+    _lifecycle.setScreenVisible(false);
+    _lifecycle.setAppActive(false);
     unawaited(_endSession(reason: disposeReason));
     _lifecycle.dispose();
     super.dispose();
+  }
+
+  @override
+  void didPushNext() {
+    _lifecycle.setScreenVisible(false);
+    unawaited(_endSession(reason: 'navigation'));
+  }
+
+  @override
+  void didPopNext() {
+    if (!widget.isActive) return;
+    _lifecycle.setScreenVisible(true);
+    _onPresented();
+  }
+
+  @override
+  void didPop() {
+    _lifecycle.setScreenVisible(false);
   }
 
   void _onPresented() {
@@ -1395,6 +1453,7 @@ class _CommunityGamePageState extends State<_CommunityGamePage> {
               _isLoading = false;
               _loadError = 'Failed to load game: ${error.description}';
             });
+            unawaited(_endSession(reason: 'error'));
           },
         ),
         // Home-feed embed only: transparent, hit-test-opaque strips over the
@@ -1942,7 +2001,8 @@ class _SimulaGamePage extends StatefulWidget {
   State<_SimulaGamePage> createState() => _SimulaGamePageState();
 }
 
-class _SimulaGamePageState extends State<_SimulaGamePage> {
+class _SimulaGamePageState extends State<_SimulaGamePage>
+    with WidgetsBindingObserver, RouteAware {
   InAppWebViewController? _controller;
   String? _iframeUrl;
   bool _resolving = true;
@@ -1957,6 +2017,7 @@ class _SimulaGamePageState extends State<_SimulaGamePage> {
 
   late final String? _playerId;
   Future<void>? _sessionEndFuture;
+  ModalRoute<dynamic>? _observedRoute;
 
   @override
   void initState() {
@@ -1968,6 +2029,7 @@ class _SimulaGamePageState extends State<_SimulaGamePage> {
     _lifecycle = GameSessionLifecycleCoordinator(
       gameId: widget.game.id,
       gameName: widget.game.name,
+      source: 'simula',
       trackEvent: (
         eventName, {
         parameters,
@@ -1985,24 +2047,28 @@ class _SimulaGamePageState extends State<_SimulaGamePage> {
         );
       },
     );
+    WidgetsBinding.instance.addObserver(this);
+    _lifecycle.setScreenVisible(widget.isActive);
+    _lifecycle.setAppActive(
+      _isAppLifecycleActive(WidgetsBinding.instance.lifecycleState),
+    );
     if (widget.isActive) {
       _onPresented();
     }
   }
 
   @override
-  void didUpdateWidget(covariant _SimulaGamePage oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (!oldWidget.isActive && widget.isActive) {
-      _onPresented();
-    } else if (oldWidget.isActive && !widget.isActive) {
-      unawaited(_endSession(reason: 'navigation'));
-    }
-  }
-
-  @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    final route = ModalRoute.of(context);
+    if (route != null && route != _observedRoute) {
+      if (_observedRoute != null) {
+        appRouteObserver.unsubscribe(this);
+      }
+      _observedRoute = route;
+      appRouteObserver.subscribe(this, route);
+    }
+
     // Resolve the iframe once, after the providers/MediaQuery are available.
     if (!_resolved) {
       _resolved = true;
@@ -2011,11 +2077,53 @@ class _SimulaGamePageState extends State<_SimulaGamePage> {
   }
 
   @override
+  void didUpdateWidget(covariant _SimulaGamePage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!oldWidget.isActive && widget.isActive) {
+      _lifecycle.setScreenVisible(true);
+      _onPresented();
+    } else if (oldWidget.isActive && !widget.isActive) {
+      _lifecycle.setScreenVisible(false);
+      unawaited(_endSession(reason: 'navigation'));
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    _lifecycle.setAppActive(_isAppLifecycleActive(state));
+  }
+
+  @override
   void dispose() {
     final disposeReason = _error.isNotEmpty ? 'error' : 'dispose';
+    WidgetsBinding.instance.removeObserver(this);
+    if (_observedRoute != null) {
+      appRouteObserver.unsubscribe(this);
+      _observedRoute = null;
+    }
+    _lifecycle.setScreenVisible(false);
+    _lifecycle.setAppActive(false);
     unawaited(_endSession(reason: disposeReason));
     _lifecycle.dispose();
     super.dispose();
+  }
+
+  @override
+  void didPushNext() {
+    _lifecycle.setScreenVisible(false);
+    unawaited(_endSession(reason: 'navigation'));
+  }
+
+  @override
+  void didPopNext() {
+    if (!widget.isActive) return;
+    _lifecycle.setScreenVisible(true);
+    _onPresented();
+  }
+
+  @override
+  void didPop() {
+    _lifecycle.setScreenVisible(false);
   }
 
   void _onPresented() {
@@ -2049,6 +2157,7 @@ class _SimulaGamePageState extends State<_SimulaGamePage> {
         _resolving = false;
         _error = 'Session not available. Pull to retry.';
       });
+      unawaited(_endSession(reason: 'error'));
       return;
     }
 
@@ -2090,6 +2199,7 @@ class _SimulaGamePageState extends State<_SimulaGamePage> {
           _resolving = false;
           _error = 'This game is unavailable right now.';
         });
+        unawaited(_endSession(reason: 'error'));
         return;
       }
       setState(() {
@@ -2109,6 +2219,7 @@ class _SimulaGamePageState extends State<_SimulaGamePage> {
         _resolving = false;
         _error = 'Failed to load game. Please try again.';
       });
+      unawaited(_endSession(reason: 'error'));
     }
   }
 
@@ -2212,6 +2323,7 @@ class _SimulaGamePageState extends State<_SimulaGamePage> {
                   _webLoading = false;
                   _error = 'Failed to load game: ${error.description}';
                 });
+                unawaited(_endSession(reason: 'error'));
               },
             ),
           if (showLoading && _error.isEmpty)
