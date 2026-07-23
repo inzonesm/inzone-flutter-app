@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:go_router/go_router.dart';
 import 'dart:convert';
 import 'package:inzone/router/auth_notifier.dart';
+import 'package:inzone/router/app_route_observer.dart';
 import 'package:inzone/root_app.dart';
 import 'package:inzone/screen/ai_character/ai_char_select_screen.dart';
 import 'package:inzone/screen/auth/introduction_screen.dart';
@@ -108,6 +109,7 @@ class AppRouter {
     refreshListenable: authNotifier,
     // Add custom codec to handle Map<String, Object> extras
     extraCodec: const MapExtraCodec(),
+    observers: [appRouteObserver],
     redirect: (BuildContext context, GoRouterState state) {
       // ── Deep-link interception ──
       // On Android, AppsFlyer delivers OneLinks by launching their `af_dp` URI
