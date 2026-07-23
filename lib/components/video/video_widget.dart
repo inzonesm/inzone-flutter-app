@@ -10,6 +10,7 @@ import 'package:flutter/services.dart';
 // PlayerState IS referenced by name — hiding resolves the ambiguity.
 import 'package:media_kit/media_kit.dart' hide PlayerState;
 import 'package:media_kit_video/media_kit_video.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:video_player/video_player.dart' as vp;
 import 'package:visibility_detector/visibility_detector.dart';
 import 'package:inzone/services/appsflyer_service.dart';
@@ -198,9 +199,50 @@ class _VideoWidgetState extends State<VideoWidget> with WidgetsBindingObserver {
   // only treats buffering as "keep video visible" after playback started.
   bool _ytHasStartedPlaying = false;
 
-  // Session cache of YouTube video orientation (videoId -> true if vertical),
-  // filled by the oEmbed probe below so revisited videos size instantly.
+  // Set when the video became visible before the YouTube iframe was ready;
+  // consumed by _ytListener to start playback as soon as it is. Needed now
+  // that inline videos initialize offscreen (preload) with autoPlay off.
+  bool _ytWantsPlay = false;
+
+  // Cache of YouTube video orientation (videoId -> true if vertical), filled
+  // by the /shorts/ URL check, the oEmbed probe, and duration detection.
+  // Persisted across sessions so revisited videos size correctly BEFORE the
+  // iframe loads — this is what prevents the 16:9 -> 9:16 layout jump on
+  // Shorts the user has seen before.
   static final Map<String, bool> _ytVerticalCache = {};
+  static Future<void>? _ytVerticalCacheFuture;
+  static Timer? _ytVerticalCacheSaveTimer;
+  static const String _ytVerticalCacheKey = 'yt_vertical_cache_v1';
+
+  static Future<void> _loadYtVerticalCache() {
+    return _ytVerticalCacheFuture ??= () async {
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        final raw = prefs.getString(_ytVerticalCacheKey);
+        if (raw == null || raw.isEmpty) return;
+        final decoded = jsonDecode(raw);
+        if (decoded is Map<String, dynamic>) {
+          decoded.forEach((id, v) {
+            if (v is bool) _ytVerticalCache.putIfAbsent(id, () => v);
+          });
+        }
+      } catch (_) {
+        // Best-effort cache; sizing falls back to runtime detection.
+      }
+    }();
+  }
+
+  static void _saveYtVerticalCache() {
+    // Debounced so bursts of updates write once.
+    _ytVerticalCacheSaveTimer?.cancel();
+    _ytVerticalCacheSaveTimer = Timer(const Duration(seconds: 2), () async {
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString(
+            _ytVerticalCacheKey, jsonEncode(_ytVerticalCache));
+      } catch (_) {}
+    });
+  }
 
   // Add scrubbing state variables
   bool _isScrubbing = false;
@@ -342,6 +384,9 @@ class _VideoWidgetState extends State<VideoWidget> with WidgetsBindingObserver {
       final videoId = _getYoutubeVideoId(widget.videoUrl);
       if (videoId != null) {
         _isYouTube = true;
+        // Ensure the persisted orientation cache is loaded before consulting
+        // it (no-op after the first video of the session).
+        await _loadYtVerticalCache();
         // YouTube-only sizing: 9:16 when the URL self-identifies as a Short,
         // when the session cache says so, or (async, background) when the
         // oEmbed title carries a '#shorts' hashtag — which covers the feed's
@@ -352,7 +397,10 @@ class _VideoWidgetState extends State<VideoWidget> with WidgetsBindingObserver {
         if (widget.videoUrl.contains('/shorts/') ||
             _ytVerticalCache[videoId] == true) {
           _isShorts = true;
-          _ytVerticalCache[videoId] = true;
+          if (_ytVerticalCache[videoId] != true) {
+            _ytVerticalCache[videoId] = true;
+            _saveYtVerticalCache();
+          }
         } else if (!_ytVerticalCache.containsKey(videoId)) {
           _probeYoutubeShortsHashtag(videoId);
         }
@@ -362,14 +410,16 @@ class _VideoWidgetState extends State<VideoWidget> with WidgetsBindingObserver {
         _ytController = YoutubePlayerController(
           initialVideoId: videoId,
           flags: YoutubePlayerFlags(
-            autoPlay: true,
+            // Inline videos now initialize while still offscreen (preload),
+            // so they must not autoplay - the VisibilityDetector (or the
+            // wants-play handoff in _ytListener) starts playback when the
+            // video actually scrolls into view.
+            autoPlay: widget.isFullscreen,
             mute: VideoMuteManager.isMuted,
             disableDragSeek: false,
-            // Fullscreen viewer: resume where the inline player was rather
-            // than restarting from the beginning.
-            startAt: widget.isFullscreen
-                ? (_videoPositionRegistry[widget.videoUrl]?.inSeconds ?? 0)
-                : 0,
+            // Resume where playback last was (fullscreen viewer, or an
+            // inline player rebuilt after being released offscreen).
+            startAt: _videoPositionRegistry[widget.videoUrl]?.inSeconds ?? 0,
             // Loop so the video never reaches the "ended" state — YouTube's
             // end screen (replay button, share, YouTube logo) is drawn by the
             // iframe itself and would appear over the video otherwise.
@@ -384,6 +434,14 @@ class _VideoWidgetState extends State<VideoWidget> with WidgetsBindingObserver {
         _ytListener = () {
           try {
             final value = _ytController!.value;
+            // Deferred autoplay: the video became visible before the iframe
+            // was ready. Start playback now that it is (consumed once, so a
+            // user pause is never overridden).
+            if (_ytWantsPlay && value.isReady) {
+              _ytWantsPlay = false;
+              _pauseOtherVideos(widget.videoUrl);
+              _ytController!.play();
+            }
             // Track when frames have actually started rendering — the
             // thumbnail cover in build() uses this to stay up during the
             // initial load (hiding the iframe's spinner/title UI) without
@@ -403,7 +461,10 @@ class _VideoWidgetState extends State<VideoWidget> with WidgetsBindingObserver {
               // Cache the confirmed orientation so any NEW player instance for
               // this video (e.g. the fullscreen viewer) is sized correctly on
               // its very first frame instead of flashing 16:9 first.
-              _ytVerticalCache[videoId] = detectedShorts;
+              if (_ytVerticalCache[videoId] != detectedShorts) {
+                _ytVerticalCache[videoId] = detectedShorts;
+                _saveYtVerticalCache();
+              }
               if (detectedShorts != _isShorts) {
                 if (mounted) {
                   setState(() {
@@ -470,13 +531,11 @@ class _VideoWidgetState extends State<VideoWidget> with WidgetsBindingObserver {
       // Initialize the controller
       await _androidController!.initialize();
 
-      // Fullscreen viewer: resume from the inline player's position instead
-      // of restarting at zero.
-      if (widget.isFullscreen) {
-        final resumeAt = _videoPositionRegistry[widget.videoUrl];
-        if (resumeAt != null && resumeAt > Duration.zero) {
-          await _androidController!.seekTo(resumeAt);
-        }
+      // Resume from the last known position: covers the fullscreen viewer
+      // AND inline players rebuilt after the feed released them offscreen.
+      final resumeAt = _videoPositionRegistry[widget.videoUrl];
+      if (resumeAt != null && resumeAt > Duration.zero) {
+        await _androidController!.seekTo(resumeAt);
       }
 
       // Set up listener for aspect ratio
@@ -557,6 +616,7 @@ class _VideoWidgetState extends State<VideoWidget> with WidgetsBindingObserver {
       if (!tagged) return;
 
       _ytVerticalCache[videoId] = true;
+      _saveYtVerticalCache();
 
       if (!mounted || !_isYouTube) return;
       if (!_isShorts) {
@@ -690,13 +750,11 @@ class _VideoWidgetState extends State<VideoWidget> with WidgetsBindingObserver {
       // Configure playback rate (volume is already set)
       await _mediaKitPlayer!.setRate(1.0);
 
-      // Fullscreen viewer: resume from the inline player's position instead
-      // of restarting at zero.
-      if (widget.isFullscreen) {
-        final resumeAt = _videoPositionRegistry[widget.videoUrl];
-        if (resumeAt != null && resumeAt > Duration.zero) {
-          await _mediaKitPlayer!.seek(resumeAt);
-        }
+      // Resume from the last known position: covers the fullscreen viewer
+      // AND inline players rebuilt after the feed released them offscreen.
+      final resumeAt = _videoPositionRegistry[widget.videoUrl];
+      if (resumeAt != null && resumeAt > Duration.zero) {
+        await _mediaKitPlayer!.seek(resumeAt);
       }
 
       debugPrint('MediaKit Player opened successfully');
@@ -707,9 +765,14 @@ class _VideoWidgetState extends State<VideoWidget> with WidgetsBindingObserver {
         controller: _mediaKitVideoController,
       );
 
-      // Enable autoplay - start playing automatically when initialized
-      _pauseOtherVideos(widget.videoUrl);
-      _mediaKitPlayer!.play();
+      // Autoplay only when actually visible. Videos now initialize while
+      // still below the viewport (preload) - they must not steal the
+      // "currently playing" slot or start decoding audio offscreen; the
+      // VisibilityDetector starts playback when the video scrolls in.
+      if (_isVisible || widget.isFullscreen) {
+        _pauseOtherVideos(widget.videoUrl);
+        _mediaKitPlayer!.play();
+      }
 
       if (mounted) {
         setState(() {
@@ -1178,9 +1241,16 @@ class _VideoWidgetState extends State<VideoWidget> with WidgetsBindingObserver {
             _isVisible = isVisible;
             try {
               if (isVisible) {
-                _pauseOtherVideos(widget.videoUrl);
-                _ytController?.play();
+                if (_ytController?.value.isReady == true) {
+                  _pauseOtherVideos(widget.videoUrl);
+                  _ytController?.play();
+                } else {
+                  // Iframe still loading (preloaded offscreen): play as
+                  // soon as it's ready — handled in _ytListener.
+                  _ytWantsPlay = true;
+                }
               } else {
+                _ytWantsPlay = false;
                 _ytController?.pause();
               }
             } catch (_) {}

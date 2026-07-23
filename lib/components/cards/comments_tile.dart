@@ -115,7 +115,12 @@ class _CommentsTileState extends State<CommentsTile> {
 
   String formatTimestamp(String timestamp) {
     try {
-      final DateTime date = DateTime.parse(timestamp).toUtc();
+      // Comments store timestamps as epoch-millis strings (canonical) or
+      // ISO-8601 strings (older comments) - support both.
+      final int? millis = int.tryParse(timestamp);
+      final DateTime date = millis != null
+          ? DateTime.fromMillisecondsSinceEpoch(millis, isUtc: true)
+          : DateTime.parse(timestamp).toUtc();
       final Duration difference = DateTime.now().toUtc().difference(date);
 
       if (difference.inDays > 365) {

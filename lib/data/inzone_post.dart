@@ -1,5 +1,4 @@
 import 'package:inzone/data/comment_class.dart';
-import 'package:flutter/foundation.dart'; // Added for debugPrint
 
 class InZonePost {
   final String category;
@@ -235,7 +234,6 @@ class InZonePost {
 
     // Safely handle comments
     List<dynamic> commentsList = [];
-    debugPrint('Fetched video URLs: $videoList');
     if (json['comments'] is Map && (json['comments'] as Map).isEmpty) {
       commentsList = [];
     } else if (json['comments'] is List) {
@@ -374,13 +372,6 @@ class InZonePost {
       }
     } catch (e) {}
 
-    // Debug: Check what user reference fields are available
-    debugPrint('🔍 Post JSON keys: ${json.keys.toList()}');
-    debugPrint('🔍 user_document_id: ${json['user_document_id']}');
-    debugPrint('🔍 UserDocumentId: ${json['UserDocumentId']}');
-    debugPrint('🔍 userDocumentId: ${json['userDocumentId']}');
-    debugPrint('🔍 user_reference: ${json['user_reference']}');
-    
     String userReference = (json['user_document_id'] ??
         json['UserDocumentId'] ??
         json['userDocumentId'] ??
@@ -390,9 +381,7 @@ class InZonePost {
         json['uid'] ??
         'unknown')
       .toString();
-                          
-    debugPrint('🔍 Final userReference: $userReference');
-    
+
     String mainCategory =
         json['category'] is List && (json['category'] as List).isNotEmpty
             ? json['category'][0]
@@ -438,8 +427,6 @@ class InZonePost {
         }
       }
     } catch (e) {}
-
-    debugPrint('Fetched video URLs (for humans): $videoList');
 
     // Safely handle comments
     List<CommentClass> finalCommentsList = [];

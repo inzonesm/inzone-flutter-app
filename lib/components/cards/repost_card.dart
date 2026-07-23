@@ -811,42 +811,46 @@ class _RepostCardState extends State<RepostCard>
   // Add comment to Firestore
   void _addComment() async {
     String commentText = mySearchController.text.trim();
-    // Reference to the document where comments are stored
-    DocumentReference postDocumentReference =
-        _firestore.collection('postComments').doc(widget.post.id.toString());
+    if (commentText.isEmpty) return;
 
-    // Get the document snapshot
-    DocumentSnapshot postSnapshot = await postDocumentReference.get();
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
 
-    // Initialize currentComments
-    List<dynamic> currentComments = [];
+    // Clear the input immediately so posting feels instant; restored on error.
+    mySearchController.clear();
 
-    if (postSnapshot.exists) {
-      // If the document exists, retrieve the current comments list
-      currentComments = postSnapshot['comments'] ?? [];
-    } else {
-      // If the document does not exist, create it with an empty comments list
-      await postDocumentReference.set({'comments': currentComments});
-    }
+    final now = DateTime.now().toUtc();
 
-    // New comment to add
+    // New comment to add - full schema shared with PostCard comments.
     Map<String, dynamic> newComment = {
-      'author': FirebaseAuth.instance.currentUser!.uid,
+      'id': '${now.millisecondsSinceEpoch}_${user.uid}',
+      'author': user.displayName ?? 'Anonymous',
       'text': commentText,
-      'userId': FirebaseAuth.instance.currentUser!.uid,
-      'timestamp': DateTime.now().toUtc().millisecondsSinceEpoch.toString(),
+      'userId': user.uid,
+      'postId': widget.post.id.toString(),
+      'timestamp': now.millisecondsSinceEpoch.toString(),
       'likedBy': [], // Initialize likedBy as an empty list
+      'dislikedBy': [],
+      'replyCount': 0,
+      'parentCommentId': null,
+      'isReply': false,
     };
 
-    // Add the new comment to the existing comments list
-    currentComments.add(newComment);
-
-    // Update the document with the new comments list
-    await postDocumentReference.update({'comments': currentComments});
-
-    setState(() {
-      mySearchController.clear();
-    });
+    try {
+      // Single atomic write: appends without a prior read and creates the
+      // document if it doesn't exist yet.
+      await _firestore
+          .collection('postComments')
+          .doc(widget.post.id.toString())
+          .set({
+        'comments': FieldValue.arrayUnion([newComment]),
+      }, SetOptions(merge: true));
+    } catch (e) {
+      debugPrint('Error adding comment: $e');
+      if (mounted) {
+        mySearchController.text = commentText;
+      }
+    }
   }
 
   // void _addReply(String commentId) async {

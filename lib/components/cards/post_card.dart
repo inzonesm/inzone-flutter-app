@@ -406,22 +406,64 @@ class _PostCardState extends State<PostCard>
   }
 
   Future<bool> isCommentPresent() async {
-    DocumentReference postDocumentReference =
-        _firestore.collection('postComments').doc(widget.post.id.toString());
+    try {
+      final postSnapshot = await _firestore
+          .collection('postComments')
+          .doc(widget.post.id.toString())
+          .get();
 
-    // Get the document snapshot
-    DocumentSnapshot postSnapshot = await postDocumentReference.get();
+      if (!postSnapshot.exists) return false;
 
-    // Initialize currentComments
-    List<dynamic> currentComments = [];
-
-    if (postSnapshot.exists) {
-      // If the document exists, retrieve the current comments list
-      currentComments = postSnapshot['comments'] ?? [];
-      return currentComments.isNotEmpty;
+      // Read via data() instead of operator[] — the latter throws when the
+      // 'comments' field is missing from an existing document.
+      final data = postSnapshot.data();
+      final comments = data?['comments'];
+      return comments is List && comments.isNotEmpty;
+    } catch (e) {
+      debugPrint('isCommentPresent failed: $e');
+      return false;
     }
+  }
 
-    return false;
+  // ---- Comment data normalization helpers ----
+  // Comments in Firestore exist in mixed formats written over time:
+  // timestamps as epoch-millis strings, ISO-8601 strings, or raw Firestore
+  // Timestamp objects (legacy AI-generated comments). These helpers normalize
+  // everything so a single malformed comment can no longer crash the whole
+  // comment sheet (previously the case for many AI/non-English posts).
+
+  /// Best-effort conversion of any stored timestamp value to epoch millis.
+  static int _timestampToMillis(dynamic raw) {
+    if (raw == null) return 0;
+    if (raw is Timestamp) return raw.millisecondsSinceEpoch;
+    if (raw is int) return raw;
+    final s = raw.toString();
+    final asInt = int.tryParse(s);
+    if (asInt != null) return asInt;
+    final asDate = DateTime.tryParse(s);
+    if (asDate != null) return asDate.millisecondsSinceEpoch;
+    return 0;
+  }
+
+  /// Normalizes any stored timestamp to an epoch-millis string (or '').
+  static String _timestampToString(dynamic raw) {
+    final millis = _timestampToMillis(raw);
+    return millis > 0 ? millis.toString() : '';
+  }
+
+  // Cache of comment-author profile fetches: each author is fetched once per
+  // card instead of once per comment per rebuild (previously caused flicker
+  // and jank every time the comment stream emitted).
+  final Map<String, Future<DocumentSnapshot<Map<String, dynamic>>>>
+      _commentAuthorProfileFutures = {};
+
+  Future<DocumentSnapshot<Map<String, dynamic>>> _commentAuthorProfile(
+      String userId) {
+    return _commentAuthorProfileFutures.putIfAbsent(
+      userId,
+      () =>
+          FirebaseFirestore.instance.collection('humanUsers').doc(userId).get(),
+    );
   }
 
   Future<void> _loadUserProfileImage() async {
@@ -2644,12 +2686,68 @@ class _PostCardState extends State<PostCard>
 
   // Add comment to Firestore
   Future<void> _addComment() async {
-    print(widget.post.id);
     String commentText = mySearchController.text.trim();
 
     if (commentText.isEmpty) return;
 
-    // Track comment event in AppsFlyer
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    // Clear the input immediately so posting feels instant; restored on error.
+    mySearchController.clear();
+
+    final now = DateTime.now().toUtc();
+    final commentId = '${now.millisecondsSinceEpoch}_${user.uid}';
+
+    Map<String, dynamic> newComment = {
+      'id': commentId,
+      'author': user.displayName ?? 'Anonymous',
+      'text': commentText,
+      'userId': user.uid,
+      'postId': widget.post.id.toString(),
+      // Epoch-millis string: the canonical format used for sorting.
+      'timestamp': now.millisecondsSinceEpoch.toString(),
+      'likedBy': [], // Initialize likedBy as an empty list
+      'dislikedBy': [],
+      'replyCount': 0,
+      'parentCommentId': null,
+      'isReply': false,
+    };
+
+    try {
+      // Single atomic write: arrayUnion appends without a prior read and
+      // creates the document if it doesn't exist. The comment sheet's
+      // StreamBuilder shows the comment instantly via Firestore's local
+      // latency compensation - no waiting on the server round-trip.
+      await _firestore
+          .collection('postComments')
+          .doc(widget.post.id.toString())
+          .set({
+        'comments': FieldValue.arrayUnion([newComment]),
+      }, SetOptions(merge: true));
+    } catch (e) {
+      debugPrint('Error adding comment: $e');
+      if (mounted) {
+        // Give the text back so the user can retry.
+        mySearchController.text = commentText;
+        ToastService.showToast(
+          context,
+          backgroundColor: Colors.red,
+          message: 'Failed to post comment. Please try again.',
+          leading: const Icon(Icons.error, color: Colors.white),
+        );
+      }
+      return;
+    }
+
+    if (mounted && !isCommentPresentbool) {
+      setState(() {
+        isCommentPresentbool = true;
+      });
+    }
+
+    // Everything below is fire-and-forget: analytics and notifications must
+    // never block the comment from appearing as posted.
     final userId = AppsFlyerService().getCurrentUserId();
     if (userId != null) {
       String category = '';
@@ -2673,63 +2771,20 @@ class _PostCardState extends State<PostCard>
       InZoneDatabase.trackPostComment(userId, widget.post.id);
     }
 
-    // Reference to the document where comments are stored
-    DocumentReference postDocumentReference =
-        _firestore.collection('postComments').doc(widget.post.id.toString());
-
-    // Get the document snapshot
-    DocumentSnapshot postSnapshot = await postDocumentReference.get();
-
-    // Initialize currentComments
-    List<dynamic> currentComments = [];
-
-    if (postSnapshot.exists) {
-      // If the document exists, retrieve the current comments list
-      currentComments = postSnapshot['comments'] ?? [];
-    } else {
-      // If the document does not exist, create it with an empty comments list
-      await postDocumentReference.set({'comments': currentComments});
-    }
-
-    // New comment to add
-    final commentId = DateTime.now().millisecondsSinceEpoch.toString() +
-        (1000 + (999 * (DateTime.now().microsecond / 1000000)).round())
-            .toString();
-
-    Map<String, dynamic> newComment = {
-      'id': commentId,
-      'author': FirebaseAuth.instance.currentUser!.displayName,
-      'text': commentText,
-      'userId': FirebaseAuth.instance.currentUser!.uid,
-      'timestamp': DateTime.now().toUtc().toIso8601String(),
-      'likedBy': [], // Initialize likedBy as an empty list
-      'dislikedBy': [],
-      'replyCount': 0,
-      'parentCommentId': null,
-      'isReply': false,
-    };
-
-    // Add the new comment to the existing comments list
-    currentComments.add(newComment);
-
-    // Update the document with the new comments list
-    await postDocumentReference.update({'comments': currentComments});
-
-    // Trigger notification for post engagement (comment)
-    await NotificationEventService.onPostEngagement(
-      // await NotificationService.sendPostEngagementNotification(
-      postId: widget.post.id,
-      type: 'comment',
-      userId: FirebaseAuth.instance.currentUser!.uid,
-      content: commentText,
-      postAuthorId: widget.post.userReference.isNotEmpty
-          ? widget.post.userReference
-          : null,
+    // Trigger notification for post engagement (comment) in the background.
+    unawaited(
+      NotificationEventService.onPostEngagement(
+        postId: widget.post.id,
+        type: 'comment',
+        userId: user.uid,
+        content: commentText,
+        postAuthorId: widget.post.userReference.isNotEmpty
+            ? widget.post.userReference
+            : null,
+      ).catchError((e) {
+        debugPrint('Comment notification failed: $e');
+      }),
     );
-
-    setState(() {
-      mySearchController.clear();
-    });
   }
 
   // Toggle replies visibility for a comment
@@ -2967,74 +3022,82 @@ class _PostCardState extends State<PostCard>
 
     print('Proceeding with commentId: $commentIdToUse');
 
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    final now = DateTime.now().toUtc();
+    final replyId = '${now.millisecondsSinceEpoch}_${user.uid}';
+
+    Map<String, dynamic> newReply = {
+      'id': replyId,
+      'author': user.displayName ?? 'Anonymous',
+      'text': replyText,
+      'userId': user.uid,
+      'postId': widget.post.id.toString(),
+      'parentCommentId': commentIdToUse, // Use the validated comment ID
+      // Epoch-millis string: the canonical format used for sorting.
+      'timestamp': now.millisecondsSinceEpoch.toString(),
+      'likedBy': [],
+      'dislikedBy': [],
+      'replyCount': 0,
+      'isReply': true,
+    };
+
     try {
-      // Reference to the document where comments are stored
-      DocumentReference postDocumentReference =
-          _firestore.collection('postComments').doc(widget.post.id.toString());
-
-      // Get the document snapshot
-      DocumentSnapshot postSnapshot = await postDocumentReference.get();
-
-      if (!postSnapshot.exists) return;
-
-      List<dynamic> currentComments = postSnapshot['comments'] ?? [];
-
-      // Create new reply with proper ID
-      final replyId = DateTime.now().millisecondsSinceEpoch.toString();
-
-      Map<String, dynamic> newReply = {
-        'id': replyId,
-        'author': FirebaseAuth.instance.currentUser!.displayName ?? 'Anonymous',
-        'text': replyText,
-        'userId': FirebaseAuth.instance.currentUser!.uid,
-        'postId': widget.post.id.toString(),
-        'parentCommentId': commentIdToUse, // Use the validated comment ID
-        'timestamp': DateTime.now().toUtc().toIso8601String(),
-        'likedBy': [],
-        'dislikedBy': [],
-        'replyCount': 0,
-        'isReply': true,
-      };
-
-      // Add the reply to comments list
-      currentComments.add(newReply);
-
-      // Update the document
-      await postDocumentReference.update({'comments': currentComments});
-
-      // Trigger notification for comment reply
-      try {
-        final response = await http.post(
-          Uri.parse(
-              'https://inzoneapi-912424781531.us-central1.run.app/api/notifications/events/comment-reply'),
-          headers: {'Content-Type': 'application/json'},
-          body: jsonEncode({
-            'postId': widget.post.id.toString(),
-            'replierId': FirebaseAuth.instance.currentUser!.uid,
-            'parentCommentId': commentIdToUse, // Use the validated comment ID
-            'replyContent': replyText,
-            'replyId': replyId,
-          }),
-        );
-
-        if (response.statusCode == 200) {
-          print('✅ Comment reply notification sent successfully');
-        } else {
-          print(
-              '❌ Failed to send comment reply notification: ${response.statusCode}');
-        }
-      } catch (e) {
-        print('❌ Error sending comment reply notification: $e');
-        // Continue even if notification fails
-      }
-
-      // Clear and hide reply composer
-      _cancelReply();
-
-      print('Reply added successfully');
+      // Single atomic write - see _addComment for rationale.
+      await _firestore
+          .collection('postComments')
+          .doc(widget.post.id.toString())
+          .set({
+        'comments': FieldValue.arrayUnion([newReply]),
+      }, SetOptions(merge: true));
     } catch (e) {
-      print('Error adding reply: $e');
+      debugPrint('Error adding reply: $e');
+      if (mounted) {
+        ToastService.showToast(
+          context,
+          backgroundColor: Colors.red,
+          message: 'Failed to post reply. Please try again.',
+          leading: const Icon(Icons.error, color: Colors.white),
+        );
+      }
+      return;
     }
+
+    // Expand the parent's replies so the new reply is visible immediately.
+    if (!_expandedReplies.contains(commentIdToUse)) {
+      _expandedReplies.add(commentIdToUse);
+      _expandedRepliesNotifier.value = Set.from(_expandedReplies);
+    }
+
+    // Clear and hide the reply composer right away - don't make the user
+    // wait on the notification round-trip.
+    _cancelReply();
+
+    // Trigger notification for comment reply in the background.
+    unawaited(
+      http
+          .post(
+        Uri.parse(
+            'https://inzoneapi-912424781531.us-central1.run.app/api/notifications/events/comment-reply'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'postId': widget.post.id.toString(),
+          'replierId': user.uid,
+          'parentCommentId': commentIdToUse, // Use the validated comment ID
+          'replyContent': replyText,
+          'replyId': replyId,
+        }),
+      )
+          .then((response) {
+        if (response.statusCode != 200) {
+          debugPrint(
+              'Failed to send comment reply notification: ${response.statusCode}');
+        }
+      }).catchError((e) {
+        debugPrint('Error sending comment reply notification: $e');
+      }),
+    );
   }
 
   // void _addReply(String commentId) async {
@@ -3220,35 +3283,62 @@ class _PostCardState extends State<PostCard>
                             dynamic data =
                                 snapshot.data!.data() as Map<String, dynamic>?;
                             data ??= {};
-                            final commentsList = data['comments'] ?? [];
-                            final allComments =
-                                commentsList.map<CommentClass>((comment) {
-                              final commentIndex =
-                                  commentsList.indexOf(comment);
-                              return CommentClass(
-                                author:
-                                    comment['author'] ?? comment['name'] ?? '',
-                                text: comment['text'] ?? '',
+                            final rawComments = data['comments'];
+                            final commentsList =
+                                rawComments is List ? rawComments : const [];
+                            final allComments = <CommentClass>[];
+                            for (int commentIndex = 0;
+                                commentIndex < commentsList.length;
+                                commentIndex++) {
+                              final comment = commentsList[commentIndex];
+                              if (comment is! Map) continue;
+                              // Normalize every field defensively: comments were
+                              // written by several clients/services over time with
+                              // inconsistent types (e.g. Firestore Timestamp
+                              // objects instead of strings), and one bad comment
+                              // used to crash the entire sheet.
+                              final timestampStr = _timestampToString(
+                                  comment['timestamp'] ?? comment['createdAt']);
+                              final idStr =
+                                  (comment['id'] ?? '').toString().isNotEmpty
+                                      ? comment['id'].toString()
+                                      : (timestampStr.isNotEmpty
+                                          ? timestampStr
+                                          : commentIndex.toString());
+                              allComments.add(CommentClass(
+                                author: (comment['author'] ??
+                                        comment['name'] ??
+                                        '')
+                                    .toString(),
+                                text: (comment['text'] ??
+                                        comment['content'] ??
+                                        '')
+                                    .toString(),
                                 replies: [], // Will be populated from separate reply processing
-                                timestamp: comment['timestamp'] ?? "",
-                                id: comment['id'] ??
-                                    comment['timestamp'] ??
-                                    commentIndex.toString(),
+                                timestamp: timestampStr,
+                                id: idStr,
                                 postId: widget.post.id.toString(),
-                                userId: comment['userId'] ?? '',
-                                parentCommentId: comment['parentCommentId'],
-                                replyCount: comment['replyCount'] ?? 0,
-                                isReply: comment['isReply'] ??
-                                    (comment['parentCommentId'] != null),
-                                likedBy: comment['likedBy'] != null
-                                    ? List<String>.from(comment['likedBy'])
+                                userId: (comment['userId'] ?? '').toString(),
+                                parentCommentId:
+                                    comment['parentCommentId']?.toString(),
+                                replyCount: comment['replyCount'] is int
+                                    ? comment['replyCount'] as int
+                                    : 0,
+                                isReply: comment['isReply'] == true ||
+                                    comment['parentCommentId'] != null,
+                                likedBy: comment['likedBy'] is List
+                                    ? (comment['likedBy'] as List)
+                                        .map((e) => e.toString())
+                                        .toList()
                                     : [],
-                                dislikedBy: comment['dislikedBy'] != null
-                                    ? List<String>.from(comment['dislikedBy'])
+                                dislikedBy: comment['dislikedBy'] is List
+                                    ? (comment['dislikedBy'] as List)
+                                        .map((e) => e.toString())
+                                        .toList()
                                     : [],
                                 profilePictureUrl: '',
-                              );
-                            }).toList();
+                              ));
+                            }
 
                             // Separate parent comments and replies
                             final parentComments = allComments
@@ -3268,16 +3358,14 @@ class _PostCardState extends State<PostCard>
                               }
                             }
 
-                            // Sort parent comments by timestamp (newest first)
-                            parentComments.sort((a, b) {
-                              try {
-                                final aTime = int.parse(a.timestamp);
-                                final bTime = int.parse(b.timestamp);
-                                return bTime.compareTo(aTime);
-                              } catch (e) {
-                                return 0;
-                              }
-                            });
+                            // Sort parent comments by timestamp (newest first).
+                            // _timestampToMillis handles epoch-millis AND
+                            // ISO-8601 strings, so newly posted comments always
+                            // surface at the top instead of silently sorting to
+                            // the bottom (old int.parse failed on ISO strings).
+                            parentComments.sort((a, b) =>
+                                _timestampToMillis(b.timestamp)
+                                    .compareTo(_timestampToMillis(a.timestamp)));
 
                             if (parentComments.isEmpty) {
                               return Center(
@@ -3310,16 +3398,12 @@ class _PostCardState extends State<PostCard>
                                   // Only add replies if this parent comment is expanded
                                   if (expandedSet.contains(parent.id)) {
                                     final replies = repliesMap[parent.id] ?? [];
-                                    replies.sort((a, b) {
-                                      try {
-                                        final aTime = int.parse(a.timestamp);
-                                        final bTime = int.parse(b.timestamp);
-                                        return aTime.compareTo(
-                                            bTime); // Oldest first for replies (chronological)
-                                      } catch (e) {
-                                        return 0;
-                                      }
-                                    });
+                                    // Oldest first for replies (chronological);
+                                    // handles both epoch and ISO timestamps.
+                                    replies.sort((a, b) =>
+                                        _timestampToMillis(a.timestamp)
+                                            .compareTo(
+                                                _timestampToMillis(b.timestamp)));
                                     reactiveComments.addAll(replies);
                                   }
                                 }
@@ -3347,11 +3431,12 @@ class _PostCardState extends State<PostCard>
                                                     ? 2.0 // Reduced padding for parent comments with expanded replies
                                                     : 10.0), // Normal padding for parent comments without replies
                                         child: FutureBuilder<DocumentSnapshot>(
+                                          // Cached future: fetch each author's
+                                          // profile once per card, not on every
+                                          // rebuild of every comment tile.
                                           future: comment.userId.isNotEmpty
-                                              ? FirebaseFirestore.instance
-                                                  .collection('humanUsers')
-                                                  .doc(comment.userId)
-                                                  .get()
+                                              ? _commentAuthorProfile(
+                                                  comment.userId)
                                               : null,
                                           builder: (BuildContext context,
                                               AsyncSnapshot<DocumentSnapshot>
@@ -3569,66 +3654,47 @@ class _PostCardState extends State<PostCard>
     );
   }
 
-  // Add new methods for updating comment likes and dislikes
+  // Add new methods for updating comment likes and dislikes.
+  // NOTE: the target comment is matched by ID, not display index - the
+  // on-screen list is sorted/filtered differently from the stored array, so
+  // index-based writes used to apply reactions to the wrong comment.
   void _updateCommentLikes(
       CommentClass comment, int index, List<CommentClass> comments) async {
-    try {
-      DocumentReference postDocumentReference =
-          _firestore.collection('postComments').doc(widget.post.id.toString());
-
-      // Get the document
-      DocumentSnapshot postSnapshot = await postDocumentReference.get();
-      if (postSnapshot.exists) {
-        // Get the comments array
-        List<dynamic> commentsList = postSnapshot['comments'] ?? [];
-
-        // Make sure we have the correct index
-        if (index < commentsList.length) {
-          // Update the likedBy field for the specific comment
-          commentsList[index]['likedBy'] = comment.likedBy;
-
-          // If this was previously disliked, update dislikedBy as well
-          if (comment.dislikedBy != null) {
-            commentsList[index]['dislikedBy'] = comment.dislikedBy;
-          }
-
-          // Update the document
-          await postDocumentReference.update({'comments': commentsList});
-        }
-      }
-    } catch (e) {
-      debugPrint('Error updating comment like: $e');
-    }
+    _updateCommentReaction(comment);
   }
 
   void _updateCommentDislikes(
       CommentClass comment, int index, List<CommentClass> comments) async {
+    _updateCommentReaction(comment);
+  }
+
+  Future<void> _updateCommentReaction(CommentClass comment) async {
     try {
-      DocumentReference postDocumentReference =
+      final postDocumentReference =
           _firestore.collection('postComments').doc(widget.post.id.toString());
 
-      // Get the document
-      DocumentSnapshot postSnapshot = await postDocumentReference.get();
-      if (postSnapshot.exists) {
-        // Get the comments array
-        List<dynamic> commentsList = postSnapshot['comments'] ?? [];
+      await _firestore.runTransaction((transaction) async {
+        final postSnapshot = await transaction.get(postDocumentReference);
+        if (!postSnapshot.exists) return;
 
-        // Make sure we have the correct index
-        if (index < commentsList.length) {
-          // Update the dislikedBy field for the specific comment
-          commentsList[index]['dislikedBy'] = comment.dislikedBy;
+        final data = postSnapshot.data();
+        final raw = data?['comments'];
+        if (raw is! List) return;
 
-          // If this was previously liked, update likedBy as well
-          if (comment.likedBy != null) {
-            commentsList[index]['likedBy'] = comment.likedBy;
+        final List<dynamic> commentsList = List.from(raw);
+        for (int i = 0; i < commentsList.length; i++) {
+          final c = commentsList[i];
+          if (c is Map && c['id']?.toString() == comment.id) {
+            c['likedBy'] = comment.likedBy ?? [];
+            c['dislikedBy'] = comment.dislikedBy ?? [];
+            break;
           }
-
-          // Update the document
-          await postDocumentReference.update({'comments': commentsList});
         }
-      }
+
+        transaction.update(postDocumentReference, {'comments': commentsList});
+      });
     } catch (e) {
-      debugPrint('Error updating comment dislike: $e');
+      debugPrint('Error updating comment reaction: $e');
     }
   }
 }
@@ -3658,14 +3724,65 @@ class _DynamicPageViewState extends State<_DynamicPageView> {
   int _currentIndex = 0;
   bool _isCardVisible = false;
 
+  // True once this card has been fully offscreen long enough for its video
+  // player to be released. The sized placeholder is shown instead, and the
+  // player is rebuilt (and resumes) when the card comes back.
+  bool _videoReleased = false;
+  Timer? _videoReleaseTimer;
+
   static final Map<String, ImageProvider> _cachedImages = {};
   static final Map<String, double> _cachedImageHeights = {};
   static final List<String> _cacheQueue = [];
-  static const int _maxImageCacheSize = 30;
+  static const int _maxImageCacheSize = 60;
 
   static final Map<String, double> _cachedVideoAspectRatios = {};
   static final List<String> _videoCacheQueue = [];
-  static const int _maxVideoCacheSize = 20;
+  static const int _maxVideoCacheSize = 300;
+
+  // ---- Persistent aspect-ratio store ----
+  // Video aspect ratios are persisted across sessions so a video's card is
+  // sized correctly BEFORE the player loads. This eliminates the mid-scroll
+  // layout jump that happened every time a video's real aspect ratio arrived
+  // (default 9:16 -> actual) - previously on every first view each session.
+  static const String _aspectStoreKey = 'video_aspect_ratios_v1';
+  static Future<void>? _aspectStoreFuture;
+  static Timer? _aspectStoreSaveTimer;
+
+  static Future<void> _loadAspectStore() {
+    return _aspectStoreFuture ??= () async {
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        final raw = prefs.getString(_aspectStoreKey);
+        if (raw == null || raw.isEmpty) return;
+        final decoded = jsonDecode(raw);
+        if (decoded is Map<String, dynamic>) {
+          decoded.forEach((url, ar) {
+            if (ar is num &&
+                ar > 0 &&
+                !_cachedVideoAspectRatios.containsKey(url)) {
+              _cachedVideoAspectRatios[url] = ar.toDouble();
+              _videoCacheQueue.add(url);
+            }
+          });
+          _cleanupVideoCache();
+        }
+      } catch (_) {
+        // Best-effort cache; sizing falls back to the 9:16 default.
+      }
+    }();
+  }
+
+  static void _saveAspectStore() {
+    // Debounced so bursts of updates (fast scrolling) write once.
+    _aspectStoreSaveTimer?.cancel();
+    _aspectStoreSaveTimer = Timer(const Duration(seconds: 2), () async {
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString(
+            _aspectStoreKey, jsonEncode(_cachedVideoAspectRatios));
+      } catch (_) {}
+    });
+  }
 
   static void _cleanupImageCache() {
     while (_cacheQueue.length > _maxImageCacheSize) {
@@ -3695,6 +3812,18 @@ class _DynamicPageViewState extends State<_DynamicPageView> {
         });
       }
     });
+
+    // Load persisted aspect ratios; rebuild once available so cards that
+    // built before the load completes pick up their correct heights.
+    _loadAspectStore().then((_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _videoReleaseTimer?.cancel();
+    super.dispose();
   }
 
   void _updateHeightOnce(String key, int index, double newHeight) {
@@ -3789,15 +3918,33 @@ class _DynamicPageViewState extends State<_DynamicPageView> {
       key: Key(
           'dynamic-page-view-${widget.videos.join('-')}-${widget.images.join('-')}'),
       onVisibilityChanged: (info) {
-        if (mounted) {
-          final isVisible = info.visibleFraction > 0;
-          if (_isCardVisible != isVisible) {
-            if (isVisible) {
+        if (!mounted) return;
+        final isVisible = info.visibleFraction > 0;
+        if (isVisible) {
+          // Back on screen: cancel any pending release and rebuild the
+          // player if it was released (it resumes from its last position).
+          _videoReleaseTimer?.cancel();
+          _videoReleaseTimer = null;
+          if (!_isCardVisible || _videoReleased) {
+            setState(() {
+              _isCardVisible = true;
+              _videoReleased = false;
+            });
+          }
+        } else {
+          // Fully offscreen: release the heavy video player after a grace
+          // period (so quick scroll direction changes don't thrash
+          // init/dispose). Without this, wantKeepAlive keeps every player
+          // ever created alive for the whole session, and scrolling gets
+          // progressively laggier as decoders/memory accumulate.
+          _videoReleaseTimer ??= Timer(const Duration(seconds: 3), () {
+            _videoReleaseTimer = null;
+            if (mounted && !_videoReleased) {
               setState(() {
-                _isCardVisible = true;
+                _videoReleased = true;
               });
             }
-          }
+          });
         }
       },
       child: Center(
@@ -3963,9 +4110,14 @@ class _DynamicPageViewState extends State<_DynamicPageView> {
                       });
                     }
 
-                    // If the card is not yet visible on screen, show a placeholder.
-                    // The placeholder has the correct size to prevent layout shifts.
-                    if (!_isCardVisible) {
+                    // Show the sized placeholder only while the player is
+                    // released (card fully offscreen for a while). Otherwise
+                    // build the real player immediately - the feed pre-builds
+                    // cards ~1200px ahead of the viewport, so the video
+                    // initializes DURING that window and its first frame is
+                    // ready by the time the user scrolls to it (it stays
+                    // paused until actually visible).
+                    if (_videoReleased) {
                       return Container(
                         color: Colors.black,
                         height: calculatedHeight,
@@ -4042,6 +4194,9 @@ class _DynamicPageViewState extends State<_DynamicPageView> {
                             _videoCacheQueue.remove(videoUrl);
                             _videoCacheQueue.add(videoUrl);
                             _cleanupVideoCache();
+                            // Persist so the card is sized correctly before
+                            // the player loads in future sessions.
+                            _saveAspectStore();
                           }
 
                           // Recalculate height with the correct aspect ratio and update the UI.
