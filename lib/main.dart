@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -12,6 +13,7 @@ import 'package:inzone/theme/theme_manager.dart';
 import 'package:provider/provider.dart';
 import 'package:inzone/router/app_router.dart';
 import 'package:inzone/router/routes.dart';
+import 'package:inzone/services/analytics_service.dart';
 import 'package:inzone/services/appsflyer_service.dart';
 import 'package:inzone/services/inzone_database.dart';
 import 'package:inzone/services/notification_service.dart';
@@ -35,6 +37,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 // Key for storing first launch status in SharedPreferences
 const String FIRST_LAUNCH_KEY = 'is_first_launch';
 const String LAUNCH_COUNT_KEY = 'launch_count';
+const bool AF_SMOKE_TEST = bool.fromEnvironment('AF_SMOKE_TEST');
 
 Future<int> _incrementLaunchCount(SharedPreferences prefs) async {
   final nextCount = (prefs.getInt(LAUNCH_COUNT_KEY) ?? 0) + 1;
@@ -211,13 +214,15 @@ Future<void> validateFirebaseSession() async {
       };
 
       if (!fatalSessionErrorCodes.contains(e.code)) {
-        print('Keeping existing session; validation failure appears transient.');
+        print(
+            'Keeping existing session; validation failure appears transient.');
         return;
       }
 
       // Do not force sign-out here. Let the auth state listener and
       // Firebase persistence keep the user signed in unless auth fully fails.
-      print('Session appears invalid (${e.code}); leaving current auth state intact for now.');
+      print(
+          'Session appears invalid (${e.code}); leaving current auth state intact for now.');
     } catch (e) {
       print('Non-auth error validating session: $e');
       print(
@@ -336,6 +341,8 @@ void main() async {
   // Register FCM background message handler (must be after Firebase init)
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
+  unawaited(AnalyticsService().initialize());
+
   const bool needsUpdate = false;
 
   // Don't block first render on tracking/appsflyer initialization.
@@ -347,6 +354,9 @@ void main() async {
         InitTimer.measure('  └─ AppsFlyer.init', () async {
           final appsFlyerService = AppsFlyerService();
           await appsFlyerService.initialize();
+          await appsFlyerService.runDebugSmokeTestIfEnabled(
+            flagEnabled: AF_SMOKE_TEST,
+          );
           String? advertisingId = await appsFlyerService.getAdvertisingId();
           print("The advertising ID is $advertisingId");
         }),
@@ -381,8 +391,8 @@ void main() async {
     }
   });
 
-  // // TESTING: Uncomment the line below to test all analytics
-  // await appsFlyerService.testAllAnalytics();
+  // Debug smoke test can be enabled with:
+  // flutter run --dart-define=AF_SMOKE_TEST=true
 
   SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,

@@ -22,12 +22,30 @@ import 'package:inzone/config/api_config.dart';
 import 'package:inzone/data/community_game.dart';
 import 'package:inzone/data/hub_game.dart';
 import 'package:inzone/services/active_character_notifier.dart';
+import 'package:inzone/services/analytics_service.dart';
 import 'package:inzone/services/community_game_service.dart';
 import 'package:inzone/services/game_session_analytics.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:simula_ads/simula_ads.dart';
 import 'package:visibility_detector/visibility_detector.dart';
+
+Future<void> _forwardLifecycleProductEvent({
+  required AnalyticsService analyticsService,
+  required String eventName,
+  Map<String, Object?>? parameters,
+  String? gameId,
+  String? gameName,
+  String? sessionId,
+}) {
+  return analyticsService.trackProductEvent(
+    eventName,
+    parameters: parameters,
+    gameId: gameId,
+    gameName: gameName,
+    sessionId: sessionId,
+  );
+}
 
 /// Full-screen, TikTok-style community game player.
 ///
@@ -676,11 +694,15 @@ class _CommunityGamePageState extends State<_CommunityGamePage> {
   String _loadError = '';
   late final bool _useLocalFixture;
   late final Future<String> _fixtureHtmlFuture;
-  late final String _sessionId;
   late final String _backendBaseUrl;
   late final String? _playerId;
   late final String? _gameKey;
-  late final DateTime _sessionOpenedAt;
+
+  final AnalyticsService _analyticsService = AnalyticsService();
+  late final GameSessionLifecycleCoordinator _lifecycle;
+  String? _sessionId;
+  DateTime? _sessionOpenedAt;
+
   Future<void>? _sessionEndFuture;
   int _sessionCoinsSpent = 0;
   String? _lastSharedChallengeKey;
@@ -722,8 +744,8 @@ class _CommunityGamePageState extends State<_CommunityGamePage> {
     if (SocialBridge.scoreIn(outgoing) != null) return outgoing;
     final int? score = await _resolveLatestScore();
     if (score == null) return outgoing;
-    final Map<String, dynamic> enriched =
-        Map<String, dynamic>.from(outgoing)..['score'] = score;
+    final Map<String, dynamic> enriched = Map<String, dynamic>.from(outgoing)
+      ..['score'] = score;
     if (inContext) {
       // open-chat builds its message from `context: { score, ... }`.
       final Map<String, dynamic> ctx = enriched['context'] is Map
@@ -742,26 +764,75 @@ class _CommunityGamePageState extends State<_CommunityGamePage> {
     _fixtureHtmlFuture = _useLocalFixture
         ? rootBundle.loadString(_fixtureAssetPath)
         : Future.value('');
-    _sessionId = DateTime.now().microsecondsSinceEpoch.toString();
-    _sessionOpenedAt = DateTime.now();
     _backendBaseUrl = _resolveBackendBaseUrl();
     final currentUserId = FirebaseAuth.instance.currentUser?.uid.trim();
     _playerId = (currentUserId != null && currentUserId.isNotEmpty)
         ? currentUserId
         : null;
+    _lifecycle = GameSessionLifecycleCoordinator(
+      gameId: widget.game.id,
+      gameName: widget.game.name,
+      trackEvent: (
+        eventName, {
+        parameters,
+        gameId,
+        gameName,
+        sessionId,
+      }) {
+        return _forwardLifecycleProductEvent(
+          analyticsService: _analyticsService,
+          eventName: eventName,
+          parameters: parameters,
+          gameId: gameId,
+          gameName: gameName,
+          sessionId: sessionId,
+        );
+      },
+    );
     final key = widget.game.gameKey?.trim();
     _gameKey = key != null && key.isNotEmpty ? key : null;
     // If the game has no key yet, generate one and persist it.
     if (_gameKey == null && widget.game.id.isNotEmpty) {
       unawaited(_ensureGameKey());
     }
-    unawaited(_recordSessionStart());
+    if (widget.isActive) {
+      _onPresented();
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant _CommunityGamePage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!oldWidget.isActive && widget.isActive) {
+      _onPresented();
+    } else if (oldWidget.isActive && !widget.isActive) {
+      unawaited(_endSession(reason: 'navigation'));
+    }
   }
 
   @override
   void dispose() {
-    unawaited(_recordSessionEnd());
+    final disposeReason = _loadError.isNotEmpty ? 'error' : 'dispose';
+    unawaited(_endSession(reason: disposeReason));
+    _lifecycle.dispose();
     super.dispose();
+  }
+
+  void _onPresented() {
+    _ensureSessionStarted();
+    unawaited(_lifecycle.markGameViewed());
+    if (!_isLoading && _loadError.isEmpty) {
+      unawaited(_lifecycle.markGameLoaded());
+    }
+  }
+
+  void _ensureSessionStarted() {
+    if (_sessionId != null) return;
+    _sessionId = _lifecycle.startSession();
+    _sessionOpenedAt = _lifecycle.sessionStartedAt;
+    _sessionCoinsSpent = 0;
+    _sessionEndFuture = null;
+    unawaited(_recordSessionStart());
   }
 
   bool _isLocalFixtureUrl(String gameUrl) {
@@ -793,6 +864,8 @@ class _CommunityGamePageState extends State<_CommunityGamePage> {
     String action,
     Map<String, dynamic> payload,
   ) async {
+    _ensureSessionStarted();
+
     final overrideBaseUrl = _extractBackendBaseUrl(payload);
     final client = _SocialLoopBackendClient(
       baseUrl: overrideBaseUrl ?? _backendBaseUrl,
@@ -804,7 +877,7 @@ class _CommunityGamePageState extends State<_CommunityGamePage> {
         'gameId': widget.game.id,
         'gameName': widget.game.name,
         'gameKey': _gameKey,
-        'sessionId': _sessionId,
+        'sessionId': _sessionId ?? '',
         'userId': _playerId,
         'playerId': _playerId,
         ...payload,
@@ -820,7 +893,7 @@ class _CommunityGamePageState extends State<_CommunityGamePage> {
             'gameId': widget.game.id,
             'gameName': widget.game.name,
             'gameKey': _gameKey,
-            'sessionId': _sessionId,
+            'sessionId': _sessionId ?? '',
             'userId': _playerId,
             'backendBaseUrl': _backendBaseUrl,
             'fixtureMode': _useLocalFixture,
@@ -841,6 +914,19 @@ class _CommunityGamePageState extends State<_CommunityGamePage> {
         _socialBridge.recordScoreFromMap(payload);
         final postScoreResponse = await client.postScore(mergePayload({}));
         _socialBridge.recordScoreFromResponse(postScoreResponse);
+        final score = GameSessionAnalytics.extractScoreValue(
+          primary: payload,
+          secondary: postScoreResponse,
+        );
+        if (score != null) {
+          unawaited(_lifecycle.trackScoreSubmitted(
+            score: score,
+            scoreType: GameSessionAnalytics.extractScoreType(
+              primary: payload,
+              secondary: postScoreResponse,
+            ),
+          ));
+        }
         return postScoreResponse;
       case 'sendChallenge':
         _socialBridge.recordScoreFromMap(payload);
@@ -871,6 +957,25 @@ class _CommunityGamePageState extends State<_CommunityGamePage> {
         if (scoreResponse is Map) {
           _socialBridge.recordScoreFromResponse(scoreResponse);
         }
+        final requestMap = scoreRequest is Map
+            ? Map<String, dynamic>.from(scoreRequest)
+            : null;
+        final responseMap = scoreResponse is Map
+            ? Map<String, dynamic>.from(scoreResponse)
+            : null;
+        final score = GameSessionAnalytics.extractScoreValue(
+          primary: requestMap,
+          secondary: responseMap,
+        );
+        if (score != null) {
+          unawaited(_lifecycle.trackScoreSubmitted(
+            score: score,
+            scoreType: GameSessionAnalytics.extractScoreType(
+              primary: requestMap,
+              secondary: responseMap,
+            ),
+          ));
+        }
         return {'success': true};
       case 'notifyShare':
         final response = payload['response'] is Map
@@ -889,8 +994,10 @@ class _CommunityGamePageState extends State<_CommunityGamePage> {
             coins, mergePayload({'coins': coins}));
         _sessionCoinsSpent += coins;
         unawaited(_recordSessionCoinSpend(coins));
+        unawaited(_lifecycle.markCoinSpend(coins: coins));
         return response;
       case 'close':
+        await _endSession(reason: 'user_close');
         await widget.onClose();
         return {'success': true};
       default:
@@ -905,15 +1012,19 @@ class _CommunityGamePageState extends State<_CommunityGamePage> {
   }
 
   Future<void> _recordSessionStart() async {
+    final sessionId = _sessionId;
+    final openedAt = _sessionOpenedAt;
+    if (sessionId == null || openedAt == null) return;
+
     final userId = _playerId;
     if (userId == null) return;
 
     try {
       await GameSessionAnalytics.recordSessionStart(
         gameId: widget.game.id,
-        sessionId: _sessionId,
+        sessionId: sessionId,
         userId: userId,
-        openedAt: _sessionOpenedAt,
+        openedAt: openedAt,
         gameName: widget.game.name,
       );
     } catch (_) {
@@ -923,13 +1034,16 @@ class _CommunityGamePageState extends State<_CommunityGamePage> {
 
   Future<void> _recordSessionCoinSpend(int coins) async {
     if (coins <= 0) return;
+    final sessionId = _sessionId;
+    if (sessionId == null) return;
+
     final userId = _playerId;
     if (userId == null) return;
 
     try {
       await GameSessionAnalytics.recordSessionCoinSpend(
         gameId: widget.game.id,
-        sessionId: _sessionId,
+        sessionId: sessionId,
         coins: coins,
       );
     } catch (_) {
@@ -937,7 +1051,21 @@ class _CommunityGamePageState extends State<_CommunityGamePage> {
     }
   }
 
+  Future<void> _endSession({String? reason}) async {
+    await _lifecycle.endSession(endReason: reason);
+    await _recordSessionEnd();
+
+    _sessionId = null;
+    _sessionOpenedAt = null;
+  }
+
   Future<void> _recordSessionEnd() {
+    final sessionId = _sessionId;
+    final openedAt = _sessionOpenedAt;
+    if (sessionId == null || openedAt == null) {
+      return Future.value();
+    }
+
     final ongoing = _sessionEndFuture;
     if (ongoing != null) return ongoing;
 
@@ -949,9 +1077,9 @@ class _CommunityGamePageState extends State<_CommunityGamePage> {
     final closedAt = DateTime.now();
     final future = GameSessionAnalytics.recordSessionEnd(
       gameId: widget.game.id,
-      sessionId: _sessionId,
+      sessionId: sessionId,
       userId: userId,
-      openedAt: _sessionOpenedAt,
+      openedAt: openedAt,
       closedAt: closedAt,
       coinsSpent: _sessionCoinsSpent,
       gameName: widget.game.name,
@@ -989,7 +1117,7 @@ class _CommunityGamePageState extends State<_CommunityGamePage> {
       'gameId': widget.game.id,
       'gameName': widget.game.name,
       'gameKey': _gameKey,
-      'sessionId': _sessionId,
+      'sessionId': _sessionId ?? '',
       'userId': _playerId,
       'backendBaseUrl': _backendBaseUrl,
       'fixtureMode': _useLocalFixture,
@@ -1256,6 +1384,10 @@ class _CommunityGamePageState extends State<_CommunityGamePage> {
             setState(() {
               _isLoading = false;
             });
+            if (widget.isActive) {
+              _ensureSessionStarted();
+              unawaited(_lifecycle.markGameLoaded());
+            }
           },
           onReceivedError: (_, __, error) {
             if (!mounted) return;
@@ -1368,8 +1500,7 @@ class _CommunityGamePageState extends State<_CommunityGamePage> {
               builder: (context, snapshot) {
                 if (snapshot.connectionState != ConnectionState.done) {
                   return Center(
-                    child:
-                        CircularProgressIndicator(color: theme.primaryColor),
+                    child: CircularProgressIndicator(color: theme.primaryColor),
                   );
                 }
                 if (snapshot.hasError || !snapshot.hasData) {
@@ -1497,150 +1628,152 @@ class _InlineCommunityGameCardState extends State<InlineCommunityGameCard> {
       key: _visibilityKey,
       onVisibilityChanged: _onVisibilityChanged,
       child: Padding(
-      // Mirror the bottom spacing used by the regular post cards.
-      padding: const EdgeInsets.only(bottom: 20.0),
-      child: Container(
-        width: cardWidth,
-        decoration: BoxDecoration(
-          color: theme.cardColor,
-          borderRadius: BorderRadius.circular(15),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.1),
-              blurRadius: 8,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Header — mirrors the post card avatar+username row: the game icon
-            // in the top-left circle and the game title beside it. No options
-            // (three-dot) menu, per spec.
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-              child: Row(
-                children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(20),
-                    child: iconUrl.isNotEmpty
-                        ? CachedNetworkImage(
-                            imageUrl: iconUrl,
-                            width: 40,
-                            height: 40,
-                            fit: BoxFit.cover,
-                            placeholder: (context, url) => const SizedBox(
+        // Mirror the bottom spacing used by the regular post cards.
+        padding: const EdgeInsets.only(bottom: 20.0),
+        child: Container(
+          width: cardWidth,
+          decoration: BoxDecoration(
+            color: theme.cardColor,
+            borderRadius: BorderRadius.circular(15),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 8,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header — mirrors the post card avatar+username row: the game icon
+              // in the top-left circle and the game title beside it. No options
+              // (three-dot) menu, per spec.
+              Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                child: Row(
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(20),
+                      child: iconUrl.isNotEmpty
+                          ? CachedNetworkImage(
+                              imageUrl: iconUrl,
                               width: 40,
                               height: 40,
+                              fit: BoxFit.cover,
+                              placeholder: (context, url) => const SizedBox(
+                                width: 40,
+                                height: 40,
+                              ),
+                              errorWidget: (context, url, error) => const Icon(
+                                Icons.sports_esports,
+                                size: 40,
+                              ),
+                            )
+                          : const Icon(Icons.sports_esports, size: 40),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            game.name,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: theme.textTheme.titleLarge?.color,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 20,
                             ),
-                            errorWidget: (context, url, error) => const Icon(
-                              Icons.sports_esports,
-                              size: 40,
-                            ),
-                          )
-                        : const Icon(Icons.sports_esports, size: 40),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          game.name,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: theme.textTheme.titleLarge?.color,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 20,
                           ),
-                        ),
-                        // Live "N playing now" — hidden when nobody's in the game,
-                        // same signal as the game-hub cards.
-                        LivePlayersIndicator(
-                          gameId: game.id,
-                          uploaderId: game.uploaderId,
-                          builder: (context, players, pulse) => Padding(
-                            padding: const EdgeInsets.only(top: 2),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                FadeTransition(
-                                  opacity: pulse,
-                                  child: Container(
-                                    width: 7,
-                                    height: 7,
-                                    decoration: const BoxDecoration(
-                                      color: kLivePlayersGreen,
-                                      shape: BoxShape.circle,
+                          // Live "N playing now" — hidden when nobody's in the game,
+                          // same signal as the game-hub cards.
+                          LivePlayersIndicator(
+                            gameId: game.id,
+                            uploaderId: game.uploaderId,
+                            builder: (context, players, pulse) => Padding(
+                              padding: const EdgeInsets.only(top: 2),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  FadeTransition(
+                                    opacity: pulse,
+                                    child: Container(
+                                      width: 7,
+                                      height: 7,
+                                      decoration: const BoxDecoration(
+                                        color: kLivePlayersGreen,
+                                        shape: BoxShape.circle,
+                                      ),
                                     ),
                                   ),
-                                ),
-                                const SizedBox(width: 6),
-                                Text(
-                                  '$players playing now',
-                                  style: const TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w700,
-                                    color: kLivePlayersGreen,
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    '$players playing now',
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700,
+                                      color: kLivePlayersGreen,
+                                    ),
                                   ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
-                ],
-              ),
-            ),
-            // Optional game description — only shown when it has real text.
-            if (description.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(left: 10, right: 10, bottom: 8),
-                child: Text(
-                  description,
-                  style: TextStyle(
-                    color: theme.textTheme.bodyMedium?.color,
-                    fontSize: 14,
-                    height: 1.2,
-                  ),
+                  ],
                 ),
               ),
-            // Live, interactive game body. Clip only the bottom corners so it
-            // fits the card's rounded base.
-            ClipRRect(
-              borderRadius: const BorderRadius.vertical(
-                bottom: Radius.circular(15),
+              // Optional game description — only shown when it has real text.
+              if (description.isNotEmpty)
+                Padding(
+                  padding:
+                      const EdgeInsets.only(left: 10, right: 10, bottom: 8),
+                  child: Text(
+                    description,
+                    style: TextStyle(
+                      color: theme.textTheme.bodyMedium?.color,
+                      fontSize: 14,
+                      height: 1.2,
+                    ),
+                  ),
+                ),
+              // Live, interactive game body. Clip only the bottom corners so it
+              // fits the card's rounded base.
+              ClipRRect(
+                borderRadius: const BorderRadius.vertical(
+                  bottom: Radius.circular(15),
+                ),
+                child: SizedBox(
+                  height: gameHeight,
+                  width: double.infinity,
+                  // embeddedInFeed makes the game claim gestures in its center
+                  // (so play is never interrupted by the feed scrolling under the
+                  // finger) while leaving its top/bottom edges free to scroll the
+                  // feed — see `_buildWebView`.
+                  //
+                  // The live game is mounted only while the card is on screen
+                  // (see _onVisibilityChanged); otherwise a same-sized
+                  // placeholder keeps the layout identical.
+                  child: _gameActive
+                      ? _CommunityGamePage(
+                          key: ValueKey('inline_game_${game.id}'),
+                          game: game,
+                          isActive: true,
+                          embeddedInFeed: true,
+                          onClose: () async {},
+                        )
+                      : _buildGamePlaceholder(theme, iconUrl),
+                ),
               ),
-              child: SizedBox(
-                height: gameHeight,
-                width: double.infinity,
-                // embeddedInFeed makes the game claim gestures in its center
-                // (so play is never interrupted by the feed scrolling under the
-                // finger) while leaving its top/bottom edges free to scroll the
-                // feed — see `_buildWebView`.
-                //
-                // The live game is mounted only while the card is on screen
-                // (see _onVisibilityChanged); otherwise a same-sized
-                // placeholder keeps the layout identical.
-                child: _gameActive
-                    ? _CommunityGamePage(
-                        key: ValueKey('inline_game_${game.id}'),
-                        game: game,
-                        isActive: true,
-                        embeddedInFeed: true,
-                        onClose: () async {},
-                      )
-                    : _buildGamePlaceholder(theme, iconUrl),
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
-      ),
       ),
     );
   }
@@ -1793,7 +1926,6 @@ Future<_FeedCharacterContext> _resolveFeedCharacter(
   );
 }
 
-
 class _SimulaGamePage extends StatefulWidget {
   final GameData game;
   final bool isActive;
@@ -1818,21 +1950,54 @@ class _SimulaGamePageState extends State<_SimulaGamePage> {
   String _error = '';
   bool _resolved = false;
 
-  late final String _sessionId;
-  late final DateTime _sessionOpenedAt;
+  final AnalyticsService _analyticsService = AnalyticsService();
+  late final GameSessionLifecycleCoordinator _lifecycle;
+  String? _sessionId;
+  DateTime? _sessionOpenedAt;
+
   late final String? _playerId;
   Future<void>? _sessionEndFuture;
 
   @override
   void initState() {
     super.initState();
-    _sessionId = DateTime.now().microsecondsSinceEpoch.toString();
-    _sessionOpenedAt = DateTime.now();
     final currentUserId = FirebaseAuth.instance.currentUser?.uid.trim();
     _playerId = (currentUserId != null && currentUserId.isNotEmpty)
         ? currentUserId
         : null;
-    unawaited(_recordSessionStart());
+    _lifecycle = GameSessionLifecycleCoordinator(
+      gameId: widget.game.id,
+      gameName: widget.game.name,
+      trackEvent: (
+        eventName, {
+        parameters,
+        gameId,
+        gameName,
+        sessionId,
+      }) {
+        return _forwardLifecycleProductEvent(
+          analyticsService: _analyticsService,
+          eventName: eventName,
+          parameters: parameters,
+          gameId: gameId,
+          gameName: gameName,
+          sessionId: sessionId,
+        );
+      },
+    );
+    if (widget.isActive) {
+      _onPresented();
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant _SimulaGamePage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!oldWidget.isActive && widget.isActive) {
+      _onPresented();
+    } else if (oldWidget.isActive && !widget.isActive) {
+      unawaited(_endSession(reason: 'navigation'));
+    }
   }
 
   @override
@@ -1847,8 +2012,26 @@ class _SimulaGamePageState extends State<_SimulaGamePage> {
 
   @override
   void dispose() {
-    unawaited(_recordSessionEnd());
+    final disposeReason = _error.isNotEmpty ? 'error' : 'dispose';
+    unawaited(_endSession(reason: disposeReason));
+    _lifecycle.dispose();
     super.dispose();
+  }
+
+  void _onPresented() {
+    _ensureSessionStarted();
+    unawaited(_lifecycle.markGameViewed());
+    if (!_webLoading && _iframeUrl != null && _error.isEmpty) {
+      unawaited(_lifecycle.markGameLoaded());
+    }
+  }
+
+  void _ensureSessionStarted() {
+    if (_sessionId != null) return;
+    _sessionId = _lifecycle.startSession();
+    _sessionOpenedAt = _lifecycle.sessionStartedAt;
+    _sessionEndFuture = null;
+    unawaited(_recordSessionStart());
   }
 
   Future<void> _resolveIframe() async {
@@ -1930,14 +2113,18 @@ class _SimulaGamePageState extends State<_SimulaGamePage> {
   }
 
   Future<void> _recordSessionStart() async {
+    final sessionId = _sessionId;
+    final openedAt = _sessionOpenedAt;
+    if (sessionId == null || openedAt == null) return;
+
     final userId = _playerId;
     if (userId == null) return;
     try {
       await GameSessionAnalytics.recordSessionStart(
         gameId: widget.game.id,
-        sessionId: _sessionId,
+        sessionId: sessionId,
         userId: userId,
-        openedAt: _sessionOpenedAt,
+        openedAt: openedAt,
         gameName: widget.game.name,
       );
     } catch (_) {
@@ -1945,7 +2132,19 @@ class _SimulaGamePageState extends State<_SimulaGamePage> {
     }
   }
 
+  Future<void> _endSession({String? reason}) async {
+    await _lifecycle.endSession(endReason: reason);
+    await _recordSessionEnd();
+
+    _sessionId = null;
+    _sessionOpenedAt = null;
+  }
+
   Future<void> _recordSessionEnd() {
+    final sessionId = _sessionId;
+    final openedAt = _sessionOpenedAt;
+    if (sessionId == null || openedAt == null) return Future.value();
+
     final ongoing = _sessionEndFuture;
     if (ongoing != null) return ongoing;
 
@@ -1954,9 +2153,9 @@ class _SimulaGamePageState extends State<_SimulaGamePage> {
 
     final future = GameSessionAnalytics.recordSessionEnd(
       gameId: widget.game.id,
-      sessionId: _sessionId,
+      sessionId: sessionId,
       userId: userId,
-      openedAt: _sessionOpenedAt,
+      openedAt: openedAt,
       closedAt: DateTime.now(),
       coinsSpent: 0,
       gameName: widget.game.name,
@@ -2002,6 +2201,10 @@ class _SimulaGamePageState extends State<_SimulaGamePage> {
               onLoadStop: (_, __) {
                 if (!mounted) return;
                 setState(() => _webLoading = false);
+                if (widget.isActive) {
+                  _ensureSessionStarted();
+                  unawaited(_lifecycle.markGameLoaded());
+                }
               },
               onReceivedError: (_, __, error) {
                 if (!mounted) return;
@@ -2035,7 +2238,8 @@ class _SimulaGamePageState extends State<_SimulaGamePage> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(Icons.error_outline, size: 64, color: Colors.red),
+                    const Icon(Icons.error_outline,
+                        size: 64, color: Colors.red),
                     const SizedBox(height: 16),
                     Text(
                       'Error Loading Game',
