@@ -1,11 +1,15 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:colorful_safe_area/colorful_safe_area.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:inzone/components/settings/topic_selector_widget.dart';
 import 'package:inzone/components/ui/button.dart';
 import 'package:inzone/router/app_router.dart';
 import 'package:inzone/router/routes.dart';
+import 'package:inzone/services/analytics_service.dart';
 import 'package:inzone/services/inzone_database.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:toasty_box/toast_service.dart';
@@ -28,6 +32,8 @@ class _InterestSelectionScreenState extends State<InterestSelectionScreen> {
   Map<String, List<String>> topicCategories = {};
   bool _isLoading = true;
   String? _errorMessage;
+  final SignupCompletionEmitter _signupCompletionEmitter =
+      SignupCompletionEmitter();
 
   @override
   void initState() {
@@ -189,27 +195,50 @@ class _InterestSelectionScreenState extends State<InterestSelectionScreen> {
       print("InterestScreen - Selected interests: $_interests");
 
       // Update interests via backend API (this will calculate and set masterCategories)
-      final success = await InZoneDatabase.updateUserInterests(user.uid, _interests);
-      
+      final success =
+          await InZoneDatabase.updateUserInterests(user.uid, _interests);
+
       if (!success) {
         throw Exception("Failed to update interests via API");
       }
-      
-      print("InterestScreen - ✅ Interests and masterCategories updated via API");
 
-      // Set a timestamp to mark profile completion using UTC time
-      final timestamp = DateTime.now().toUtc().toIso8601String();
-      print("InterestScreen - Setting createdAt timestamp: $timestamp");
+      print(
+          "InterestScreen - ✅ Interests and masterCategories updated via API");
 
-      // Update the createdAt timestamp
-      await FirebaseFirestore.instance
-          .collection('humanUsers')
-          .doc(user.uid)
-          .update({
-        'createdAt': timestamp,
-      });
+      final signupMethod = resolveSignupMethodFromProviderIds(
+        user.providerData.map((info) => info.providerId),
+        isAnonymous: user.isAnonymous,
+      );
 
-      print("InterestScreen - ✅ Set createdAt timestamp");
+      await _signupCompletionEmitter.complete(
+        signupMethod: signupMethod,
+        writeCreatedAt: () async {
+          final docRef =
+              FirebaseFirestore.instance.collection('humanUsers').doc(user.uid);
+
+          return FirebaseFirestore.instance
+              .runTransaction<bool>((transaction) async {
+            final snapshot = await transaction.get(docRef);
+            final data = snapshot.data();
+            if (data?['createdAt'] != null) {
+              return false;
+            }
+
+            // Set a timestamp to mark profile completion using UTC time.
+            final timestamp = DateTime.now().toUtc().toIso8601String();
+            print("InterestScreen - Setting createdAt timestamp: $timestamp");
+
+            transaction.update(docRef, {
+              'createdAt': timestamp,
+            });
+
+            print("InterestScreen - ✅ Set createdAt timestamp");
+            return true;
+          });
+        },
+        logSignupCompleted: (method) =>
+            AnalyticsService.instance.logSignupCompleted(signupMethod: method),
+      );
 
       // Force refresh of auth state
       await AppRouter.authNotifier.refreshAuthState();
@@ -438,7 +467,8 @@ class _InterestSelectionScreenState extends State<InterestSelectionScreen> {
                                     .map((topic) => TopicSelectorWidget(
                                           topic: topic,
                                           callBack: _toggleInterest,
-                                          isSelected: _interests.contains(topic), // Add selection state
+                                          isSelected: _interests.contains(
+                                              topic), // Add selection state
                                         ))
                                     .toList(),
                               )
@@ -462,7 +492,8 @@ class _InterestSelectionScreenState extends State<InterestSelectionScreen> {
                                             .map((topic) => TopicSelectorWidget(
                                                   topic: topic,
                                                   callBack: _toggleInterest,
-                                                  isSelected: _interests.contains(topic), // Add selection state
+                                                  isSelected: _interests.contains(
+                                                      topic), // Add selection state
                                                 ))
                                             .toList(),
                                       ),
@@ -480,7 +511,9 @@ class _InterestSelectionScreenState extends State<InterestSelectionScreen> {
                                                     TopicSelectorWidget(
                                                       topic: topic,
                                                       callBack: _toggleInterest,
-                                                      isSelected: _interests.contains(topic), // Add selection state
+                                                      isSelected:
+                                                          _interests.contains(
+                                                              topic), // Add selection state
                                                     ))
                                                 .toList()
                                             : [],
@@ -502,4 +535,63 @@ class _InterestSelectionScreenState extends State<InterestSelectionScreen> {
       ),
     );
   }
+}
+
+@visibleForTesting
+String resolveSignupMethodFromProviderIds(
+  Iterable<String> providerIds, {
+  bool isAnonymous = false,
+}) {
+  final normalized = providerIds.map((id) => id.toLowerCase()).toSet();
+  if (normalized.contains('anonymous') || isAnonymous) {
+    return 'anonymous';
+  }
+  if (normalized.contains('apple.com')) {
+    return 'apple';
+  }
+  if (normalized.contains('google.com')) {
+    return 'google';
+  }
+  if (normalized.contains('password')) {
+    return 'email';
+  }
+  return 'email';
+}
+
+@visibleForTesting
+class SignupCompletionEmitter {
+  bool _completed = false;
+
+  Future<void> complete({
+    required String signupMethod,
+    required Future<bool> Function() writeCreatedAt,
+    required Future<void> Function(String signupMethod) logSignupCompleted,
+  }) async {
+    if (_completed) {
+      return;
+    }
+
+    try {
+      final wroteCreatedAt = await writeCreatedAt();
+      if (wroteCreatedAt) {
+        _completed = true;
+        unawaited(_logSignupCompletedSafely(
+          signupMethod: signupMethod,
+          logSignupCompleted: logSignupCompleted,
+        ));
+      }
+    } catch (_) {
+      _completed = false;
+      rethrow;
+    }
+  }
+}
+
+Future<void> _logSignupCompletedSafely({
+  required String signupMethod,
+  required Future<void> Function(String signupMethod) logSignupCompleted,
+}) async {
+  try {
+    await logSignupCompleted(signupMethod);
+  } catch (_) {}
 }
